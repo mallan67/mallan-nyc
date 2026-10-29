@@ -71,6 +71,15 @@ describe('public CSP is static, present, and restrictive', () => {
 });
 
 describe('cache policy: private no-store, public GET data APIs cacheable', () => {
+  it('CRM page frames exactly the tour hosts the agent search embeds', () => {
+    const { res, headers } = fakeRes();
+    applySecurityHeaders(res, '/crm/search', 'GET');
+    const frameSrc = (/frame-src ([^;]+)/.exec(headers.get('content-security-policy') || '') || [])[1] || '';
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { TOUR_EMBED_HOSTS } = require('@/lib/search/crm-idx-mapper');
+    expect(frameSrc.split(/\s+/).sort()).toEqual((TOUR_EMBED_HOSTS as string[]).map((h) => `https://${h}`).sort());
+  });
+
   it('CRM page is no-store', () => {
     const { res, headers } = fakeRes();
     applySecurityHeaders(res, '/crm/dashboard', 'GET');
@@ -96,6 +105,20 @@ describe('cache policy: private no-store, public GET data APIs cacheable', () =>
       const { res, headers } = fakeRes();
       applySecurityHeaders(res, p, 'GET');
       expect(headers.get('cache-control')).toBeNull();
+    }
+  });
+  it('public GET /api/media/health + /api/media/proxy keep their own CDN header (the health route is cached for five minutes so that Cotality is asked once per photo, not once per visitor)', () => {
+    for (const p of ['/api/media/health', '/api/media/proxy']) {
+      const { res, headers } = fakeRes();
+      applySecurityHeaders(res, p, 'GET');
+      expect(headers.get('cache-control')).toBeNull();
+    }
+  });
+  it('only the exact /api/media/health is public: its sub-routes, a write to it and the other /api/media routes stay no-store', () => {
+    for (const [p, method] of [['/api/media/health', 'POST'], ['/api/media/health/extra', 'GET'], ['/api/media/healthz', 'GET'], ['/api/media/batch', 'GET']] as const) {
+      const { res, headers } = fakeRes();
+      applySecurityHeaders(res, p, method);
+      expect(headers.get('cache-control')).toBe('no-store');
     }
   });
   it('authenticated GET /api/buildings/search IS no-store (not swept up by the public exemption)', () => {

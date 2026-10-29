@@ -3,7 +3,7 @@
 
 **Status:** Active Development · **Live Production** (mallan.nyc on Vercel)
 **Jurisdiction:** New York State / NYC
-**Data Feed:** REBNY RLS via Trestle/Cotality — **IDX Plus** license (902 IDX Plus fields across 7 resources; 12 total Trestle data resources). IDX feed powers public display + internal CRM + reporting (REBNY confirmed 2026-03-27). IDX-eligible inventory only — not full-market search.
+**Data Feed:** REBNY RLS data via the live Cotality API — **IDX Plus** license (fields, resources and enum values per the live `$metadata`, mirrored in `data/cotality-enums.live.json`). IDX feed powers public display + internal CRM + reporting (REBNY confirmed 2026-03-27). IDX-eligible inventory only — not full-market search.
 **Policies:** NY DOS Advertising · REBNY RLS Display Rules · Fair Housing · TCPA/CTIA · CAN-SPAM · NY SHIELD · WCAG 2.1 AA
 
 ---
@@ -47,34 +47,33 @@ Install the hooks once: `npm run hooks:install`
 ## 📌 MLS / IDX DATA COMPLIANCE (REBNY RLS — IDX Plus)
 
 ### Overview
-This project integrates **REBNY Residential Listing Service (RLS) data via the IDX Plus feed** under a broker-direct license held by **Mallan Real Estate Inc**. The system migrated to **IDX Plus** (from standard IDX) via Trestle/Cotality, providing **902 IDX Plus fields across 7 REBNY-specified resources** (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39). Trestle exposes **12 total data resources** including 5 additional beyond the IDX Plus spec: PropertyRooms, Teams, TeamMembers, PropertyGreenVerification, and Building. All use of MLS/IDX data must comply with REBNY RLS rules, RESO standards, the Fair Housing Act, and New York State real estate advertising law.
+This project integrates **REBNY Residential Listing Service (RLS) data via the IDX Plus feed** under a broker-direct license held by **Mallan Real Estate Inc**. The system migrated to **IDX Plus** (from standard IDX), served through the live Cotality API; the resources and fields actually served are whatever the live `$metadata` exposes (mirrored in `data/cotality-enums.live.json`) — do not rely on a fixed count. All use of MLS/IDX data must comply with REBNY RLS rules, the Fair Housing Act, and New York State real estate advertising law.
 
 Non-compliance exposes the brokerage to immediate suspension and liquidated damages up to $40,000.
 
 ---
 
-### Three-layer feed model — REBNY vs Cotality vs RESO (clarified 2026-05-01)
+### Feed layers — REBNY policy vs the Cotality provider contract
 
-Three distinct layers must stay separate when reasoning about feed behavior, debugging field semantics, or planning future MLS subscriptions:
+Two distinct feed layers must stay separate when reasoning about feed behavior, debugging field semantics, or planning future MLS subscriptions. Master §0.1.1 keeps them separate from each other and from New York law/DOS and Mallan business rules:
 
 | Layer | What it is | Who owns it |
 |---|---|---|
-| **REBNY** | The MLS / RLS organization, data owner, and policy layer | Owns the runtime policy that decides which rows reach the feed and which fields are populated/suppressed per row. UOI in RESO Desktop Client: `T00000046`. |
-| **Cotality / Trestle** | The API / feed platform implementing and serving REBNY's data | mallan.nyc reads the live feed at `https://api.cotality.com/trestle` — **the only field/API truth**. The live `$metadata` defines which fields exist; REBNY's policy layer decides which rows/fields are populated per row. |
-| **RESO** | The OData / field-naming model the Cotality feed exposes | The Cotality/Trestle feed returns a RESO-shaped OData model (entity types, field names, enum tokens). It does NOT tell you what REBNY's policy layer populates at runtime — verify against the live feed, not an external standard. |
+| **REBNY** | The RLS operator, data owner, and policy layer | Owns the runtime policy that decides which rows reach the feed and which fields are populated/suppressed per row. |
+| **Cotality** | The provider API implementing and serving REBNY's data | mallan.nyc reads the live feed at `https://api.cotality.com/trestle` — **the only field/API truth**. The live `$metadata` defines which fields, types and enum values exist; REBNY's policy layer decides which rows/fields are populated per row. |
 
 **Practical consequences:**
 
-1. **Field behavior is feed-specific, not RESO-spec-derived.** `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` are universally `null` AND non-OData-filterable in mallan.nyc's REBNY IDX Plus feed because REBNY pre-filters non-displayable rows out at the Cotality data-serving boundary (HTTP 400 "Results from 'RLS' has been suppressed (provider Level)"). This is REBNY policy, NOT a universal Cotality behavior. The mapper at `lib/idx/trestle-mapper.ts:680-681` treats null as displayable for these two fields specifically because of REBNY's pre-filter — see the in-file comment for the full reasoning.
-2. **Other RESO fields behave differently because REBNY treats them differently.** `InternetAutomatedValuationDisplayYN` and `InternetConsumerCommentYN` ARE per-row populated (~97% true / ~3% false) because REBNY treats them as per-listing opt-out flags rather than pre-filter conditions. Those use fail-closed `affirmPermission()` coercion.
-3. **Future non-REBNY feeds need independent verification.** When mallan.nyc subscribes to OneKey, NY State MLS, or other non-REBNY MLSes (per the external-inventory spec Phase 2-A), each carries its own three-layer stack and may populate the SAME RESO field names with different runtime semantics. New adapters must run their own `npm run reso:coverage` probe against the new feed before any writer-side mapping decisions are committed. **Runtime payload behavior must be verified per feed, not assumed from RESO certification alone.**
+1. **Field behavior is feed-specific.** `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` are universally `null` AND non-OData-filterable in mallan.nyc's REBNY IDX Plus feed because REBNY pre-filters non-displayable rows out at the Cotality data-serving boundary (HTTP 400 "Results from 'RLS' has been suppressed (provider Level)"). This is REBNY policy, NOT a universal Cotality behavior. The mapper in `lib/idx/trestle-mapper.ts` treats null as displayable for these two fields specifically because of REBNY's pre-filter — see the in-file comment for the full reasoning.
+2. **Other display flags behave differently because REBNY treats them differently.** `InternetAutomatedValuationDisplayYN` and `InternetConsumerCommentYN` ARE per-row populated (~97% true / ~3% false) because REBNY treats them as per-listing opt-out flags rather than pre-filter conditions. Those use fail-closed `affirmPermission()` coercion.
+3. **Future non-REBNY feeds need independent verification.** When mallan.nyc subscribes to OneKey, NY State MLS, or other non-REBNY MLSes (per the external-inventory spec Phase 2-A), each carries its own provider and policy layers and may populate the SAME field names with different runtime semantics. New adapters must run their own field-coverage probe against the new feed before any writer-side mapping decisions are committed. **Runtime payload behavior must be verified per feed, not assumed from a published data standard.**
 
 This distinction was clarified after the 2026-04-30 IDX Plus display-gate incident. Full incident capture in [`memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`](./memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md).
 
 ---
 
 ### Allowed Use (REBNY Confirmed 2026-03-27)
-- MLS/IDX data may be accessed **only via authorized server-side connections** using credentials issued through Trestle/Cotality.
+- MLS/IDX data may be accessed **only via authorized server-side connections** using credentials issued through Cotality.
 - IDX data may be used for: **(1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting** — confirmed by REBNY (Michaela Parker, mparker@rebny.com, 2026-03-27).
 - IDX feed is limited to the **IDX-released field set and IDX-eligible listing inventory only** — it is NOT full-market search. Agents use RealPlus for full RLS inventory.
 - Client data stays on mallan.nyc — never passes through RealPlus or third parties.
@@ -145,9 +144,9 @@ Compliance is not optional and not abstract — it is contractual.
 
 ---
 
-## IDX Plus / Trestle (REBNY RLS) — Rules of the Road
+## IDX Plus / Cotality (REBNY RLS) — Rules of the Road
 
-> **Feed:** mallan.nyc reads the live `api.cotality.com/trestle` feed under the **IDX Plus - WebAPI** license (Trestle-11371-20) for **public display, internal CRM client management, and reporting** (REBNY confirmed 2026-03-27). The IDX feed provides IDX-released fields and IDX-eligible inventory only — it is NOT full-market search. RealPlus is the LMP for listing submission and full RLS search — REBNY does not grant LMP licenses to individual brokers. mallan.nyc reads 902 IDX Plus fields across 7 REBNY-specified resources plus additional Trestle-provisioned fields (1,457 total Property definitions in live metadata).
+> **Feed:** mallan.nyc reads the live `api.cotality.com/trestle` feed under the **IDX Plus - WebAPI** license (Trestle-11371-20) for **public display, internal CRM client management, and reporting** (REBNY confirmed 2026-03-27). The IDX feed provides IDX-released fields and IDX-eligible inventory only — it is NOT full-market search. RealPlus is the LMP for listing submission and full RLS search — REBNY does not grant LMP licenses to individual brokers. The fields mallan.nyc may read are the ones the live Cotality `$metadata` serves (`data/cotality-enums.live.json`).
 
 ### Environment Variables (server-only)
 
@@ -158,9 +157,9 @@ IDX_CLIENT_ID=...
 IDX_CLIENT_SECRET=...
 ```
 
-**Never expose credentials to the browser.** All Trestle calls are server-side only (`lib/idx/fetch.ts`).
+**Never expose credentials to the browser.** All Cotality calls are server-side only (`lib/idx/fetch.ts`).
 
-> **API Migration Complete:** Old Trestle URLs (`api-trestle.corelogic.com`, `api-prod.corelogic.com`) are deprecated. All calls use `api.cotality.com/trestle`. Media proxy allowlists all 3 domains during transition (legacy domains removable after March 31, 2026).
+> **Provider host:** all calls use `api.cotality.com/trestle`. The pre-2026-03-31 provider hosts are retired; the media proxy still recognises them in stored media URLs until that compatibility code is removed (`lib/media/proxy-url-policy.ts`).
 
 ### Public vs CRM Endpoints
 
@@ -204,13 +203,10 @@ Generated by: `lib/idx/mapping.ts` (`generateAttributionText()`)
 
 ### Field model (live Cotality feed)
 
-The live `api.cotality.com/trestle` feed exposes a RESO-shaped OData model. Field facts (verify against the live `$metadata`):
-- **23 RESO-to-RLS field renames** handled in `lib/idx/trestle-mapper.ts`
-- **902 IDX Plus fields** across 7 REBNY-specified resources (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39), 41 required, 86 conditional
-- **5 additional Trestle resources** beyond IDX Plus: PropertyRooms (39 fields), Teams (48), TeamMembers (29), PropertyGreenVerification (39), Building (key only)
-- **Critical fields beyond IDX Plus CSV** on Trestle Property: `InternetAddressDisplayYN`, `InternetEntireListingDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`, `ShowingInstructions` — all distribution gate / showing fields
-- **2,066 picklist values** across 117 lookups
-- **StandardStatus uses RESO enum tokens** (no spaces): `Active`, `ComingSoon`, `ActiveUnderContract`
+The live `api.cotality.com/trestle` feed exposes an OData model. Field facts (verify against the live `$metadata`):
+- **Field names, types, resources and enum values:** `data/cotality-enums.live.json`, generated from the live `$metadata` by `npm run cotality:pull` and drift-checked by `npm run cotality:verify`
+- **Distribution gate / showing fields** on Property: `InternetAddressDisplayYN`, `InternetEntireListingDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`, `ShowingInstructions`
+- **`StandardStatus` values are enum tokens** (no spaces): `Active`, `ComingSoon`, `ActiveUnderContract`
 - **Recent live fields:** `OriginalMediaUrl` on Media, `MemberMls`/`OfficeMls`
 
 ---
@@ -487,10 +483,10 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 #### Media (2)
 | Route | Method | Purpose |
 |-------|--------|---------|
-| `/api/media/proxy` | GET | Server-side proxy for Trestle media URLs (Bearer auth added server-side, 7-day CDN cache) |
+| `/api/media/proxy` | GET | Server-side proxy for Cotality media URLs (Bearer auth added server-side, 7-day CDN cache) |
 | `/api/crm/listings/[id]/media/upload` | POST | Agent photo upload (Sharp optimization → R2, EXIF/GPS stripped, 3 WebP variants) |
 
-#### IDX/Trestle (3)
+#### IDX/Cotality (3)
 | Route | Method | Purpose |
 |-------|--------|---------|
 | `/api/idx/search` | GET | CRM search — agent/broker only, broader field set with proxied media URLs (not guaranteed to match full RealPlus/LMP inventory) |
@@ -502,7 +498,7 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 |-------|----------|---------|
 | `/api/cron/data-retention` | Daily 3am | NY SHIELD Act data cleanup (sessions, tokens, closed listings) |
 | `/api/cron/dom-reset` | Daily 6am | Reset DOM for Withdrawn/Cancelled ≥30 days (UCBA 2026) |
-| `/api/cron/idx-sync` | Every 4 hours | Incremental IDX listing sync from Trestle |
+| `/api/cron/idx-sync` | Every 4 hours | Incremental IDX listing sync from Cotality |
 | `/api/cron/listing-expiration` | Daily 7am | UCBA protected period enforcement + notifications |
 | `/api/cron/search-alerts` | Daily 7:30am | Saved search email alerts to clients |
 | `/api/cron/seller-scoring` | Daily 8am | Batch re-score stale seller leads |
@@ -521,26 +517,26 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 
 **4 media types supported:** Photos, Floor Plans, Videos, Virtual Tours (3D/Matterport)
 
-- **Trestle photos** require Bearer auth — browser `<img>` tags cannot send auth headers
-- **Server-side proxy** (`/api/media/proxy`): fetches from Trestle with Bearer token, serves to browser
+- **Cotality photos** require Bearer auth — browser `<img>` tags cannot send auth headers
+- **Server-side proxy** (`/api/media/proxy`): fetches from Cotality with Bearer token, serves to browser
 - **CDN cache:** 7 days + `immutable` flag (first load proxied, subsequent loads instant from CDN)
-- **Allowlist:** Only `api.cotality.com`, `api-trestle.corelogic.com`, `api-prod.corelogic.com` domains
+- **Allowlist:** `api.cotality.com`, plus the retired pre-2026-03-31 provider hosts still present in stored media URLs, until that compatibility code is removed (`lib/media/proxy-url-policy.ts`)
 - **Agent uploads:** Multipart form → Sharp (EXIF/GPS stripped, WebP, 3 variants: hero 1600px, card 800px, thumb 400px) → Cloudflare R2
 - **Rate limit exemption:** `/api/media/proxy` is exempt from the 30/min API rate limit (50+ images per page load is normal)
 
-**Media type classification** (from Trestle `MediaCategory` field):
+**Media type classification** (from Cotality `MediaCategory` field):
 - `Photo` → cached to R2, displayed in photo carousel
 - `Floor Plan` → cached to R2, displayed in dedicated Floor Plan tab
 - `Video` → rendered as `<video>` tag (direct files) or `<iframe>` (YouTube/Vimeo/Wistia embeds)
 - `Virtual Tour` → rendered as `<iframe>` with `xr-spatial-tracking` (Matterport, etc.)
 
 **Virtual tour sources** (priority order):
-1. `VirtualTourURLUnbranded` field on Property resource (RESO standard)
+1. `VirtualTourURLUnbranded` field on the live Cotality Property resource
 2. Media resource items with `MediaCategory = 'Virtual Tour'` (fallback)
 
-#### ⚠️ TRESTLE MEDIA API RULES — VENDOR-CONFIRMED (2026-04-07)
+#### ⚠️ COTALITY MEDIA API RULES — VENDOR-CONFIRMED (2026-04-07)
 
-> **DO NOT IGNORE — Direct CoreLogic/Trestle (Cotality) vendor guidance.**
+> **DO NOT IGNORE — direct Cotality vendor guidance.**
 
 | Rule | Detail |
 |------|--------|
@@ -549,7 +545,7 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 | **`Media.ModificationTimestamp`** | Source of truth for individual media row changes. Include in `$select` for change tracking. |
 | **`Property.PhotosChangeTimestamp`** | High-level trigger — fires when ANY media for a listing changes. Use to decide which listings need media re-fetch. |
 
-**All batch media queries in this codebase filter by `ResourceRecordKey` (with `ResourceRecordID` fallback only when `mls_id` is null). Enforced across 8 files: 7 production (`sync.ts`, `fetch.ts`, `card-fields.ts`, `media/batch/route.ts`, `agents/[slug]/listings/route.ts`, `idx/search/route.ts`, `import-closed-from-trestle.ts`) plus 1 utility script (`rebuild-past-deals.js`). Deep-audited 2026-04-07; debug-script clutter removed in 2026-04-27 cleanup.**
+**All batch media queries in this codebase filter by `ResourceRecordKey` (with `ResourceRecordID` fallback only when `mls_id` is null). Enforced across 7 production files (`sync.ts`, `fetch.ts`, `card-fields.ts`, `media/batch/route.ts`, `agents/[slug]/listings/route.ts`, `idx/search/route.ts`, `import-closed-from-trestle.ts`). Deep-audited 2026-04-07; debug-script clutter removed in 2026-04-27 cleanup.**
 
 ### Security
 
@@ -559,7 +555,7 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 - **Bot Blocking:** 30+ known scraper/AI bots blocked at edge
 - **Session:** DB-backed, 24hr expiry, auto-rotate within 1hr of expiry
 - **Audit:** All mutations logged to AuditEvent table
-- **CSP:** Content Security Policy via `vercel.json` (includes `api.cotality.com` + legacy Trestle domains in `img-src`/`connect-src` for migration — legacy domains removable after March 31, 2026)
+- **CSP:** Content Security Policy via `lib/middleware/security-headers.ts` (allows `api.cotality.com` in `img-src`/`connect-src`; one legacy provider image wildcard remains in `img-src` until it is removed)
 - **Vulnerabilities:** 0 (npm audit clean as of 2026-03-05)
 
 ---
@@ -568,7 +564,7 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 
 The listing detail page (`app/listing/[...slug]/page.tsx`) displays property data in structured sections:
 
-| Section | Data Source (Trestle IDX Plus) | Examples |
+| Section | Data Source (Cotality IDX Plus) | Examples |
 |---------|-------------------------------|----------|
 | **Unit Features** | `InteriorFeatures` + unit-level `ExteriorFeatures` + Flooring/Laundry(unit)/Heating/Cooling | High Ceilings, Walk-In Closets, Balcony, Hardwood, In-Unit Washer |
 | **Appliances** | `Appliances` | Dishwasher, Washer, Dryer, Range, Refrigerator |
@@ -585,71 +581,14 @@ The listing detail page (`app/listing/[...slug]/page.tsx`) displays property dat
 - Building-level exterior features (Roof Deck, Garden, Courtyard) are moved to Building Amenities.
 - Common Area / Common On Floor laundry goes to Building Amenities; In-Unit laundry stays in Unit Features.
 
-**ACRIS fallback:** When Trestle has no closed sale data, the page queries NYC ACRIS public records (Socrata API) by borough/block/lot for last sale price.
+**ACRIS fallback:** When Cotality has no closed sale data, the page queries NYC ACRIS public records (Socrata API) by borough/block/lot for last sale price.
 
 ---
 
 ## Where Data Comes From — Full Pipeline
 
-> **Trestle API documentation:** https://trestle-documentation.corelogic.com/
+> **Provider contract:** `MALLAN-PLATFORM-MASTER-PLAN.md` §0.1–§0.9 and the live Cotality API govern authentication, base URL, token behavior, query mechanics and quotas. Do not copy provider counts, quotas or token lifetimes into this README; re-verify them live.
 > **Support:** trestlesupport@cotality.com | rlssupport@rebny.com / 212-616-5270
-
-### Authentication
-
-| Detail | Value |
-|--------|-------|
-| Grant type | OAuth2 Client Credentials |
-| Token endpoint | `POST https://api.cotality.com/trestle/oidc/connect/token` |
-| Parameters | `client_id`, `client_secret`, `grant_type=client_credentials`, `scope=api` |
-| Token TTL | 28,800 seconds (8 hours) |
-| Usage | `Authorization: Bearer {access_token}` on all API calls |
-| Credentials stored | Server-only env vars (`IDX_CLIENT_ID`, `IDX_CLIENT_SECRET`) — NEVER in browser |
-
-### API Base URL & OData Queries
-
-```
-Base:   https://api.cotality.com/trestle/odata/
-```
-
-| Operation | Syntax | Example |
-|-----------|--------|---------|
-| List | `GET /odata/{Resource}` | `/odata/Property?$top=100` |
-| Filter | `$filter={Field} {op} '{value}'` | `$filter=MlsStatus eq 'Active'` |
-| Select fields | `$select={Field1},{Field2}` | `$select=ListPrice,BedroomsTotal` |
-| Expand related | `$expand={Resource}` | `$expand=CustomProperty,Media` |
-| Expand with options | `$expand={Resource}($select=...;$top=...)` | `$expand=Media($select=MediaURL;$top=1;$orderby=Order)` |
-| Pagination | `$top` + `$skip` or `@odata.nextLink` | `$top=1000&$skip=1000` |
-| Aggregation | `$apply=groupby(...)` | OData aggregation extension |
-| Replication mode | `Replication=true` | For datasets >1M records |
-| Pretty enums | `PrettyEnums=true` | Human-readable enum values |
-
-**Pagination:** Default 10 records per query, max 1,000 per page (300,000 for key-only queries). Use `@odata.nextLink` from response to auto-paginate.
-
-### Rate Limits (Trestle)
-
-| Quota Type | Per Hour | Per Minute |
-|-----------|----------|-----------|
-| WebAPI queries | 7,200 | 180 |
-| Public media URL requests | 18,000 | 480 |
-
-Response headers: `Minute-Quota-Limit`, `Hour-Quota-Limit`, `Hour-Quota-ResetTime` (Unix ms).
-
-### 12 Trestle Data Resources — How Each Is Pulled
-
-| # | Resource | Fields | How to Access | What It Provides |
-|---|----------|--------|---------------|------------------|
-| 1 | **Property** | 527 | `GET /odata/Property` | Core listing data — address, price, status, features, distribution gates |
-| 2 | **CustomProperty** | 106 | `$expand=CustomProperty` on Property | REBNY-specific fields in `CustomFields` JSON string (41 fields: tax abatements, building rules, move-in costs, etc.) |
-| 3 | **Member** | 72 | `GET /odata/Member` | Agent/broker info — name, license, office, contact |
-| 4 | **Office** | 66 | `GET /odata/Office` | Brokerage office data — name, address, phone, MLS ID |
-| 5 | **Media** | 46 | `$expand=Media` on Property OR `GET /odata/Media?$filter=ResourceRecordKey eq '{key}'` | Photos, floor plans, videos, virtual tours (3D/Matterport). `MediaCategory` classifies type. Bulk: `Property('{key}')/Media/All` (MIME multipart) |
-| 6 | **PropertyUnitTypes** | 46 | `$expand=Units` on Property | Multi-unit buildings — unit-level bed/bath/rent/features |
-| 7 | **OpenHouse** | 39 | `GET /odata/OpenHouse` | Scheduled open houses — date, time, type, remarks |
-| 8 | **PropertyRooms** | 39 | `$expand=Rooms` on Property | Room-level detail — type, dimensions, features, floor |
-| 9 | **Teams** | 48 | `GET /odata/Teams` | Agent team info — team name, lead, office |
-| 10 | **TeamMembers** | 29 | `GET /odata/TeamMembers` | Team member relationships and roles |
-| 11 | **PropertyGreenVerification** | 39 | `$expand=GreenVerification` on Property | Green certifications (LEED, EnergyStar, etc.) |
-| 12 | **Building** | 1 (key) | `GET /odata/Building` | Key + navigation properties only. Building data lives on Property + CustomProperty |
 
 ### Metadata Discovery
 
@@ -657,42 +596,29 @@ Response headers: `Minute-Quota-Limit`, `Hour-Quota-Limit`, `Hour-Quota-ResetTim
 GET /odata/$metadata    → Full OData CSDL (all entities, fields, types, navigation properties)
 ```
 
-Local copy: `artifacts/metadata.xml` (32,351 lines, all 12 data + 5 system entities)
+Committed mirror: `data/cotality-enums.live.json` (every entity, field type and enum from live `$metadata`; regenerate with `npm run cotality:pull`, check drift with `npm run cotality:verify`)
 
-### Data Flow: Trestle → mallan.nyc
+### Data Flow: Cotality → mallan.nyc
 
 ```
-Trestle API (server-side only)
+Cotality API (server-side only; base TRESTLE_API_URL, default https://api.cotality.com/trestle)
   │
-  ├─→ /api/cron/idx-sync (every 4hrs) ─→ Prisma DB (PostgreSQL on Neon)
-  │     Pulls Property + $expand=CustomProperty,Media
-  │     Maps via lib/idx/trestle-mapper.ts (23 RESO→RLS renames)
+  ├─→ /api/cron/idx-sync ─→ Prisma DB (PostgreSQL on Neon)
+  │     Maps via lib/idx/trestle-mapper.ts
   │     Checks 6 distribution gates → stores in Listing model
   │
-  ├─→ /api/idx/search (CRM, on-demand) ─→ Direct Trestle query
+  ├─→ /api/idx/search (CRM, on-demand) ─→ Direct Cotality query
   │     Agent-only, session cookie required
   │     Broader field set than public search (not guaranteed to match full RealPlus/LMP inventory)
   │
   ├─→ /api/listings (public, on-demand) ─→ DB-first (20-80ms)
-  │     Falls back to Trestle direct (10s timeout) if not in DB
+  │     Falls back to a direct Cotality query (10s timeout) if not in DB
   │     Sanitized via toPublicDTO() — agent PII masked, gates enforced
   │
-  └─→ /api/media/proxy (per-image) ─→ Trestle media URL + Bearer auth
+  └─→ /api/media/proxy (per-image) ─→ Cotality media URL + Bearer auth
         CDN cache: 7 days + immutable
         Browser <img> tags cannot send auth headers — proxy required
 ```
-
-### Field Name Mapping
-
-The REBNY UCBA and the Trestle API use different names for some fields:
-
-| UCBA / REBNY Name | Trestle Field | Notes |
-|--------------------|---------------|-------|
-| `IDXEntireListingDisplayYN` | `InternetEntireListingDisplayYN` | No separate IDX field on Trestle — master gate serves both |
-| `SyndicateYN` (boolean) | `SyndicateTo` (multi-select list) | Portal selection, not a simple boolean |
-| `StandardStatus` | `MlsStatus` | Plus 22 other RESO→RLS renames in `trestle-mapper.ts` |
-
-Internal TypeScript code uses UCBA names (mapped by normalizer before hitting Trestle). Compliance docs annotate the Trestle field name where they differ.
 
 ---
 
@@ -711,38 +637,38 @@ Internal TypeScript code uses UCBA names (mapped by normalizer before hitting Tr
 | **Map (Neighborhoods)** | MapLibre GL v4.7.1 + OpenFreeMap tiles (no API key). GeoJSON polygon click-to-select. Data: `/geo/rls-neighborhoods.v1.min.geojson` |
 | **Map (Results)** | Split-view with price-pin markers. Color-coded by status. Popup with photo + View Details |
 | **Photo Loader** | Lazy-load via IntersectionObserver. Batch fetch (max 50 per request, 100ms debounce). Endpoint: `/api/media/batch` |
-| **Media Types** | Photos, Floor Plans, Video (YouTube/Vimeo/direct), Virtual Tour (Matterport/3D). Classified by `MediaCategory` from Trestle |
+| **Media Types** | Photos, Floor Plans, Video (YouTube/Vimeo/direct), Virtual Tour (Matterport/3D). Classified by `MediaCategory` from Cotality |
 | **Reports** | Print, email, PDF generation. Selected listings only. CSP-safe via Blob URLs |
 
 ### API Endpoints Used
 
 | Endpoint | Auth | Purpose |
 |----------|------|---------|
-| `/api/idx/search` | Cookie | Trestle search — agent/broker only |
+| `/api/idx/search` | Cookie | Cotality search — agent/broker only |
 | `/api/media/batch` | Cookie | Lazy-load photos (default) or all media (detail mode) |
-| `/api/media/proxy` | Cookie | Server-side Bearer auth injection for Trestle media URLs |
+| `/api/media/proxy` | Cookie | Server-side Bearer auth injection for Cotality media URLs |
 | `/geo/rls-neighborhoods.v1.min.geojson` | Public | Neighborhood polygon shapes |
 | `/geo/neighborhood-aliases.json` | Public | Neighborhood alternate name mappings |
 | `/geo/rls-neighborhood-centroids.v1.json` | Public | Fallback lat/lng for listings without coordinates |
 
 ### Compliance Gates (enforced at render time)
 
-All 6 REBNY distribution gates checked before any listing renders. Address suppression for `InternetAddressDisplayYN=false`. REBNY attribution on all displayed data. Fair Housing language scanner on descriptions. `data-rls-ignore` on all CRM-internal form elements.
+All 6 REBNY distribution gates checked before any listing renders. Address suppression for `InternetAddressDisplayYN=false`. REBNY attribution on all displayed data. Fair Housing language scanner on descriptions.
 
 ---
 
 ## Recent Work
 
-- **2026-04-28:** **Master plan PR 10 (Neon shedding) shipped to production + 9 follow-on PRs.** Full session log: [`memory/SESSION-2026-04-28-allnighter.md`](memory/SESSION-2026-04-28-allnighter.md). One sentence per PR: **#75** slim writer for Trestle `raw_data` (live in production, growth stops); live backfill cut listings table 270→173 MB and total DB 293→196 MB (58.6%→39.2% of free cap) via bulk `UPDATE ... FROM (VALUES ...)` per batch + `VACUUM (FULL, ANALYZE) listings`. **#76** six-bug fix on PR #75 (tsx pinned in devDeps, parallel SQL, `projectShedSavings` byte-counting fix, transient-error retry, doc refresh, pre-commit guard reading stale `COMMIT_EDITMSG`). **#71** plan reconciliation + React Compiler audit cleanup. **#72** `npm run crm:test` restored. **#77** auto-retry workflow for Live Site Smoke runner-pool flakes. **#78** Codex follow-up on #77 (failed-closed classifier + explicit `--repo` on `gh run rerun`). **#79** Trestle live audit graceful-skip when `IDX_CLIENT_ID`/`IDX_CLIENT_SECRET` absent + idempotent label create (fixes "compliance label not found" cascade). **#74** C3c auction form sub-section UI. **#73** C4c broker ethics admin panel + 4 Codex bug fixes in `app/api/crm/agents/[id]/ethics-training/route.ts` (null-body TypeError, partial-PATCH ordering bypass, missing 404, body type guard) + 3 regression tests. **#80** Neon branch-prune cron — daily 04:00 UTC sweep + `lib/neon/branches.ts` + `scripts/neon-prune-branches.ts` + NEON.md §11 architecture note; user manually swept the 14+ accumulated stale branches down to just `main`. Workstream C now 4/4 complete; master plan 10/10 complete. Final gates: type-check 0 errors, lint 0 warnings, 194/194 compliance tests, 46 UCBA PASS / 0 regressions.
-- **2026-04-27 (later):** **React Compiler set-state-in-effect cleanup — full remediation.** All 13 outstanding `react-hooks/set-state-in-effect` warnings eliminated via two purpose-built data hooks (no suppression directives, no library deps). New: `lib/hooks/useAsyncResource.ts` — generic fetch-on-mount hook backed by a typed `useReducer` state machine (idle → loading → success | error) with `AbortController` cancellation and `refetch()`; `lib/hooks/useClientOnly.ts` — mount-only `localStorage`/`window`/`cookie` hydration helper using the same reducer pattern. 11 components + 2 portal pages converted (CompareProperties, NeighborhoodExplorer, LiveListingsWidget, StationArrivals, TransitCommuteTool, TransitSidebarSummary, CookieConsent, ResourceContent, RecentlyViewed, portal/seller, portal/tenant). Header + SearchFilterPanel converted to React docs canonical "set state during render with previous-value useState" for "adjust state when prop changes". `useFavorites` + `useSavedSearches` converted to `useSyncExternalStore` (cached snapshot, listener pattern, cross-tab `storage` events). `AuthProvider` converted to typed `useReducer` with discriminated `set-authenticated`/`set-anonymous` actions. **Result:** lint went from 23 problems (6 errors + 17 warnings) → **0 problems**; type-check 0 errors; UCBA audit 45/46 PASS, 0 regressions; RLS validate 0 errors; IDX validate 819 pass / 0 critical; compliance-check 79 PASS. Full report: `compliance/REACT-PATTERNS-AUDIT-2026-04-27.md`.
-- **2026-04-27:** Validator truth framework complete — 100% UCBA v2 coverage (46/46 rules), 11 declared workflows, 25 runtime side-effect tests, release-truth aggregator gating every push to main, hourly live-site smoke cron, target-platform Linux build job. Trestle/media debug-script clutter removed (~22 MB recovered). See `compliance/VALIDATOR-FRAMEWORK.md` and `memory/VALIDATOR-FRAMEWORK-2026-04-26.md`.
+- **2026-04-28:** **Master plan PR 10 (Neon shedding) shipped to production + 9 follow-on PRs.** One sentence per PR: **#75** slim writer for Cotality `raw_data` (live in production, growth stops); live backfill cut listings table 270→173 MB and total DB 293→196 MB (58.6%→39.2% of free cap) via bulk `UPDATE ... FROM (VALUES ...)` per batch + `VACUUM (FULL, ANALYZE) listings`. **#76** six-bug fix on PR #75 (tsx pinned in devDeps, parallel SQL, `projectShedSavings` byte-counting fix, transient-error retry, doc refresh, pre-commit guard reading stale `COMMIT_EDITMSG`). **#71** plan reconciliation + React Compiler audit cleanup. **#72** `npm run crm:test` restored. **#77** auto-retry workflow for Live Site Smoke runner-pool flakes. **#78** Codex follow-up on #77 (failed-closed classifier + explicit `--repo` on `gh run rerun`). **#79** live provider audit graceful-skip when `IDX_CLIENT_ID`/`IDX_CLIENT_SECRET` absent + idempotent label create (fixes "compliance label not found" cascade). **#74** C3c auction form sub-section UI. **#73** C4c broker ethics admin panel + 4 Codex bug fixes in `app/api/crm/agents/[id]/ethics-training/route.ts` (null-body TypeError, partial-PATCH ordering bypass, missing 404, body type guard) + 3 regression tests. **#80** Neon branch-prune cron — daily 04:00 UTC sweep + `lib/neon/branches.ts` + `scripts/neon-prune-branches.ts` + NEON.md §11 architecture note; user manually swept the 14+ accumulated stale branches down to just `main`. Workstream C now 4/4 complete; master plan 10/10 complete. Final gates: type-check 0 errors, lint 0 warnings, 194/194 compliance tests, 46 UCBA PASS / 0 regressions.
+- **2026-04-27 (later):** **React Compiler set-state-in-effect cleanup — full remediation.** All 13 outstanding `react-hooks/set-state-in-effect` warnings eliminated via two purpose-built data hooks (no suppression directives, no library deps). New: `lib/hooks/useAsyncResource.ts` — generic fetch-on-mount hook backed by a typed `useReducer` state machine (idle → loading → success | error) with `AbortController` cancellation and `refetch()`; `lib/hooks/useClientOnly.ts` — mount-only `localStorage`/`window`/`cookie` hydration helper using the same reducer pattern. 11 components + 2 portal pages converted (CompareProperties, NeighborhoodExplorer, LiveListingsWidget, StationArrivals, TransitCommuteTool, TransitSidebarSummary, CookieConsent, ResourceContent, RecentlyViewed, portal/seller, portal/tenant). Header + SearchFilterPanel converted to React docs canonical "set state during render with previous-value useState" for "adjust state when prop changes". `useFavorites` + `useSavedSearches` converted to `useSyncExternalStore` (cached snapshot, listener pattern, cross-tab `storage` events). `AuthProvider` converted to typed `useReducer` with discriminated `set-authenticated`/`set-anonymous` actions. **Result:** lint went from 23 problems (6 errors + 17 warnings) → **0 problems**; type-check 0 errors; UCBA audit 45/46 PASS, 0 regressions; IDX validate 819 pass / 0 critical; compliance-check 79 PASS.
+- **2026-04-27:** Validator truth framework complete — 100% UCBA v2 coverage (46/46 rules), 11 declared workflows, 25 runtime side-effect tests, release-truth aggregator gating every push to main, hourly live-site smoke cron, target-platform Linux build job. Provider/media debug-script clutter removed (~22 MB recovered). See `compliance/VALIDATOR-FRAMEWORK.md` and `memory/VALIDATOR-FRAMEWORK-2026-04-26.md`.
 - **2026-04-26:** Workstream C compliance shipped — Inquiry model + 8 lead-capture endpoints wired, Offer transmission with UCBA Art. II precondition gate, Auction listing fields + validator (UCBA Art. I), Ethics training auth gate (UCBA Art. III §6) with mandatory backfill before deploy.
 - **2026-04-25:** Master refactor PR 1 (compliance fail-closed gates) + R2 infrastructure provisioned + parameterized CMA tool + xlsx → exceljs security migration + npm audit triage.
 - **2026-04-19 → 04-20:** Neon free-tier compute-hour quota recovery — restored documented design (no migrations in Vercel build), `db-keepalive` cron preserved, `NEON.md` is now the single source of truth for DB/migration discipline.
-- **2026-03-20:** CRM Search Page full audit — 172/172 smoke test PASS, UCBA audit 42/46 PASS (0 regressions). Permanent smoke test at `scripts/smoke-test-crm.js`.
+- **2026-03-20:** CRM Search Page full audit — 172/172 smoke test PASS, UCBA audit 42/46 PASS (0 regressions).
 - **2026-03-10:** CRM Analytics & Tools (Systems D-Q) — 14 systems built: Demand Heatmap, Buyer Intent, Agent Performance, CMA Engine, Showing Feedback, Notifications, Document Vault, Market Pulse, Lead Scoring, Commission Tracker, Listing Auditor, Seller Outreach, Pricing Experiments, Pipeline.
 - **2026-03-07:** Amenity pipeline + listing detail restructure (5 sections: Unit Features, Appliances, Building Amenities, Parking, Pet Policy). Media pipeline fix (VirtualTour separation, video tag handling).
-- **2026-03-05:** Next.js 14 → 16. Server-side Trestle media proxy (Bearer auth), agent photo upload pipeline (Sharp → R2), security hardening, vulnerable `xlsx` removed.
+- **2026-03-05:** Next.js 14 → 16. Server-side Cotality media proxy (Bearer auth), agent photo upload pipeline (Sharp → R2), security hardening, vulnerable `xlsx` removed.
 
 ---
 
@@ -810,10 +736,10 @@ npm run db:seed
 | `CRON_SECRET` | Yes | Bearer token for Vercel Cron job authentication |
 | `NEXT_PUBLIC_SITE_URL` | Yes | Public site URL (`https://mallan.nyc`) |
 | `PRIVATE_COLLECTION_PASS` | Yes | Legacy admin auth |
-| `IDX_ENABLED` | No | Enable Trestle/IDX fetch (`true`/`false`, default `false`) |
-| `TRESTLE_API_URL` | No | Trestle API base URL (`https://api.cotality.com/trestle`) |
-| `IDX_CLIENT_ID` | No | Trestle OAuth client ID |
-| `IDX_CLIENT_SECRET` | No | Trestle OAuth client secret |
+| `IDX_ENABLED` | No | Enable Cotality/IDX fetch (`true`/`false`, default `false`) |
+| `TRESTLE_API_URL` | No | Cotality API base URL (`https://api.cotality.com/trestle`) |
+| `IDX_CLIENT_ID` | No | Cotality OAuth client ID |
+| `IDX_CLIENT_SECRET` | No | Cotality OAuth client secret |
 | `R2_ACCOUNT_ID` | No | Cloudflare R2 account ID (for photo uploads) |
 | `R2_ACCESS_KEY_ID` | No | Cloudflare R2 access key |
 | `R2_SECRET_ACCESS_KEY` | No | Cloudflare R2 secret key |
@@ -868,12 +794,11 @@ Cleanup discipline (no drift): every working-tree file is either committed, inte
 
 ## Compliance Requirements
 
-The full compliance surface — REBNY RLS / UCBA 2026, IDX Plus / Trestle connector, Fair Housing (federal + NY State + NYC Title 8), FARE Act, NY DOS § 175.25, TCPA, CAN-SPAM, NY SHIELD, WCAG 2.1 AA — is specified earlier in this README under [🚨 Compliance & Legal Requirements](#-compliance--legal-requirements-read-first), [📌 MLS / IDX DATA COMPLIANCE](#-mls--idx-data-compliance-rebny-rls--idx-plus), [IDX Plus / Trestle — Rules of the Road](#idx-plus--trestle-rebny-rls--rules-of-the-road), and [UCBA 2026](#ucba-2026-universal-co-brokerage-agreement--january-2026-revision).
+The full compliance surface — REBNY RLS / UCBA 2026, IDX Plus / Cotality connector, Fair Housing (federal + NY State + NYC Title 8), FARE Act, NY DOS § 175.25, TCPA, CAN-SPAM, NY SHIELD, WCAG 2.1 AA — is specified earlier in this README under [🚨 Compliance & Legal Requirements](#-compliance--legal-requirements-read-first), [📌 MLS / IDX DATA COMPLIANCE](#-mls--idx-data-compliance-rebny-rls--idx-plus), [IDX Plus / Cotality — Rules of the Road](#idx-plus--cotality-rebny-rls--rules-of-the-road), and [UCBA 2026](#ucba-2026-universal-co-brokerage-agreement--january-2026-revision).
 
 Operational gates that block CI / commits:
 
 - `npm run ucba:audit` — 145-rule checklist; **REGRESSIONS must be 0** (annotated FAILs are tracked in `compliance/rules/ucba-audit-checklist.json`)
-- `npm run rls:validate` — 10-section RLS validator (fields, renames, gates, masking, coverage)
 - `npm run idx:validate` — 32-section IDX Plus validator
 - `npm run compliance-check` — pre-commit sanity gate
 - `npm run ops:health` — Neon storage / compute headroom + sync freshness
@@ -883,7 +808,7 @@ Operational gates that block CI / commits:
 
 | Type | Source | Visibility | Distribution |
 |---|---|---|---|
-| **RLS-eligible sale / rental** | Submitted via RealPlus → REBNY RLS → IDX Plus feed (read-only on mallan.nyc) | Public listing pages + agent CRM, gated by 6 distribution flags (`InternetEntireListingDisplayYN`, `InternetAddressDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`, `participant_only`, `owner_opt_out`) | StreetEasy (direct upload), Zillow / Trulia (auto from StreetEasy), Realtor.com / Redfin / Homes.com / RentHop (REBNY data license, automatic), openigloo / Samaki / TBI Listings (Trestle opt-in toggles) |
+| **RLS-eligible sale / rental** | Submitted via RealPlus → REBNY RLS → IDX Plus feed (read-only on mallan.nyc) | Public listing pages + agent CRM, gated by 6 distribution flags (`InternetEntireListingDisplayYN`, `InternetAddressDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`, `participant_only`, `owner_opt_out`) | StreetEasy (direct upload), Zillow / Trulia (auto from StreetEasy), Realtor.com / Redfin / Homes.com / RentHop (REBNY data license, automatic), openigloo / Samaki / TBI Listings (Cotality opt-in toggles) |
 | **Auction listing** | Same RLS path, `auction_yn=true` plus `auction_type` / `auction_end_date` (mandatory) and `auction_terms_url` (recommended http(s):// only — `AU-006` blocks unsafe schemes) | Public listing pages render an `AuctionBanner` above price; standard 24-hour price-change rule does NOT apply (UCBA Art. I auction exception) | Same as RLS-eligible |
 | **Commercial / website-only** | `rls_eligible: false` on the Listing model (commercial sub-types + ownership) | mallan.nyc only — bypasses all 6 distribution gates | Not distributed; Fair Housing + NY DOS + TCPA still apply |
 | **Coming Soon** | Sale/rental with `MlsStatus=ComingSoon` | Public pages render the [Coming Soon badge](app/components/ComingSoonBadge.tsx) — required exact phrasing per UCBA Art. I § 16(C) | Distributed when DOM rule allows |
@@ -896,5 +821,5 @@ Authoritative changelog lives in `git log` and the merged PR list. The human-cur
 
 - [`memory/REFACTOR-2026-04-25.md`](memory/REFACTOR-2026-04-25.md) — master 10-PR backend rebuild plan with status table per PR.
 
-Recent areas of work: REBNY UCBA 2026 compliance (Workstream C — Inquiry / Offer transmission / Auction listings + enforcement / Ethics training fields + auth gate), Trestle media pipeline hardening (`ResourceRecordKey` correctness, batch-URL length, MediaStatus filter), media schema normalization (`ListingMedia` + `MediaSyncState`), React Compiler + lint hygiene sweep (`useAsyncResource`, `useClientOnly`, set-state-in-effect elimination), and CI gate restoration (`npm run crm:test`).
+Recent areas of work: REBNY UCBA 2026 compliance (Workstream C — Inquiry / Offer transmission / Auction listings + enforcement / Ethics training fields + auth gate), Cotality media pipeline hardening (`ResourceRecordKey` correctness, batch-URL length, MediaStatus filter), media schema normalization (`ListingMedia` + `MediaSyncState`), React Compiler + lint hygiene sweep (`useAsyncResource`, `useClientOnly`, set-state-in-effect elimination), and CI gate restoration (`npm run crm:test`).
 

@@ -52,8 +52,24 @@ function monthlyMortgagePayment(principal, annualRate, years) {
 var _calcListingId = null;
 
 function getCalcListing() {
-    if (!_calcListingId || typeof window.allListings === 'undefined') return null;
-    return window.allListings.find(function(l) { return l.id === _calcListingId; }) || null;
+    if (!_calcListingId) return null;
+    // The search app keeps its results in searchResultsState.filteredListings (the
+    // cards carry data-listing-id = listing.id); window.allListings was never set
+    // on that page, so the calculator opened with an empty price (2026-10-28).
+    var pools = [];
+    if (typeof searchResultsState !== 'undefined' && searchResultsState) {
+        if (Array.isArray(searchResultsState.filteredListings)) pools.push(searchResultsState.filteredListings);
+        if (Array.isArray(searchResultsState.listings)) pools.push(searchResultsState.listings);
+    }
+    if (Array.isArray(window.allListings)) pools.push(window.allListings);
+    var wanted = String(_calcListingId);
+    for (var i = 0; i < pools.length; i++) {
+        var hit = pools[i].find(function(l) {
+            return l && [l.id, l.lid, l.listingId, l.ListingId].some(function(v) { return v != null && String(v) === wanted; });
+        });
+        if (hit) return hit;
+    }
+    return null;
 }
 
 function calcVal(id) {

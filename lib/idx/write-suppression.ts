@@ -2,7 +2,7 @@
 //
 // Phase 3 write-suppression — pure material-identity comparators + counters.
 //
-// WHY (2026-07 Neon write-churn forensic, docs/operations/neon-write-churn-forensic-2026-07-14.md):
+// WHY (2026-07 Neon write-churn forensic):
 // the IDX sync pipeline and recurring scorers performed UNCONDITIONAL
 // upserts/updates on every run even when nothing material changed. On Neon
 // every one of those no-op writes is real WAL + page churn (compute + storage
@@ -11,13 +11,13 @@
 // row is already identical.
 //
 // MATERIAL-IDENTITY DOCTRINE (live-proven, PR #547):
-//   - Rotating Trestle/Cotality SIGNED URLs are NEVER material identity —
+//   - Rotating Cotality SIGNED URLs are NEVER material identity —
 //     the feed re-signs `MediaURL` on every request.
 //   - Locally-generated telemetry clocks are NEVER material identity:
 //     `last_synced_from_trestle` (fetch wall-clock), Prisma-managed
 //     `updated_at` / `created_at`.
 //   - The SOURCE revision clock (`modification_timestamp` ←
-//     Trestle `ModificationTimestamp`) IS material — a source revision must
+//     Cotality `ModificationTimestamp`) IS material — a source revision must
 //     always persist.
 //   - Anything unverifiable FAILS CLOSED → treated as changed → the write
 //     proceeds. Suppression is an optimization; correctness always wins.
@@ -71,7 +71,7 @@ export function newWritePathCounters(): WritePathCounters {
  *   - `updated_at` / `created_at` — Prisma-managed columns, never written
  *     explicitly by sync; excluded defensively.
  *
- * NOT excluded (deliberately material): `modification_timestamp` (Trestle
+ * NOT excluded (deliberately material): `modification_timestamp` (Cotality
  * source-revision clock), `sync_status` (eligibility/lifecycle),
  * `status_changed_at` / `first_active_date` / `days_on_market` /
  * `cumulative_days_on_market` / `terminal_since` (lifecycle clocks — they
@@ -285,7 +285,7 @@ interface LegacyMediaItem {
   url: string;
   mediaType: string;
   order: number;
-  /** Stable RESO MediaKey when the writer preserved it (authoritative identity). */
+  /** Stable Cotality MediaKey when the writer preserved it (authoritative identity). */
   mediaKey?: string | null;
 }
 
@@ -721,7 +721,7 @@ export function changedRawDataMaterialKeys(previous: unknown, next: unknown): st
  *     callers may skip cache invalidation and manifest warming.
  *   - ["raw_data_only"] — raw_data changed BEYOND its provenance clocks
  *     (± the timestamp column) with no typed column change. NOT
- *     provenance-only: raw_data feeds the public DTO Trestle-direct path,
+ *     provenance-only: raw_data feeds the public DTO builders,
  *     so invalidation stays fail-closed.
  *
  * Otherwise: the set of categories for every changed typed field

@@ -23,7 +23,7 @@ const SYNDICATION_ROOT = path.resolve(__dirname, "..", "..", "lib", "syndication
 const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; explanation: string }> = [
   {
     pattern: /from\s+["']@?\/?lib\/idx\//,
-    explanation: "lib/idx/** is the Trestle/REBNY IDX pipeline — syndication must not import it",
+    explanation: "lib/idx/** is the Cotality/REBNY IDX pipeline — syndication must not import it",
   },
   {
     pattern: /from\s+["']@?\/?lib\/search\//,
@@ -35,7 +35,7 @@ const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; explanation: string }> = [
   },
   {
     pattern: /from\s+["']@?\/?app\/api\/idx\//,
-    explanation: "app/api/idx/** is the IDX/Trestle API — syndication must not import it",
+    explanation: "app/api/idx/** is the IDX/Cotality API — syndication must not import it",
   },
   {
     pattern: /ListingSearchProjection/,

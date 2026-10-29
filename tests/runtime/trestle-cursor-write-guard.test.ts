@@ -1,13 +1,13 @@
 /// <reference types="jest" />
 /**
- * TRESTLE CURSOR WRITE GUARD — one invariant, enforced repo-wide.
+ * COTALITY SYNC CURSOR WRITE GUARD — one invariant, enforced repo-wide.
  *
  * `getLastSyncTimestamp()` (lib/idx/sync.ts) is
  *     MAX(modification_timestamp) WHERE last_synced_from_trestle IS NOT NULL
  * and its value becomes the OData filter `ModificationTimestamp gt SINCE`.
  *
  * So ANY writer that stamps a LOCAL clock into `modification_timestamp` on a row
- * the Trestle sync has touched pushes the cursor into the future, and the next
+ * the Cotality sync has touched pushes the cursor into the future, and the next
  * incremental run silently skips genuine upstream changes. PR-S.6 and PR-S.7
  * each closed one instance (capped batches, then CRM-only rows), yet the audit
  * on 2026-08-09 still found three live doors:
@@ -46,7 +46,7 @@ const JUSTIFIED: Record<string, string> = {
   'app/api/crm/listings/[id]/route.ts': 'local-listing capability gate refuses synced rows',
   'app/api/crm/listings/[id]/status/route.ts': 'local-listing capability gate refuses synced rows',
 
-  // Stubs a Trestle listing locally. Leaves `last_synced_from_trestle` NULL, so
+  // Stubs a Cotality listing locally. Leaves `last_synced_from_trestle` NULL, so
   // the row is outside the cursor query (fixed 2026-08-09).
   'app/api/idx/ensure-listing/route.ts': 'stub row; last_synced_from_trestle stays NULL',
 
@@ -111,7 +111,7 @@ describe('no unjustified local-clock modification_timestamp writes', () => {
     expect(LOCAL_CLOCK_MT.test(code)).toBe(false);
   });
 
-  it('ensure-listing does not claim to be a Trestle-sync writer', () => {
+  it('ensure-listing does not claim to be a Cotality-sync writer', () => {
     const code = codeOnly(
       fs.readFileSync(path.join(ROOT, 'app/api/idx/ensure-listing/route.ts'), 'utf8'),
     );

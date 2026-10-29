@@ -68,6 +68,13 @@ const limiterSpecs = {
   // to mirror the public inquiry rate but with its own quota so bursts
   // on the public form don't lock out broker workflows (and vice versa).
   agent_inquiry: { count: 30, window: "3600 s" },
+  // GET /api/media/health (is a listing photo there?). Only the questions the CDN's cache did not answer reach the route, and each costs Cotality one media request (the account has 1,120 a
+  // minute, shared with the media sync and the media proxy): one visitor may put 60 a minute, and all visitors together 300 (the second bucket is asked with one constant key).
+  media_health:        { count: 60,  window: "60 s" },
+  media_health_global: { count: 300, window: "60 s" },
+  // Reports modal → /api/crm/reports/email. A working agent's whole day fits in 60/hr;
+  // its own quota so report sends never drain the inquiry buckets (and vice versa).
+  report_email: { count: 60, window: "3600 s" },
 } as const satisfies Record<string, { count: number; window: `${number} s` }>;
 
 export type RouteLimiterName = keyof typeof limiterSpecs;

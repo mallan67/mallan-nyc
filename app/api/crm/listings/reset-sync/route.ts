@@ -1,5 +1,5 @@
 // POST /api/crm/listings/reset-sync
-// ONE-TIME USE: Delete all existing listings, then re-sync from Trestle.
+// ONE-TIME USE: Delete all existing listings, then re-sync from Cotality.
 // Broker-only. Searches by BOTH MLS ID and State License Number on both sides of deals.
 //
 // After use, this endpoint can be removed.
@@ -11,7 +11,7 @@ import { hasCredentials } from "@/lib/idx/auth";
 import { fetchFromTrestle } from "@/lib/idx/fetch";
 import { mediaUpdatePatch, complianceUpdatePatch } from "@/lib/idx/sync";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
-import { mapTrestleToPrisma, checkDistributionGates, validateHistoricalFields } from "@/lib/idx/trestle-mapper";
+import { mapTrestleToPrisma, checkDistributionGates, validateHistoricalFields, applyLocalOwnerOptOutGate } from "@/lib/idx/trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import type { Prisma } from "@prisma/client";
@@ -63,10 +63,10 @@ export async function POST(req: NextRequest) {
   log.push(`  Deleted ${delListings.count} listings`);
 
   // ══════════════════════════════════════════════════════════════
-  // STEP 2: Pull ALL listings from Trestle where agent appears
+  // STEP 2: Pull ALL listings from Cotality where agent appears
   // Search by: ListAgentMlsId, BuyerAgentMlsId, ListAgentStateLicense, BuyerAgentStateLicense
   // ══════════════════════════════════════════════════════════════
-  log.push("Step 2: Pulling from Trestle...");
+  log.push("Step 2: Pulling from Cotality...");
 
   // Build comprehensive agent identity filter
   const conditions: string[] = [];
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
   const errorDetails: string[] = [];
 
   try {
-    // PR-S.1c (2026-05-15): `expandMedia: true` was rejected by Trestle with
+    // PR-S.1c (2026-05-15): `expandMedia: true` was rejected by Cotality with
     // HTTP 400 in production. CRM reset-sync now pulls structured data only;
     // media is backfilled by the media-sync cron after upsert.
     // P1C1: hoisted so the fetch and the RC2 media patch below can never
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     });
 
     totalFetched = result.totalFetched;
-    log.push(`  Trestle returned ${totalFetched} records`);
+    log.push(`  Cotality returned ${totalFetched} records`);
 
     for (const raw of result.records) {
       try {
@@ -134,7 +134,10 @@ export async function POST(req: NextRequest) {
         // existing status so a re-synced row flipping into/out of terminal is captured.
         const existingForClock = await prisma.listing.findUnique({
           where: { listing_id: mapped.listing_id },
-          select: { status: true },
+          // Widened (2026-10-02 Permission cutover) to supply the existing
+          // owner_opt_out value for applyLocalOwnerOptOutGate below, instead
+          // of issuing a second query.
+          select: { status: true, owner_opt_out: true },
         });
         const terminalSinceCreate = computeTerminalSincePatch({
           previousStatus: undefined,
@@ -142,7 +145,7 @@ export async function POST(req: NextRequest) {
           raw_data: mapped.raw_data as Record<string, unknown>,
           features: mapped.features as Record<string, unknown>,
           // #446: ExpirationDate is stripped from mapped.raw_data (PRIVATE_FIELDS); feed the
-          // original un-stripped Trestle record's ExpirationDate as the Expired fallback (not persisted).
+          // original un-stripped Cotality record's ExpirationDate as the Expired fallback (not persisted).
           expirationDateFallback: raw.ExpirationDate as string | undefined,
         });
         const terminalSinceUpdate = computeTerminalSincePatch({
@@ -151,7 +154,7 @@ export async function POST(req: NextRequest) {
           raw_data: mapped.raw_data as Record<string, unknown>,
           features: mapped.features as Record<string, unknown>,
           // #446: ExpirationDate is stripped from mapped.raw_data (PRIVATE_FIELDS); feed the
-          // original un-stripped Trestle record's ExpirationDate as the Expired fallback (not persisted).
+          // original un-stripped Cotality record's ExpirationDate as the Expired fallback (not persisted).
           expirationDateFallback: raw.ExpirationDate as string | undefined,
         });
         await prisma.listing.upsert({
@@ -185,11 +188,16 @@ export async function POST(req: NextRequest) {
             neighborhood: mapped.neighborhood,
             city: mapped.city,
             postal_code: mapped.postal_code,
-            idx_display_yn: mapped.idx_display_yn,
+            // Gate 1 (Owner Opt-Out) has no provider signal (2026-10-02
+            // Permission cutover) — apply the EXISTING stored owner_opt_out
+            // on top of the provider-derived idx_display_yn so a locally-set
+            // opt-out survives this UPDATE. owner_opt_out itself is omitted
+            // below: there is nothing provider-derived to write, and the DB
+            // value is left untouched.
+            idx_display_yn: applyLocalOwnerOptOutGate(mapped.idx_display_yn, existingForClock?.owner_opt_out),
             internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
             internet_address_display_yn: mapped.internet_address_display_yn,
             participant_only: mapped.participant_only,
-            owner_opt_out: mapped.owner_opt_out,
             address: mapped.address as Prisma.InputJsonValue,
             features: mapped.features as Prisma.InputJsonValue,
             // P1C1 (RC2 semantics): media was NOT fetched (EXPAND_MEDIA=false →
@@ -213,7 +221,7 @@ export async function POST(req: NextRequest) {
 
         // H1 Tier-1 dual-write — projection upsert via canonical builder.
         // Failure is non-fatal so the reset-sync loop continues across the
-        // full Trestle batch; ops:projection-backfill heals on next run.
+        // full Cotality batch; ops:projection-backfill heals on next run.
         try {
           await dualWriteProjectionForListingId(prisma, mapped.listing_id);
         } catch (projErr) {
@@ -234,8 +242,8 @@ export async function POST(req: NextRequest) {
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
-    log.push(`  Trestle fetch error: ${msg}`);
-    return NextResponse.json({ error: `Trestle fetch failed: ${msg}`, log }, { status: 502 });
+    log.push(`  Cotality fetch error: ${msg}`);
+    return NextResponse.json({ error: `Cotality fetch failed: ${msg}`, log }, { status: 502 });
   }
 
   // ══════════════════════════════════════════════════════════════

@@ -5,6 +5,7 @@ import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DOM_RESET_DAYS } from "@/lib/compliance/dom-tracker";
+import { DOM_RESET_STATUS_SPELLINGS } from "@/lib/compliance/terminal-status";
 
 export const maxDuration = 60;
 
@@ -20,10 +21,11 @@ export async function GET(req: NextRequest) {
   cutoff.setDate(cutoff.getDate() - DOM_RESET_DAYS);
 
   // Find listings in Withdrawn/Cancelled with status_changed_at older than cutoff
-  // that still have days_on_market > 0 (not yet reset)
+  // that still have days_on_market > 0 (not yet reset). Cancelled is stored under both
+  // spellings: the CRM writes "Cancelled", the Cotality sync stores the feed's "Canceled" (#449).
   const eligible = await prisma.listing.findMany({
     where: {
-      status: { in: ["Withdrawn", "Cancelled"] },
+      status: { in: [...DOM_RESET_STATUS_SPELLINGS] },
       status_changed_at: { lt: cutoff },
       days_on_market: { gt: 0 },
     },

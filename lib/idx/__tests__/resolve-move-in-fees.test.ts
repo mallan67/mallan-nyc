@@ -3,7 +3,7 @@ import { resolveMoveInFees } from '../public-dto';
 /**
  * Shared FARE Act move-in fee resolver (PR 3a-fix, Codex #346).
  *
- * Used by every DTO builder (DB path + Trestle-direct path) so disclosure is
+ * Used by every DTO builder (DB path + Cotality-direct path) so disclosure is
  * path-independent. Canonical Property fields win; legacy fields are read-time
  * fallback ONLY when the canonical field is blank (null/undefined/'') — a
  * canonical 0 must win over a stale legacy AdditionalFee. Generic fixtures only.
@@ -56,8 +56,8 @@ describe('resolveMoveInFees', () => {
     expect(resolveMoveInFees(null)).toEqual({ moveInCostsAmount: undefined, moveInCostsComments: undefined });
   });
 
-  it('resolves identically from a raw Trestle-record-shaped source (path-independent)', () => {
-    // The Trestle-direct path passes the raw record; same PascalCase keys.
+  it('resolves identically from a raw Cotality-record-shaped source (path-independent)', () => {
+    // The Cotality-direct path passes the raw record; same PascalCase keys.
     const raw = { ListingId: 'RL-9', MoveInCostsAmount: 3300, MoveInCostsComments: 'Broker fee + deposit' };
     expect(resolveMoveInFees(raw)).toEqual({ moveInCostsAmount: 3300, moveInCostsComments: 'Broker fee + deposit' });
   });

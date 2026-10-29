@@ -28,7 +28,7 @@
  *      `r2_failure_budget_exhausted` is true ONLY when the cap stopped the
  *      drain early leaving ≥1 selected main row unattempted.
  *
- * No live R2, no live Trestle, no live DB.
+ * No live R2, no live Cotality, no live DB.
  */
 
 import type {
@@ -163,12 +163,12 @@ function backlogRow(listingId: string, over: Record<string, unknown> = {}) {
     r2_key: null,
     media_url_cached: null,
     r2_attempts: null,
-    // R2-1 admission relation: Mallan-owned (rls_eligible=false =>
+    // R2-1 admission relation: Mallan-owned (an SL- listing id with rls_eligible=false =>
     // all_active scope) so every Photo row is admitted and this suite keeps
     // testing pure Phase-4 drain semantics, not the admission policy
     // (which has its own suite: media-sync-r21-mirror-policy.test.ts).
     listing: {
-      listing_id: listingId,
+      listing_id: `SL-${listingId}`,
       rls_eligible: false,
       status: "Active",
       idx_display_yn: false,

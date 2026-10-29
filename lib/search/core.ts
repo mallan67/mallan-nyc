@@ -28,7 +28,7 @@ import {
  *   • `POST /api/crm/saved-searches/[id]/execute` — serialized it into the JSON
  *     body, where no first-party caller reads it: `MallanAPI.savedSearches.execute`
  *     (public/crm/js/core/api-client.js:553) has ZERO call sites, and the CRM
- *     saved-search UI re-runs criteria through the live Trestle engine instead.
+ *     saved-search UI re-runs criteria through the live Cotality search engine instead.
  *
  * So the column was a pure read cost: a full `media` JSONB blob for up to 100
  * rows per request (`clampLimit`), on every alert-cron iteration and every
@@ -59,6 +59,11 @@ export const SEARCH_RESULT_LISTING_SELECT = {
   modification_timestamp: true,
   internet_entire_listing_display_yn: true,
   internet_address_display_yn: true,
+  // The listing broker, for the alert email's per-listing "Listing courtesy of ..." (UCBA Art. III §2(C)), and whether Mallan authored the listing (lib/listings/mallan-source-identity.ts
+  // isMallanLocalListing: the listing id and rls_eligible), so a Mallan listing is not credited to "REBNY RLS". Two more columns of the same row: no media, no second query,
+  // and serializeSearchListing names its keys, so no response gains either.
+  list_office_name: true,
+  rls_eligible: true,
 } satisfies Prisma.ListingSelect;
 
 export type SearchResultListing = Prisma.ListingGetPayload<{

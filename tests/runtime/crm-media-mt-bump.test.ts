@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 /**
  * P1C4 — CRM media routes must not bump modification_timestamp on
- * Trestle-synced rows (behavioral RED→GREEN; closes deep-review loop L8).
+ * Cotality-synced rows (behavioral RED→GREEN; closes deep-review loop L8).
  *
  * The idx-sync cursor is MAX(modification_timestamp) WHERE
  * last_synced_from_trestle IS NOT NULL — MT must stay the TRESTLE row clock.
@@ -90,7 +90,7 @@ describe('P1C4 — crmListingTouchData (pure)', () => {
 });
 
 describe('P1C4 — media-order route', () => {
-  it('Trestle-synced listing: reorder issues NO modification_timestamp bump', async () => {
+  it('Cotality-synced listing: reorder issues NO modification_timestamp bump', async () => {
     setFixture(SYNCED_AT);
     const res = await reorderPATCH(
       makeRequest({ method: 'PATCH', body: { ordered_media_ids: [CRM_KEY] } }),
@@ -111,7 +111,7 @@ describe('P1C4 — media-order route', () => {
 });
 
 describe('P1C4 — media DELETE route', () => {
-  it('Trestle-synced listing: delete issues NO modification_timestamp bump', async () => {
+  it('Cotality-synced listing: delete issues NO modification_timestamp bump', async () => {
     setFixture(SYNCED_AT);
     const res = await mediaDELETE(
       makeRequest({ method: 'DELETE', url: 'http://localhost/api/test' }),

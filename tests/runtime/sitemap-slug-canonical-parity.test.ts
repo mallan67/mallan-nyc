@@ -111,7 +111,7 @@ describe('wiring — both call sites share the helper (SUPPORTING source-grep)',
 
   it('listing page composes the street via composeSlugStreetName (both DTO paths)', () => {
     // CONTRACT MOVED (DTO collapse). The page previously composed the street
-    // TWICE — once for its own DB-path DTO slug and once for the Trestle-direct
+    // TWICE — once for its own DB-path DTO slug and once for the Cotality-direct
     // path — hence the ">= 2" count. The DB-path slug now comes from
     // dbListingToPublicDTO, so one of those uses is gone BY DESIGN.
     //

@@ -55,6 +55,17 @@ describe("canEnableAlertForCriteria — P0-3 alert gate", () => {
       expect(decision.ok).toBe(true);
     });
 
+    it("treats _search_mode (basic / advanced form) as reserved view state, not unsupported", () => {
+      const decision = canEnableAlertForCriteria({
+        listing_type: "sale",
+        status: ["ACTIVE"],
+        _search_tab: "sale",
+        _search_mode: "advanced",
+      });
+      expect(decision.ok).toBe(true);
+      expect(decision.unsupported).toEqual([]);
+    });
+
     it("accepts the camelCase aliases (priceMin / bedsMax / etc.)", () => {
       const decision = canEnableAlertForCriteria({
         listingType: "sale",
@@ -99,7 +110,7 @@ describe("canEnableAlertForCriteria — P0-3 alert gate", () => {
       expect(decision.unsupported).toContain("keyword");
     });
 
-    it("flags Trestle-only fields not mirrored on the projection", () => {
+    it("flags Cotality-only fields not mirrored on the projection", () => {
       const decision = canEnableAlertForCriteria({
         listing_type: "sale",
         management_company: "O'Brien Realty",

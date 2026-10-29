@@ -50,4 +50,8 @@ describe('SEARCH_SELECT_FIELDS · DownPaymentAssistance coverage (Codex #352)', 
     }
     expect(dupes).toEqual([]);
   });
+
+  it('does not fetch unused MlsStatus (2026-10-03 Status residue cutover: mapTrestleToCrmListing never reads it)', () => {
+    expect(SEARCH_SELECT_FIELDS).not.toContain('MlsStatus');
+  });
 });

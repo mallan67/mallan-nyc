@@ -270,6 +270,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.lease_start_date !== undefined) update.lease_start_date = body.lease_start_date ? new Date(String(body.lease_start_date)) : null;
   if (body.lease_end_date !== undefined) update.lease_end_date = body.lease_end_date ? new Date(String(body.lease_end_date)) : null;
   if (body.next_follow_up !== undefined) update.next_follow_up = body.next_follow_up ? new Date(String(body.next_follow_up)) : null;
+  // The client declined further buying / selling outreach (Master §22.7: the client's answer governs).
+  // Existing column; honoured by the lease outreach route, the tenant-nurture cron and the lifecycle checkpoints.
+  if (body.nurture_paused !== undefined) update.nurture_paused = Boolean(body.nurture_paused);
   // Agent reassignment (broker only)
   if (body.agent_id !== undefined) {
     if (auth.role !== "BROKER") {

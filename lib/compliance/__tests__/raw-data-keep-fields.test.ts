@@ -32,6 +32,11 @@ describe('RAW_DATA_KEEP_FIELDS', () => {
       'CumulativeDaysOnMarket',
       'VirtualTourURLBranded',
       'VirtualTourURLUnbranded',
+      // tourUrlsForDto([Unbranded, Unbranded2, Unbranded3], [Branded, Branded2, Branded3]): a listing's second and third tour / video links, branded or not
+      'VirtualTourURLUnbranded2',
+      'VirtualTourURLUnbranded3',
+      'VirtualTourURLBranded2',
+      'VirtualTourURLBranded3',
     ];
     for (const f of required) {
       expect(RAW_DATA_KEEP_SET.has(f)).toBe(true);
@@ -72,8 +77,8 @@ describe('RAW_DATA_KEEP_FIELDS', () => {
     }
   });
 
-  it('does NOT contain fields known to be unread (AVM noise from Trestle)', () => {
-    // These are real Trestle Property fields that no consumer reads —
+  it('does NOT contain fields known to be unread (AVM noise from Cotality)', () => {
+    // Property field names that no consumer reads —
     // they're examples of the bulk being shed.
     const dropped = [
       'AccessibilityFeatures',
@@ -121,6 +126,26 @@ describe('slimRawData', () => {
     expect(out!.InteriorFeatures).toBe('Hardwood floors');
     expect(out!.AccessibilityFeatures).toBeUndefined();
     expect(out!.TaxLot).toBeUndefined();
+  });
+
+  it('keeps all six of a listing\'s tour and video links (branded and unbranded, first to third), and nothing of the other tour fields it does not read', () => {
+    const input = {
+      VirtualTourURLBranded: 'https://tour.example.com/branded/xyz',
+      VirtualTourURLUnbranded: 'https://my.matterport.com/show/?m=abc',
+      VirtualTourURLUnbranded2: 'https://www.youtube.com/watch?v=RM4ef1CIo2k',
+      VirtualTourURLUnbranded3: 'https://vimeo.com/123456789',
+      VirtualTourURLBranded2: 'https://tour.example.com/branded/two',
+      VirtualTourURLBranded3: 'https://tour.example.com/branded/three',
+      VideosCount: 2,                                                       // a count only: not kept
+    };
+    expect(slimRawData(input)).toEqual({
+      VirtualTourURLBranded: 'https://tour.example.com/branded/xyz',
+      VirtualTourURLBranded2: 'https://tour.example.com/branded/two',
+      VirtualTourURLBranded3: 'https://tour.example.com/branded/three',
+      VirtualTourURLUnbranded: 'https://my.matterport.com/show/?m=abc',
+      VirtualTourURLUnbranded2: 'https://www.youtube.com/watch?v=RM4ef1CIo2k',
+      VirtualTourURLUnbranded3: 'https://vimeo.com/123456789',
+    });
   });
 
   it('does not mutate input', () => {
@@ -196,7 +221,7 @@ describe('projectShedSavings', () => {
     // Regression pin for the 2026-04-28 audit-vs-dry-run discrepancy:
     // the prior implementation summed only `JSON.stringify(value).length`
     // per field, omitting the "key":, quotes, and comma overhead. On real
-    // Trestle rows the audit projected ~22% of actual savings (sample
+    // Cotality rows the audit projected ~22% of actual savings (sample
     // returned 23 MB; full-scan dry-run found 103 MB). The fix forces
     // projectShedSavings to compute keptBytes from the full slimmed JSON
     // and droppedBytes as the difference, so audit projections match the

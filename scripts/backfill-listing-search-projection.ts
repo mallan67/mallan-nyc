@@ -7,7 +7,7 @@
  * The PR 5B dual-write in lib/idx/sync.ts already populates the projection
  * for any listing the next sync cycle touches. This script handles the
  * tail of rows that haven't been touched since dual-write went live —
- * quiet listings that won't get a Trestle ModificationTimestamp update
+ * quiet listings that won't get a Cotality ModificationTimestamp update
  * for days/weeks.
  *
  * SAFETY:
@@ -22,7 +22,7 @@
  *     `lib/search/listing-search-projection.ts` — same code path as
  *     the dual-write in `lib/idx/sync.ts`. Fail-closed gate fields
  *     round-trip verbatim (null → null, false → false).
- *   - Reads only from existing DB Listing rows. Never touches Trestle.
+ *   - Reads only from existing DB Listing rows. Never calls Cotality.
  *   - Never deletes projection rows.
  *
  * Usage:

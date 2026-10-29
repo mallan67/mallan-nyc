@@ -1,13 +1,13 @@
 # Backend Validation Engine
 
-> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc)
+> **Feed:** REBNY RLS via the Cotality API | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Cotality IDX Plus Web API (read-only on mallan.nyc)
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
 
-> ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> ### AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+> 1. **NY law/DOS, Fair Housing and REBNY rules (UCBA 2026, REBNY Listing Service)** govern use, display and conduct. 2. **The live Cotality API** is the only authority for provider fields, values and picklists (`data/cotality-enums.live.json` is its committed copy).
+> 3. **Mallan business rules** govern how verified facts are used; Mallan-created fields (mostly commercial and private-listing fields) are Mallan facts, never presented as provider data, and can restrict but never override a law/REBNY/provider display restriction (Master §0.2, §4, §21.1). 4. **Fail closed = NON-DISPLAY.** Plan: `MALLAN-PLATFORM-MASTER-PLAN.md`; state: `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`.
 
 ---
 
@@ -24,7 +24,7 @@
 ```
 Layer 1: Client-side (CRM form)     → Immediate feedback, UX only
 Layer 2: Server-side (API route)     → MANDATORY before RLS submission
-Layer 3: RLS rejection (Trestle)     → Post-submission, must handle gracefully
+Layer 3: RLS rejection (via the LMP) → Post-submission, must handle gracefully
 ```
 
 **Layer 2 is the enforcement layer.** Layer 1 is convenience. Layer 3 is error handling.
@@ -35,7 +35,7 @@ Layer 3: RLS rejection (Trestle)     → Post-submission, must handle gracefully
 
 ### Always Required (41 Fields)
 
-Validate ALL of these are present and non-empty before RLS submission. See `compliance/fields.json` for the complete list with field names and categories.
+Validate ALL of these are present and non-empty before RLS submission. See UCBA 2026 Exhibit A (`data/UCBA-2026-Requirements.md` §B) for the mandatory-field checklist. Use the live Cotality field name (`data/cotality-enums.live.json`) wherever one exists; a mandatory item with no live provider field is still required and is kept as Mallan-authored listing data, never silently dropped (Master §7.0).
 
 Key mandatory fields:
 - **Address:** StreetNumber, StreetName, City, CityRegion, CountyOrParish, StateOrProvince, PostalCode, PostalCity, UnParsedAddress, SubdivisionName
@@ -44,7 +44,7 @@ Key mandatory fields:
 - **Unit:** BathroomsFull, BathroomsHalf, BathroomsTotal, BedroomsTotal, RoomsTotal, PetsAllowed
 - **Agent:** ListAgentMlsId, BuyerAgentMlsId (at close)
 - **Status:** MlsStatus, OnMarketDate, ExpirationDate, ListPrice
-- **Display:** InternetEntireListingDisplayYN *(also gates IDX — no separate IDX field on Trestle)*, InternetAddressDisplayYN, InternetAutomatedValuationDisplayYN, InternetConsumerCommentYN, SyndicateTo *(UCBA: SyndicateYN)*
+- **Display:** InternetEntireListingDisplayYN *(also gates IDX — no separate IDX field in the live Cotality schema)*, InternetAddressDisplayYN, InternetAutomatedValuationDisplayYN, InternetConsumerCommentYN, SyndicateTo *(UCBA: SyndicateYN)*
 - **Description:** PublicRemarks, ShowingInstructions
 - **Compliance:** CoBrokeAgreement, ListingAgreement, Concessions
 
@@ -146,7 +146,7 @@ When `InternetEntireListingDisplayYN` is set to `False`, server MUST auto-set:
 
 ```javascript
 if (listing.InternetEntireListingDisplayYN === false) {
-  // Note: IDXEntireListingDisplayYN is an internal name — does not exist on Trestle
+  // Note: IDXEntireListingDisplayYN is an internal name — does not exist in the live Cotality schema
   listing.IDXEntireListingDisplayYN = false;  // internal cascade only
   listing.InternetAddressDisplayYN = false;
   listing.InternetAutomatedValuationDisplayYN = false;
@@ -194,7 +194,7 @@ if (listing.InternetEntireListingDisplayYN === false) {
 
 ## 8. RLS Rejection Handling
 
-When Trestle rejects a submission:
+When the REBNY Listing Service rejects a submission (reported through the LMP):
 
 1. Log rejection with timestamp, field, reason
 2. Notify submitting agent immediately
@@ -214,12 +214,14 @@ if (quarterly_rejection_rate > 5%) → RED alert — $10,000 fine imminent
 
 ## 9. Picklist Validation
 
-Use `compliance/lookups.json` (114 lookup fields, 1,993 values) for server-side validation:
+Use the live Cotality enums (`data/cotality-enums.live.json`, read through `lib/cotality/cotality-enums.ts`) for server-side validation of provider fields:
 
-- Every picklist field MUST contain only official REBNY values
+> **Not yet enforced on the CRM listing write path.** The frozen Sale/Rental Redesign forms still save legacy picklist values through `/api/crm/listings` (for example `PropertySubType` `SingleFamilyTownhouse` / `MultiFamilyTownhouse`, which the live enum does not contain). Enforce this together with their Cotality conversion, not before.
+
+- Every provider picklist field MUST contain only values the live Cotality API serves (Mallan-created fields are Mallan facts with their own value lists — Master §0.2)
 - Unknown/custom values = rejection
 - Multi-select fields: validate each selected value individually
-- Case-sensitive matching per RLS rules
+- Case-sensitive matching against the live Cotality enum strings
 
 ---
 

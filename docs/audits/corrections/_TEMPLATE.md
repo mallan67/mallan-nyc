@@ -43,7 +43,7 @@
 | 2 | Implement fix | `<file:line>` | diff | — |
 | 3 | New test → GREEN | `<jest cmd>` | output | GREEN ✓ |
 | 4 | Full harness vs baseline | the B0 chain | counts | green / 1-known-exception |
-| 5 | Compliance chain (B1) | ucba/rls/idx/compliance-check | counts | 0 regressions |
+| 5 | Compliance chain (B1) | ucba/idx/compliance-check | counts | 0 regressions |
 | 6 | Live proof (B2, if render/behavior) | preview URL / runtime log | capture path | rendered ✓ |
 | 7 | Actual-diff vs pre-registered radius (§5/G5) | `git diff --name-only` | list | matches §2 (note any exception) |
 | 8 | MICRO agents (C1) | `<agents>` | verdict paths | PASS |
@@ -53,7 +53,7 @@
 ## 6. Gate results (the receipts)
 | Gate | Required | Result | Artifact |
 |---|---|---|---|
-| B0 type-check / lint / test:runtime / crm / scanner / ucba / compliance-check / rls / idx / display / build | green vs baseline (1 known idx exception) | … | … |
+| B0 type-check / lint / test:runtime / crm / scanner / ucba / compliance-check / idx / display / build | green vs baseline (1 known idx exception) | … | … |
 | B1 compliance chain | 0 regressions | … | … |
 | B2 live proof (§F) | if render/behavior | … | … |
 | C1 micro agents | each required PASS | … | … |

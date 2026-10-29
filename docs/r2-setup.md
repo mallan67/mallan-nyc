@@ -1,6 +1,6 @@
 # Cloudflare R2 — Setup Runbook
 
-Single-source-of-truth provisioning guide for the R2 bucket that backs mallan-nyc media (Trestle photo cache, future floor-plan + Matterport mirror, signed-URL gating in the master refactor plan).
+Single-source-of-truth provisioning guide for the R2 bucket that backs mallan-nyc media (Cotality photo cache, future floor-plan + Matterport mirror, signed-URL gating in the master refactor plan).
 
 **This is the gate that PRs 3 and 4 of the master refactor (`memory/REFACTOR-2026-04-25.md`) check before they merge.** No PR depending on R2 lands until `npm run ops:r2-health` returns exit 0 in production.
 
@@ -8,7 +8,7 @@ Single-source-of-truth provisioning guide for the R2 bucket that backs mallan-ny
 
 ## 0. Reality check — what's already in place
 
-Before reading further, note: the R2 client wrapper and the Trestle→R2 cache flow already exist in this repo. `lib/images/r2.ts` and `lib/images/cache-listing-photos.ts` are in production. This runbook is about confirming the bucket + credentials + verification path so the *next* round of media work (PRs 3 and 4) starts green.
+Before reading further, note: the R2 client wrapper (`lib/images/r2.ts`) and the Cotality→R2 media mirror (`mirrorMediaToR2` in `lib/idx/media-sync.ts`, run in-process by the One Cycle media member `lib/idx/media-sync-member.ts`; R2 key and media-classification helpers in `lib/media/media-sync-service.ts`) already exist in this repo and are in production. This runbook is about confirming the bucket + credentials + verification path so the *next* round of media work (PRs 3 and 4) starts green.
 
 If `npm run ops:r2-health` already returns exit 0 against your environment, the rest of this doc is reference material.
 
@@ -215,8 +215,8 @@ If usage trends toward the free tier ceiling, upgrade R2 plan via Cloudflare das
 
 Once R2 health is green and the env vars are in Vercel:
 
-- **PR 3** (`refactor/03-media-sync-service`) — background sync that downloads changed Trestle media and stores in R2 keyed by `ResourceRecordKey` (per Trestle 2026-04-07 vendor guidance). Uses the existing `uploadToR2()` from `lib/images/r2.ts`.
-- **PR 4** (`refactor/04-media-batch-rewrite`) — replace `/api/media/batch`'s live Trestle fetches with R2/Neon reads. Uses the existing `getR2PublicUrl()` and `keyFromUrl()`.
+- **PR 3** (`refactor/03-media-sync-service`) — background sync that downloads changed Cotality media and stores in R2 keyed by `ResourceRecordKey` (per Cotality 2026-04-07 vendor guidance). Uses the existing `uploadToR2()` from `lib/images/r2.ts`.
+- **PR 4** (`refactor/04-media-batch-rewrite`) — replace `/api/media/batch`'s live Cotality fetches with R2/Neon reads. Uses the existing `getR2PublicUrl()` and `keyFromUrl()`.
 
 Both PRs declare `npm run ops:r2-health` exit 0 in their Production Verification Note as a merge gate.
 
@@ -225,7 +225,8 @@ Both PRs declare `npm run ops:r2-health` exit 0 in their Production Verification
 ## Cross-references
 
 - `lib/images/r2.ts` — S3 client wrapper (already in repo)
-- `lib/images/cache-listing-photos.ts` — Trestle→R2 caching during ISR (already in repo)
+- `lib/idx/media-sync.ts` — Cotality→R2 media mirror (`mirrorMediaToR2` / `runMediaSync`, run by the One Cycle media member; manual trigger `/api/cron/media-sync`)
+- `lib/media/media-sync-service.ts` — R2 key + media-classification helpers used by the mirror and by ingest
 - `scripts/ops-r2-health.ts` — health check script (this PR)
 - `memory/REFACTOR-2026-04-25.md` — master plan, PRs 3 & 4
 - Cloudflare R2 docs: https://developers.cloudflare.com/r2/

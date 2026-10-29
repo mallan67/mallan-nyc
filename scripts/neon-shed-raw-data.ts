@@ -1,10 +1,10 @@
 #!/usr/bin/env tsx
 /**
  * neon-shed-raw-data — One-shot backfill that slims existing raw_data on
- * Trestle-imported listings to the keep set. Idempotent and re-runnable.
+ * Cotality-imported listings to the keep set. Idempotent and re-runnable.
  *
- * The Trestle sync writer (lib/idx/trestle-mapper.ts) already slims raw_data
- * for any NEW or UPDATED Trestle row. This script applies the same slim to
+ * The Cotality sync writer (lib/idx/trestle-mapper.ts) already slims raw_data
+ * for any NEW or UPDATED Cotality row. This script applies the same slim to
  * rows that pre-date the writer change.
  *
  * SAFETY:
@@ -12,8 +12,8 @@
  *   - --execute is explicit and required to actually mutate.
  *   - Only touches rows where last_synced_from_trestle IS NOT NULL — the
  *     deterministic signal that this row's raw_data was last written by the
- *     Trestle mapper (set by lib/idx/sync.ts main loop, syncAgentHistory,
- *     feed-reconcile, AND reset-sync — covers every programmatic Trestle
+ *     Cotality mapper (set by lib/idx/sync.ts main loop, syncAgentHistory,
+ *     feed-reconcile, AND reset-sync — covers every programmatic Cotality
  *     write path, including agent-linked imports). Pure CRM-created
  *     listings never have this column populated and are skipped.
  *   - Idempotent — re-running on already-slimmed rows is a no-op (slimRawData
@@ -24,7 +24,7 @@
  *   # Dry run — projects savings, no DB writes:
  *   npx tsx scripts/neon-shed-raw-data.ts
  *
- *   # Execute on all Trestle-imported rows:
+ *   # Execute on all Cotality-imported rows:
  *   npx tsx scripts/neon-shed-raw-data.ts --execute
  *
  *   # Execute in batches (interruptible):
@@ -103,7 +103,7 @@ async function main() {
     prisma.listing.count({ where: { last_synced_from_trestle: { not: null } } })
   );
   console.log(
-    `Trestle-imported listings (last_synced_from_trestle IS NOT NULL): ` +
+    `Cotality-imported listings (last_synced_from_trestle IS NOT NULL): ` +
       `${totalEligible.toLocaleString()}`
   );
 

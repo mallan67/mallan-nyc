@@ -7,14 +7,14 @@ import type {
 
 const redisGet = jest.fn();
 const redisSet = jest.fn();
-const fetchFromTrestle = jest.fn();
+const mockFetchFromCotality = jest.fn();
 
 jest.mock('@/lib/redis', () => ({
   redis: { get: (...args: unknown[]) => redisGet(...args), set: (...args: unknown[]) => redisSet(...args) },
   default: { get: (...args: unknown[]) => redisGet(...args), set: (...args: unknown[]) => redisSet(...args) },
 }));
 jest.mock('@/lib/idx/fetch', () => ({
-  fetchFromTrestle: (...args: unknown[]) => fetchFromTrestle(...args),
+  fetchFromTrestle: (...args: unknown[]) => mockFetchFromCotality(...args),
 }));
 
 const preflight = require('@/lib/idx/one-cycle-preflight') as typeof import('@/lib/idx/one-cycle-preflight');
@@ -48,12 +48,12 @@ const state: OneCyclePreflightState = {
 beforeEach(() => {
   redisGet.mockReset();
   redisSet.mockReset();
-  fetchFromTrestle.mockReset();
+  mockFetchFromCotality.mockReset();
   delete process.env.ONE_CYCLE_BACKLOG_INTERVAL_SECONDS;
 });
 
 function mockSameHeads() {
-  fetchFromTrestle.mockImplementation(async (options: { select?: string[] }) => {
+  mockFetchFromCotality.mockImplementation(async (options: { select?: string[] }) => {
     const field = options.select?.[1];
     if (field === 'ModificationTimestamp') {
       return {
@@ -103,7 +103,7 @@ describe('one-cycle preflight state', () => {
 
   it('fails open when the source probe fails', async () => {
     redisGet.mockResolvedValue(state);
-    fetchFromTrestle.mockRejectedValue(new Error('source unavailable'));
+    mockFetchFromCotality.mockRejectedValue(new Error('source unavailable'));
     const decision = await preflight.decideOneCyclePreflight(PREFLIGHT_NOW);
     expect(decision).toMatchObject({
       shouldRun: true,
@@ -206,7 +206,7 @@ describe('freshness heartbeat', () => {
   beforeEach(() => {
     redisGet.mockReset();
     redisSet.mockReset();
-    fetchFromTrestle.mockReset();
+    mockFetchFromCotality.mockReset();
     // Reuse the file's existing helper so the probe returns exactly the
     // stored heads — i.e. a genuine "unchanged" verdict. That isolates the
     // heartbeat as the ONLY thing that can force a run in these tests.

@@ -15,7 +15,7 @@ import {
   type MallanIdentityConfig,
 } from "@/lib/syndication/eligibility";
 
-const MALLAN_OFFICE = "39361"; // hypothetical Mallan Trestle ListOfficeMlsId
+const MALLAN_OFFICE = "39361"; // hypothetical Mallan Cotality ListOfficeMlsId
 const MALLAN_AGENT_A = "AG-MAYA-001";
 const MALLAN_AGENT_B = "AG-OTHER-MALLAN-002";
 const OTHER_BROKERAGE = "OTHER-OFFICE-12345";
@@ -86,7 +86,7 @@ describe("Mallan syndication eligibility — listing-side control", () => {
     );
   });
 
-  // ── Case 1 — Mallan-listed Trestle row passes Layer 1a ──
+  // ── Case 1 — Mallan-listed Cotality row passes Layer 1a ──
   it("eligible when ListOfficeMlsId matches Mallan and other layers pass", () => {
     const r = evaluateMallanSyndicationEligibility(
       fullyApprovedRow(),
@@ -97,8 +97,8 @@ describe("Mallan syndication eligibility — listing-side control", () => {
     expect(r.failed_layers).toEqual([]);
   });
 
-  // ── Case 2 — Non-Mallan Trestle row blocked at Layer 1 ──
-  it("blocks a non-Mallan Trestle row (other brokerage as ListOfficeMlsId)", () => {
+  // ── Case 2 — Non-Mallan Cotality row blocked at Layer 1 ──
+  it("blocks a non-Mallan Cotality row (other brokerage as ListOfficeMlsId)", () => {
     const r = evaluateMallanSyndicationEligibility(
       fullyApprovedRow({
         agent_info: {
@@ -171,7 +171,7 @@ describe("Mallan syndication eligibility — listing-side control", () => {
   });
 
   // ── Case 5 — completely missing IDs = block ──
-  it("blocks when both ListOfficeMlsId and ListAgentMlsId are empty on a Trestle row", () => {
+  it("blocks when both ListOfficeMlsId and ListAgentMlsId are empty on a Cotality row", () => {
     const r = evaluateMallanSyndicationEligibility(
       fullyApprovedRow({
         source: "trestle",

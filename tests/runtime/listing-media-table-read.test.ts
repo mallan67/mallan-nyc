@@ -11,9 +11,9 @@
  *   3. No-media path                             — both empty → media: [].
  *   4. FloorPlan classification                  — sorted after photos.
  *   5. REBNY display gate still respected        — owner_opt_out suppresses.
- *   6. R2 cached URL preferred over Trestle      — cached wins; proxy avoided.
+ *   6. R2 cached URL preferred over Cotality      — cached wins; proxy avoided.
  *
- * NO live Prisma reads, NO live R2 writes, NO live Trestle calls. The mapper
+ * NO live Prisma reads, NO live R2 writes, NO live Cotality calls. The mapper
  * is a pure function; we feed it constructed `DbListing` objects and assert
  * the resulting DTO shape.
  */
@@ -29,13 +29,13 @@ import type { ListingMediaTableRow } from '@/lib/media/listing-media-resolver';
 
 const R2_PHOTO = 'https://r2.mallan.nyc/listings/RBNY-1/photo-1.jpg';
 const R2_PHOTO_2 = 'https://r2.mallan.nyc/listings/RBNY-1/photo-2.jpg';
-const TRESTLE_PHOTO = 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/100/1/abc';
-const TRESTLE_FLOORPLAN = 'https://api.cotality.com/trestle/Media/Property/DOCUMENT-Pdf/100/2/fp';
-const TRESTLE_VIDEO = 'https://api.cotality.com/trestle/Media/Property/VIDEO/100/3/vid.mp4';
+const COTALITY_PHOTO = 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/100/1/abc';
+const COTALITY_FLOORPLAN = 'https://api.cotality.com/trestle/Media/Property/DOCUMENT-Pdf/100/2/fp';
+const COTALITY_VIDEO = 'https://api.cotality.com/trestle/Media/Property/VIDEO/100/3/vid.mp4';
 
 function makeRow(overrides: Partial<ListingMediaTableRow> = {}): ListingMediaTableRow {
   return {
-    media_url_original: TRESTLE_PHOTO,
+    media_url_original: COTALITY_PHOTO,
     media_url_cached: null,
     media_type: 'Photo',
     media_category: 'Photo',
@@ -116,7 +116,7 @@ describe('PR 4 — listing_media reader swap', () => {
   it('case 2: listing_media empty → falls back to Listing.media JSON', () => {
     const listing = makeBaseListing({
       media: [
-        { MediaURL: TRESTLE_PHOTO, MediaCategory: 'Photo', Order: 0 },
+        { MediaURL: COTALITY_PHOTO, MediaCategory: 'Photo', Order: 0 },
       ],
       listing_media: [],
     });
@@ -124,7 +124,7 @@ describe('PR 4 — listing_media reader swap', () => {
     const dto = dbListingToPublicDTO(listing);
 
     expect(dto.media).toHaveLength(1);
-    // Trestle URL must be proxied through /api/media/proxy.
+    // Cotality URL must be proxied through /api/media/proxy.
     expect(dto.media[0].url).toMatch(/^\/api\/media\/proxy\?url=/);
     expect(dto.media[0].mediaType).toBe('Photo');
   });
@@ -134,7 +134,7 @@ describe('PR 4 — listing_media reader swap', () => {
     // mapper must still produce a valid DTO using the JSON column.
     const listing = makeBaseListing({
       media: [
-        { MediaURL: TRESTLE_PHOTO, MediaCategory: 'Photo', Order: 0 },
+        { MediaURL: COTALITY_PHOTO, MediaCategory: 'Photo', Order: 0 },
       ],
     });
     delete listing.listing_media;
@@ -160,7 +160,7 @@ describe('PR 4 — listing_media reader swap', () => {
         // ingestion order. This was the exact 2026-05-08 bug class
         // (243 listings rendering FloorPlan as hero card).
         makeRow({
-          media_url_original: TRESTLE_FLOORPLAN,
+          media_url_original: COTALITY_FLOORPLAN,
           media_type: 'FloorPlan',
           media_category: 'Floor Plan',
           order: 0,
@@ -217,14 +217,14 @@ describe('PR 4 — listing_media reader swap', () => {
     expect(dto.media[0].url).toBe(R2_PHOTO);
   });
 
-  it('case 6: R2 cached URL preferred over Trestle original — proxy never used', () => {
+  it('case 6: R2 cached URL preferred over Cotality original — proxy never used', () => {
     const listing = makeBaseListing({
       listing_media: [
         makeRow({
-          // BOTH URLs present — the cached R2 URL must win and the Trestle
+          // BOTH URLs present — the cached R2 URL must win and the Cotality
           // URL must not appear anywhere in the DTO output.
           media_url_cached: R2_PHOTO,
-          media_url_original: TRESTLE_PHOTO,
+          media_url_original: COTALITY_PHOTO,
           media_type: 'Photo',
         }),
       ],
@@ -234,17 +234,17 @@ describe('PR 4 — listing_media reader swap', () => {
 
     expect(dto.media).toHaveLength(1);
     expect(dto.media[0].url).toBe(R2_PHOTO);
-    // The Trestle proxy path must NOT appear because R2 won.
+    // The Cotality proxy path must NOT appear because R2 won.
     expect(dto.media[0].url).not.toMatch(/\/api\/media\/proxy/);
     expect(dto.media[0].url).not.toContain('cotality.com');
   });
 
-  it('case 6b: R2 absent but Trestle present → Trestle URL is proxied', () => {
+  it('case 6b: R2 absent but Cotality present → Cotality URL is proxied', () => {
     const listing = makeBaseListing({
       listing_media: [
         makeRow({
           media_url_cached: null,
-          media_url_original: TRESTLE_PHOTO,
+          media_url_original: COTALITY_PHOTO,
           media_type: 'Photo',
         }),
       ],
@@ -254,7 +254,7 @@ describe('PR 4 — listing_media reader swap', () => {
 
     expect(dto.media).toHaveLength(1);
     expect(dto.media[0].url).toMatch(/^\/api\/media\/proxy\?url=/);
-    expect(dto.media[0].url).toContain(encodeURIComponent(TRESTLE_PHOTO));
+    expect(dto.media[0].url).toContain(encodeURIComponent(COTALITY_PHOTO));
   });
 
   it('case 7: soft-deleted listing_media rows are ignored — only active rows surface', () => {
@@ -278,7 +278,7 @@ describe('PR 4 — listing_media reader swap', () => {
     const listing = makeBaseListing({
       listing_media: [
         makeRow({
-          media_url_original: TRESTLE_VIDEO,
+          media_url_original: COTALITY_VIDEO,
           media_type: 'Video',
           media_category: 'Video',
           order: 0,

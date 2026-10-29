@@ -10,7 +10,7 @@
  *
  *   - stored summary identical → ZERO Listing.update calls (suppressed)
  *   - rotation-only primary_photo_url difference (same URL identity, rotated
- *     signature) → suppressed — the signed Trestle URL is NEVER material
+ *     signature) → suppressed — the signed Cotality URL is NEVER material
  *   - hero change / photo_count change / photos_change_timestamp (source
  *     photo revision) change / r2_key (delivery-state) change → writes
  *   - listing row missing or unreadable → fail-closed (write proceeds)

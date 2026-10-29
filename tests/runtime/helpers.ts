@@ -106,3 +106,67 @@ export function buildPrismaMock(seed: Record<string, Record<string, unknown>> = 
 export async function readJson<T = unknown>(res: Response): Promise<T> {
   return (await res.json()) as T;
 }
+
+// ── Listing viewer live loader (Sales Tools / Rental Tools read-only pages) ────────────
+//
+// public/crm/js/core/listing-viewer-live.js is the ONE loader both viewers call from both of
+// their blocks (the initial MallanAPI.onReady fetch and the postMessage handler). It reads an
+// RLS listing live from Cotality through the agent search route and a Mallan-only SL-/RL-
+// listing from the CRM record. The tests execute that file as the browser would, with the only
+// globals it touches stubbed, instead of regex-pinning hydration lines inside the viewer HTML.
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { createContext, runInContext } from 'vm';
+
+export interface ViewerLiveHarness {
+  /** window.viewerLiveListing(id, side) → the CRM-shaped record of a live RLS listing (rejects when live Cotality has none) */
+  viewerLiveListing: (id: string, side: 'sale' | 'rental') => Promise<Record<string, any>>;
+  /** window.viewerLiveRecord(mapped, raw, id, side) — the shaping alone */
+  viewerLiveRecord: (l: Record<string, unknown>, raw: Record<string, unknown>, id: string, side: 'sale' | 'rental') => Record<string, any>;
+  /** window.viewerLiveMedia(id) → { photos, plans } from /api/media/batch */
+  viewerLiveMedia: (id: string) => Promise<{ photos: string[]; plans: string[] }>;
+  /** window.viewerMallanSide(id): SL- → 'sale', RL- → 'rental', anything else → null */
+  viewerMallanSide: (id: string) => 'sale' | 'rental' | null;
+  /** MallanAPI.idx.search → GET /api/idx/search (live Cotality through the agent search route) */
+  idxSearch: jest.Mock;
+  /** MallanAPI.listings.get → GET /api/crm/listings/:id (Mallan-only SL-/RL- records) */
+  listingsGet: jest.Mock;
+  /** fetch → GET /api/media/batch (photos and floor plans) */
+  fetch: jest.Mock;
+}
+
+export const LISTING_VIEWER_LIVE_PATH = join(process.cwd(), 'public', 'crm', 'js', 'core', 'listing-viewer-live.js');
+
+export function loadListingViewerLive(opts: {
+  /** what /api/idx/search answers (already mapped by lib/search/crm-idx-mapper) */
+  liveListings?: unknown[];
+  /** what /api/crm/listings/:id answers */
+  crmRecord?: Record<string, unknown>;
+  /** what /api/media/batch answers, keyed by listing id */
+  media?: Record<string, unknown[]>;
+  /** a document stub ({ getElementById }) for the functions that fill the viewer's controls */
+  document?: unknown;
+} = {}): ViewerLiveHarness {
+  const src = readFileSync(LISTING_VIEWER_LIVE_PATH, 'utf8');
+  const idxSearch = jest.fn(async () => ({ listings: opts.liveListings || [] }));
+  const listingsGet = jest.fn(async () => opts.crmRecord || {});
+  const fetch = jest.fn(async () => ({ ok: true, json: async () => ({ media: opts.media || {} }) }));
+  const ctx: Record<string, unknown> = {
+    console,
+    fetch,
+    MallanAPI: { idx: { search: idxSearch }, listings: { get: listingsGet } },
+  };
+  if (opts.document) ctx.document = opts.document;
+  ctx.window = ctx;
+  createContext(ctx);
+  runInContext(src, ctx, { filename: 'listing-viewer-live.js' });
+  return {
+    viewerLiveListing: ctx.viewerLiveListing as ViewerLiveHarness['viewerLiveListing'],
+    viewerLiveRecord: ctx.viewerLiveRecord as ViewerLiveHarness['viewerLiveRecord'],
+    viewerLiveMedia: ctx.viewerLiveMedia as ViewerLiveHarness['viewerLiveMedia'],
+    viewerMallanSide: ctx.viewerMallanSide as ViewerLiveHarness['viewerMallanSide'],
+    idxSearch,
+    listingsGet,
+    fetch,
+  };
+}

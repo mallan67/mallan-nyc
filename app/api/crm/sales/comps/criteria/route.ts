@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import type { CompCriteria } from "@/lib/comps";
+import { compStatusValues, UnsupportedCompStatusError } from "@/lib/comps/status";
 import type { Prisma } from "@prisma/client";
 import { safeJson } from "@/lib/api/safe-json";
 import {
@@ -36,6 +37,15 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "criteria must include building and area" }, { status: 400 });
   }
 
+  // The statuses become part of the query sent to Cotality: only the ones a comp search asks for are stored.
+  try {
+    compStatusValues(criteria.building.statuses);
+    compStatusValues(criteria.area.statuses);
+  } catch (err) {
+    if (err instanceof UnsupportedCompStatusError) return NextResponse.json({ error: err.message }, { status: 400 });
+    throw err;
+  }
+
   const listing = await prisma.listing.findUnique({
     where: { listing_id },
     select: { ...CAPABILITY_LISTING_SELECT },
@@ -46,7 +56,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   // Association level, deliberately NOT local-only. `comp_criteria` is
-  // Mallan-authored internal analysis: the Trestle mapper never writes it, so
+  // Mallan-authored internal analysis: the Cotality feed mapper never writes it, so
   // it is not a source-derived field, and neither comps writer stamps
   // `modification_timestamp`, so it cannot poison the incremental cursor.
   // Running comps against a third-party row is legitimate CMA work.

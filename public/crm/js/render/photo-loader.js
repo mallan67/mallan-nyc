@@ -58,6 +58,7 @@
                 batch.forEach(function(lid) {
                     _photoCache[lid] = photos[lid] || null;
                     delete _photoPending[lid];
+                    _rememberPhoto(lid, photos[lid]);
                     _applyPhotoToCards(lid, photos[lid]);
                 });
             }).catch(function(err) {
@@ -65,6 +66,17 @@
                 batch.forEach(function(lid) {
                     _photoCache[lid] = null;
                     delete _photoPending[lid];
+                });
+            });
+        }
+
+        // Keep the fetched primary photo on the listing itself, so every later render (views, the
+        // master-detail panel, reports) shows it. Opening the detail replaces it with the full set.
+        function _rememberPhoto(listingId, photoUrl) {
+            if (!photoUrl) return;
+            [typeof listings !== 'undefined' ? listings : [], (typeof searchResultsState !== 'undefined' && searchResultsState.filteredListings) || []].forEach(function(arr) {
+                arr.forEach(function(l) {
+                    if ((l.lid || l.id) === listingId && !(l.images && l.images.length)) l.images = [{ url: photoUrl, isPrimary: true }];
                 });
             });
         }
@@ -133,10 +145,11 @@
             var cards = document.querySelectorAll('[data-listing-lid]');
             cards.forEach(function(card) {
                 var lid = card.getAttribute('data-listing-lid');
-                // Only observe if this listing doesn't already have a real photo
-                if (lid && !_photoCache[lid]) {
-                    _photoObserver.observe(card);
-                }
+                if (!lid) return;
+                // Every render (view, page, sort, refine) builds new cards with the placeholder:
+                // a listing whose photo is already fetched gets it now, the rest load as they scroll in.
+                if (_photoCache[lid]) _applyPhotoToCards(lid, _photoCache[lid]);
+                else _photoObserver.observe(card);
             });
         }
 
@@ -197,6 +210,11 @@
 
         /**
          * Apply fetched media to the listing object in listings for detail panel use.
+         *
+         * Every row's mediaType is the server's classification (/api/media/batch, lib/media/listing-media-resolver.ts: 'Photo', 'FloorPlan', 'Video', 'VirtualTour' or 'Unknown'),
+         * so nothing is classified again here. Only a Photo is a photo: a video or a tour row is a link, not a picture (shown as an <img> it is a broken image, and it would count
+         * towards photoCount), and 'Unknown' (a category the resolver does not know) is none of the four. The detail panel reads listing.images, listing._floorPlans,
+         * listing._videos and listing._virtualTours (search/pagination.js).
          */
         function _applyMediaToListing(listingId, mediaItems) {
             if (!mediaItems || !mediaItems.length) return;
@@ -205,14 +223,16 @@
             if (!listing) return;
 
             // Build typed arrays
-            // Trestle Media has 2 categories: Photo and FloorPlan.
-            // Videos/VirtualTours/3D come from Property fields (VirtualTourURLUnbranded), not Media.
             var photos = [];
             var floorPlans = [];
+            var videos = [];
+            var virtualTours = [];
             mediaItems.forEach(function(m) {
                 var entry = { url: m.url, caption: '', order: m.order || 0, mediaType: m.mediaType };
-                if (m.mediaType === 'FloorPlan') floorPlans.push(entry);
-                else photos.push(entry);
+                if (m.mediaType === 'Photo') photos.push(entry);
+                else if (m.mediaType === 'FloorPlan') floorPlans.push(entry);
+                else if (m.mediaType === 'Video') videos.push(entry);
+                else if (m.mediaType === 'VirtualTour') virtualTours.push(entry);
             });
 
             // Update listing.images with photos only
@@ -223,7 +243,9 @@
                     listing.photoCount = photos.length;
                 }
             }
-            // Store floor plans separately for detail panel
+            // Store floor plans, videos and tours separately for the detail panel
             if (floorPlans.length > 0) listing._floorPlans = floorPlans;
-            // Note: Videos/VirtualTours/3D are on listing.virtualTourUrl (from Property.VirtualTourURLUnbranded)
+            if (videos.length > 0) listing._videos = videos;
+            if (virtualTours.length > 0) listing._virtualTours = virtualTours;
+            // The tour links of the Property fields are listing.virtualTourUrl; the panel prefers it to _virtualTours
         }

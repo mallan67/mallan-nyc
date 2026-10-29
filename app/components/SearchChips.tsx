@@ -1,7 +1,7 @@
 'use client';
 
 import type { SearchFilters, AmenityFilter } from '@/lib/search/types';
-import { AMENITY_FIELD_MAP } from '@/lib/search/types';
+import { AMENITY_FIELD_MAP, isSearchableAmenity } from '@/lib/search/types';
 
 /* ──────────────────────────────────────────────
  * FilterChip — describes one removable pill
@@ -178,6 +178,8 @@ export function buildChips(
   // Amenities
   if (filters.amenities?.length) {
     for (const a of filters.amenities) {
+      // A disabled filter (No Fee: no live Cotality field) or a word the map does not name filters nothing, so it is not shown as an active chip.
+      if (!isSearchableAmenity(a)) continue;
       const meta = AMENITY_FIELD_MAP[a as AmenityFilter];
       chips.push({
         id: `amenity-${a}`,

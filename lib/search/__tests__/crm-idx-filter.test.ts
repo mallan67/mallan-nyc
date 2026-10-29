@@ -1,556 +1,606 @@
-import { buildCrmIdxODataFilter, escapeOData } from "@/lib/search/crm-idx-filter";
+/**
+ * CRM Agent Search mapping layer — contract tests against the LIVE Cotality contract
+ * committed in data/cotality-enums.live.json (`npm run cotality:pull`, live 2026-10-23).
+ *
+ * Every criterion is SUPPORTED (a Cotality clause), LOCAL (applied by Mallan after retrieval)
+ * or refused visibly. These tests replace the former "DEAD:" tests, which pinned criteria
+ * being silently dropped.
+ */
+import {
+  applyLocalCriteria,
+  buildCrmIdxQuery,
+  carriedOn,
+  escapeOData,
+  SEARCH_CONTRACT,
+} from "@/lib/search/crm-idx-filter";
+import { inventoryFromPairs } from "@/lib/idx/geography";
 
-describe("buildCrmIdxODataFilter", () => {
-  it("builds core sale filters with default active statuses", () => {
-    const filter = buildCrmIdxODataFilter(new URLSearchParams({
-      type: "sale",
-      minPrice: "1000000",
-      maxPrice: "2000000",
-      minBeds: "2",
-      maxBeds: "4",
-      minBaths: "1.5",
-      maxBaths: "3",
-      borough: "Manhattan",
-    }));
+const q = (params: Record<string, string>) => buildCrmIdxQuery(new URLSearchParams(params));
+const withBoxes = (type: string, boxes: Record<string, string[]>) => q({ type, checkboxFilters: JSON.stringify(boxes) });
+const refusedFields = (r: ReturnType<typeof q>) => r.refused.map((x) => x.field);
+const customFieldsRecord = (fields: Record<string, string>) => ({ CustomProperty: [{ CustomFields: JSON.stringify(fields) }] });
 
-    expect(filter).toContain("PropertyType ne 'ResidentialLease'");
-    expect(filter).toContain("ListPrice ge 1000000");
-    expect(filter).toContain("ListPrice le 2000000");
-    expect(filter).toContain("BedroomsTotal ge 2");
-    expect(filter).toContain("BedroomsTotal le 4");
-    expect(filter).toContain("BathroomsTotalInteger ge 1.5");
-    expect(filter).toContain("BathroomsTotalInteger le 3");
-    expect(filter).toContain("CityRegion eq 'Manhattan'");
-    expect(filter).toContain("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
+describe("live contract facts the mapping relies on", () => {
+  it("sale and rental are separate Cotality PropertyTypes, and this licence serves no commercial type", () => {
+    expect(SEARCH_CONTRACT.types).toEqual({ sale: "Residential", rental: "ResidentialLease" });
+    const counts = (SEARCH_CONTRACT as unknown as { type_counts: Record<string, number> }).type_counts;
+    expect(counts.Residential).toBeGreaterThan(0);
+    expect(counts.ResidentialLease).toBeGreaterThan(0);
+    expect(counts.CommercialSale).toBe(0);
+    expect(counts.CommercialLease).toBe(0);
   });
 
-  it("builds rental status and neighborhood filters", () => {
-    const filter = buildCrmIdxODataFilter(new URLSearchParams({
-      type: "rental",
-      neighborhood: "NoSuchNeighborhoodForAlias",
-      status: "Coming Soon,Active Under Contract",
-    }));
-
-    expect(filter).toContain("PropertyType eq 'ResidentialLease'");
-    expect(filter).toContain("SubdivisionName eq 'NoSuchNeighborhoodForAlias'");
-    expect(filter).toContain("(StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
+  it("rent and sale price are both ListPrice; LeaseAmount carries no data", () => {
+    expect(carriedOn("ListPrice", "sale")).toBe(true);
+    expect(carriedOn("ListPrice", "rental")).toBe(true);
+    expect(carriedOn("LeaseAmount", "rental")).toBe(false);
   });
 
-  it("supports status wildcard for tracker-style total counts", () => {
-    const filter = buildCrmIdxODataFilter(new URLSearchParams("status=*"));
+  it("geography, MlsStatus and provider DOM are suppressed", () => {
+    for (const f of ["Latitude", "Longitude", "MlsStatus", "DaysOnMarket", "SourceSystemKey"]) {
+      expect(SEARCH_CONTRACT.property[f].filter).toBe("SUPPRESSED");
+    }
+  });
+});
 
-    expect(filter).not.toContain("StandardStatus");
+describe("listing type — two mappings", () => {
+  it("sale searches Residential only", () => {
+    expect(q({ type: "sale" }).filter).toContain("PropertyType eq 'Residential'");
   });
 
-  it("escapes OData strings and builds address filters", () => {
+  it("rental searches ResidentialLease only", () => {
+    expect(q({ type: "rental" }).filter).toContain("PropertyType eq 'ResidentialLease'");
+    expect(q({ type: "rent" }).filter).toContain("PropertyType eq 'ResidentialLease'");
+  });
+
+  it("building search spans both", () => {
+    expect(q({}).filter).toContain("(PropertyType eq 'Residential' or PropertyType eq 'ResidentialLease')");
+  });
+
+  it("a rental-only field is refused on a sale search and executed on a rental search", () => {
+    const rentalOnly = Object.keys(SEARCH_CONTRACT.property).find(
+      (f) => SEARCH_CONTRACT.property[f].filter === "SUPPORTED" && SEARCH_CONTRACT.property[f].kind === "number"
+        && carriedOn(f, "rental") && !carriedOn(f, "sale"),
+    );
+    expect(rentalOnly).toBeDefined(); // SecurityDeposit, live 2026-10-23
+    const sale = q({ type: "sale", fieldRanges: JSON.stringify({ [rentalOnly!]: { min: "1000" } }) });
+    expect(refusedFields(sale)).toContain(rentalOnly);
+    const rental = q({ type: "rental", fieldRanges: JSON.stringify({ [rentalOnly!]: { min: "1000" } }) });
+    expect(rental.refused).toEqual([]);
+    expect(rental.filter).toContain(`${rentalOnly} ge 1000`);
+  });
+});
+
+describe("status — StandardStatus only", () => {
+  it("defaults to on market and in contract: Active, ComingSoon, ActiveUnderContract, Pending", () => {
+    expect(q({ type: "sale" }).filter).toContain("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'Pending')");
+  });
+
+  it("normalizes display spacing to live values", () => {
+    expect(q({ type: "rental", status: "Coming Soon,Active Under Contract" }).filter)
+      .toContain("(StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
+  });
+
+  it("lets agents search Closed / Expired / Withdrawn (CMA comps and market history)", () => {
+    const r = q({ type: "sale", status: "Closed,Expired,Withdrawn,Canceled" });
+    expect(r.refused).toEqual([]);
+    expect(r.filter).toContain("StandardStatus eq 'Closed'");
+    expect(r.filter).toContain("StandardStatus eq 'Expired'");
+  });
+
+  it("refuses values that are not live StandardStatus values (former MlsStatus sub-statuses)", () => {
+    const r = q({ type: "sale", status: "Active,OFFEROUT" });
+    expect(r.refused[0]).toMatchObject({ criterion: "status", field: "StandardStatus" });
+    expect(r.refused[0].reason).toContain("OFFEROUT");
+    expect(r.filter).not.toContain("OFFEROUT");
+  });
+
+  it("status=* counts every status", () => {
+    expect(q({ status: "*" }).filter).not.toContain("StandardStatus");
+  });
+
+  it("maps old sub-statuses to live fields: back on market, sold / rented through Mallan, financing", () => {
+    const office = SEARCH_CONTRACT.mallan_office!.ListOfficeMlsId;
+    expect(q({ type: "sale", status: "BackOnMarket" }).filter)
+      .toContain("(StandardStatus eq 'Active' and BackOnMarketTimestamp ne null)");
+    const thru = q({ type: "rental", status: "RentedThruUs" });
+    expect(thru.refused).toEqual([]);
+    expect(thru.filter).toContain(`(StandardStatus eq 'Closed' and (BuyerOfficeMlsId eq '${office}' or CoBuyerOfficeMlsId eq '${office}'))`);
+    expect(q({ type: "sale", status: "NoFinancing" }).filter).toContain("(StandardStatus eq 'Closed' and BuyerFinancing has 'Cash')");
+    // Active OR back-on-market is all Active; the derived clause is OR-ed, never AND-ed onto every status.
+    expect(q({ type: "sale", status: "Active,Pending,BackOnMarket" }).filter)
+      .toContain("(StandardStatus eq 'Active' or StandardStatus eq 'Pending' or (StandardStatus eq 'Active' and BackOnMarketTimestamp ne null))");
+  });
+
+  it("refuses a sub-status whose live field no record of that side carries", () => {
+    const r = q({ type: "rental", status: "NoFinancing" }); // BuyerFinancing: sale records only, live 2026-10-24
+    expect(r.refused[0]).toMatchObject({ criterion: "status", field: "BuyerFinancing" });
+  });
+});
+
+describe("presence and recency values", () => {
+  it("'isnull' matches records without the field; 'within:N' matches the last N days", () => {
+    const none = withBoxes("sale", { BackOnMarketTimestamp: ["isnull"] });
+    expect(none.filter).toContain("BackOnMarketTimestamp eq null");
+    const recent = withBoxes("sale", { BackOnMarketTimestamp: ["within:30"] });
+    const since = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+    expect(recent.refused).toEqual([]);
+    expect(recent.filter).toContain(`BackOnMarketTimestamp ge ${since}T00:00:00Z`);
+  });
+
+  it("the back-on-market form: 'BOM only' AND 'within 7 days' (radio + recency select)", () => {
+    const r = q({ type: "sale", checkboxFilters: JSON.stringify({ BackOnMarketTimestamp: ["notnull"] }),
+      fieldRanges: JSON.stringify({ BackOnMarketTimestamp: { min: "within:7" } }) });
+    const since = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+    expect(r.refused).toEqual([]);
+    expect(r.filter).toContain("BackOnMarketTimestamp ne null");
+    expect(r.filter).toContain(`BackOnMarketTimestamp ge ${since}T00:00:00Z`);
+  });
+});
+
+describe("ranges and dates", () => {
+  it("maps the basic-form ranges to live fields", () => {
+    const f = q({
+      type: "sale", minPrice: "1000000", maxPrice: "2000000", minBeds: "2", maxBeds: "4",
+      minBaths: "1.5", maxBaths: "3", minRooms: "3", maxRooms: "6", minSqft: "800", maxSqft: "2000",
+      minYear: "1900", maxYear: "1946", minFloors: "6", minUnits: "10",
+    }).filter;
+    for (const clause of [
+      "ListPrice ge 1000000", "ListPrice le 2000000", "BedroomsTotal ge 2", "BedroomsTotal le 4",
+      "BathroomsTotalInteger ge 1.5", "BathroomsTotalInteger le 3", "RoomsTotal ge 3", "RoomsTotal le 6",
+      "LivingArea ge 800", "LivingArea le 2000", "YearBuilt ge 1900", "YearBuilt le 1946",
+      "StoriesTotal ge 6", "NumberOfUnitsTotal ge 10",
+    ]) expect(f).toContain(clause);
+  });
+
+  it("monthly rent is ListPrice on a rental search", () => {
+    expect(q({ type: "rental", minPrice: "3000", maxPrice: "5000" }).filter).toContain("ListPrice ge 3000 and ListPrice le 5000");
+  });
+
+  it("contract signed / lease signed is PurchaseContractDate, not the listing agreement date", () => {
+    const f = q({ type: "sale", contractDateFrom: "2026-01-01", contractDateTo: "2026-03-31" }).filter;
+    expect(f).toContain("PurchaseContractDate ge 2026-01-01");
+    expect(f).toContain("PurchaseContractDate le 2026-03-31");
+    expect(f).not.toContain("ListingContractDate");
+  });
+
+  it("sold / rented date is CloseDate", () => {
+    expect(q({ type: "rental", closeDateFrom: "2026-01-01", closeDateTo: "2026-02-01" }).filter)
+      .toContain("CloseDate ge 2026-01-01 and CloseDate le 2026-02-01");
+  });
+
+  it("rental availability is AvailabilityDate", () => {
+    expect(q({ type: "rental", availableFrom: "2026-11-01" }).filter).toContain("AvailabilityDate ge 2026-11-01");
+  });
+
+  it("Listed → ListingContractDate, Updated → ModificationTimestamp (whole days)", () => {
+    expect(q({ dateFrom: "2026-04-01", dateTo: "2026-04-30" }).filter)
+      .toContain("ListingContractDate ge 2026-04-01 and ListingContractDate le 2026-04-30");
+    expect(q({ dateType: "Updated", dateFrom: "2026-04-01", dateTo: "2026-04-30" }).filter)
+      .toContain("ModificationTimestamp ge 2026-04-01T00:00:00Z and ModificationTimestamp le 2026-04-30T23:59:59Z");
+  });
+
+  it("ListedAndUpdated matches either window", () => {
+    expect(q({ dateType: "ListedAndUpdated", dateFrom: "2026-04-01", dateTo: "2026-04-30" }).filter).toContain(
+      "((ListingContractDate ge 2026-04-01 and ListingContractDate le 2026-04-30) or (ModificationTimestamp ge 2026-04-01T00:00:00Z and ModificationTimestamp le 2026-04-30T23:59:59Z))",
+    );
+  });
+
+  it("refuses a malformed date instead of sending it", () => {
+    const r = q({ closeDateFrom: "April 1" });
+    expect(refusedFields(r)).toContain("CloseDate");
+  });
+});
+
+describe("location, identity and text", () => {
+  it("escapes OData strings and parses addresses", () => {
     expect(escapeOData("Broker's Open")).toBe("Broker''s Open");
-
-    const withDirection = buildCrmIdxODataFilter(new URLSearchParams("address=400 East 90th Street"));
-    expect(withDirection).toContain("startswith(StreetNumber,'400')");
-    expect(withDirection).toContain("StreetDirPrefix eq 'E'");
-    expect(withDirection).toContain("contains(StreetName,'90')");
-
-    const textOnly = buildCrmIdxODataFilter(new URLSearchParams("address=Park Avenue"));
-    expect(textOnly).toContain("contains(StreetName,'PARK')");
-    expect(textOnly).toContain("contains(BuildingName,'PARK AVENUE')");
+    // A full address names one building: exact house number (plus Queens "400-xx"), never a prefix.
+    const dir = q({ address: "400 East 90th Street" }).filter;
+    expect(dir).toContain("(StreetNumber eq '400' or startswith(StreetNumber,'400-'))");
+    expect(dir).not.toContain("startswith(StreetNumber,'400')");
+    expect(dir).toContain("StreetDirPrefix eq 'E'");
+    expect(dir).toContain("contains(StreetName,'90')");
+    const queens = q({ address: "63-34 Fresh Pond Road" }).filter;
+    expect(queens).toContain("(StreetNumber eq '63-34' or startswith(StreetNumber,'63-34-'))");
+    expect(queens).toContain("contains(StreetName,'FRESH POND')");
+    expect(q({ address: "333 e 46th st" }).filter).toContain("(StreetNumber eq '333' or startswith(StreetNumber,'333-')) and StreetDirPrefix eq 'E'");
+    const text = q({ address: "Park Avenue" }).filter;
+    expect(text).toContain("contains(StreetName,'PARK')");
+    expect(text).toContain("contains(BuildingName,'PARK AVENUE')");
+    const num = q({ address: "1234" }).filter;
+    expect(num).toContain("(startswith(StreetNumber,'1234') or contains(BuildingName,'1234'))");
   });
 
-  it("builds date, building, ownership, and listing id filters", () => {
-    const filter = buildCrmIdxODataFilter(new URLSearchParams({
-      dateType: "Updated",
-      dateFrom: "2026-04-01",
-      dateTo: "2026-04-02",
-      buildingName: "The Plaza",
-      managementCompany: "O'Brien Realty",
-      propertySubType: "Condo,Co-op",
-      ownership: "Condominium,StockCooperative",
-      listingId: "RLS123",
-    }));
-
-    expect(filter).toContain("ModificationTimestamp gt 2026-04-01T00:00:00Z");
-    expect(filter).toContain("ModificationTimestamp le 2026-04-02T23:59:59Z");
-    expect(filter).toContain("contains(BuildingName,'The Plaza')");
-    expect(filter).toContain("contains(ListOfficeName,'O''Brien Realty')");
-    expect(filter).toContain("(contains(PropertySubType,'Condo') or contains(PropertySubType,'Co-op'))");
-    expect(filter).toContain("(CommonInterest eq 'Condominium' or CommonInterest eq 'StockCooperative')");
-    expect(filter).toContain("ListingId eq 'RLS123'");
+  it("neighborhood and borough resolve to the exact live Cotality values through the geography inventory", () => {
+    const geo = inventoryFromPairs([
+      { borough: "Manhattan", name: "Upper East Side", sale: 5 }, { borough: "Manhattan", name: "UPPER EAST SIDE", sale: 1 },
+      { borough: "Brooklyn", name: "Bedford-Stuyvesant", sale: 3 }, { borough: "Brooklyn", name: "Bedford - Stuyvesant" },
+      { borough: "StatenIsland", name: "St. George" },
+    ]);
+    // Typed shorthand, any case or punctuation → every live spelling; borough display name → live value
+    const r = buildCrmIdxQuery(new URLSearchParams({ neighborhood: "ues, bed-stuy", borough: "Staten Island, bk", zip: "10128" }), geo);
+    expect(r.refused).toEqual([]);
+    // Picked places combine: the neighborhoods OR the boroughs, all exact live strings
+    expect(r.filter).toContain("((SubdivisionName eq 'Upper East Side' or SubdivisionName eq 'UPPER EAST SIDE' or SubdivisionName eq 'Bedford-Stuyvesant' or SubdivisionName eq 'Bedford - Stuyvesant') or (CityRegion eq 'StatenIsland' or CityRegion eq 'Brooklyn'))");
+    expect(r.filter).toContain("PostalCode eq '10128'");
+    // Names and boroughs Cotality does not carry are refused, never guessed
+    const bad = buildCrmIdxQuery(new URLSearchParams({ neighborhood: "Atlantis", borough: "Jersey" }), geo);
+    expect(bad.refused.map((x) => x.field)).toEqual(["SubdivisionName", "CityRegion"]);
   });
 
-  it("supports comma-separated RLS IDs and escapes single quotes (Bug A13 / L2)", () => {
-    // Single ID — unchanged from prior behavior. The listingId clause
-    // appears as a bare equality (no parens, no OR around it).
-    const single = buildCrmIdxODataFilter(new URLSearchParams({ listingId: "RLS20078109" }));
-    expect(single).toContain("ListingId eq 'RLS20078109'");
-    expect(single).not.toContain("(ListingId eq 'RLS20078109'");
-
-    // Multiple IDs — OR'd together. Trims whitespace around commas so users
-    // can paste lists with or without spaces.
-    const multi = buildCrmIdxODataFilter(new URLSearchParams({
-      listingId: "RLS20078109, RLS20078110,RLS20078111",
-    }));
-    expect(multi).toContain("(ListingId eq 'RLS20078109' or ListingId eq 'RLS20078110' or ListingId eq 'RLS20078111')");
-    // Per the L2 contract, multi-ID input does NOT collapse to a single
-    // literal containing commas (the prior bug):
-    expect(multi).not.toContain("ListingId eq 'RLS20078109, RLS20078110,RLS20078111'");
-
-    // Empty entries from extra commas / trailing comma are filtered out.
-    const sparse = buildCrmIdxODataFilter(new URLSearchParams({ listingId: "RLS123,,RLS456," }));
-    expect(sparse).toContain("(ListingId eq 'RLS123' or ListingId eq 'RLS456')");
-
-    // Single-quote escaping is preserved through the multi-ID path.
-    const quoted = buildCrmIdxODataFilter(new URLSearchParams({ listingId: "RLS123,RLS'456" }));
-    expect(quoted).toContain("(ListingId eq 'RLS123' or ListingId eq 'RLS''456')");
-  });
-
-  it("applies only safe checkbox and grid filters", () => {
-    const checkboxFilters = JSON.stringify({
-      CoolingYN: ["true"],
-      BuildingLaundryFeatures: ["Common Area"],
-      AvailableLeaseType: ["ShortTerm"],
-      UnsafeField: ["x"],
-    });
-    const filter = buildCrmIdxODataFilter(new URLSearchParams({
-      checkboxFilters,
-      gridFilter: "(Latitude ge 40.7 and Latitude le 40.8 and Longitude ge -74.1 and Longitude le -73.9)",
-    }));
-
-    expect(filter).toContain("CoolingYN eq true");
-    expect(filter).toContain("LaundryFeatures eq 'Common Area'");
-    expect(filter).toContain("Latitude ge 40.7");
-    expect(filter).not.toContain("AvailableLeaseType");
-    expect(filter).not.toContain("UnsafeField");
-  });
-
-  // ═══════════════════════════════════════════════════════════════════
-  // BATCH 1 — Field-contract coverage for every supported param.
-  // Each test exercises one OData clause shape so future regressions
-  // are caught at unit-test level, not in production telemetry.
-  // ═══════════════════════════════════════════════════════════════════
-
-  it("zip → PostalCode eq", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ zip: "10128" }));
+  it("without the live inventory (no network) typed location values are sent as given", () => {
+    const f = q({ neighborhood: "NoSuchNeighborhoodA,NoSuchNeighborhoodB", borough: "Manhattan", zip: "10128" }).filter;
+    expect(f).toContain("((SubdivisionName eq 'NoSuchNeighborhoodA' or SubdivisionName eq 'NoSuchNeighborhoodB') or CityRegion eq 'Manhattan')");
     expect(f).toContain("PostalCode eq '10128'");
   });
 
-  it("unit → UnitNumber eq (uppercased)", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ unit: "4a" }));
+  it("unit, keyword, building name, office and RLS ids", () => {
+    const f = q({ unit: "4a", keyword: "Doorman's", buildingName: "The Dakota", managementCompany: "Mallan", listingId: "RLS1, RLS'2" }).filter;
     expect(f).toContain("UnitNumber eq '4A'");
+    expect(f).toContain("contains(PublicRemarks,'Doorman''s')");
+    expect(f).toContain("contains(BuildingName,'The Dakota')");
+    expect(f).toContain("contains(ListOfficeName,'Mallan')");
+    expect(f).toContain("(ListingId eq 'RLS1' or ListingId eq 'RLS''2')");
   });
 
-  it("keyword → contains(PublicRemarks, escapedValue)", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ keyword: "renovated kitchen" }));
-    expect(f).toContain("contains(PublicRemarks,'renovated kitchen')");
-    // Single-quote escaping for keyword
-    const fq = buildCrmIdxODataFilter(new URLSearchParams({ keyword: "owner's pied-a-terre" }));
-    expect(fq).toContain("contains(PublicRemarks,'owner''s pied-a-terre')");
+  it("map-area (Lat/Lng) search is refused — Cotality suppresses coordinates", () => {
+    const r = q({ gridFilter: "Latitude ge 40.7" });
+    expect(r.refused[0]).toMatchObject({ criterion: "mapArea", field: "Latitude" });
+    expect(r.filter).not.toContain("Latitude");
+  });
+});
+
+describe("picklists — live LookupValues and the operator their type requires", () => {
+  it("PropertySubType is single-value: eq, not contains", () => {
+    const f = q({ type: "sale", propertySubType: "SingleFamilyResidence,MultiFamily" }).filter;
+    expect(f).toContain("(PropertySubType eq 'SingleFamilyResidence' or PropertySubType eq 'MultiFamily')");
+    expect(f).not.toContain("contains(PropertySubType");
   });
 
-  it("minBaths / maxBaths → BathroomsTotalInteger ge/le (integer)", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ minBaths: "2", maxBaths: "5" }));
-    expect(f).toContain("BathroomsTotalInteger ge 2");
-    expect(f).toContain("BathroomsTotalInteger le 5");
+  it("CommonInterest uses live values; a display label is refused", () => {
+    expect(q({ type: "sale", ownership: "StockCooperative" }).filter).toContain("CommonInterest eq 'StockCooperative'");
+    expect(refusedFields(q({ type: "sale", ownership: "Co-op" }))).toContain("CommonInterest");
   });
 
-  it("minBaths half-bath value 1.5 is preserved", () => {
-    // Not strictly OData-numeric on Edm.Int32, but the filter builder
-    // accepts decimals; documented contract regardless.
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ minBaths: "1.5" }));
-    expect(f).toContain("BathroomsTotalInteger ge 1.5");
+  it("multi-select fields use has with the bare LookupValue", () => {
+    const f = withBoxes("rental", { PetsAllowed: ["CatsOk", "DogsOk"] }).filter;
+    expect(f).toContain("(PetsAllowed has 'CatsOk' or PetsAllowed has 'DogsOk')");
   });
 
-  it("minRooms / maxRooms → RoomsTotal ge/le", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ minRooms: "3", maxRooms: "8" }));
-    expect(f).toContain("RoomsTotal ge 3");
-    expect(f).toContain("RoomsTotal le 8");
+  it("comma-joined data-values expand to OR-ed live values", () => {
+    const f = withBoxes("sale", { View: ["City,Skyline"] }).filter;
+    expect(f).toContain("(View has 'City' or View has 'Skyline')");
   });
 
-  it("minSqft / maxSqft → LivingArea ge/le", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ minSqft: "800", maxSqft: "3500" }));
-    expect(f).toContain("LivingArea ge 800");
-    expect(f).toContain("LivingArea le 3500");
+  it("a value Cotality does not have is refused, never sent (it would be an HTTP 400)", () => {
+    const r = withBoxes("rental", { PetsAllowed: ["CatsOnly"] });
+    expect(r.refused[0]).toMatchObject({ field: "PetsAllowed" });
+    expect(r.filter).not.toContain("CatsOnly");
   });
 
-  it("minYear / maxYear → YearBuilt ge/le", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ minYear: "1920", maxYear: "1990" }));
-    expect(f).toContain("YearBuilt ge 1920");
-    expect(f).toContain("YearBuilt le 1990");
+  it("Yes/No fields: true → eq true; 'any' or both is no constraint", () => {
+    expect(withBoxes("sale", { GarageYN: ["true"] }).filter).toContain("GarageYN eq true");
+    expect(withBoxes("sale", { LandLeaseYN: ["any"] }).filter).not.toContain("LandLeaseYN");
+    expect(withBoxes("sale", { LandLeaseYN: ["true", "false"] }).filter).not.toContain("LandLeaseYN");
   });
 
-  it("minFloors / maxFloors → StoriesTotal ge/le", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ minFloors: "10", maxFloors: "60" }));
-    expect(f).toContain("StoriesTotal ge 10");
-    expect(f).toContain("StoriesTotal le 60");
+  it("'Any' on a picklist means the field has a value", () => {
+    expect(withBoxes("sale", { PoolFeatures: ["Any"] }).filter).toContain("PoolFeatures ne null");
   });
 
-  it("minUnits / maxUnits → NumberOfUnitsTotal ge/le", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ minUnits: "20", maxUnits: "200" }));
-    expect(f).toContain("NumberOfUnitsTotal ge 20");
-    expect(f).toContain("NumberOfUnitsTotal le 200");
+  it("operator-prefixed values become comparisons; several are OR-ed", () => {
+    expect(withBoxes("sale", { YearBuilt: ["lte:1946"] }).filter).toContain("YearBuilt le 1946");
+    expect(withBoxes("sale", { YearBuilt: ["lte:1946", "gte:1947"] }).filter).toContain("(YearBuilt le 1946 or YearBuilt ge 1947)");
   });
 
-  it("dateType=Listed → ListingContractDate ge/le (default when no dateType)", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({
-      dateFrom: "2026-04-01",
-      dateTo: "2026-04-30",
-    }));
-    expect(f).toContain("ListingContractDate ge 2026-04-01");
-    expect(f).toContain("ListingContractDate le 2026-04-30");
-    // Updated path uses ModificationTimestamp instead — already covered
-    // by the existing "dates, building, ownership, listing id" test, but
-    // exercise default "Listed" path here so default behavior is locked in.
+  it("'Any' on a picklist excludes the None / BuildingNone values Cotality uses", () => {
+    expect(withBoxes("sale", { PoolFeatures: ["Any"] }).filter)
+      .toContain("(PoolFeatures ne null and not (PoolFeatures has 'None') and not (PoolFeatures has 'BuildingNone'))");
   });
 
-  it("dateType=Listed (explicit) → ListingContractDate ge/le", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({
-      dateType: "Listed",
-      dateFrom: "2026-04-01",
-      dateTo: "2026-04-30",
-    }));
-    expect(f).toContain("ListingContractDate ge 2026-04-01");
-    expect(f).toContain("ListingContractDate le 2026-04-30");
+  it("exclusions (not:) need the field present and are AND-ed after the choices", () => {
+    const f = withBoxes("sale", { LaundryFeatures: ["InUnit", "not:BuildingWasherDryerInstallAllowed"] }).filter;
+    expect(f).toContain("(LaundryFeatures has 'InUnit' and (LaundryFeatures ne null and not (LaundryFeatures has 'BuildingWasherDryerInstallAllowed')))");
   });
 
-  it("contractDateFrom / contractDateTo → ListingContractDate ge/le (independent of dateFrom)", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({
-      contractDateFrom: "2026-03-01",
-      contractDateTo: "2026-03-31",
-    }));
-    expect(f).toContain("ListingContractDate ge 2026-03-01");
-    expect(f).toContain("ListingContractDate le 2026-03-31");
+  it("a checkbox group spanning fields is OR-ed, not AND-ed", () => {
+    const r = q({ type: "sale", checkboxGroups: JSON.stringify({ buildingStyle: { StructureType: ["HighRise"], ArchitecturalStyle: ["WalkUp"] } }) });
+    expect(r.refused).toEqual([]);
+    expect(r.filter).toContain("(StructureType has 'HighRise' or ArchitecturalStyle has 'WalkUp')");
+  });
+});
+
+describe("derived criteria (documented LOCAL semantics)", () => {
+  it("price decreased: Cotality narrows to PreviousListPrice, Mallan compares the prices", () => {
+    const r = withBoxes("sale", { PriceChangeDirection: ["decrease"] });
+    expect(r.filter).toContain("PreviousListPrice ne null");
+    const kept = applyLocalCriteria([{ ListPrice: 900, PreviousListPrice: 1000 }, { ListPrice: 1100, PreviousListPrice: 1000 }], r.local);
+    expect(kept).toEqual([{ ListPrice: 900, PreviousListPrice: 1000 }]);
   });
 
-  it("closeDateFrom / closeDateTo → CloseDate ge/le", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({
-      closeDateFrom: "2026-01-01",
-      closeDateTo: "2026-03-31",
-    }));
-    expect(f).toContain("CloseDate ge 2026-01-01");
-    expect(f).toContain("CloseDate le 2026-03-31");
+  it("days on market, on-market statuses: exact on OnMarketDate, executed by Cotality", () => {
+    const r = q({ type: "sale", fieldRanges: JSON.stringify({ DOM: { min: "90" } }) });
+    expect(r.refused).toEqual([]);
+    expect(r.local).toEqual([]);
+    expect(r.filter).toMatch(/OnMarketDate ne null and OnMarketDate le \d{4}-\d{2}-\d{2}/);
+    expect(withBoxes("sale", { DOM: ["le:7"] }).filter).toMatch(/OnMarketDate ge \d{4}-\d{2}-\d{2}/);
   });
 
-  it("propertySubType single → contains(PropertySubType,'X') (no parens)", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ propertySubType: "Condominium" }));
-    expect(f).toContain("contains(PropertySubType,'Condominium')");
-    // Single-value path is bare contains() — no OR grouping
-    expect(f).not.toContain("(contains(PropertySubType,'Condominium'))");
+  it("days on market including Closed: Cotality narrows, Mallan applies the exact count", () => {
+    const r = q({ type: "sale", status: "Closed", fieldRanges: JSON.stringify({ DOM: { min: "90" } }) });
+    expect(r.local.map((c) => c.criterion)).toEqual(["DOM"]);
+    const kept = applyLocalCriteria([
+      { StandardStatus: "Closed", OnMarketDate: "2026-01-01", CloseDate: "2026-06-01" },
+      { StandardStatus: "Closed", OnMarketDate: "2026-01-01", CloseDate: "2026-01-20" },
+    ], r.local);
+    expect(kept).toHaveLength(1);
   });
 
-  it("ownership single → CommonInterest eq 'X' (no parens)", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ ownership: "Condop" }));
-    expect(f).toContain("CommonInterest eq 'Condop'");
-    expect(f).not.toContain("(CommonInterest eq 'Condop')");
+  it("default statuses include live 'Pending' (in contract)", () => {
+    expect(q({ type: "sale" }).filter).toContain("StandardStatus eq 'Pending'");
   });
 
-  it("multi-neighborhood (csv) → SubdivisionName OR group", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({
-      neighborhood: "Tribeca,SoHo",
-    }));
-    // Both should appear in an OR group. May include alias variants per
-    // expandCrmIdxNeighborhood — assertion just verifies both tokens are
-    // OR-grouped, not a single literal "Tribeca,SoHo".
-    expect(f).toContain("SubdivisionName eq 'Tribeca'");
-    expect(f).toContain("SubdivisionName eq 'SoHo'");
-    expect(f).toContain(" or ");
-    expect(f).not.toContain("SubdivisionName eq 'Tribeca,SoHo'");
+  it("price at least N% below the original asking price", () => {
+    const r = withBoxes("sale", { PriceBelowOriginalPct: ["ge:10"] });
+    expect(r.filter).toContain("OriginalListPrice ne null");
+    expect(applyLocalCriteria([{ ListPrice: 850, OriginalListPrice: 1000 }, { ListPrice: 950, OriginalListPrice: 1000 }], r.local)).toHaveLength(1);
   });
 
-  it("address parser — all-numeric input → StreetNumber + BuildingName fallback", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ address: "400" }));
-    expect(f).toContain("startswith(StreetNumber,'400')");
-    // Fallback into BuildingName for short numeric input
-    expect(f).toContain("contains(BuildingName,'400')");
+  it("price changed within N days, or never", () => {
+    expect(withBoxes("sale", { PriceChangedWithinDays: ["7"] }).filter).toMatch(/PriceChangeTimestamp ge \d{4}-\d{2}-\d{2}T00:00:00Z/);
+    expect(withBoxes("sale", { PriceChangedWithinDays: ["none"] }).filter).toContain("PriceChangeTimestamp eq null");
   });
 
-  // ═══════════════════════════════════════════════════════════════════
-  // BATCH 2 — Dead-pattern regressions.
-  //
-  // These tests assert what is CURRENTLY NOT supported by the backend
-  // OData builder. They serve two purposes:
-  //   1. Document the contract so future "frontend-only fixes" don't
-  //      mislead users into thinking these filters work.
-  //   2. Trip an alarm if someone wires a dead pattern through without
-  //      adding the corresponding backend support.
-  //
-  // If/when real support is added, the corresponding test should be
-  // CHANGED to assert the correct OData output (not deleted).
-  // ═══════════════════════════════════════════════════════════════════
-
-  it("DEAD: openHouseDateFrom / openHouseDateTo are silently dropped (no Property OData clause)", () => {
-    // Open-house filtering on Trestle goes through a separate OpenHouse
-    // entity, not Property's $filter. The frontend `_serverSearch`
-    // forwards openHouseDateFrom/To params, but this filter builder
-    // produces no clause for them. Marked DEAD until the OpenHouse
-    // expansion is wired (separate batch).
-    const f = buildCrmIdxODataFilter(new URLSearchParams({
-      openHouseDateFrom: "2026-05-10",
-      openHouseDateTo: "2026-05-12",
-    }));
-    expect(f).not.toContain("OpenHouse");
-    expect(f).not.toContain("2026-05-10");
-    expect(f).not.toContain("2026-05-12");
+  it("total monthly = AssociationFee + monthly real-estate tax", () => {
+    const r = q({ type: "sale", fieldRanges: JSON.stringify({ TotalMonthly: { max: "3000" } }) });
+    expect(applyLocalCriteria([{ AssociationFee: 2000, TaxAnnualAmount: 12000 }, { AssociationFee: 2500, TaxAnnualAmount: 12000 }], r.local)).toHaveLength(1);
   });
 
-  it("DEAD: non-whitelisted checkboxFilters fields are silently dropped", () => {
-    // Per the whitelist at crm-idx-filter.ts (~line 252 odataSafe Set),
-    // these data-field values are NOT translated to OData. The frontend
-    // collects them into criteria.checkboxFilters but the backend drops
-    // them. Visible UI controls that send these silently do nothing.
-    //
-    // This covers, at minimum:
-    //   AttendanceType  — Doorman, Concierge, Elevator-Attendant checkboxes
-    //   Furnished       — rental Furnished/Unfurnished/Partially
-    //   OwnerPays       — rental "owner pays X"
-    //   Concessions     — "Concessions: Yes"
-    //   BuildingRules   — Pied-a-terre / Guarantors / Co-purchasers / etc.
-    //   RentingAllowedYN — "Subletting Allowed"
-    //   MaximumFinancingPercent — "Financing Available" / "No Financing"
-    //   RLSParticipantOnly — distribution gate (handled elsewhere)
-    //   ListOfficeMlsId — "In-House" filter
-    //
-    const checkboxFilters = JSON.stringify({
-      AttendanceType: ["DoormanFullTime"],
-      Furnished: ["Furnished"],
-      OwnerPays: ["AllUtilities"],
-      Concessions: ["Yes"],
-      BuildingRules: ["PiedATerreAllowed", "GuarantorsAccepted"],
-      RentingAllowedYN: ["true"],
-      MaximumFinancingPercent: ["100"],
-      RLSParticipantOnly: ["true"],
-      ListOfficeMlsId: ["OwnOffice"],
+  it("price per square foot", () => {
+    const r = q({ type: "sale", fieldRanges: JSON.stringify({ PricePerSqft: { max: "1500" } }) });
+    expect(r.filter).toContain("LivingArea gt 0");
+    expect(applyLocalCriteria([{ ListPrice: 1_200_000, LivingArea: 1000 }, { ListPrice: 2_000_000, LivingArea: 1000 }], r.local)).toHaveLength(1);
+  });
+
+  it("top floor and penthouse", () => {
+    const top = withBoxes("sale", { TopFloor: ["true"] });
+    expect(applyLocalCriteria([{ EntryLevel: 12, StoriesTotal: 12 }, { EntryLevel: 3, StoriesTotal: 12 }], top.local)).toHaveLength(1);
+    expect(withBoxes("sale", { Penthouse: ["true"] }).filter).toContain("startswith(UnitNumber,'PH')");
+  });
+
+  it("In-House (Company) resolves to Mallan's live office id", () => {
+    const own = SEARCH_CONTRACT.mallan_office?.ListOfficeMlsId;
+    expect(own).toBeTruthy(); // MAllan Real Estate Inc → 7041, live 2026-10-23
+    expect(withBoxes("sale", { ListOfficeMlsId: ["OwnOffice"] }).filter).toContain(`ListOfficeMlsId eq '${own}'`);
+  });
+});
+
+describe("REBNY CustomFields — applied by Mallan after retrieval", () => {
+  it("AttendanceType is a local criterion, not an OData clause", () => {
+    const r = withBoxes("sale", { AttendanceType: ["DoormanFullTime"] });
+    expect(r.refused).toEqual([]);
+    expect(r.filter).not.toContain("AttendanceType");
+    expect(r.local.map((c) => c.field)).toEqual(["AttendanceType"]);
+    const kept = applyLocalCriteria(
+      [customFieldsRecord({ AttendanceType: "DoormanFullTime,ConciergeYes" }), customFieldsRecord({ AttendanceType: "None" })],
+      r.local,
+    );
+    expect(kept).toHaveLength(1);
+  });
+
+  it("'Any' attendance excludes 'None'", () => {
+    const r = withBoxes("rental", { AttendanceType: ["Any"] });
+    const kept = applyLocalCriteria(
+      [customFieldsRecord({ AttendanceType: "LobbyAttendantFullTime" }), customFieldsRecord({ AttendanceType: "None" })],
+      r.local,
+    );
+    expect(kept).toHaveLength(1);
+  });
+
+  it("numeric REBNY keys compare as numbers (MaximumFinancingPercent gt:0)", () => {
+    const r = withBoxes("sale", { MaximumFinancingPercent: ["gt:0"] });
+    const kept = applyLocalCriteria(
+      [customFieldsRecord({ MaximumFinancingPercent: "80.00" }), customFieldsRecord({ MaximumFinancingPercent: "0.00" }), {}],
+      r.local,
+    );
+    expect(kept).toHaveLength(1);
+  });
+
+  it("sponsorUnit=true keeps live SponsorUnitYN '1' only", () => {
+    const r = q({ type: "sale", sponsorUnit: "true" });
+    const kept = applyLocalCriteria(
+      [customFieldsRecord({ SponsorUnitYN: "1" }), customFieldsRecord({ SponsorUnitYN: "0" }), {}],
+      r.local,
+    );
+    expect(kept).toHaveLength(1);
+  });
+
+  // Sponsor Unit, New Development (NewConstructionYN) and ownership (CommonInterest) are independent
+  // facets. Live 2026-10-26: 2,328 of 14,051 on-market sales are sponsor units — 1,010 in new
+  // construction, 1,305 in older buildings (452 built 1900–1959, 214 co-ops with unsold shares).
+  describe("sponsor / new development / ownership — independent, combinable facets", () => {
+    const sponsorNew = { CommonInterest: "Condominium", NewConstructionYN: true, ...customFieldsRecord({ SponsorUnitYN: "1" }) };
+    const sponsorOldCoop = { CommonInterest: "StockCooperative", NewConstructionYN: false, YearBuilt: 1959, ...customFieldsRecord({ SponsorUnitYN: "1" }) };
+    const resaleCondo = { CommonInterest: "Condominium", NewConstructionYN: false, ...customFieldsRecord({ SponsorUnitYN: "0" }) };
+    const newNotSponsor = { CommonInterest: "Condominium", NewConstructionYN: true, ...customFieldsRecord({ SponsorUnitYN: "0" }) };
+
+    it("AND: Condo + New Development + Sponsor Unit — Cotality executes the first two, Mallan the sponsor flag", () => {
+      const r = q({ type: "sale", ownership: "Condominium", checkboxFilters: JSON.stringify({ NewConstructionYN: ["true"], SponsorUnitYN: ["true"] }) });
+      expect(r.refused).toEqual([]);
+      expect(r.filter).toContain("CommonInterest eq 'Condominium'");
+      expect(r.filter).toContain("NewConstructionYN eq true");
+      expect(r.filter).not.toContain("SponsorUnitYN");
+      expect(r.local.map((c) => [c.field, c.source])).toEqual([["SponsorUnitYN", "customFields"]]);
+      expect(applyLocalCriteria([sponsorNew, newNotSponsor], r.local)).toEqual([sponsorNew]);
     });
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ checkboxFilters }));
 
-    // None of these field names should appear in the produced OData filter.
-    expect(f).not.toContain("AttendanceType");
-    expect(f).not.toContain("DoormanFullTime");
-    expect(f).not.toContain("Furnished");
-    expect(f).not.toContain("OwnerPays");
-    expect(f).not.toContain("AllUtilities");
-    expect(f).not.toContain("Concessions");
-    expect(f).not.toContain("BuildingRules");
-    expect(f).not.toContain("PiedATerreAllowed");
-    expect(f).not.toContain("GuarantorsAccepted");
-    expect(f).not.toContain("RentingAllowedYN");
-    expect(f).not.toContain("MaximumFinancingPercent");
-    expect(f).not.toContain("RLSParticipantOnly");
-    expect(f).not.toContain("ListOfficeMlsId");
-  });
-
-  it("DEAD: operator-prefixed data-value (lte:N / gte:N / gt:N / eq:N) is sent literally", () => {
-    // Frontend uses values like data-value="lte:1946" for "Pre-War" or
-    // data-value="eq:0" for "No Financing". The backend builds the
-    // clause as `${field} eq '${value}'` against the whitelist, so:
-    //   - For whitelisted fields with operator prefix, output is
-    //     `Field eq 'lte:1946'` — a literal string equality, not an
-    //     operator-aware clause. Returns 0 results in production.
-    //   - For non-whitelisted fields, the entire entry is dropped
-    //     (covered by the test above).
-    //
-    // Test the whitelisted-but-operator case to document the broken
-    // contract. Use NewConstructionYN since it IS whitelisted but the
-    // operator prefix would corrupt it.
-    const checkboxFilters = JSON.stringify({
-      // YearBuilt would be the canonical example, but it's NOT in the
-      // whitelist either; we only have access via min/maxYear params.
-      // Use ConstructionMaterials which IS whitelisted as a stand-in to
-      // prove operator prefixes break even when the field IS allowed.
-      ConstructionMaterials: ["lte:1946"],
+    it("Sponsor Unit alone never depends on new construction: an 1959 co-op sponsor unit matches", () => {
+      const r = withBoxes("sale", { SponsorUnitYN: ["true"] });
+      expect(r.filter).not.toContain("NewConstructionYN");
+      expect(applyLocalCriteria([sponsorNew, sponsorOldCoop, resaleCondo], r.local)).toEqual([sponsorNew, sponsorOldCoop]);
     });
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ checkboxFilters }));
 
-    // The operator prefix is sent LITERALLY. This is the broken state.
-    // When real operator support is added, this assertion should be
-    // updated to `expect(f).toContain("ConstructionMaterials le 1946")`.
-    if (f.includes("ConstructionMaterials")) {
-      expect(f).toContain("ConstructionMaterials eq 'lte:1946'");
-    }
-    // Either way, we explicitly verify the operator-aware form is NOT
-    // present (which would be the correct future behavior).
-    expect(f).not.toContain("ConstructionMaterials le 1946");
-  });
-
-  it("DEAD: data-value=\"Any\" placeholder is sent literally, not expanded", () => {
-    // Frontend uses data-value="Any" as a placeholder for compound
-    // filters like "Any Doorman" or "Any Laundry" that should expand
-    // to multiple child enum values. The backend has no expansion
-    // logic — sends the literal "Any" through.
-    //
-    // Use a whitelisted field (LaundryFeatures via BuildingLaundryFeatures
-    // alias) to prove the literal-Any path. AttendanceType (the most
-    // common "Any" target) is non-whitelisted so it'd be dropped entirely
-    // — already covered by the dead-checkbox test above.
-    const checkboxFilters = JSON.stringify({
-      BuildingLaundryFeatures: ["Any"],
+    it("Resale + New Development both ticked (match all) is no constraint on NewConstructionYN", () => {
+      const r = withBoxes("sale", { NewConstructionYN: ["false", "true"], SponsorUnitYN: ["true"] });
+      expect(r.filter).not.toContain("NewConstructionYN");
+      expect(r.local).toHaveLength(1);
     });
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ checkboxFilters }));
 
-    // Translates to LaundryFeatures eq 'Any' — a literal string equality
-    // that won't match any actual enum value (Trestle has values like
-    // "InUnit", "Common Area", "WasherDryerInstallAllowed"). Returns 0.
-    expect(f).toContain("LaundryFeatures eq 'Any'");
-    // Verify no expansion occurred:
-    expect(f).not.toContain("InUnit");
-    expect(f).not.toContain("Common Area");
-  });
-
-  it("DEAD: data-not negation pattern is not collected by the frontend scanner", () => {
-    // The frontend scanner at search-engine.js:1063 reads `data-value`
-    // attributes only. The HTML uses `data-not="X"` for some negation
-    // checkboxes (e.g., "No Corporate Ownership"). The scanner ignores
-    // these entirely — they never reach the backend.
-    //
-    // This test asserts the BACKEND filter behavior when a negation
-    // pattern were to be sent through checkboxFilters. The current
-    // builder has no negation operator, so a hypothetical
-    //   { CorporateOwnerAllowed_NOT: ['true'] }
-    // would be silently dropped (non-whitelisted field name).
-    const checkboxFilters = JSON.stringify({
-      "CorporateOwnerAllowed_NOT": ["true"],
-      "BuildingRules_NOT": ["CorporateOwnerAllowed"],
+    it("OR (match any): New Development OR Sponsor Unit is one group whose members the route can execute exactly", () => {
+      const r = q({ type: "sale", ownership: "Condominium", checkboxGroups: JSON.stringify({ buildingStatus: { NewConstructionYN: ["true"], SponsorUnitYN: ["true"] } }) });
+      expect(r.refused).toEqual([]);
+      expect(r.filter).toContain("CommonInterest eq 'Condominium'");
+      expect(r.filter).not.toContain("NewConstructionYN");
+      expect(r.select).toContain("NewConstructionYN");
+      expect(r.local).toHaveLength(1);
+      const g = r.local[0];
+      expect(g.members?.map((m) => [m.field, m.source, m.execution, m.clause])).toEqual([
+        ["NewConstructionYN", "property", "cotality", "NewConstructionYN eq true"],
+        ["SponsorUnitYN", "customFields", "local", ""],
+      ]);
+      // The same listing qualifies under both facets; nothing forces it into one category.
+      expect(applyLocalCriteria([sponsorNew, sponsorOldCoop, newNotSponsor, resaleCondo], r.local)).toEqual([sponsorNew, sponsorOldCoop, newNotSponsor]);
+      expect(g.members![0].test(true)).toBe(true);
+      expect(g.members![1].test("1")).toBe(true);
+      expect(g.members![1].test("0")).toBe(false);
     });
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ checkboxFilters }));
 
-    expect(f).not.toContain("CorporateOwnerAllowed_NOT");
-    expect(f).not.toContain("BuildingRules_NOT");
-    expect(f).not.toContain("CorporateOwnerAllowed");
-    expect(f).not.toContain(" not ");
-    expect(f).not.toContain(" ne ");
+    it("the search's live StandardStatus values are exposed for the CustomProperty slice", () => {
+      expect(q({ type: "sale" }).statuses).toEqual(["Active", "ComingSoon", "ActiveUnderContract", "Pending"]);
+      expect(q({ type: "sale", status: "Sold,Active" }).statuses).toEqual(["Closed", "Active"]);
+      expect(q({ type: "sale", status: "*" }).statuses).toEqual([]);
+    });
   });
 
-  it("DEAD: status sub-statuses (OfferOut / ContractSigned / etc) become uppercase strings that don't match any enum", () => {
-    // The frontend collects sub-status into criteria.statuses then maps
-    // CRM-uppercase to RESO-PascalCase via search-engine.js:285 statusMap.
-    // Sub-statuses like 'OfferOut' get .toUpperCase() → 'OFFEROUT' which
-    // isn't in the statusMap, so it falls through unchanged.
-    // The resulting OData clause is:
-    //   StandardStatus eq 'OFFEROUT'
-    // which never matches any Trestle enum (real values are 'Pending',
-    // 'Active', 'Closed', etc.). Returns 0.
-    //
-    // We exercise this here by passing a known sub-status string. When
-    // real sub-status routing is added (route via MlsStatus + nested
-    // OData filter, or a separate param), this test should be updated.
-    const f = buildCrmIdxODataFilter(new URLSearchParams({
-      status: "OFFEROUT",
-    }));
-    // Builder produces literal 'OFFEROUT' — won't match Trestle.
-    expect(f).toContain("StandardStatus eq 'OFFEROUT'");
-    // Verify proper mapping is NOT present:
-    expect(f).not.toContain("MlsStatus");
+  it("'does not allow' on a REBNY list key keeps only buildings known not to allow it", () => {
+    const r = withBoxes("sale", { BuildingRules: ["not:PiedATerreAllowed"] });
+    const kept = applyLocalCriteria(
+      [customFieldsRecord({ BuildingRules: "CorporateOwnerAllowed" }), customFieldsRecord({ BuildingRules: "PiedATerreAllowed" }), customFieldsRecord({})],
+      r.local,
+    );
+    expect(kept).toHaveLength(1);
   });
 
-  // ═══════════════════════════════════════════════════════════════════
-  // P1 — additional dead-pattern coverage. Each frontend control
-  // disabled by public/crm/js/init/init-disable-dead-controls.js
-  // is matched here by an OData-builder regression alarm. If real
-  // backend support lands, change the assertion to the correct
-  // OData output AND remove the corresponding selector from
-  // init-disable-dead-controls.js. Both must move together.
-  // ═══════════════════════════════════════════════════════════════════
+  it("text contains on a REBNY string key (UnitLine)", () => {
+    const r = q({ type: "sale", fieldText: JSON.stringify({ UnitLine: "b" }) });
+    expect(r.refused).toEqual([]);
+    expect(applyLocalCriteria([customFieldsRecord({ UnitLine: "B-Line" }), customFieldsRecord({ UnitLine: "A" })], r.local)).toHaveLength(1);
+  });
 
-  it("DEAD: every visible Trestle sub-status produces a literal OData clause that matches no enum", () => {
-    // Inventory of sub-status values that exist in the CRM HTML
-    // (public/crm/html/search-form-and-results.html, search-engine.js
-    // collectSearchCriteria pushes them to criteria.statuses verbatim).
-    // None map to a real Trestle StandardStatus value.
-    //
-    // When real sub-status routing is added (likely via MlsStatus +
-    // a nested param), this assertion must be updated AND the
-    // corresponding 'input[data-sub-status]' selector must be
-    // removed from public/crm/js/init/init-disable-dead-controls.js.
-    const subStatuses = [
-      "OfferOut",
-      "OfferThruUs",
-      "OfferAccepted",
-      "OfferAcceptedThruUs",
-      "ContractOut",
-      "ContractOutThruUs",
-      "AllContractSigned",
-      "ContractSigned",
-      "ContractSignedThruUs",
-      "BackOnMarket",
-      "BoardApproved",
-      "Sold",
-      "SoldThruUs",
-      "ACRISVerified",
-      "Financed",
-      "NoFinancing",
-      "ApplicationIn",
-      "ApplicationAccepted",
-      "LeaseOut",
-      "LeaseOutThruUs",
-      "AllLeaseSigned",
-      "LeaseSigned",
-      "LeaseSignedThruUs",
-      "Rented",
-      "RentedThruUs",
-    ];
-    // search-engine.js uppercases each sub-status before forwarding,
-    // so simulate the actual wire shape the backend receives.
-    for (const s of subStatuses) {
-      const upper = s.toUpperCase();
-      const f = buildCrmIdxODataFilter(new URLSearchParams({ status: upper }));
-      // Builder emits literal-string equality — no Trestle row matches.
-      expect(f).toContain(`StandardStatus eq '${upper}'`);
-      // Must not have leaked into MlsStatus (correct routing would do that)
-      expect(f).not.toContain("MlsStatus");
+  it("financing min/max ranges on a REBNY key are AND-ed", () => {
+    const r = q({ type: "sale", fieldRanges: JSON.stringify({ MaximumFinancingPercent: { min: "50", max: "80" } }) });
+    const kept = applyLocalCriteria(
+      [customFieldsRecord({ MaximumFinancingPercent: "75.00" }), customFieldsRecord({ MaximumFinancingPercent: "90.00" })],
+      r.local,
+    );
+    expect(kept).toHaveLength(1);
+  });
+
+  it("a REBNY key no rental record carries is refused on a rental search", () => {
+    const saleOnlyKey = Object.keys(SEARCH_CONTRACT.custom_fields.keys).find(
+      (k) => (SEARCH_CONTRACT.custom_fields.keys[k].sale || 0) > 0 && !(SEARCH_CONTRACT.custom_fields.keys[k].rental || 0),
+    );
+    expect(saleOnlyKey).toBeDefined();
+    expect(refusedFields(withBoxes("rental", { [saleOnlyKey!]: ["Any"] }))).toContain(saleOnlyKey);
+  });
+});
+
+describe("refused visibly — never dropped", () => {
+  it("suppressed fields", () => {
+    expect(refusedFields(withBoxes("sale", { MlsStatus: ["Active"] }))).toContain("MlsStatus");
+    expect(refusedFields(withBoxes("sale", { PropertyCondition: ["Excellent"] }))).toContain("PropertyCondition");
+  });
+
+  it("names that are not Cotality fields", () => {
+    const r = withBoxes("sale", { CRM: ["AdvertisingAllowed"], BuildingPetsAllowed: ["BuildingYes"] });
+    expect(refusedFields(r)).toEqual(expect.arrayContaining(["CRM", "BuildingPetsAllowed"]));
+    expect(r.filter).not.toMatch(/CRM|BuildingPetsAllowed/);
+  });
+
+  it("fields no record carries (BusinessType is empty on every live record)", () => {
+    expect(refusedFields(withBoxes("sale", { BusinessType: ["Restaurant"] }))).toContain("BusinessType");
+  });
+
+  it("invalid JSON in checkboxFilters", () => {
+    expect(q({ checkboxFilters: "{not json" }).refused[0]).toMatchObject({ criterion: "checkboxFilters" });
+  });
+});
+
+describe("Fair Housing", () => {
+  it("refuses a Diplomats criterion in any field, including the REBNY BuildingRules key", () => {
+    for (const boxes of [{ CRM: ["DiplomatsAllowed"] }, { BuildingRules: ["DiplomatsAllowed"] }]) {
+      const r = withBoxes("sale", boxes);
+      expect(r.filter).not.toMatch(/Diplomat/i);
+      expect(r.local).toEqual([]);
+      expect(r.refused.length).toBeGreaterThan(0);
     }
   });
+});
 
-  it("DEAD: dateType=ListedAndUpdated is NOT a third branch — degrades silently to default Listed", () => {
-    // The HTML option <option value="ListedAndUpdated"> was removed in
-    // the P1 patch because the OData builder at
-    // lib/search/crm-idx-filter.ts:182-188 only branches on
-    // dateType === "Updated". Any other value (including
-    // "ListedAndUpdated") falls through to the default Listed branch.
-    //
-    // This test pins that behavior so a future contributor can't add
-    // the option back without first wiring the OR-clause backend
-    // (ListingContractDate ge X or ModificationTimestamp gt X).
-    //
-    // Compare the produced filter against the default Listed-only
-    // filter — they must be identical.
-    const listedAndUpdated = buildCrmIdxODataFilter(new URLSearchParams({
-      dateType: "ListedAndUpdated",
-      dateFrom: "2026-04-01",
-      dateTo: "2026-04-30",
-    }));
-    const justListed = buildCrmIdxODataFilter(new URLSearchParams({
-      dateType: "Listed",
-      dateFrom: "2026-04-01",
-      dateTo: "2026-04-30",
-    }));
-    expect(listedAndUpdated).toBe(justListed);
-    // Specifically does NOT produce a date-column OR group. The default
-    // status filter contributes a benign ` or ` for status enums; the
-    // equality assertion above is the strong contract — both calls
-    // produce byte-identical filters.
-    expect(listedAndUpdated).not.toContain("ModificationTimestamp");
-    expect(listedAndUpdated).not.toMatch(/ListingContractDate.+or.+ModificationTimestamp/);
+describe("linked resources — open houses, rooms, agents, offices, CustomProperty columns", () => {
+  it("AND-s criteria on one resource into one join, narrowed to the side, keyed to ListingKey", () => {
+    const r = q({
+      type: "sale",
+      checkboxFilters: JSON.stringify({ "OpenHouse/OpenHouseType": ["Public"] }),
+      fieldRanges: JSON.stringify({ "OpenHouse/OpenHouseDate": { min: "2026-10-24", max: "2026-10-26" } }),
+    });
+    expect(r.refused).toEqual([]);
+    expect(r.joins).toHaveLength(1);
+    expect(r.joins[0]).toMatchObject({ resource: "OpenHouse", key: "ListingKey", propertyFields: ["ListingKey"] });
+    expect(r.joins[0].filter).toBe("PropertyType eq 'Residential' and (StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'Pending') and OpenHouseType eq 'Public' and OpenHouseDate ge 2026-10-24 and OpenHouseDate le 2026-10-26");
+    expect(r.filter).not.toContain("OpenHouse");
   });
 
-  it("DEAD: transit/grid Lat/Lng filters reach the OData builder unmodified — runtime null-feed yields 0 rows", () => {
-    // The gridFilter param is passthrough-allowed by the regex at
-    // crm-idx-filter.ts:281. That part is correct: when Lat/Lng exist
-    // on the feed (other MLOs served by Cotality), the bbox filter
-    // works. The DEAD aspect is that the REBNY IDX feed does NOT
-    // populate Latitude/Longitude per CLAUDE.md.
-    //
-    // This test pins the BUILDER behavior — it does NOT validate runtime
-    // fitness against the feed. The runtime block is enforced by
-    // public/crm/js/init/init-disable-dead-controls.js disabling the
-    // transit panels and Manhattan grid containers.
-    const f = buildCrmIdxODataFilter(new URLSearchParams({
-      gridFilter: "(Latitude ge 40.7 and Latitude le 40.8 and Longitude ge -74.1 and Longitude le -73.9)",
-    }));
-    // Builder forwards the bbox literally (regex-allowlisted)
-    expect(f).toContain("Latitude ge 40.7");
-    expect(f).toContain("Longitude le -73.9");
-    // ASSERTION FOR FUTURE CONTRIBUTORS:
-    // If this builder behavior changes (e.g., gridFilter is rewritten
-    // to a DB-side spatial query because PR 5+ landed geocoded
-    // coordinates), then the transit + Manhattan-grid selectors in
-    // init-disable-dead-controls.js DEAD_CONTAINERS can be removed.
-    // Both must move together.
+  it("'next:N' is the coming N days (open houses)", () => {
+    const r = q({ type: "rental", fieldRanges: JSON.stringify({ "OpenHouse/OpenHouseDate": { max: "next:7" } }) });
+    const until = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+    expect(r.joins[0].filter).toContain(`OpenHouseDate le ${until}`);
+  });
+
+  it("an agent criterion matches the listing agent or any co-listing agent; an office one any listing office", () => {
+    const agent = q({ type: "sale", fieldText: JSON.stringify({ "Member/MemberLastName": "Allan" }) });
+    expect(agent.joins[0]).toMatchObject({ resource: "Member", key: "MemberMlsId", filter: "contains(MemberLastName,'Allan')" });
+    expect(agent.joins[0].propertyFields).toEqual(["ListAgentMlsId", "CoListAgentMlsId", "CoListAgent2MlsId", "CoListAgent3MlsId"]);
+    const office = q({ type: "rental", checkboxFilters: JSON.stringify({ "Office/IDXOfficeParticipationYN": ["true"] }) });
+    expect(office.joins[0]).toMatchObject({ resource: "Office", key: "OfficeMlsId", filter: "IDXOfficeParticipationYN eq true" });
+  });
+
+  it("a CustomProperty column (floor plans) is searched on the CustomProperty resource", () => {
+    const r = q({ type: "sale", fieldRanges: JSON.stringify({ "CustomProperty/SourceFloorPlansCount": { min: "1" } }) });
+    expect(r.refused).toEqual([]);
+    expect(r.joins[0].filter).toBe("PropertyType eq 'Residential' and (StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'Pending') and SourceFloorPlansCount ge 1");
+    // A derived sub-status narrows by its base status; an agent join (Member) is never status-narrowed.
+    expect(q({ type: "sale", status: "SoldThruUs", fieldRanges: JSON.stringify({ "CustomProperty/SourceFloorPlansCount": { min: "1" } }) }).joins[0].filter)
+      .toContain("StandardStatus eq 'Closed'");
+    expect(q({ type: "sale", fieldText: JSON.stringify({ "Member/MemberLastName": "Allan" }) }).joins[0].filter).not.toContain("StandardStatus");
+  });
+
+  it("uses live LookupValues and refuses what the resource does not have", () => {
+    expect(refusedFields(q({ type: "sale", checkboxFilters: JSON.stringify({ "OpenHouse/OpenHouseType": ["NotAType"] }) }))).toContain("OpenHouseType");
+    expect(refusedFields(q({ type: "sale", checkboxFilters: JSON.stringify({ "OpenHouse/NoSuchField": ["x"] }) }))).toContain("NoSuchField");
+    expect(refusedFields(q({ type: "sale", checkboxFilters: JSON.stringify({ "Teams/TeamName": ["x"] }) }))).toContain("TeamName");
+  });
+});
+
+describe("CustomProperty columns — exact fallback when the key set is too large", () => {
+  it("carries the same criteria as a local test on the expanded CustomProperty columns", () => {
+    const r = q({ type: "sale", fieldRanges: JSON.stringify({ "CustomProperty/SourceFloorPlansCount": { min: "1" } }) });
+    const fb = r.joins[0].fallback!;
+    expect(fb.expand).toEqual(["SourceFloorPlansCount"]);
+    expect(fb.criterion.test({ CustomProperty: [{ SourceFloorPlansCount: 2 }] })).toBe(true);
+    expect(fb.criterion.test({ CustomProperty: [{ SourceFloorPlansCount: 0 }] })).toBe(false);
+    expect(fb.criterion.test({ CustomProperty: [] })).toBe(false);
+    // Open houses and agents have no per-listing column to test: no fallback.
+    expect(q({ type: "sale", fieldRanges: JSON.stringify({ "OpenHouse/OpenHouseDate": { min: "2026-10-24" } }) }).joins[0].fallback).toBeUndefined();
+  });
+});
+
+describe("Yes/No exclusions keep records that leave the field empty", () => {
+  it("'Exclude land-lease buildings' (not:true) is LandLeaseYN ne true, not eq false", () => {
+    const r = withBoxes("sale", { LandLeaseYN: ["not:true"] });
+    expect(r.refused).toEqual([]);
+    expect(r.filter).toContain("LandLeaseYN ne true");
+    expect(r.filter).not.toContain("LandLeaseYN eq false");
   });
 });

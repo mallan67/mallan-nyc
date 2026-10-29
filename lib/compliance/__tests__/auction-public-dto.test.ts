@@ -98,7 +98,7 @@ function buildDb(overrides: Partial<DbListing> = {}): DbListing {
   };
 }
 
-describe('toPublicDTO — auction surface (Trestle/IDX path)', () => {
+describe('toPublicDTO — auction surface (Cotality/IDX path)', () => {
   it('renders auction=null when auction_yn is undefined (default)', () => {
     const dto = toPublicDTO(buildIdx());
     // Cast — `auction` is the new field added in this PR

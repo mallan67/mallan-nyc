@@ -124,7 +124,7 @@ describe('idx-sync cron · maxRecords cap (PR-S.5)', () => {
       ).toMatch(/import\(['"]@\/app\/api\/cron\/one-cycle\/route['"]\)/);
     });
 
-    it("keeps useExpandMedia = false in lib/idx/sync.ts (Trestle $expand=Media disabled by PR #127)", () => {
+    it("keeps useExpandMedia = false in lib/idx/sync.ts (Cotality $expand=Media disabled by PR #127)", () => {
       // The lower cap is a workaround for the per-listing media batch
       // overhead introduced when $expand=Media was disabled. If a
       // future change re-enables expansion, that's a SEPARATE PR and

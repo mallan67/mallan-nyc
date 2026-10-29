@@ -16,7 +16,7 @@
 | Financial ledger entries | 7 years (immutable) | IRS, NY DOS | Hot (DB, never deleted) |
 | Listing agreements | 6 years | NY DOS record retention | Document Vault |
 | Audit event logs | 2 years | REBNY RLS compliance | Hot → Cold (90d) |
-| Trestle/IDX access logs | 12 months | REBNY RLS data license | Hot (DB) |
+| Cotality IDX feed access logs | 12 months | REBNY RLS data license | Hot (DB) |
 | Owner Opt-Out evidence | 3 years | REBNY Gate 1 | Hot (DB) |
 | Fair Housing scan logs | 5 years | Penalty defense | Hot → Warm (1yr) |
 | TCPA consent records | 5 years | TCPA statute of limitations | Hot (DB) |
@@ -47,7 +47,7 @@
 | Job | Schedule | Retention Action |
 |-----|----------|-----------------|
 | `dom-reset` | Daily 6 AM | Reset DOM for listings in Withdrawn/Cancelled >= 30 days |
-| `idx-sync` | Every 4 hours | Sync listing data from Trestle (updates, not deletes) |
+| `idx-sync` | Every 4 hours | Sync listing data from the Cotality feed (updates, not deletes) |
 
 ---
 
@@ -90,7 +90,7 @@
 - Portal credentials (`password_hash`, never plaintext)
 
 ### PII Not Stored
-- IP addresses (redacted in Trestle logger)
+- Raw IP addresses outside security and audit records: `Session`, `MfaSession`, `AuditEvent` and `DocumentSignature` store `ip_address`; `ListingView` and `Inquiry` store only a keyed hash (`ip_hash`); the IDX audit logger (`lib/idx/logger.ts`) records no IP
 - Payment card data (not collected)
 - SSN/government IDs (not collected)
 

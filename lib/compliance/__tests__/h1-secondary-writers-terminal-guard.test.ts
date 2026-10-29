@@ -2,7 +2,7 @@
  * H1 fix (2026-05-13) — close the secondary-writer §2.05 gap.
  *
  * The C2 fix at `lib/idx/trestle-mapper.ts:724` closed the dominant
- * re-flip path (Trestle idx-sync re-emitting terminal rows with
+ * re-flip path (Cotality idx-sync re-emitting terminal rows with
  * idx_display_yn=true). The H1 investigation enumerated four
  * additional writer call sites that hard-coded or body-piped
  * `idx_display_yn=true` without consulting `StandardStatus`:
@@ -96,9 +96,9 @@ describe('H1 — secondary-writer terminal-status guard', () => {
     });
 
     it('case sensitivity — "closed" lowercase is NOT in the canonical set', () => {
-      // The cron predicate matches exact-case RESO strings; mirroring it
+      // The cron predicate matches exact-case provider status strings; mirroring it
       // here keeps writer and cron in lock-step. Documents the contract,
-      // not a desired behavior — Trestle emits exact-case canonical
+      // not a desired behavior — Cotality emits exact-case canonical
       // values, and any drift would require coordinated change on both
       // sides of the dual-write boundary.
       expect(guardAllowsDisplay('closed')).toBe(true);

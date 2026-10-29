@@ -40,18 +40,18 @@ const routeSource = read('app/api/listings/route.ts');
 const featuredSource = read('app/components/FeaturedListings.tsx');
 
 /** Does this row satisfy the canonical gate? Mirrors the Prisma predicate. */
-function passesGate(row: { rls_eligible: boolean; internet_address_display_yn: boolean }) {
-  const or = (ADDRESS_DISCLOSED_GATE.OR ?? []) as Array<Record<string, unknown>>;
-  return or.some((clause) =>
-    Object.entries(clause).every(
-      ([k, v]) => (row as unknown as Record<string, unknown>)[k] === v,
-    ),
-  );
+function passesGate(row: { listing_id?: string; rls_eligible: boolean; internet_address_display_yn: boolean }) {
+  const matches = (clause: Record<string, unknown>): boolean =>
+    Object.entries(clause).every(([key, value]) => {
+      if (key === 'OR') return (value as Array<Record<string, unknown>>).some(matches);
+      if (key === 'listing_id') return row.listing_id?.startsWith((value as { startsWith: string }).startsWith) === true;
+      return (row as unknown as Record<string, unknown>)[key] === value;
+    });
+  return ((ADDRESS_DISCLOSED_GATE.OR ?? []) as Array<Record<string, unknown>>).some(matches);
 }
-
 describe('the canonical gate itself', () => {
   it('website-only + address flag false -> INCLUDED (first-party policy)', () => {
-    expect(passesGate({ rls_eligible: false, internet_address_display_yn: false })).toBe(true);
+    expect(passesGate({ listing_id: 'SL-0004', rls_eligible: false, internet_address_display_yn: false })).toBe(true);
   });
 
   it('third-party RLS + address true -> INCLUDED', () => {
@@ -63,14 +63,13 @@ describe('the canonical gate itself', () => {
   });
 
   it('RLS-BACKED SL-/RL- exclusive + address false -> EXCLUDED (no prefix bypass)', () => {
-    // The gate never inspects listing_id, so an SL-/RL- row with rls_eligible
-    // true is treated exactly like any other RLS-backed listing.
-    expect(passesGate({ rls_eligible: true, internet_address_display_yn: false })).toBe(false);
+    expect(passesGate({ listing_id: 'SL-0004', rls_eligible: true, internet_address_display_yn: false })).toBe(false);
   });
 
-  it('the gate does not reference listing_id at all', () => {
-    expect(JSON.stringify(ADDRESS_DISCLOSED_GATE)).not.toContain('listing_id');
-    expect(JSON.stringify(ADDRESS_DISCLOSED_GATE)).not.toContain('startsWith');
+  it('a legacy false eligibility flag cannot disclose an imported address', () => {
+    expect(passesGate({ listing_id: 'RLS20105333', rls_eligible: false, internet_address_display_yn: false })).toBe(false);
+    expect(passesGate({ rls_eligible: false, internet_address_display_yn: false })).toBe(false);
+    expect(passesGate({ listing_id: 'RLS20105333', rls_eligible: false, internet_address_display_yn: true })).toBe(true);
   });
 });
 

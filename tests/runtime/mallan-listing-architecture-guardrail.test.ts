@@ -3,8 +3,8 @@
  *
  * The repository previously carried the REVERSED reconciliation model in two
  * ACTIVE architecture documents: "withdraw SL-*, pin official RLS*, update
- * RealPlus Listing Url", plus a live runtime comment saying "the Trestle version
- * takes precedence". Under the standing architecture the LOCAL Mallan listing is
+ * RealPlus Listing Url", plus a live runtime comment saying the provider-feed
+ * version took precedence. Under the standing architecture the LOCAL Mallan listing is
  * canonical and the returned Cotality RLS copy is publicly suppressed but
  * retained internally.
  *

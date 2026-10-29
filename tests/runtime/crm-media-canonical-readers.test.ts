@@ -23,7 +23,7 @@
  * derivation, because scenario (3) then emits the legacy URL.
  *
  * Both surfaces are Mallan-heavy by construction: `/api/crm/listings` lists SL-/RL-
- * CRM exclusives (plus closed Trestle deals) and `/api/crm/listing-sends` is how an
+ * CRM exclusives (plus closed Cotality deals) and `/api/crm/listing-sends` is how an
  * agent emails one to a client — so the ownership class whose deletions are
  * authoritative is exactly the traffic these routes carry.
  */
@@ -430,10 +430,10 @@ describe('/api/crm/listings — the grid media array reads the canonical composi
     expect(media.map((m) => m.mediaType)).toEqual(['Photo', 'FloorPlan']);
   });
 
-  it('a third-party Trestle row with unknown relational state still falls back to its Cotality JSON', async () => {
+  it('a third-party Cotality row with unknown relational state still falls back to its Cotality JSON', async () => {
     // `_count` 0 + mls_id set + rls_eligible true ⇒ NOT Mallan-owned, so the
     // legacy JSON (Cotality-sourced) is always a safe fallback — a closed
-    // Trestle deal in the grid must not lose its photos.
+    // Cotality deal in the grid must not lose its photos.
     const media = await gridMedia(
       { listing_media: [], count: 0, legacy: legacyJson },
       { listing_id: 'RLS20059088', mls_id: 'RLS', rls_eligible: true, status: 'Closed' },
@@ -473,7 +473,13 @@ describe('/api/crm/listings — the grid media array reads the canonical composi
     listingCount.mockResolvedValueOnce(0);
     await crmListingsGET(gridRequest());
     const where = listingFindMany.mock.calls[0][0].where as Record<string, unknown>;
-    expect(where.agent_id).toBe(BigInt(42));
+    // 2026-10-27: the agent scope is the second AND branch — assignment (agent_id) or the
+    // agent's REBNY member id on the list / co-list side — applied inside the Mallan-own set.
+    const and = where.AND as Array<{ OR: Array<Record<string, unknown>> }>;
+    expect(Array.isArray(and)).toBe(true);
+    expect(and).toHaveLength(2);
+    expect(and[1].OR).toEqual(expect.arrayContaining([{ agent_id: BigInt(42) }]));
+    expect(where.agent_id).toBeUndefined();
   });
 
   it('the widened select fetches active-only rows PLUS the all-status _count', async () => {

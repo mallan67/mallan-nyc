@@ -14,7 +14,7 @@
 //   - Floor plans stay FloorPlan and are NEVER the hero.
 //   - Hero (preferred_photo_yn): left exactly as-is UNLESS --cover=N is given,
 //     in which case photo #N (from the clean list) becomes the sole hero.
-//   - Scoped to SL-0004 only; only `crm:`-keyed rows exist for it, so Trestle/RLS
+//   - Scoped to SL-0004 only; only `crm:`-keyed rows exist for it, so Cotality-feed
 //     rows are never touched.
 //
 // Uses the SAME visualIdentity()/pickFullSizeUrl() the public resolver uses, so

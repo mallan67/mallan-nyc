@@ -1,7 +1,7 @@
 # Cotality IDX Plus Web API — Complete Reference
 
-> Single unified reference for every aspect of using Cotality/Trestle on mallan.nyc.
-> Replaces the need to read 12+ separate files. Covers: auth, endpoints, fields,
+> Subordinate implementation reference for the Cotality API on mallan.nyc. `MALLAN-PLATFORM-MASTER-PLAN.md`
+> §0.1–§0.9 and the live Cotality API govern; counts below are dated observations — re-verify live. Covers: auth, endpoints, fields,
 > IDs, address model, OData patterns, mapping, media, display gates, distribution,
 > attribution, UI integration, statuses, slugs, sync, compliance, and known limitations.
 >
@@ -15,7 +15,7 @@
 
 ## MANDATORY ENGINEERING RULE
 
-Any PR touching Cotality/Trestle, address lookup, listing search, media, CRM listing forms, sync, featured listings, or public listing display **must cite this file** in the PR body and state which section it follows.
+Any PR touching the Cotality API, address lookup, listing search, media, CRM listing forms, sync, featured listings, or public listing display must follow `MALLAN-PLATFORM-MASTER-PLAN.md` §0.1–§0.9, verify provider facts against the live Cotality API, and cite the section of this file it relies on. Where the Master or the live API contradicts this file, correct this file.
 
 Example PR body line:
 ```
@@ -40,9 +40,9 @@ Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §18 (CRM Buildin
 
 | System | Role |
 |---|---|
-| **Cotality/Trestle** | External data provider. REBNY IDX Plus feed via OData v4. Read-only consumption by mallan.nyc. |
+| **Cotality** | External data provider. REBNY IDX Plus feed via OData v4. Read-only consumption by mallan.nyc. |
 | **RealPlus/RLS** | Listing-entry source for official REBNY listings. Maya enters listings into RealPlus; they appear in the Cotality feed as `RLS*` IDs. |
-| **mallan.nyc** | Consumes Cotality data for public display, search, building reference, and media. Does NOT write back to Trestle. |
+| **mallan.nyc** | Consumes Cotality data for public display, search, building reference, and media. Does NOT write back to Cotality. |
 | **InHouse/local web** | Mallan-created website-only records (`SL-*` / `RL-*` IDs). Not on RLS. Must be manually reconciled when an official `RLS*` feed record arrives. |
 
 ---
@@ -58,7 +58,7 @@ Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §18 (CRM Buildin
 7. [Status Lifecycle](#7-status-lifecycle)
 8. [Distribution Gates](#8-distribution-gates)
 9. [Field Distribution Profiles](#9-field-distribution-profiles)
-10. [Mapping: Trestle to DB](#10-mapping-trestle-to-db)
+10. [Mapping: Cotality to DB](#10-mapping-cotality-to-db)
 11. [Mapping: DB to Public DTO](#11-mapping-db-to-public-dto)
 12. [Media](#12-media)
 13. [URL Slugs](#13-url-slugs)
@@ -141,7 +141,7 @@ Base URL: `https://api.cotality.com/trestle`
 |---|---|---|---|
 | Member | `/odata/Member` | 90 (72 IDX Plus) | Agent data. Available but not queried by routes. |
 | Office | `/odata/Office` | 79 (66 IDX Plus) | Office data. Available but not queried by routes. |
-| CustomProperty | `$expand=CustomProperty` on Property | 140 (106 IDX Plus) | FARE Act fees. **Expansion currently rejected by Trestle with HTTP 400.** |
+| CustomProperty | `$expand=CustomProperty` on Property | 140 (106 IDX Plus) | FARE Act fees. **An earlier probe saw HTTP 400 on expansion; Master §0.8 records it as supported — re-verify live.** |
 | PropertyUnitTypes | `$expand=UnitTypes` on Property | 52 (46 IDX Plus) | Multi-unit data |
 | Teams | `/odata/Teams` | 48 | Agent teams (beyond IDX Plus spec) |
 | TeamMembers | `/odata/TeamMembers` | 29 | Team member roles (beyond IDX Plus spec) |
@@ -161,7 +161,7 @@ Base URL: `https://api.cotality.com/trestle`
 
 **Total:** 12 data resources (1,364 fields) + 5 system resources
 
-### CRITICAL: What does NOT exist on Trestle
+### CRITICAL: What does NOT exist on the Cotality API
 
 There is no dedicated building database, address master, geocoding service, or parcel lookup endpoint. `/odata/Property` contains **listing records**, not a comprehensive building/address database. It only returns buildings that have or had listings in the REBNY IDX Plus feed. If a building has never had a listing, it will not appear.
 
@@ -169,9 +169,9 @@ There is no dedicated building database, address master, geocoding service, or p
 
 ## 3. The Address Model
 
-**Implementation:** Verified against `artifacts/metadata.xml` (live Trestle `$metadata`)
+**Implementation:** Verified against live `$metadata` (committed as `data/cotality-enums.live.json`)
 
-Cotality uses RESO-standard structured address fields. The address is decomposed, NOT stored as a single string.
+Cotality serves structured address fields. The address is decomposed, NOT stored as a single string.
 
 ### Address fields on Property
 
@@ -207,8 +207,8 @@ Cotality uses RESO-standard structured address fields. The address is decomposed
 1. **`StreetDirPrefix` is SEPARATE from `StreetName`.** "East" is NOT part of the street name. "333 East 46th Street" = StreetNumber `333` + StreetDirPrefix `E` + StreetName `46TH` + StreetSuffix `St`.
 2. **Direction values are abbreviated:** East→`E`, West→`W`, North→`N`, South→`S`.
 3. **`StreetName` contains the name portion only:** `"46TH"`, `"PARK"`, `"BROADWAY"`. Never `"East 46th"`.
-4. **Case is mixed** in Trestle data — `"46TH"`, `"Park"`, `"BROADWAY"` all occur. Always use `tolower()` in OData queries.
-5. **Ordinal suffixes may or may not be present.** Trestle stores both `"46TH"` and `"46"`. Strip ordinals (TH/ST/ND/RD) before searching.
+4. **Case is mixed** in Cotality data — `"46TH"`, `"Park"`, `"BROADWAY"` all occur. Always use `tolower()` in OData queries.
+5. **Ordinal suffixes may or may not be present.** Cotality stores both `"46TH"` and `"46"`. Strip ordinals (TH/ST/ND/RD) before searching.
 6. **`UnParsedAddress` is display-only.** Never use it for OData filtering — it's a concatenation with inconsistent formatting.
 
 ### Borough ↔ County mapping
@@ -254,9 +254,9 @@ and contains(tolower(StreetName),'46')
 |---|---|
 | `contains(StreetName,'46TH')` without `tolower()` | Case-sensitive. Fails on mixed-case data. |
 | `contains(StreetName,'EAST')` | "East" is in `StreetDirPrefix`, not `StreetName` |
-| Guessing from unparsed full address | Must parse into RESO components first |
-| `$filter=InternetEntireListingDisplayYN eq true` | **Trestle returns HTTP 400** — `"Results from 'RLS' has been suppressed (provider Level)"`. REBNY pre-filters this. |
-| `$filter=PropertySubType eq '...'` | **Crashes Trestle with HTTP 502** for most values |
+| Guessing from unparsed full address | Must parse into structured address components first |
+| `$filter=InternetEntireListingDisplayYN eq true` | **Cotality returns HTTP 400** — `"Results from 'RLS' has been suppressed (provider Level)"`. REBNY pre-filters this. |
+| `$filter=PropertySubType eq '...'` | **Crashed the provider with HTTP 502** for most values when last observed |
 | `$filter=NewConstructionYN eq true` / `NewDevelopmentYN eq true` | **Not exposed on IDX Plus feed** — returns empty |
 
 ### Standard status filter
@@ -292,7 +292,7 @@ CommonInterest eq 'StockCooperative'
 CommonInterest eq 'Condop'
 ```
 
-**NOT** PropertySubType — that crashes Trestle.
+**NOT** PropertySubType — that crashed the provider (HTTP 502).
 
 ### Borough (via county)
 
@@ -347,7 +347,7 @@ Photo-only edits bump `PhotosChangeTimestamp` without bumping `ModificationTimes
 
 ### Pagination
 
-Trestle uses `@odata.nextLink` for cursor-based pagination. Follow the link until null. Max `$top` is 500.
+Cotality uses `@odata.nextLink` for cursor-based pagination. Follow the link until null. Mallan clamps some requests to `$top` 500 (for example `app/api/agents/[slug]/listings/route.ts`, which cites lines 348-350 of this file); Master §0.8 records `$top` up to 5000 as supported when last verified — re-verify live before raising a clamp.
 
 ### Response format
 
@@ -365,7 +365,7 @@ Trestle uses `@odata.nextLink` for cursor-based pagination. Follow the link unti
 
 ### IDX Plus fields: 29 categories (B1–B29 + B30)
 
-The full field list lives in `lib/idx/trestle-mapper.ts`. Summary:
+The Property `$select` field list lives in `lib/idx/trestle-mapper.ts`; field existence and types come from `data/cotality-enums.live.json`. Dated summary:
 
 | Category | Code | Count | Key fields |
 |---|---|---|---|
@@ -399,24 +399,11 @@ The full field list lives in `lib/idx/trestle-mapper.ts`. Summary:
 | Other / Misc | B29 | 12 | Disclaimer, CopyrightNotice, CountyOrParish, ListingKeyNumeric |
 | FARE Act Custom | B30 | 4 | AdditionalFee, AdditionalFeeDescription, AdditionalFeeYN, FeeFrequency — **legacy CustomProperty fallback** (`$expand=CustomProperty` currently 400s). Canonical FARE public display is `MoveInCostsAmount` / `MoveInCostsComments` (live Property fields). |
 
-### RESO-to-RLS renames (23 fields)
+### Provider field names are used as served
 
-Trestle sends the RLS name; the mapper normalizes to canonical. Defined in `lib/idx/trestle-mapper.ts`:
+Mallan reads the field names the live Cotality API serves. There is no rename layer between the provider and the mapper; `data/cotality-enums.live.json` is the field authority.
 
-| Trestle sends | We normalize to |
-|---|---|
-| SourceSystemKey | ListingKey |
-| MlsStatus | StandardStatus |
-| SourceSystemModificationTimestamp | ModificationTimestamp |
-| UnParsedAddress | UnparsedAddress |
-| ListAgentMlsId | ListAgentKey |
-| BuyerAgentMlsId | BuyerAgentKey |
-| ListOfficeMlsId | ListOfficeKey |
-| BuyerOfficeMlsId | BuyerOfficeKey |
-| DuplicateListingIDs | CoExclusiveListingKey |
-| ... (13 more) | See `RESO_TO_RLS_RENAMES` in trestle-mapper.ts |
-
-### Fields NOT on Trestle (code must NOT use these)
+### Fields NOT served by the Cotality API (code must NOT use these)
 
 | Field | Status | Correct Equivalent |
 |---|---|---|
@@ -427,20 +414,19 @@ Trestle sends the RLS name; the mapper normalizes to canonical. Defined in `lib/
 | `VOWConsumerCommentYN` | Does NOT exist | — |
 | `MoveInCostsAmountTotal` | Does NOT exist (phantom; legacy fallback only) | `MoveInCosts` is a multi-select enum; use live `MoveInCostsAmount` for the dollar amount |
 | `YearRenovated` | Does NOT exist | — |
-| `PossessionDate` | RESO field, Trestle ignores | `AvailabilityDate` |
+| `PossessionDate` | Not in the live `$metadata` | `AvailabilityDate` |
 | `FirstShowingDate` | Does NOT exist | `ActivationDate` |
 
 ### Fields excluded from IDX Plus feed `$select`
 
-85 fields exist in the full RLS spec but are NOT available on the IDX Plus feed — requesting them in `$select` may cause HTTP 400. Full list in `IDX_PLUS_EXCLUDED_FIELDS` in `trestle-mapper.ts`. Key exclusions:
+Fields named in older REBNY field lists but absent from the live Property `$metadata` must not be requested in `$select` (HTTP 400 risk); check `data/cotality-enums.live.json` first. Cases absent from the live Property `$metadata` on 2026-10-01:
 
 - All alternate address fields (`AlternateStreetName`, etc.)
 - `NewDevelopmentYN` (use PublicRemarks heuristic)
-- Several team/co-agent MLS IDs
 - `BathroomsTotal`, `CeilingHeightFeet`, `CeilingHeightInches`
 - `AttendanceType`, `ElevatorYN`, `GymYN`, `DoormanYN`, `StorageYN`
-- Media navigation properties (use separate `/odata/Media` query)
-- FARE Act custom property fields (need `$expand=CustomProperty` — broken)
+
+Team and co-agent MLS IDs (`ListTeamMlsId`, `BuyerTeamMlsId`, `CoListAgentMlsId`, etc.) are live Property fields. Media is queried separately through `/odata/Media`. FARE Act public display uses the live Property fields `MoveInCosts`, `MoveInCostsAmount`, `MoveInCostsComments`, `OngoingFees`, `TenantPays` and `TenantPaysDescription`; the `CustomProperty` `AdditionalFee*` fields are a legacy fallback (Master §0.8 records `$expand=CustomProperty` as supported when last verified — re-verify live).
 
 ---
 
@@ -449,7 +435,7 @@ Trestle sends the RLS name; the mapper normalizes to canonical. Defined in `lib/
 | Field | Type | Uniqueness | Example | Used for |
 |---|---|---|---|---|
 | `ListingId` | String | Unique within MLS | `"RLS20061539"` | Primary upsert key in our DB |
-| `ListingKey` | String | Unique across MLOs | `"RLS20061539"` | Mapping from `SourceSystemKey` |
+| `ListingKey` | String | Unique across MLOs | `"1091862396"` | Sent directly by the feed (`SourceSystemKey` is null) |
 | `ListingKeyNumeric` | Int64 | Unique across MLOs | `12345678` | Media lookup key fallback |
 | `ListAgentMlsId` | String | Per-agent | `"39361"` | Agent identification (REBNY MLS ID, NOT NY state license) |
 | `ListOfficeMlsId` | String | Per-office | `"O-1234"` | Office identification |
@@ -459,10 +445,10 @@ Trestle sends the RLS name; the mapper normalizes to canonical. Defined in `lib/
 
 | DB column | Source |
 |---|---|
-| `listing_id` | Trestle `ListingId` |
-| `mls_id` | Trestle `ListingKey` (via SourceSystemKey rename) |
+| `listing_id` | Cotality `ListingId` |
+| `mls_id` | Cotality `ListingKey` |
 
-### Local listing IDs (CRM-generated, NOT from Trestle)
+### Local listing IDs (CRM-generated, NOT from Cotality)
 
 | Format | Meaning |
 |---|---|
@@ -476,7 +462,7 @@ These are different key spaces. No automated dedup between `SL-*` and `RLS*` —
 
 ## 7. Status Lifecycle
 
-### RESO StandardStatus values
+### Status values handled by the mapper (dated; the live `StandardStatus` enum is in `data/cotality-enums.live.json`)
 
 | Status | Public Display? | IDX? | DOM Accrues? | Terminal? |
 |---|---|---|---|---|
@@ -505,11 +491,11 @@ TERMINAL_STATUSES = new Set(['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 
 
 `normalizeStandardStatus()` in `trestle-mapper.ts` handles:
 - Case folding: `"active"` → `"Active"`, `"CLOSED"` → `"Closed"`
-- Alias resolution: `"canceled"` (single L) → `"Cancelled"` (double L, RESO canonical)
+- Alias resolution: `"canceled"` (single L) → `"Cancelled"` (double L). The live `StandardStatus` enum spells it `Canceled`; reconciling this belongs to the deferred status convergence
 - Trim: `" Active "` → `"Active"`
 - Unknown values preserved (not silently coerced)
 
-### CRM lifecycle statuses (not from Trestle)
+### CRM lifecycle statuses (not from Cotality)
 
 `Draft`, `Incomplete`, `Pending` — used for InHouse listings before they go active.
 
@@ -523,7 +509,7 @@ Six gates control whether a listing is publicly displayable. Implemented in `lib
 
 | Gate | Field | Fail behavior | Semantics |
 |---|---|---|---|
-| **Gate 1: Owner Opt-Out** | `Permission = 'OwnerOptOut'` or `'Owner Opt-Out'` or `MlsStatus = 'OwnerOptOut'` | Fail closed | If owner opted out, listing is never displayed anywhere |
+| **Gate 1: Owner Opt-Out** | Mallan-local `owner_opt_out` column only (REBNY compliance rule, submitted via Exhibit B/LMP, upstream of the Cotality feed -- confirmed 2026-10-02 via `trestle_get_picklist`: Permission's 18 values and MlsStatus's 26 values have no OwnerOptOut member) | Fail closed | If owner opted out, listing is never displayed anywhere |
 | **Gate 2: Participant Only** | `Permission = 'Private'` | Fail closed | Only co-brokers see it; no public/IDX display |
 | **Gate 3: Internet Display** | `InternetEntireListingDisplayYN` | **IDX Plus pre-filter: null = displayable** | REBNY pre-filters non-displayable rows OUT of the feed. Null means "already gated in." Only explicit `false` blocks. |
 | **Gate 4: Address Display** | `InternetAddressDisplayYN` | **IDX Plus pre-filter: null = displayable** | Same pre-filter logic as Gate 3. When `false`, address must be suppressed but listing can still display. |
@@ -599,11 +585,11 @@ Every field has a distribution profile controlling who can see it. Implemented i
 
 ### Raw data slimming
 
-`slimRawData()` from `lib/compliance/raw-data-keep-fields.ts` further reduces raw_data to only the ~75 fields actually read by consumers (of 1,457 that Trestle sends per row). This is the Neon storage shedding lever.
+`slimRawData()` from `lib/compliance/raw-data-keep-fields.ts` further reduces raw_data to only the ~75 fields actually read by consumers (of the Property fields Cotality sends per row). This is the Neon storage shedding lever.
 
 ---
 
-## 10. Mapping: Trestle to DB
+## 10. Mapping: Cotality to DB
 
 **Implementation:** `mapTrestleToPrisma()` in `lib/idx/trestle-mapper.ts`
 
@@ -611,11 +597,11 @@ Every field has a distribution profile controlling who can see it. Implemented i
 
 | Input | Output |
 |---|---|
-| Raw Trestle OData record (745+ fields) | Prisma listing upsert object |
+| Raw Cotality OData record | Prisma listing upsert object |
 
 ### Process
 
-1. **Normalize renames** — Apply `RESO_TO_RLS_RENAMES` (23 field renames)
+1. **Read provider field names as served** — no rename layer (see §5)
 2. **Infer listing type** — `PropertyType` contains "lease"/"rental" → `rent`, else → `sale`
 3. **Infer borough** — `CountyOrParish` or `City` → borough name
 4. **Extract neighborhood** — `SubdivisionName` (not `CityRegion` which is borough)
@@ -632,7 +618,7 @@ Every field has a distribution profile controlling who can see it. Implemented i
 |---|---|
 | `listing_id` | `ListingId` or `ListingKey` |
 | `mls_id` | `ListingKey` |
-| `status` | `StandardStatus` or `MlsStatus` |
+| `status` | `StandardStatus` only (never `MlsStatus` -- Master Plan Section 0.6, confirmed 2026-10-02) |
 | `listing_type` | Inferred from `PropertyType` |
 | `property_type` | `PropertyType` |
 | `property_sub_type` | `PropertySubType` |
@@ -657,7 +643,7 @@ Every field has a distribution profile controlling who can see it. Implemented i
 | `media` | JSONB array of `{url, mediaType, order}` |
 | `compliance` | JSONB — B3-B7 fields |
 | `agent_info` | JSONB — B8-B11 fields |
-| `raw_data` | JSONB — slimmed raw Trestle record |
+| `raw_data` | JSONB — slimmed raw Cotality record |
 | `modification_timestamp` | `ModificationTimestamp` |
 | `listing_contract_date` | `ListingContractDate` |
 | `last_synced_from_trestle` | `new Date()` |
@@ -712,7 +698,7 @@ _displayCompliance: {
 
 ## 12. Media
 
-### Fetching media from Trestle
+### Fetching media from Cotality
 
 **Implementation:** `fetchListingMedia()` in `lib/idx/fetch.ts`
 
@@ -734,13 +720,13 @@ The fetch tries keys in priority order: ResourceRecordKeyNumeric → ResourceRec
 $filter=ResourceRecordKey eq '{key}' and MediaStatus ne 'Deleted'
 ```
 
-### `$expand=Media` is BROKEN
+### `$expand=Media` — opt-in only
 
-Trestle consistently rejects `$expand=Media` on Property queries with HTTP 400. Always use a separate `/odata/Media` query instead. This is opt-in only via `expandMedia: true` in fetch options.
+Mallan's fetch path queries `/odata/Media` separately; `$expand=Media` is opt-in only via `expandMedia: true` in fetch options. Earlier probes saw HTTP 400 on it, while Master §0.8 records it as supported when last verified — re-verify live before changing the default.
 
-### `$expand=CustomProperty` is also BROKEN
+### `$expand=CustomProperty` — opt-in only
 
-Trestle rejects the previously-default `$expand=CustomProperty($select=DownPaymentAssistanceAmount,...)` with HTTP 400. Bare `$expand=CustomProperty` may work but is untested. Opt-in only via `expandCustomProperty: true`.
+An earlier probe saw HTTP 400 on the previously-default `$expand=CustomProperty($select=DownPaymentAssistanceAmount,...)`; Master §0.8 records `$expand=CustomProperty` as supported when last verified. Opt-in only via `expandCustomProperty: true`; re-verify live before changing the default.
 
 ### Media classification
 
@@ -759,13 +745,13 @@ Every media item is classified:
 
 Photos first → Floorplans → Videos → Virtual Tours → Unknown. Within each class, original provider order preserved. `PreferredPhotoYN = true` gets order -1 (always first).
 
-### Trestle URL proxying
+### Provider media URL proxying
 
-Trestle media URLs require Bearer auth. URLs from `cotality.com` or `corelogic.com` are routed through `/api/media/proxy?url=` so the browser doesn't need the token.
+Cotality media URLs require Bearer auth. URLs from `api.cotality.com` (and the retired pre-2026-03-31 provider hosts still present in stored URLs) are routed through `/api/media/proxy?url=` so the browser doesn't need the token.
 
 ### R2 upload pipeline
 
-`lib/media/media-sync-service.ts` → uploads Trestle photos to Cloudflare R2 at `images.mallan.nyc`. Only processes listings that pass display gates. Skips deleted media.
+`lib/media/media-sync-service.ts` → uploads Cotality photos to Cloudflare R2 at `images.mallan.nyc`. Only processes listings that pass display gates. Skips deleted media.
 
 ---
 
@@ -831,7 +817,7 @@ Required on all rental listings per NYC LL 119/2024. Covers move-in costs, ongoi
 - `MoveInCostsComments` — live Property `Edm.String(1024)` (move-in disclosure text)
 - `OngoingFees`, `TenantPays`, `TenantPaysDescription`
 
-`AdditionalFee` / `AdditionalFeeDescription` / `AdditionalFeeYN` / `FeeFrequency` are **legacy CustomProperty fallback** only. `MoveInCostsAmountTotal` is **phantom** — does not exist on live Trestle (legacy fallback only).
+`AdditionalFee` / `AdditionalFeeDescription` / `AdditionalFeeYN` / `FeeFrequency` are **legacy CustomProperty fallback** only. `MoveInCostsAmountTotal` is **phantom** — does not exist on the live Cotality API (legacy fallback only).
 
 ---
 
@@ -843,7 +829,7 @@ Required on all rental listings per NYC LL 119/2024. Covers move-in costs, ongoi
 
 1. **Read watermark** — `SyncState.last_sync_timestamp` from DB
 2. **Build incremental filter** — dual-timestamp cursor (ModificationTimestamp OR PhotosChangeTimestamp > watermark)
-3. **Fetch from Trestle** — `fetchFromTrestle()` with pagination
+3. **Fetch from Cotality** — `fetchFromTrestle()` with pagination
 4. **For each record:**
    a. Validate required fields (`validateRequiredFields()` — 11 fields minimum)
    b. Check distribution gates (`checkDistributionGates()`)
@@ -867,7 +853,7 @@ On failure, `recordSyncDiagnostic()` persists error details (error name, message
 **Implementation:** `lib/idx/display-adapter.ts`
 
 Converts API response listings to `DisplayListing` type for frontend cards. Handles two input shapes:
-- `PublicListingDTO` (flat, from Trestle/IDX path) — via `fromPublicDTO()`
+- `PublicListingDTO` (flat, from the Cotality/IDX path) — via `fromPublicDTO()`
 - Local listing shape (nested, from fallback) — via `toDisplayListing()`
 
 ### Card fields
@@ -895,7 +881,7 @@ Converts API response listings to `DisplayListing` type for frontend cards. Hand
 
 **Implementation:** `app/api/open-houses/route.ts`
 
-### Trestle query
+### Cotality query
 
 Endpoint: `/odata/OpenHouse`
 
@@ -915,7 +901,7 @@ Note: This is one of the few places where `$expand=Property(...)` works (expandi
 
 - Only `OpenHouseType eq 'Public'` — broker-only and private events excluded per REBNY UCBA Art. I §16.
 - Each OH record is passed through `evaluateDisplayGate()` to verify the parent listing is displayable.
-- Deduplicates against local DB open houses (prefers Trestle version).
+- Deduplicates against local DB open houses (prefers the Cotality record but keeps a local 'By Appointment' designation).
 
 ---
 
@@ -929,9 +915,9 @@ This route uses `/odata/Property` as a building/address lookup source. **Propert
 
 ### Flow
 
-1. Parse free-text query into RESO components: `parseAddressQuery(q)`
+1. Parse free-text query into structured address components: `parseAddressQuery(q)`
 2. Search local DB first (fast, case-insensitive via raw SQL)
-3. If DB returns <5 results, supplement from Trestle `/odata/Property`
+3. If DB returns <5 results, supplement from Cotality `/odata/Property`
 4. Deduplicate by `StreetNumber-StreetName-PostalCode` key
 5. Return merged list
 
@@ -960,7 +946,7 @@ Requires `requireAgentOrBroker(request)`. Rate limited to 20 requests/minute/IP.
 
 ### Error handling
 
-Trestle errors are caught and silently return whatever DB results were found. This means 401/500/Cotality errors look identical to "no matches" in the UI — a known diagnostic gap.
+Cotality API errors are caught and silently return whatever DB results were found. This means 401/500/Cotality errors look identical to "no matches" in the UI — a known diagnostic gap.
 
 ---
 
@@ -986,7 +972,7 @@ function sanitizeOData(value: string, maxLength: number): string {
 }
 ```
 
-### Trestle request safety
+### Cotality request safety
 
 - All requests use `AbortController` with 10-second timeout
 - Bearer token never exposed to client-side code
@@ -1000,17 +986,17 @@ function sanitizeOData(value: string, maxLength: number): string {
 
 ### `/odata/Property` is not a building database
 
-The CRM building lookup uses Property records as a proxy for building data. This works for buildings with active listings but misses buildings with no current listings. There is no Trestle Building resource with actual data (the `Building` entity is an empty shell with only a key field).
+The CRM building lookup uses Property records as a proxy for building data. This works for buildings with active listings but misses buildings with no current listings. There is no Cotality Building resource with actual data (the `Building` entity is an empty shell with only a key field).
 
-### `$expand=Media` returns HTTP 400
+### `$expand=Media` — re-verify before use
 
-Documented since 2024. Must fetch media separately via `/odata/Media?$filter=ResourceRecordKey eq '...'`.
+Earlier probes returned HTTP 400; Master §0.8 records `$expand=Media` as supported when last verified. Mallan fetches media separately via `/odata/Media?$filter=ResourceRecordKey eq '...'`.
 
-### `$expand=CustomProperty(...)` returns HTTP 400
+### `$expand=CustomProperty(...)` — re-verify before use
 
-The inner `$select` with `DownPaymentAssistanceAmount,DownPaymentAssistanceCount,CustomFields` fails. Bare `$expand=CustomProperty` untested. FARE Act custom fields are currently inaccessible via inline expansion.
+An earlier probe of the inner `$select` with `DownPaymentAssistanceAmount,DownPaymentAssistanceCount,CustomFields` failed; Master §0.8 records `$expand=CustomProperty` as supported when last verified. Re-verify live before relying on inline expansion for FARE Act custom fields.
 
-### `PropertySubType` crashes Trestle with HTTP 502
+### `PropertySubType` filters crashed the provider with HTTP 502
 
 Cannot use `PropertySubType eq '...'` in OData filters for most values. Use `CommonInterest` for condo/co-op/condop filtering. Use `PublicRemarks` heuristic for new development detection.
 
@@ -1024,9 +1010,9 @@ Must use PublicRemarks text search as heuristic.
 
 ### Latitude/Longitude always null on IDX Plus
 
-`Latitude`/`Longitude` exist in Trestle `$metadata` but are **always null on the IDX Plus feed** — they are not usable for map/transit filtering. The site has a separate geocode backfill process.
+`Latitude`/`Longitude` exist in Cotality `$metadata` but are **always null on the IDX Plus feed** — they are not usable for map/transit filtering. The site has a separate geocode backfill process.
 
-### Trestle stores mixed-case street names
+### Cotality stores mixed-case street names
 
 Always use `tolower()` in OData string comparisons.
 
@@ -1036,7 +1022,7 @@ Always use `tolower()` in OData string comparisons.
 
 ### Media order arbitrary
 
-Trestle returns media in provider order with photos, floorplans, videos, and virtual tours interleaved. Always classify and re-sort using `listing-media-resolver.ts`.
+Cotality returns media in provider order with photos, floorplans, videos, and virtual tours interleaved. Always classify and re-sort using `listing-media-resolver.ts`.
 
 ### Token expires silently
 
@@ -1057,7 +1043,7 @@ InHouse listings are Mallan-created website-only records that exist OUTSIDE the 
 
 ### Cotality lookup: ALLOWED
 
-InHouse listings **may** use Cotality/Trestle as reference data for address verification and building field population. This is a lookup, not distribution.
+InHouse listings **may** use Cotality as reference data for address verification and building field population. This is a lookup, not distribution.
 
 ### Distribution gates: ALL OFF
 
@@ -1130,7 +1116,7 @@ Keep the local `SL-*`/`RL-*` in `pinned_ids` when the official feed listing arri
 
 ## 23. Debugging
 
-### Debug checklist (for any Cotality/Trestle issue)
+### Debug checklist (for any Cotality issue)
 
 1. **Production SHA** — `gh pr view --json mergeCommit` or Vercel deployment inspector
 2. **Deployment ID** — Vercel MCP `list_deployments` or inspector URL
@@ -1176,8 +1162,8 @@ The CRM building lookup route (`/api/buildings/search`) returns `{ buildings: []
 |---|---|
 | `lib/idx/auth.ts` | OAuth2 token management |
 | `lib/idx/fetch.ts` | OData Property + Media fetching, filters, pagination |
-| `lib/idx/trestle-mapper.ts` | 902 fields, 29 categories, Trestle→Prisma mapping, gate computation |
-| `lib/idx/sync.ts` | Sync orchestrator (Trestle→DB) |
+| `lib/idx/trestle-mapper.ts` | Property `$select` field arrays, Cotality→Prisma mapping, gate computation |
+| `lib/idx/sync.ts` | Sync orchestrator (Cotality→DB) |
 | `lib/idx/types.ts` | IDXListing, TrestleAuthToken, IDXFetchResult types |
 | `lib/idx/public-dto.ts` | PublicListingDTO shape, toPublicDTO(), attribution |
 | `lib/idx/db-to-public-dto.ts` | DB listing → PublicListingDTO (for InHouse/exclusives) |
@@ -1193,18 +1179,13 @@ The CRM building lookup route (`/api/buildings/search`) returns `{ buildings: []
 | `lib/listing-slug.ts` | Address-based URL slug generation |
 | `lib/sanitize.ts` | OData injection prevention |
 | `app/api/buildings/search/route.ts` | CRM building/address lookup |
-| `app/api/listings/route.ts` | Public listing search (DB + Trestle) |
+| `app/api/listings/route.ts` | Public listing search (DB + Cotality) |
 | `app/api/listings/[id]/route.ts` | Single listing detail |
 | `app/api/open-houses/route.ts` | Open house listings |
-| `app/api/media/proxy/route.ts` | Trestle image URL proxy |
+| `app/api/media/proxy/route.ts` | Cotality image URL proxy |
 | `app/api/cron/idx-sync/route.ts` | Incremental sync cron |
 | `app/api/cron/media-sync/route.ts` | Media → R2 cron |
-| `docs/architecture/COTALITY-TRESTLE-OPERATIONAL-CONTRACT.md` | Operational contract |
-| `artifacts/metadata.xml` + `data/rebny-rls-property-fields.csv` | Live Cotality field catalog (from `api.cotality.com/trestle`) |
-| `data/RLS-FIELD-REGISTRY.md` | IDX Plus field registry |
-| `data/rebny-rls-property-fields.csv` | 902 IDX Plus fields (CSV) |
-| `data/rebny-rls-property-lookup.csv` | 2,066 picklist values |
-| `artifacts/metadata.xml` | Live Trestle OData $metadata snapshot |
+| `data/cotality-enums.live.json` | Live Cotality entities, field types and enums (from `api.cotality.com/trestle` `$metadata`) |
 
 ---
 

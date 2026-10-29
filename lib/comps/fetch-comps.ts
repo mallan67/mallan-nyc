@@ -1,5 +1,5 @@
 /**
- * Fetch comparable listings from Trestle for a seller's listing.
+ * Fetch comparable listings from the Cotality feed for a seller's listing.
  *
  * Two scopes:
  *   1. Building comps — same building (by BuildingName or address), matched by beds/baths/sqft/status
@@ -12,21 +12,12 @@
 import { fetchFromTrestle } from "@/lib/idx/fetch";
 import { CARD_SELECT_FIELDS } from "@/lib/idx/card-fields";
 import type { CompCriteria, CompListing, CompResults, BuildingCompCriteria, AreaCompCriteria } from "./types";
+import { compStatusValues } from "./status";
 
-// Trestle status values mapped from our display names
-const STATUS_MAP: Record<string, string> = {
-  "Active": "Active",
-  "Under Contract": "ActiveUnderContract",
-  "Closed": "Closed",
-  "Expired": "Expired",
-  "Coming Soon": "ComingSoon",
-  "Pending": "Pending",
-};
-
+// The status strings are the canonical module's (lib/compliance/status.ts, reached through ./status): nothing here keeps its own table,
+// and a status a comp search does not ask for is refused instead of being written into the query.
 function statusFilter(statuses: string[]): string {
-  const mapped = statuses
-    .map((s) => STATUS_MAP[s] || s)
-    .map((s) => `'${s}'`);
+  const mapped = compStatusValues(statuses).map((s) => `'${s}'`);
   if (mapped.length === 0) return "";
   if (mapped.length === 1) return `StandardStatus eq ${mapped[0]}`;
   return `(${mapped.map((s) => `StandardStatus eq ${s}`).join(" or ")})`;
@@ -210,6 +201,9 @@ export async function fetchComps(
   ctx: ListingContext,
   criteria: CompCriteria,
 ): Promise<CompResults> {
+  // Refuse a status a comp search does not ask for before either query is built or sent.
+  compStatusValues(criteria.building.statuses);
+  compStatusValues(criteria.area.statuses);
   const [building, area] = await Promise.all([
     fetchBuildingComps(ctx, criteria.building),
     fetchAreaComps(ctx, criteria.area),

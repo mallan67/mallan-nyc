@@ -147,7 +147,7 @@ export default function ComparePage() {
                           : 'ring-1 ring-black/5 hover:shadow-md cursor-pointer'
                     }`}
                   >
-                    {/* Photo — plain <img> (Trestle photo URLs are dynamic
+                    {/* Photo — plain <img> (Cotality photo URLs are dynamic
                         and proxied through /api/media/proxy; <Image> requires
                         domain whitelisting which is not maintained for this
                         favorites picker). */}

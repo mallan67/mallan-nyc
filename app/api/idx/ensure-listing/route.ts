@@ -1,12 +1,13 @@
 // POST /api/idx/ensure-listing
-// Ensures an IDX/Trestle listing exists in the local DB so that showings,
+// Ensures an IDX/Cotality listing exists in the local DB so that showings,
 // listing-sends, and other actions that require a Prisma Listing record work.
 //
 // If the listing already exists (by listing_id or mls_id), returns it.
 // If not, creates a minimal record from the IDX search data provided in the body.
 //
 // Auth: agent or broker session required.
-// The listing is marked rls_eligible=false (external IDX listing, not our exclusive).
+// The listing is created RLS-eligible, like every row the Cotality sync writes: it is another firm's listing,
+// and rls_eligible=false would make every reader take it for Mallan's own (see the column below).
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -18,6 +19,7 @@ import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-pro
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
+import { stubAddressJson } from "@/lib/listings/stub-address";
 
 export async function POST(req: NextRequest) {
   const writeBlock = assertWriteAllowed();
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest) {
   const listingId = body.listing_id as string;
   if (!listingId || typeof listingId !== "string" || listingId.trim().length === 0) {
     return NextResponse.json(
-      { error: "listing_id is required (Trestle ListingId)" },
+      { error: "listing_id is required (Cotality ListingId)" },
       { status: 400 }
     );
   }
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // 2. Check by mls_id (Trestle ListingId may have been stored there)
+  // 2. Check by mls_id (Cotality ListingId may have been stored there)
   const byMlsId = await prisma.listing.findFirst({
     where: { mls_id: trimmedId },
     select: { id: true, listing_id: true },
@@ -69,23 +71,25 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // The id of a stub is a Cotality ListingId. SL- / RL- are the ids Mallan mints for its OWN listings, and the identity rule
+  // (lib/listings/mallan-source-identity.ts) reads either prefix as "Mallan's own" whatever rls_eligible says, so a stub created
+  // under one would be labelled and gated as Mallan's listing. (A row that already exists under such an id was returned above, unchanged.)
+  if (/^(SL|RL)-/i.test(trimmedId)) {
+    return NextResponse.json(
+      { error: "listing_id is a Mallan listing id (SL-/RL-), not a Cotality ListingId; this route only creates stubs of Cotality listings" },
+      { status: 400 }
+    );
+  }
+
   // 3. Create minimal record from IDX data provided by the frontend
   // address, agent_info, media, features, compliance are all Json columns
-  const addressStr = (body.address as string) || "";
   const isRental = body.listing_category === "rental" ||
     String(body.listing_type || "").toLowerCase().includes("rent") ||
     String(body.listing_type || "").toLowerCase().includes("lease");
 
-  const addressJson: Record<string, unknown> = {
-    full: addressStr,
-    unit: (body.unit as string) || "",
-    neighborhood: (body.neighborhood as string) || "",
-    borough: (body.borough as string) || "",
-    zip: (body.zip as string) || "",
-    latitude: body.latitude ?? null,
-    longitude: body.longitude ?? null,
-    cross_street: (body.cross_street as string) || "",
-  };
+  // Under the provider's own key names, which the public converter and the slug read, as well as the lowercase keys this route always wrote
+  // (lib/listings/stub-address.ts): without them a stub that passes the display gates renders with no street number, street name or postal code.
+  const addressJson = stubAddressJson(body);
 
   const agentInfoJson: Record<string, unknown> = {
     name: (body.agent_name as string) || "",
@@ -120,14 +124,22 @@ export async function POST(req: NextRequest) {
         postal_code: (body.zip as string) || null,
         property_type: (body.property_type as string) || null,
         property_sub_type: (body.property_sub_type as string) || null,
-        rls_eligible: false, // External IDX listing, not our exclusive
+        // RLS-eligible: this is a FEED listing (another firm's), and the sync writes the same for every Cotality row
+        // ("Cotality-sourced rows are RLS-eligible by definition", lib/idx/sync.ts). rls_eligible=false means "Mallan's own
+        // website-only listing, outside RLS" to every reader: the public label ("Exclusive listing by Mallan Real Estate Inc.", no
+        // disclaimer, an agent card built from the agent columns below), the IDX-display, internet-display, owner-opt-out,
+        // participant-only and address gates (all skipped for such a row), the campaign gate and the exclusives lists. This line
+        // used to write false ("External IDX listing, not our exclusive"), which made another firm's listing read as Mallan's own.
+        // The display flags below come from the request body, fail-closed, and now bind the stub like any feed row. Rows written
+        // before this change keep false until they are corrected (a data change; see the Execution State).
+        rls_eligible: true,
         // H1 fix (2026-05-13): close the secondary-writer §2.05 gap.
         // `canonicalStatus` is the normalized form of body.status (see the
         // declaration above). Using the SAME canonical value for both the
         // DB `status` column and this guard means the writer, the
         // data-retention cron, and ops:health cannot disagree on whether
         // the row is terminal. Reuses the C2 canonical TERMINAL_STATUSES
-        // set (lib/idx/trestle-mapper.ts is the source of truth).
+        // set (imported from lib/idx/trestle-mapper.ts).
         idx_display_yn: !TERMINAL_STATUSES.has(canonicalStatus),
         // Archive Eligibility Clock (#415/#446): seed terminal_since when this minimal
         // external record is created already-terminal (arbitrary body.status). This path
@@ -151,10 +163,10 @@ export async function POST(req: NextRequest) {
         media: (body.images as Prisma.InputJsonValue) ?? ([] as Prisma.InputJsonValue),
         features: {} as Prisma.InputJsonValue,
         compliance: {} as Prisma.InputJsonValue,
-        // TRESTLE CURSOR SAFETY. `getLastSyncTimestamp()` (lib/idx/sync.ts) is
+        // COTALITY SYNC-CURSOR SAFETY. `getLastSyncTimestamp()` (lib/idx/sync.ts) is
         //     MAX(modification_timestamp) WHERE last_synced_from_trestle IS NOT NULL
         // and feeds the OData filter `ModificationTimestamp gt SINCE`. PR-S.7
-        // added that filter so the cursor "selects ONLY Trestle-sync writers".
+        // added that filter so the cursor "selects ONLY Cotality-sync writers".
         //
         // This route is NOT one: it builds a local STUB from IDX search-result
         // data in the request body so showings and listing-sends have a Prisma
@@ -162,7 +174,7 @@ export async function POST(req: NextRequest) {
         // new Date()` — a false claim, since nothing was synced — together with
         // a LOCAL-clock `modification_timestamp`. The stub therefore passed the
         // cursor filter carrying a local-NOW watermark: one call pushed the
-        // cursor past every genuine Trestle ModificationTimestamp, and the next
+        // cursor past every genuine Cotality ModificationTimestamp, and the next
         // incremental sync skipped real upstream changes until wall-clock time
         // caught up. Same hazard PR-S.7 documented, through a door it left open.
         //

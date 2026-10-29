@@ -1,24 +1,26 @@
 /// <reference types="jest" />
 /**
- * CRM My Listings filter (2026-05-27) — CRM-created + closed Trestle only.
+ * CRM My Listings filter — Mallan's OWN listings only.
  *
- * My Listings shows: (1) CRM-created listings (mls_id null / SL-/RL- prefix),
- * and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle
- * listings are managed via REBNY RLS, not the CRM.
+ * 2026-05-27: CRM-created rows + every closed Trestle-synced row.
+ * 2026-10-27: the closed-Trestle clause admitted 6,010 rows from every brokerage (Compass, Corcoran,
+ * Elliman …) and none of Mallan's — "My Listings" showed other firms' closed deals. The set is now
+ *   (1) CRM-created listings (mls_id null, SL-/RL- prefix), and
+ *   (2) Mallan's RLS return copies: list-side office = Mallan (lib/listings/mallan-source-identity.ts).
+ * Identity is the source field — never `agent_id`, never a free-text office name.
  */
 
 import { readFileSync } from 'fs';
 import * as path from 'path';
 
-const ROUTE_PATH = path.resolve(
-  __dirname,
-  '../../app/api/crm/listings/route.ts'
-);
+const ROUTE_PATH = path.resolve(__dirname, '../../app/api/crm/listings/route.ts');
 const routeSource = readFileSync(ROUTE_PATH, 'utf-8');
 
 describe('CRM My Listings filter', () => {
-  test('GET query uses OR filter for CRM-created vs Trestle-closed', () => {
-    expect(routeSource).toMatch(/OR:\s*\[crmCreated,\s*crmCreatedRental,\s*trestleClosed\]/);
+  test('GET query admits Mallan-created rows and Mallan RLS return copies only', () => {
+    expect(routeSource).toMatch(/const mallanOwn[^=]*=\s*\[crmCreated,\s*crmCreatedRental,\s*mallanRlsCopy\]/);
+    expect(routeSource).toMatch(/const where: Record<string, unknown> = \{ OR: mallanOwn \}/);
+    expect(routeSource).toContain("import { MALLAN_LIST_OFFICE_MLS_IDS } from \"@/lib/listings/mallan-source-identity\"");
   });
 
   test('CRM-created filter checks mls_id: null + SL-/RL- prefix + excludes Withdrawn', () => {
@@ -26,18 +28,16 @@ describe('CRM My Listings filter', () => {
     expect(routeSource).toMatch(/crmCreatedRental\s*=.*mls_id:\s*null.*listing_id.*startsWith.*RL-.*status.*notIn.*CRM_HIDDEN/s);
   });
 
-  test('Trestle-closed filter requires mls_id not null + terminal status', () => {
-    expect(routeSource).toMatch(/trestleClosed.*mls_id.*not.*null.*status.*in.*TRESTLE_CLOSED/s);
+  test('RLS-copy filter requires mls_id not null + list-side office = Mallan (source field, not agent_id, not an office name)', () => {
+    expect(routeSource).toMatch(/mallanRlsCopy\s*=\s*\{[^}]*mls_id:\s*\{\s*not:\s*null\s*\}[^}]*list_office_mls_id:\s*\{\s*in:\s*\[\.\.\.MALLAN_LIST_OFFICE_MLS_IDS\]\s*\}/s);
+    expect(routeSource).not.toMatch(/TRESTLE_CLOSED/);
+    expect(routeSource).not.toMatch(/trestleClosed/);
+    expect(routeSource).not.toMatch(/list_office_name:\s*\{\s*contains/);
   });
 
-  test('closed set includes Closed, Sold, Rented, Leased — not Withdrawn/Expired', () => {
-    const line = routeSource.split('\n').find(l => l.includes('TRESTLE_CLOSED') && l.includes('Closed'));
-    expect(line).toBeDefined();
-    expect(line).toContain('Sold');
-    expect(line).toContain('Rented');
-    expect(line).toContain('Leased');
-    expect(line).not.toContain('Withdrawn');
-    expect(line).not.toContain('Expired');
-    expect(line).not.toContain('Cancelled');
+  test('an agent is scoped by assignment or REBNY member id, inside the Mallan-own set', () => {
+    expect(routeSource).toMatch(/where\.AND = \[\{ OR: mallanOwn \}, \{ OR: mine \}\]/);
+    expect(routeSource).toMatch(/list_agent_mls_id: me\.trestle_mls_id/);
+    expect(routeSource).toMatch(/co_list_agent_mls_id: me\.trestle_mls_id/);
   });
 });

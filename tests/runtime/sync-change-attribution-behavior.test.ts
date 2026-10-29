@@ -58,10 +58,10 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
-const mockFetchFromTrestle = jest.fn();
+const mockFetchFromCotality = jest.fn();
 jest.mock("@/lib/idx/fetch", () => ({
   __esModule: true,
-  fetchFromTrestle: (args: unknown) => mockFetchFromTrestle(args),
+  fetchFromTrestle: (args: unknown) => mockFetchFromCotality(args),
   buildIncrementalFilter: () => "mock-incremental-filter",
   buildActiveFilter: () => "mock-active-filter",
   buildAgentHistoricalFilter: () => "mock-agent-filter",
@@ -171,7 +171,6 @@ function dbRowFromRaw(raw: Record<string, unknown>): Record<string, unknown> {
     internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
     internet_address_display_yn: mapped.internet_address_display_yn,
     participant_only: mapped.participant_only,
-    owner_opt_out: mapped.owner_opt_out,
     address: JSON.parse(JSON.stringify(mapped.address)),
     features: JSON.parse(JSON.stringify(mapped.features)),
     raw_data: JSON.parse(JSON.stringify(mapped.raw_data)),
@@ -267,7 +266,7 @@ describe("timestamp-only re-emit — write the row, invalidate NOTHING, warm NOT
     // (the raw_data.ModificationTimestamp moves with the column — the real
     // production shape of a provenance-only bump).
     const bumped = rawRecord({ ModificationTimestamp: "2026-07-20T00:00:00Z" });
-    mockFetchFromTrestle.mockResolvedValue({ records: [bumped], totalFetched: 1 });
+    mockFetchFromCotality.mockResolvedValue({ records: [bumped], totalFetched: 1 });
 
     const result = await syncListings({ fullSync: true, maxRecords: 10 });
 
@@ -328,7 +327,7 @@ describe("real change — exact tags + coarse search bump + targeted warm", () =
       ListPrice: 725000,
       ModificationTimestamp: "2026-07-20T00:00:00Z",
     });
-    mockFetchFromTrestle.mockResolvedValue({ records: [priced], totalFetched: 1 });
+    mockFetchFromCotality.mockResolvedValue({ records: [priced], totalFetched: 1 });
 
     const result = await syncListings({ fullSync: true, maxRecords: 10 });
 
@@ -372,7 +371,7 @@ describe("real change — exact tags + coarse search bump + targeted warm", () =
       ]),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromCotality.mockResolvedValue({
       records: [
         rawRecord({ ListPrice: 700000, ModificationTimestamp: "2026-07-20T00:00:00Z" }),
         rawRecord({
@@ -410,7 +409,7 @@ describe("real change — exact tags + coarse search bump + targeted warm", () =
   it("a brand-new listing (insert) always invalidates and warms its shard", async () => {
     const state: StoredState = { listings: new Map(), projections: new Map() };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({ records: [rawRecord()], totalFetched: 1 });
+    mockFetchFromCotality.mockResolvedValue({ records: [rawRecord()], totalFetched: 1 });
 
     const result = await syncListings({ fullSync: true, maxRecords: 10 });
 
@@ -434,7 +433,7 @@ describe("durable idx_sync audit — written AFTER the warm, carrying the full a
       projections: new Map([["RLS100001", projectionRowFromRaw(raw)]]),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromCotality.mockResolvedValue({
       records: [rawRecord({ ListPrice: 725000, ModificationTimestamp: "2026-07-20T00:00:00Z" })],
       totalFetched: 1,
     });
@@ -476,16 +475,16 @@ describe("durable idx_sync audit — written AFTER the warm, carrying the full a
     expect(auditOrder).toBeGreaterThan(mockWarm.mock.invocationCallOrder[0]);
   });
 
-  it("the persistence canary runs exactly once, at run start (before the Trestle fetch)", async () => {
+  it("the persistence canary runs exactly once, at run start (before the Cotality fetch)", async () => {
     const state: StoredState = { listings: new Map(), projections: new Map() };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+    mockFetchFromCotality.mockResolvedValue({ records: [], totalFetched: 0 });
 
     const result = await syncListings({ fullSync: true, maxRecords: 10 });
 
     expect(mockProbe).toHaveBeenCalledTimes(1);
     expect(mockProbe.mock.invocationCallOrder[0]).toBeLessThan(
-      mockFetchFromTrestle.mock.invocationCallOrder[0],
+      mockFetchFromCotality.mock.invocationCallOrder[0],
     );
     expect(result.write_paths.manifest_canary).toEqual({
       shards_probed: 0,
@@ -505,7 +504,7 @@ describe("canary scope (Maya #561 review) — probe ONLY the previously warmed s
     const state: StoredState = { listings: new Map(), projections: new Map() };
     wireMocks(state);
     mockSyncStateFindUnique.mockResolvedValue({ notes: null });
-    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+    mockFetchFromCotality.mockResolvedValue({ records: [], totalFetched: 0 });
 
     await syncListings({ fullSync: true, maxRecords: 10 });
 
@@ -519,7 +518,7 @@ describe("canary scope (Maya #561 review) — probe ONLY the previously warmed s
     mockSyncStateFindUnique.mockResolvedValue({
       notes: JSON.stringify({ manifest_warmed_shards: ["4"] }),
     });
-    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+    mockFetchFromCotality.mockResolvedValue({ records: [], totalFetched: 0 });
 
     await syncListings({ fullSync: true, maxRecords: 10 });
 
@@ -530,7 +529,7 @@ describe("canary scope (Maya #561 review) — probe ONLY the previously warmed s
     const state: StoredState = { listings: new Map(), projections: new Map() };
     wireMocks(state);
     mockSyncStateFindUnique.mockResolvedValue({ notes: "not json at all" });
-    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+    mockFetchFromCotality.mockResolvedValue({ records: [], totalFetched: 0 });
 
     await syncListings({ fullSync: true, maxRecords: 10 });
 
@@ -544,7 +543,7 @@ describe("canary scope (Maya #561 review) — probe ONLY the previously warmed s
       projections: new Map([["RLS100001", projectionRowFromRaw(raw)]]),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromCotality.mockResolvedValue({
       records: [rawRecord({ ListPrice: 725000, ModificationTimestamp: "2026-07-20T00:00:00Z" })],
       totalFetched: 1,
     });
@@ -568,7 +567,7 @@ describe("per-shard manifest invalidation + PCT fail-closed (Maya #561 review)",
       projections: new Map([["RLS100001", projectionRowFromRaw(raw)]]),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromCotality.mockResolvedValue({
       records: [rawRecord({ ListPrice: 725000, ModificationTimestamp: "2026-07-20T00:00:00Z" })],
       totalFetched: 1,
     });
@@ -606,7 +605,7 @@ describe("per-shard manifest invalidation + PCT fail-closed (Maya #561 review)",
       address: (dbRow as Record<string, unknown>).address,
     });
     // Feed re-emits with ONLY the photo clock advanced…
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromCotality.mockResolvedValue({
       records: [rawRecord({ PhotosChangeTimestamp: "2026-07-20T00:00:00Z" })],
       totalFetched: 1,
     });
@@ -678,7 +677,7 @@ describe("per-shard manifest invalidation + PCT fail-closed (Maya #561 review)",
       ],
       address: (dbRow as Record<string, unknown>).address,
     });
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromCotality.mockResolvedValue({
       records: [rawRecord({ PhotosChangeTimestamp: "2026-07-20T00:00:00Z" })],
       totalFetched: 1,
     });

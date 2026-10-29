@@ -5,7 +5,7 @@
  * JSON, bypassing `listing_media` entirely, with no namespace, no provenance
  * and no relational row — a second independent media writer. It also stamped
  * `modification_timestamp: new Date()` on whatever row it touched, including
- * Trestle-synced rows, which poisons the incremental cursor
+ * Cotality-synced rows, which poisons the incremental cursor
  * (`getLastSyncTimestamp` = MAX(modification_timestamp) WHERE
  * last_synced_from_trestle IS NOT NULL).
  *

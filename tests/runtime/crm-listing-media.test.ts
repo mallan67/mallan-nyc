@@ -1,0 +1,1467 @@
+/// <reference types="jest" />
+/**
+ * js/forms/listing-media.js: the photos and floor plans of an Add / Edit listing form.
+ *
+ * The Rental form had a Media and Documents panel that did nothing: the file boxes had no handler (the page never read a chosen file), "Save Media" called an empty function, a
+ * photo dropped on the box was opened by the browser in place of the form, and a saved listing's photos were never shown. The Sale form has a manager for them inline; this module is
+ * that manager as one piece both forms can use (the Rental form uses it; the Sale form keeps its own copy until it is moved over). These tests run the module on a plain page
+ * with a fake network, so every request it makes is seen.
+ */
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { JSDOM } = require('jsdom');
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+const SOURCE = readFileSync(resolve(__dirname, '../../public/crm/js/forms/listing-media.js'), 'utf8');
+
+type Call = { url: string; method: string; headers?: Record<string, string>; body?: any; credentials?: string };
+type Reply = { ok: boolean; status: number; body?: any; reject?: string };
+
+/** A page with the controls the module uses, the module loaded, and a network that answers from `answers` (a function of the request) and records every request. */
+function boot(o: { savedId?: string; unsavedMessage?: string; canUpload?: () => boolean; answers?: (call: Call) => Reply | undefined; confirm?: boolean } = {}) {
+  const dom = new JSDOM(`<!doctype html><body>
+    <div id="photoZone"><input type="file" id="rentalPhotoInput" multiple></div><div id="rentalPhotoPreview"></div><span id="rentalPhotoCount"></span>
+    <div id="floorZone"><input type="file" id="rentalFloorplanInput"></div><div id="rentalFloorplanPreview"></div>
+  </body>`, { url: 'https://mallan.nyc/crm/RENTAL-FORM-REDESIGN.html', runScripts: 'outside-only' });
+  const w: any = dom.window;
+  w.eval(SOURCE);
+  const calls: Call[] = [];
+  const errors: string[] = [];
+  w.addEventListener('error', (e: any) => errors.push(String(e.message)));
+  const toasts: [string, string | undefined][] = [];
+  let savedId = o.savedId ?? '';
+  const answer = (call: Call): Reply => o.answers?.(call) ?? defaultAnswer(call);
+  const media = w.MallanListingMedia.create({
+    prefix: 'rental',
+    listingId: () => savedId,
+    unsavedMessage: o.unsavedMessage,
+    toast: (message: string, type?: string) => toasts.push([message, type]),
+    confirm: () => o.confirm ?? true,
+    canUpload: o.canUpload,
+    createObjectURL: (file: any) => `blob:${file.name}`,
+    fetch: (url: string, init: any = {}) => {
+      const call: Call = { url, method: init.method ?? 'GET', headers: init.headers, body: init.body, credentials: init.credentials };
+      calls.push(call);
+      const r = answer(call);
+      if (r.reject) return Promise.reject(new Error(r.reject));
+      return Promise.resolve({ ok: r.ok, status: r.status, json: () => (r.body === undefined ? Promise.reject(new Error('no body')) : Promise.resolve(r.body)) });
+    },
+  });
+  const d: Document = w.document;
+  const file = (name: string, size = 1000, type = 'image/jpeg') => {
+    const f = new w.File(['x'], name, { type });
+    Object.defineProperty(f, 'size', { value: size });
+    return f;
+  };
+  return {
+    w, d, media, calls, toasts, errors, file,
+    setSaved: (id: string) => { savedId = id; },
+    photos: () => d.getElementById('rentalPhotoPreview') as HTMLElement,
+    floors: () => d.getElementById('rentalFloorplanPreview') as HTMLElement,
+    count: () => d.getElementById('rentalPhotoCount')!.textContent,
+    tiles: (container: HTMLElement) => [...container.children] as HTMLElement[],
+    said: () => toasts.map(([m]) => m),
+    flush: () => new Promise<void>((r) => setTimeout(r, 30)),
+  };
+}
+const defaultAnswer = (call: Call): Reply => {
+  if (call.method === 'POST' && /\/media\/upload$/.test(call.url)) return { ok: true, status: 200, body: { photo: { url: 'https://cdn.example/p.webp' } } };
+  if (call.method === 'GET') return { ok: true, status: 200, body: { listing_id: 'RL-7', media: [] } };
+  return { ok: true, status: 200, body: {} };
+};
+const row = (key: string | number, extra: Record<string, unknown> = {}) => ({ media_key: key, media_type: 'Photo', url: `https://cdn.example/${key}.webp`, ...extra });
+const listAnswer = (media: unknown[], listingId = 'RL-7') => (call: Call): Reply | undefined => (call.method === 'GET' ? { ok: true, status: 200, body: { listing_id: listingId, media } } : undefined);
+
+describe('files chosen', () => {
+  it('a photo gets a preview tile with its picture, its name, move buttons and a remove button, and is counted', () => {
+    const p = boot();
+    p.media.addFiles([p.file('kitchen.jpg')], 'photo');
+    const tile = p.tiles(p.photos())[0];
+    expect(p.tiles(p.photos())).toHaveLength(1);
+    expect(tile.getAttribute('data-media-index')).toBe('0');
+    expect((tile.querySelector('img') as HTMLImageElement).src).toBe('blob:kitchen.jpg');
+    expect((tile.querySelector('img') as HTMLImageElement).draggable).toBe(false);
+    expect(tile.querySelector('p')!.textContent).toBe('kitchen.jpg');
+    expect([...tile.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['◀', '▶', '×']);
+    expect([...tile.querySelectorAll('button')].map((b) => b.title)).toEqual(['Move earlier', 'Move later', '']);
+    expect(p.count()).toBe('1 / 100 uploaded');
+  });
+
+  it('a floor plan goes to the floor plan tiles, which are not moved and are not counted as photos', () => {
+    const p = boot();
+    p.media.addFiles([p.file('plan.png', 1000, 'image/png')], 'floorplan');
+    expect(p.tiles(p.photos())).toHaveLength(0);
+    const tile = p.tiles(p.floors())[0];
+    expect([...tile.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['×']);
+    expect(p.count()).toBe('0 / 100 uploaded');
+  });
+
+  it('a file name is text, never markup', () => {
+    const p = boot();
+    const name = '<img src=x onerror=alert(1)>.jpg';
+    p.media.addFiles([p.file(name)], 'photo');
+    const tile = p.tiles(p.photos())[0];
+    expect(tile.querySelectorAll('img')).toHaveLength(1);                    // the tile's own picture only
+    expect(tile.querySelector('p')!.textContent).toBe(name);
+  });
+
+  it('a file over 10MB is refused with its name, and is not queued', () => {
+    const p = boot();
+    p.media.addFiles([p.file('huge.jpg', 10 * 1024 * 1024 + 1)], 'photo');
+    expect(p.said()).toContain('File "huge.jpg" exceeds 10MB limit.');
+    expect(p.toasts[0][1]).toBe('error');
+    expect(p.tiles(p.photos())).toHaveLength(0);
+    expect(p.media.hasPending()).toBe(false);
+  });
+
+  it('a file of exactly 10MB is taken', () => {
+    const p = boot();
+    p.media.addFiles([p.file('edge.jpg', 10 * 1024 * 1024)], 'photo');
+    expect(p.tiles(p.photos())).toHaveLength(1);
+  });
+
+  it('the same file twice (name and size) is skipped, and says so; the same name with another size is another file', () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg', 100), p.file('a.jpg', 100), p.file('a.jpg', 101)], 'photo');
+    expect(p.tiles(p.photos())).toHaveLength(2);
+    expect(p.media.pending().map((e: any) => e.file.size)).toEqual([100, 101]);
+    expect(p.said()).toContain('Skipping duplicate: a.jpg');
+    expect(p.toasts.find(([m]) => /Skipping duplicate/.test(m))![1]).toBe('info');
+  });
+
+  it('a file the agent removed can be chosen again', () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg', 100)], 'photo');
+    ([...p.tiles(p.photos())[0].querySelectorAll('button')].find((b) => b.textContent === '×') as HTMLElement).click();
+    expect(p.tiles(p.photos())).toHaveLength(0);
+    expect(p.count()).toBe('0 / 100 uploaded');
+    p.media.addFiles([p.file('a.jpg', 100)], 'photo');
+    expect(p.tiles(p.photos())).toHaveLength(1);
+    expect(p.said().filter((m) => /duplicate/.test(m))).toEqual([]);
+  });
+
+  it('a PDF floor plan is previewed as a PDF and the agent is told it is preview-only', () => {
+    const p = boot();
+    p.media.addFiles([p.file('plan.pdf', 1000, 'application/pdf')], 'floorplan');
+    expect(p.said()).toContain('PDF floor plans are preview-only. Upload as JPG/PNG image for full support.');
+    const tile = p.tiles(p.floors())[0];
+    expect(tile.querySelector('img')).toBeNull();
+    expect(tile.querySelector('.fa-file-pdf')).not.toBeNull();
+  });
+
+  it('a PDF is known by its extension too (a browser that does not name its type)', () => {
+    const p = boot();
+    p.media.addFiles([p.file('plan.PDF', 1000, '')], 'floorplan');
+    expect(p.tiles(p.floors())[0].querySelector('.fa-file-pdf')).not.toBeNull();
+  });
+
+  it('a floor plan that is an image gets no PDF warning, and neither does a PDF that is a photo', () => {
+    const p = boot();
+    p.media.addFiles([p.file('plan.png', 10, 'image/png')], 'floorplan');
+    p.media.addFiles([p.file('sheet.pdf', 11, 'application/pdf')], 'photo');
+    expect(p.said().filter((m) => /PDF floor plans/.test(m))).toEqual([]);
+  });
+
+  it('a PDF dropped as a photo has a PDF tile with no move buttons', () => {
+    const p = boot();
+    p.media.addFiles([p.file('sheet.pdf', 1000, 'application/pdf')], 'photo');
+    const tile = p.tiles(p.photos())[0];
+    expect([...tile.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['×']);
+  });
+
+  it('nothing chosen does nothing', () => {
+    const p = boot();
+    p.media.addFiles([], 'photo');
+    p.media.addFiles(null, 'photo');
+    expect(p.toasts).toEqual([]);
+    expect(p.calls).toEqual([]);
+  });
+
+  it('a new listing keeps the files until it is saved, and says so', () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg'), p.file('b.jpg')], 'photo');
+    expect(p.calls).toEqual([]);
+    expect(p.said()).toContain('2 photo(s) added. Save the listing to upload, then drag or use ◀/▶ to reorder.');
+    expect(p.media.hasPending()).toBe(true);
+  });
+
+  it('a listing that is not ready to upload (the network client is not up) keeps the files too', () => {
+    const p = boot({ savedId: 'RL-7', canUpload: () => false });
+    p.media.addFiles([p.file('a.jpg')], 'photo');
+    expect(p.calls).toEqual([]);
+    expect(p.said().some((m) => /Save the listing to upload/.test(m))).toBe(true);
+  });
+
+  it('a saved listing takes the files at once, after the photos it has, and shows its photos again', async () => {
+    const p = boot({ savedId: 'RL-7', answers: listAnswer([row('k1', { preferred_photo_yn: true })]) });
+    p.media.addFiles([p.file('a.jpg')], 'photo');
+    expect(p.said()).toContain('1 photo(s) added — uploading…');
+    await p.flush();
+    const upload = p.calls.find((c) => c.method === 'POST')!;
+    expect(upload.url).toBe('/api/crm/listings/RL-7/media/upload');
+    expect(upload.credentials).toBe('same-origin');
+    expect(upload.body.get('file').name).toBe('a.jpg');
+    expect(upload.body.has('order')).toBe(false);                            // left out: the route appends after the photos it has
+    expect(upload.body.get('caption')).toBe('');
+    expect(p.calls[p.calls.length - 1]).toMatchObject({ method: 'GET', url: '/api/crm/listings/RL-7/media' });
+    expect(p.said()).toContain('1 photo(s) uploaded — drag or use ◀/▶ to reorder.');
+    expect(p.said().filter((m) => /upload\(s\) failed/.test(m))).toEqual([]);          // nothing failed: nothing said about it
+    expect(p.tiles(p.photos()).map((t) => t.getAttribute('data-media-key'))).toEqual(['k1']);
+  });
+
+  it('a failed upload is counted and said', async () => {
+    const p = boot({ savedId: 'RL-7', answers: (c) => (c.method === 'POST' ? { ok: false, status: 400, body: { error: 'Unsupported image' } } : undefined) });
+    p.media.addFiles([p.file('a.jpg')], 'photo');
+    await p.flush();
+    expect(p.said()).toContain('Upload failed for a.jpg: Unsupported image');
+    expect(p.said()).toContain('1 upload(s) failed.');
+    expect(p.said().filter((m) => /photo\(s\) uploaded/.test(m))).toEqual([]);          // nothing was saved: nothing is said to have been
+  });
+
+  it('a file that was saved counts as saved whatever the server answers it with', async () => {
+    const p = boot({ answers: (c) => (c.method === 'POST' ? { ok: true, status: 200 } : undefined) });         // no body at all
+    p.media.addFiles([p.file('a.jpg')], 'photo');
+    expect(await p.media.uploadPending('RL-7')).toEqual({ uploaded: 1, failed: 0 });
+    expect(p.media.hasPending()).toBe(false);
+  });
+
+  it('the file box hands its files to the manager and is emptied', () => {
+    const p = boot();
+    p.media.bind();
+    const input = p.d.getElementById('rentalPhotoInput') as HTMLInputElement;
+    Object.defineProperty(input, 'files', { value: [p.file('a.jpg')], configurable: true });
+    let emptied = false;
+    Object.defineProperty(input, 'value', { set: (v) => { if (v === '') emptied = true; }, get: () => '', configurable: true });
+    input.dispatchEvent(new p.w.Event('change'));
+    expect(p.tiles(p.photos())).toHaveLength(1);
+    expect(emptied).toBe(true);
+  });
+
+  it('the floor plan box sends its files to the floor plans', () => {
+    const p = boot();
+    p.media.bind();
+    const input = p.d.getElementById('rentalFloorplanInput') as HTMLInputElement;
+    Object.defineProperty(input, 'files', { value: [p.file('plan.png', 10, 'image/png')], configurable: true });
+    input.dispatchEvent(new p.w.Event('change'));
+    expect(p.tiles(p.floors())).toHaveLength(1);
+    expect(p.tiles(p.photos())).toHaveLength(0);
+  });
+
+  it('binding twice does not take a file twice', () => {
+    const p = boot();
+    p.media.bind();
+    p.media.bind();
+    const input = p.d.getElementById('rentalPhotoInput') as HTMLInputElement;
+    Object.defineProperty(input, 'files', { value: [p.file('a.jpg')], configurable: true });
+    input.dispatchEvent(new p.w.Event('change'));
+    expect(p.tiles(p.photos())).toHaveLength(1);
+    expect(p.toasts).toHaveLength(1);                                         // one message for one choice (a second listener would say "Skipping duplicate")
+  });
+
+  it('a file dropped on the box is taken, and the browser is stopped from opening it', () => {
+    const p = boot();
+    p.media.bind();
+    const zone = p.d.getElementById('photoZone')!;
+    const over = new p.w.Event('dragover', { cancelable: true });
+    zone.dispatchEvent(over);
+    expect(over.defaultPrevented).toBe(true);
+    const drop: any = new p.w.Event('drop', { cancelable: true });
+    drop.dataTransfer = { files: [p.file('dropped.jpg')] };
+    zone.dispatchEvent(drop);
+    expect(drop.defaultPrevented).toBe(true);
+    expect(p.tiles(p.photos())).toHaveLength(1);
+  });
+
+  it('a file dropped on the floor plan box is a floor plan; a drop with no files does nothing', () => {
+    const p = boot();
+    p.media.bind();
+    const zone = p.d.getElementById('floorZone')!;
+    const drop: any = new p.w.Event('drop', { cancelable: true });
+    drop.dataTransfer = { files: [p.file('plan.png', 10, 'image/png')] };
+    zone.dispatchEvent(drop);
+    expect(p.tiles(p.floors())).toHaveLength(1);
+    const empty: any = new p.w.Event('drop', { cancelable: true });
+    zone.dispatchEvent(empty);                                               // no dataTransfer at all
+    expect(p.tiles(p.floors())).toHaveLength(1);
+  });
+
+  it('a page without the preview boxes still takes the files (nothing is drawn)', () => {
+    const p = boot();
+    p.photos().remove();
+    p.media.addFiles([p.file('a.jpg')], 'photo');
+    expect(p.media.hasPending()).toBe(true);
+  });
+});
+
+describe('unsaved previews', () => {
+  const three = () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2), p.file('c.jpg', 3)], 'photo');
+    return p;
+  };
+  const names = (p: ReturnType<typeof boot>) => p.tiles(p.photos()).map((t) => t.querySelector('p')!.textContent);
+  const move = (tile: HTMLElement, label: '◀' | '▶') => ([...tile.querySelectorAll('button')].find((b) => b.textContent === label) as HTMLElement).click();
+
+  it('▶ moves a preview later, ◀ earlier, and the files are saved in the order shown', async () => {
+    const p = three();
+    move(p.tiles(p.photos())[0], '▶');
+    expect(names(p)).toEqual(['b.jpg', 'a.jpg', 'c.jpg']);
+    move(p.tiles(p.photos())[2], '◀');
+    expect(names(p)).toEqual(['b.jpg', 'c.jpg', 'a.jpg']);
+    await p.media.uploadPending('RL-7');
+    // each file carries the place it was arranged in (the server orders by it; the sequence of the requests does not matter)
+    const sent = Object.fromEntries(p.calls.filter((c) => c.method === 'POST').map((c) => [c.body.get('file').name, c.body.get('order')]));
+    expect(sent).toEqual({ 'b.jpg': '0', 'c.jpg': '1', 'a.jpg': '2' });
+  });
+
+  it('the first preview cannot go earlier and the last cannot go later', () => {
+    const p = three();
+    move(p.tiles(p.photos())[0], '◀');
+    move(p.tiles(p.photos())[2], '▶');
+    expect(names(p)).toEqual(['a.jpg', 'b.jpg', 'c.jpg']);
+  });
+
+  it('a preview moves past previews only: a saved photo\'s tile (it has a key) is not one of them', async () => {
+    const p = boot({ answers: listAnswer([row('k1')]) });
+    await p.media.render('RL-7');
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2)], 'photo');
+    const container = p.photos();
+    expect(p.tiles(container).map((t) => t.getAttribute('data-media-key') ?? t.getAttribute('data-media-index'))).toEqual(['k1', '0', '1']);
+    move(p.tiles(container)[2], '◀');                                        // b.jpg before a.jpg, and not before the saved photo
+    expect(p.tiles(container).map((t) => t.getAttribute('data-media-key') ?? t.getAttribute('data-media-index'))).toEqual(['k1', '1', '0']);
+    move(p.tiles(container)[1], '◀');                                        // already the first preview
+    expect(p.tiles(container).map((t) => t.getAttribute('data-media-key') ?? t.getAttribute('data-media-index'))).toEqual(['k1', '1', '0']);
+  });
+
+  it('a removed preview is gone, is not counted, and is not saved', async () => {
+    const p = three();
+    ([...p.tiles(p.photos())[1].querySelectorAll('button')].find((b) => b.textContent === '×') as HTMLElement).click();
+    expect(names(p)).toEqual(['a.jpg', 'c.jpg']);
+    expect(p.count()).toBe('2 / 100 uploaded');
+    await p.media.uploadPending('RL-7');
+    expect(p.calls.filter((c) => c.method === 'POST').map((c) => c.body.get('file').name)).toEqual(['a.jpg', 'c.jpg']);
+  });
+
+  it('removing a preview leaves the order of the others as shown', async () => {
+    const p = three();
+    move(p.tiles(p.photos())[2], '◀');                                       // a, c, b
+    ([...p.tiles(p.photos())[0].querySelectorAll('button')].find((b) => b.textContent === '×') as HTMLElement).click();     // remove a
+    await p.media.uploadPending('RL-7');
+    expect(p.calls.filter((c) => c.method === 'POST').map((c) => [c.body.get('file').name, c.body.get('order')])).toEqual([['b.jpg', '2'], ['c.jpg', '1']]);
+  });
+});
+
+describe('saving the chosen files', () => {
+  it('a new listing sends each file with the order it was arranged in, and the caption of its kind', async () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg', 1), p.file('plan.png', 2, 'image/png')], 'photo');
+    p.media.addFiles([p.file('plan2.png', 3, 'image/png')], 'floorplan');
+    const result = await p.media.uploadPending('RL-7');
+    expect(result).toEqual({ uploaded: 3, failed: 0 });
+    const posts = p.calls.filter((c) => c.method === 'POST');
+    expect(posts.map((c) => c.url)).toEqual(Array(3).fill('/api/crm/listings/RL-7/media/upload'));
+    expect(posts.map((c) => [c.body.get('file').name, c.body.get('order'), c.body.get('caption')])).toEqual([['a.jpg', '0', ''], ['plan.png', '1', ''], ['plan2.png', '2', 'Floor Plan']]);
+  });
+
+  it('sends the files one after the other', async () => {
+    const order: string[] = [];
+    let release: () => void = () => undefined;
+    const p = boot({ answers: (c) => { if (c.method === 'POST') order.push('start ' + c.body.get('file').name); return undefined; } });
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2)], 'photo');
+    await p.media.uploadPending('RL-7');
+    expect(order).toEqual(['start a.jpg', 'start b.jpg']);
+    release();
+  });
+
+  it('the id of the listing is part of the address, encoded', async () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg')], 'photo');
+    await p.media.uploadPending('RL 7/../x');
+    expect(p.calls[0].url).toBe('/api/crm/listings/RL%207%2F..%2Fx/media/upload');
+  });
+
+  it('files that were saved are not sent again', async () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg')], 'photo');
+    await p.media.uploadPending('RL-7');
+    expect(await p.media.uploadPending('RL-7')).toEqual({ uploaded: 0, failed: 0 });
+    expect(p.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+    expect(p.media.hasPending()).toBe(false);
+  });
+
+  it('with nothing to send, nothing is requested', async () => {
+    const p = boot();
+    expect(await p.media.uploadPending('RL-7')).toEqual({ uploaded: 0, failed: 0 });
+    expect(p.calls).toEqual([]);
+  });
+
+  it('a picture the server already has (409) counts as saved', async () => {
+    const p = boot({ answers: (c) => (c.method === 'POST' ? { ok: false, status: 409, body: {} } : undefined) });
+    p.media.addFiles([p.file('a.jpg')], 'photo');
+    expect(await p.media.uploadPending('RL-7')).toEqual({ uploaded: 1, failed: 0 });
+    expect(p.media.hasPending()).toBe(false);
+  });
+
+  it('a refusal is said with the server\'s words, or its status when it has none, and is counted; the other files are still sent', async () => {
+    const p = boot({ answers: (c) => { if (c.method !== 'POST') return undefined; const name = c.body.get('file').name; return name === 'a.jpg' ? { ok: false, status: 400, body: { error: 'Too small' } } : name === 'b.jpg' ? { ok: false, status: 500 } : undefined; } });
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2), p.file('c.jpg', 3)], 'photo');
+    expect(await p.media.uploadPending('RL-7')).toEqual({ uploaded: 1, failed: 2 });
+    expect(p.said()).toContain('Upload failed for a.jpg: Too small');
+    expect(p.said()).toContain('Upload failed for b.jpg: 500');
+    expect(p.toasts.filter(([m]) => /^Upload failed/.test(m)).map(([, t]) => t)).toEqual(['error', 'error']);
+    expect(p.media.hasPending()).toBe(true);                                  // the two that failed are still waiting
+  });
+
+  it('a network failure is said, counted, and does not stop the rest', async () => {
+    const p = boot({ answers: (c) => (c.method === 'POST' && c.body.get('file').name === 'a.jpg' ? { ok: false, status: 0, reject: 'offline' } : undefined) });
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2)], 'photo');
+    expect(await p.media.uploadPending('RL-7')).toEqual({ uploaded: 1, failed: 1 });
+    expect(p.said()).toContain('Upload failed for a.jpg: offline');
+  });
+
+  it('a PDF is not sent: the agent is told, and it is dropped from the files waiting', async () => {
+    const p = boot();
+    p.media.addFiles([p.file('plan.pdf', 5, 'application/pdf')], 'floorplan');
+    expect(await p.media.uploadPending('RL-7')).toEqual({ uploaded: 0, failed: 0 });
+    expect(p.said()).toContain('Skipping PDF "plan.pdf" — upload as JPG/PNG image instead.');
+    expect(p.calls).toEqual([]);
+    expect(p.media.hasPending()).toBe(false);
+  });
+
+  it('while files are being sent, a second request to send them does not send them again', async () => {
+    let finish: (r: Reply) => void = () => undefined;
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg')], 'photo');
+    // hold the first answer
+    const held = new Promise<Reply>((r) => { finish = r; });
+    const original = p.media;
+    const slow = p.w.MallanListingMedia.create({
+      prefix: 'rental', listingId: () => '', toast: (m: string) => p.toasts.push([m, undefined]), createObjectURL: () => 'blob:x',
+      fetch: (url: string, init: any) => { p.calls.push({ url, method: init.method ?? 'GET', body: init.body }); return held.then((r) => ({ ok: r.ok, status: r.status, json: () => Promise.resolve(r.body) })); },
+    });
+    slow.addFiles([p.file('s.jpg')], 'photo');
+    const first = slow.uploadPending('RL-7');
+    const second = await slow.uploadPending('RL-7');
+    expect(second).toEqual({ uploaded: 0, failed: 0, busy: true });
+    expect(p.said()).toContain('Media upload already in progress — please wait.');
+    finish({ ok: true, status: 200, body: { photo: { url: 'u' } } });
+    expect(await first).toEqual({ uploaded: 1, failed: 0 });
+    expect(p.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+    expect(original.hasPending()).toBe(true);                                 // the first manager has its own files
+  });
+
+  it('a batch that fails outright (a request that cannot even be made) does not leave the manager busy', async () => {
+    let broken = true;
+    const p = boot();
+    const q = p.w.MallanListingMedia.create({
+      prefix: 'rental', listingId: () => '', toast: (m: string) => p.toasts.push([m, undefined]), createObjectURL: () => 'blob:x',
+      fetch: (url: string, init: any) => { if (broken) throw new Error('no network layer'); p.calls.push({ url, method: init.method ?? 'GET', body: init.body }); return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) }); },
+    });
+    q.addFiles([p.file('a.jpg', 1)], 'photo');
+    await expect(q.uploadPending('RL-7')).rejects.toThrow('no network layer');
+    broken = false;
+    expect(await q.uploadPending('RL-7')).toEqual({ uploaded: 1, failed: 0 });                   // not told it is busy
+    expect(p.said().filter((m) => /already in progress/.test(m))).toEqual([]);
+  });
+
+  it('after one batch is done the next can be sent', async () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    await p.media.uploadPending('RL-7');
+    p.media.addFiles([p.file('b.jpg', 2)], 'photo');
+    expect(await p.media.uploadPending('RL-7')).toEqual({ uploaded: 1, failed: 0 });
+  });
+});
+
+describe('Save Media', () => {
+  it('on a listing that is not saved, says to save it first and sends nothing', async () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg')], 'photo');
+    await p.media.saveMedia();
+    expect(p.toasts.at(-1)).toEqual(['Save the listing first before uploading media.', 'warning']);
+    expect(p.calls).toEqual([]);
+  });
+
+  it('on a listing that is not saved, says what the page says when the page words it (the Rental form: Save Draft does not create the listing)', async () => {
+    const p = boot({ unsavedMessage: 'Submit the listing first before uploading media.' });
+    p.media.addFiles([p.file('a.jpg')], 'photo');
+    await p.media.saveMedia();
+    expect(p.toasts.at(-1)).toEqual(['Submit the listing first before uploading media.', 'warning']);
+    expect(p.calls).toEqual([]);
+  });
+
+  it('with nothing new, says so', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    await p.media.saveMedia();
+    expect(p.toasts.at(-1)).toEqual(['No new media to upload.', 'info']);
+    expect(p.calls).toEqual([]);
+  });
+
+  it('sends what is waiting and says how it went', async () => {
+    const p = boot({ savedId: 'RL-7', canUpload: () => false });
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2)], 'photo');
+    await p.media.saveMedia();
+    expect(p.said()).toContain('Uploading 2 file(s)...');
+    expect(p.toasts.at(-1)).toEqual(['2 uploaded', 'success']);
+    expect(p.calls.filter((c) => c.method === 'POST')).toHaveLength(2);
+  });
+
+  it('says how many failed, as a warning', async () => {
+    const p = boot({ savedId: 'RL-7', canUpload: () => false, answers: (c) => (c.method === 'POST' && c.body.get('file').name === 'b.jpg' ? { ok: false, status: 500 } : undefined) });
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2)], 'photo');
+    await p.media.saveMedia();
+    expect(p.toasts.at(-1)).toEqual(['1 uploaded, 1 failed', 'warning']);
+  });
+});
+
+describe('the saved photos and floor plans', () => {
+  it('are shown as keyed tiles: photos numbered from 1, floor plans apart, and the photos counted', async () => {
+    const p = boot({ answers: listAnswer([row('k1', { preferred_photo_yn: true }), row('k2'), row('f1', { media_type: 'FloorPlan' }), row('k3')]) });
+    await p.media.render('RL-7');
+    expect(p.tiles(p.photos()).map((t) => [t.getAttribute('data-media-key'), t.querySelector('p')!.textContent])).toEqual([['k1', 'Photo 1'], ['k2', 'Photo 2'], ['k3', 'Photo 3']]);
+    expect(p.tiles(p.floors()).map((t) => [t.getAttribute('data-media-key'), t.querySelector('p')!.textContent])).toEqual([['f1', 'Floor Plan']]);
+    expect(p.count()).toBe('3 / 100 uploaded');
+    expect(p.calls).toEqual([{ url: '/api/crm/listings/RL-7/media', method: 'GET', headers: undefined, body: undefined, credentials: 'same-origin' }]);
+  });
+
+  it('shows the cover on the photo that has it, and a Set cover button on the others (not on floor plans)', async () => {
+    const p = boot({ answers: listAnswer([row('k1', { preferred_photo_yn: true }), row('k2'), row('f1', { media_type: 'FloorPlan' })]) });
+    await p.media.render('RL-7');
+    const [first, second] = p.tiles(p.photos());
+    expect(first.textContent).toContain('★ COVER');
+    expect([...first.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['◀', '▶', '×']);
+    expect([...second.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['☆ Set cover', '◀', '▶', '×']);
+    expect([...p.tiles(p.floors())[0].querySelectorAll('button')].map((b) => b.textContent)).toEqual(['×']);
+  });
+
+  it('photos can be dragged; floor plans cannot', async () => {
+    const p = boot({ answers: listAnswer([row('k1'), row('f1', { media_type: 'FloorPlan' })]) });
+    await p.media.render('RL-7');
+    expect(p.tiles(p.photos())[0].draggable).toBe(true);
+    expect(p.tiles(p.floors())[0].draggable).toBe(false);
+  });
+
+  it('an entry that is not a record, or has no key, shows nothing; a number is a key', async () => {
+    const p = boot({ answers: listAnswer([null, 'k1', 7, { url: 'https://cdn.example/x.webp' }, { media_key: '' }, { media_key: {} }, row(8), row('k9')]) });
+    await p.media.render('RL-7');
+    expect(p.tiles(p.photos()).map((t) => t.getAttribute('data-media-key'))).toEqual(['8', 'k9']);
+    expect(p.count()).toBe('2 / 100 uploaded');
+  });
+
+  it('shows a picture for a web address only: https, http and this site\'s own root; not javascript:, data:, //host or a list', async () => {
+    const urls = ['https://cdn.example/a.webp', 'http://cdn.example/b.webp', '/media/c.webp', ' https://cdn.example/d.webp ', 'javascript:alert(1)', 'data:text/html,x', '//evil.example/e.webp', ['https://x'], 5, null];
+    const p = boot({ answers: listAnswer(urls.map((u, i) => row('k' + i, { url: u }))) });
+    await p.media.render('RL-7');
+    const shown = p.tiles(p.photos()).map((t) => { const img = t.querySelector('img'); return img ? img.getAttribute('src') : null; });
+    expect(shown).toEqual(['https://cdn.example/a.webp', 'http://cdn.example/b.webp', '/media/c.webp', 'https://cdn.example/d.webp', null, null, null, null, null, null]);
+    expect(p.tiles(p.photos())).toHaveLength(10);                             // a tile without a picture can still be removed
+  });
+
+  it('a stored key or address is an attribute value and text, never markup', async () => {
+    const key = '"><img src=x onerror=alert(1)>';
+    const p = boot({ answers: listAnswer([row(key, { url: 'https://cdn.example/a.webp"><img src=x>' })]) });
+    await p.media.render('RL-7');
+    const tile = p.tiles(p.photos())[0];
+    expect(tile.getAttribute('data-media-key')).toBe(key);
+    expect(tile.querySelectorAll('img')).toHaveLength(1);
+    expect(p.photos().querySelectorAll('[onerror]')).toHaveLength(0);
+  });
+
+  it('replace what was shown', async () => {
+    const p = boot({ answers: listAnswer([row('k1')]) });
+    await p.media.render('RL-7');
+    await p.media.render('RL-7');
+    expect(p.tiles(p.photos())).toHaveLength(1);
+  });
+
+  it('say so when they cannot be loaded, and leave what is shown', async () => {
+    const p = boot({ answers: () => ({ ok: false, status: 500 }) });
+    p.photos().appendChild(p.d.createElement('div'));
+    await p.media.render('RL-7');
+    expect(p.toasts.at(-1)).toEqual(['Media manager could not load — showing the saved preview. Reload to retry.', 'warning']);
+    expect(p.tiles(p.photos())).toHaveLength(1);
+  });
+
+  it('say so when the answer has no list of media', async () => {
+    const p = boot({ answers: () => ({ ok: true, status: 200, body: { media: 'none' } }) });
+    await p.media.render('RL-7');
+    expect(p.toasts.at(-1)![0]).toMatch(/could not load/);
+  });
+
+  it('say so when the answer is not readable, or the network is down', async () => {
+    const p = boot({ answers: () => ({ ok: true, status: 200 }) });             // json() rejects
+    await p.media.render('RL-7');
+    expect(p.toasts.at(-1)![0]).toMatch(/could not load/);
+    const q = boot({ answers: () => ({ ok: false, status: 0, reject: 'offline' }) });
+    await q.media.render('RL-7');
+    expect(q.toasts.at(-1)![0]).toMatch(/could not load/);
+  });
+
+  it('use the numeric id when the listing\'s own id does not answer', async () => {
+    const p = boot({ answers: (c) => (c.url.includes('/RL-7/') ? { ok: false, status: 404 } : { ok: true, status: 200, body: { listing_id: 'RL-7', media: [row('k1')] } }) });
+    await p.media.render('RL-7', '308773');
+    expect(p.calls.map((c) => c.url)).toEqual(['/api/crm/listings/RL-7/media', '/api/crm/listings/308773/media']);
+    expect(p.tiles(p.photos())).toHaveLength(1);
+    expect(p.toasts).toEqual([]);
+  });
+
+  it('do not ask for the numeric id when the id of the listing itself answers', async () => {
+    const p = boot({ answers: listAnswer([row('k1')]) });
+    await p.media.render('RL-7', '308773');
+    expect(p.calls.map((c) => c.url)).toEqual(['/api/crm/listings/RL-7/media']);
+  });
+
+  it('do not ask twice when the fallback is the same id', async () => {
+    const p = boot({ answers: () => ({ ok: false, status: 404 }) });
+    await p.media.render('RL-7', 'RL-7');
+    expect(p.calls).toHaveLength(1);
+  });
+
+  it('work from the numeric id alone', async () => {
+    const p = boot({ answers: listAnswer([row('k1')], 'RL-7') });
+    await p.media.render('', '308773');
+    expect(p.calls.map((c) => c.url)).toEqual(['/api/crm/listings/308773/media']);
+    expect(p.tiles(p.photos())).toHaveLength(1);
+  });
+
+  it('a page with no floor plan box still shows the photos, and one with no photo box still shows the floor plans', async () => {
+    const a = boot({ answers: listAnswer([row('k1'), row('f1', { media_type: 'FloorPlan' })]) });
+    a.floors().remove();
+    await a.media.render('RL-7');
+    expect(a.tiles(a.photos()).map((t) => t.getAttribute('data-media-key'))).toEqual(['k1']);
+    expect(a.errors).toEqual([]);
+    const b = boot({ answers: listAnswer([row('k1'), row('f1', { media_type: 'FloorPlan' })]) });
+    b.photos().remove();
+    await b.media.render('RL-7');
+    expect(b.tiles(b.floors()).map((t) => t.getAttribute('data-media-key'))).toEqual(['f1']);
+    expect(b.errors).toEqual([]);
+  });
+
+  it('ask for nothing without an id, or without the boxes to show them in', async () => {
+    const p = boot();
+    await p.media.render('');
+    expect(p.calls).toEqual([]);
+    p.photos().remove(); p.floors().remove();
+    await p.media.render('RL-7');
+    expect(p.calls).toEqual([]);
+  });
+
+  it('act on the listing id the server answers with, not the numeric id the page asked with', async () => {
+    const p = boot({ answers: (c) => (c.method === 'GET' ? { ok: true, status: 200, body: { listing_id: 'RL-7', media: [row('k1'), row('k2')] } } : { ok: true, status: 200, body: {} }) });
+    await p.media.render('308773');
+    ([...p.tiles(p.photos())[1].querySelectorAll('button')].find((b) => b.textContent === '◀') as HTMLElement).click();
+    await p.flush();
+    expect(p.calls.at(-1)!.url).toBe('/api/crm/listings/RL-7/media-order');
+  });
+
+  it('act on the id the page asked with when the server does not echo one', async () => {
+    const p = boot({ answers: (c) => (c.method === 'GET' ? { ok: true, status: 200, body: { media: [row('k1'), row('k2')] } } : { ok: true, status: 200, body: {} }) });
+    await p.media.render('RL-7');
+    ([...p.tiles(p.photos())[1].querySelectorAll('button')].find((b) => b.textContent === '◀') as HTMLElement).click();
+    await p.flush();
+    expect(p.calls.at(-1)!.url).toBe('/api/crm/listings/RL-7/media-order');
+  });
+
+  it('count 0 photos when there are none', async () => {
+    const p = boot({ answers: listAnswer([]) });
+    await p.media.render('RL-7');
+    expect(p.count()).toBe('0 / 100 uploaded');
+  });
+});
+
+describe('a saved photo\'s tile', () => {
+  const photos = async (keys: string[], more: Record<string, Record<string, unknown>> = {}, confirmAnswer = true) => {
+    const p = boot({ confirm: confirmAnswer, answers: (c) => (c.method === 'GET' ? { ok: true, status: 200, body: { listing_id: 'RL-7', media: keys.map((k) => row(k, more[k] ?? {})) } } : undefined) });
+    await p.media.render('RL-7');
+    return p;
+  };
+  const button = (tile: HTMLElement, label: string) => [...tile.querySelectorAll('button')].find((b) => b.textContent === label) as HTMLElement;
+  const keys = (p: ReturnType<typeof boot>) => p.tiles(p.photos()).map((t) => t.getAttribute('data-media-key'));
+  const labels = (p: ReturnType<typeof boot>) => p.tiles(p.photos()).map((t) => t.querySelector('p')!.textContent);
+
+  describe('Set cover', () => {
+    it('asks the server and shows the photos again', async () => {
+      const p = await photos(['k1', 'k2']);
+      button(p.tiles(p.photos())[1], '☆ Set cover').click();
+      await p.flush();
+      const patch = p.calls.find((c) => c.method === 'PATCH')!;
+      expect(patch.url).toBe('/api/crm/listings/RL-7/media/k2');
+      expect(JSON.parse(patch.body)).toEqual({ preferred_photo_yn: true });
+      expect(patch.headers).toEqual({ 'Content-Type': 'application/json' });
+      expect(patch.credentials).toBe('include');
+      expect(p.said()).toContain('Main photo set');
+      expect(p.calls.at(-1)).toMatchObject({ method: 'GET' });
+    });
+
+    it('says when the server refuses, and does not show the photos again', async () => {
+      const p = boot({ answers: (c) => (c.method === 'PATCH' ? { ok: false, status: 403 } : { ok: true, status: 200, body: { listing_id: 'RL-7', media: [row('k1'), row('k2')] } }) });
+      await p.media.render('RL-7');
+      const before = p.calls.length;
+      button(p.tiles(p.photos())[1], '☆ Set cover').click();
+      await p.flush();
+      expect(p.toasts.at(-1)).toEqual(['Could not set main photo (HTTP 403)', 'error']);
+      expect(p.calls.length).toBe(before + 1);
+    });
+
+    it('says when the network is down', async () => {
+      const p = boot({ answers: (c) => (c.method === 'PATCH' ? { ok: false, status: 0, reject: 'offline' } : { ok: true, status: 200, body: { listing_id: 'RL-7', media: [row('k1'), row('k2')] } }) });
+      await p.media.render('RL-7');
+      button(p.tiles(p.photos())[1], '☆ Set cover').click();
+      await p.flush();
+      expect(p.toasts.at(-1)).toEqual(['Could not set main photo: offline', 'error']);
+    });
+
+    it('encodes a key in the address', async () => {
+      const p = await photos(['k/1 a', 'k2']);
+      button(p.tiles(p.photos())[0], '☆ Set cover').click();
+      await p.flush();
+      expect(p.calls.find((c) => c.method === 'PATCH')!.url).toBe('/api/crm/listings/RL-7/media/k%2F1%20a');
+    });
+  });
+
+  describe('◀ and ▶', () => {
+    it('move the photo past its neighbour, renumber the labels, and save the order', async () => {
+      const p = await photos(['k1', 'k2', 'k3']);
+      button(p.tiles(p.photos())[0], '▶').click();
+      expect(keys(p)).toEqual(['k2', 'k1', 'k3']);
+      expect(labels(p)).toEqual(['Photo 1', 'Photo 2', 'Photo 3']);
+      await p.flush();
+      const patch = p.calls.find((c) => c.method === 'PATCH')!;
+      expect(patch.url).toBe('/api/crm/listings/RL-7/media-order');
+      expect(JSON.parse(patch.body)).toEqual({ ordered_media_ids: ['k2', 'k1', 'k3'] });
+      expect(patch.headers).toEqual({ 'Content-Type': 'application/json' });
+      expect(patch.credentials).toBe('include');
+      expect(p.said()).toContain('Photo order saved');
+    });
+
+    it('◀ moves earlier; the first photo cannot go earlier, the last cannot go later, and nothing is sent for it', async () => {
+      const p = await photos(['k1', 'k2']);
+      button(p.tiles(p.photos())[1], '◀').click();
+      expect(keys(p)).toEqual(['k2', 'k1']);
+      await p.flush();
+      const sent = p.calls.filter((c) => c.method === 'PATCH').length;
+      button(p.tiles(p.photos())[0], '◀').click();
+      button(p.tiles(p.photos())[1], '▶').click();
+      await p.flush();
+      expect(keys(p)).toEqual(['k2', 'k1']);
+      expect(p.calls.filter((c) => c.method === 'PATCH').length).toBe(sent);
+    });
+
+    it('go past saved photos only: a preview of an unsaved file between them is skipped', async () => {
+      const p = await photos(['k1', 'k2']);
+      p.media.addFiles([p.file('a.jpg')], 'photo');                              // a preview after k2 (no key)
+      p.photos().insertBefore(p.tiles(p.photos())[2], p.tiles(p.photos())[1]);   // k1, preview, k2
+      button(p.tiles(p.photos())[0], '▶').click();
+      expect(p.tiles(p.photos()).map((t) => t.getAttribute('data-media-key') ?? 'preview')).toEqual(['k2', 'k1', 'preview']);
+      await p.flush();
+      expect(JSON.parse(p.calls.find((c) => c.method === 'PATCH')!.body)).toEqual({ ordered_media_ids: ['k2', 'k1'] });
+    });
+
+    it('numbers the saved photos only: an unsaved preview keeps its file name, even a name that starts with "Photo "', async () => {
+      const p = await photos(['k1', 'k2']);
+      p.media.addFiles([p.file('Photo 9.jpg')], 'photo');
+      button(p.tiles(p.photos())[0], '▶').click();
+      expect(p.tiles(p.photos()).map((t) => t.querySelector('p')!.textContent)).toEqual(['Photo 1', 'Photo 2', 'Photo 9.jpg']);
+    });
+
+    it('say when the order was not saved', async () => {
+      const p = boot({ answers: (c) => (c.method === 'PATCH' ? { ok: false, status: 500 } : { ok: true, status: 200, body: { listing_id: 'RL-7', media: [row('k1'), row('k2')] } }) });
+      await p.media.render('RL-7');
+      button(p.tiles(p.photos())[0], '▶').click();
+      await p.flush();
+      expect(p.toasts.at(-1)).toEqual(['Photo order NOT saved (HTTP 500). Reload to see actual order.', 'error']);
+    });
+
+    it('say when the network is down', async () => {
+      const p = boot({ answers: (c) => (c.method === 'PATCH' ? { ok: false, status: 0, reject: 'offline' } : { ok: true, status: 200, body: { listing_id: 'RL-7', media: [row('k1'), row('k2')] } }) });
+      await p.media.render('RL-7');
+      button(p.tiles(p.photos())[0], '▶').click();
+      await p.flush();
+      expect(p.toasts.at(-1)).toEqual(['Photo order NOT saved: offline', 'error']);
+    });
+
+    it('find the photo by a key with a quote or a backslash in it', async () => {
+      const p = await photos(['a"b', 'c\\d']);
+      button(p.tiles(p.photos())[0], '▶').click();
+      expect(keys(p)).toEqual(['c\\d', 'a"b']);
+    });
+
+    it('do nothing when the photos are not on the page any more', async () => {
+      const p = await photos(['k1', 'k2']);
+      const tile = p.tiles(p.photos())[0];
+      const move = button(tile, '▶');
+      p.photos().remove();
+      move.click();
+      expect(p.calls.filter((c) => c.method === 'PATCH')).toEqual([]);
+      expect(p.errors).toEqual([]);
+    });
+
+    it('do nothing when the tile has gone', async () => {
+      const p = await photos(['k1', 'k2']);
+      const tile = p.tiles(p.photos())[0];
+      const move = button(tile, '▶');
+      tile.remove();
+      move.click();
+      expect(p.calls.filter((c) => c.method === 'PATCH')).toEqual([]);
+      expect(p.errors).toEqual([]);
+    });
+  });
+
+  describe('drag and drop', () => {
+    const drag = (p: ReturnType<typeof boot>, from: HTMLElement, to: HTMLElement, key = from.getAttribute('data-media-key')!) => {
+      const data: Record<string, string> = {};
+      const transfer = { setData: (t: string, v: string) => { data[t] = v; }, getData: (t: string) => data[t] ?? '' };
+      const start: any = new p.w.Event('dragstart'); start.dataTransfer = transfer; from.dispatchEvent(start);
+      const over = new p.w.Event('dragover', { cancelable: true }); to.dispatchEvent(over);
+      const drop: any = new p.w.Event('drop', { cancelable: true }); drop.dataTransfer = { getData: () => key }; to.dispatchEvent(drop);
+      return { data, over, drop };
+    };
+
+    it('dragging a photo onto a later one puts it after it, and saves the order', async () => {
+      const p = await photos(['k1', 'k2', 'k3']);
+      const [a, , c] = p.tiles(p.photos());
+      const { data, over, drop } = drag(p, a, c);
+      expect(data['text/plain']).toBe('k1');
+      expect(over.defaultPrevented).toBe(true);
+      expect(drop.defaultPrevented).toBe(true);
+      expect(keys(p)).toEqual(['k2', 'k3', 'k1']);
+      await p.flush();
+      expect(JSON.parse(p.calls.find((x) => x.method === 'PATCH')!.body)).toEqual({ ordered_media_ids: ['k2', 'k3', 'k1'] });
+    });
+
+    it('onto an earlier one puts it before it', async () => {
+      const p = await photos(['k1', 'k2', 'k3']);
+      const [a, , c] = p.tiles(p.photos());
+      drag(p, c, a);
+      expect(keys(p)).toEqual(['k3', 'k1', 'k2']);
+    });
+
+    it('shows where it would land while over a photo, and not afterwards', async () => {
+      const p = await photos(['k1', 'k2']);
+      const [a, b] = p.tiles(p.photos());
+      b.dispatchEvent(new p.w.Event('dragover', { cancelable: true }));
+      expect(b.style.outline).toBe('2px solid #B8860B');
+      b.dispatchEvent(new p.w.Event('dragleave'));
+      expect(b.style.outline).toBe('');
+      b.dispatchEvent(new p.w.Event('dragover', { cancelable: true }));
+      const drop: any = new p.w.Event('drop', { cancelable: true }); drop.dataTransfer = { getData: () => 'k1' }; b.dispatchEvent(drop);
+      expect(b.style.outline).toBe('');
+      expect(a).toBeTruthy();
+    });
+
+    it('a photo dropped on itself, or a key that is not on the page, changes nothing and saves nothing', async () => {
+      const p = await photos(['k1', 'k2']);
+      const [a, b] = p.tiles(p.photos());
+      drag(p, a, a);
+      drag(p, a, b, 'nope');
+      expect(keys(p)).toEqual(['k1', 'k2']);
+      await p.flush();
+      expect(p.calls.filter((c) => c.method === 'PATCH')).toEqual([]);
+    });
+
+    it('find the dragged photo by a key with a quote in it', async () => {
+      const p = await photos(['a"b', 'c']);
+      const [a, b] = p.tiles(p.photos());
+      drag(p, a, b);
+      expect(keys(p)).toEqual(['c', 'a"b']);
+    });
+  });
+
+  describe('×', () => {
+    it('asks first, and does nothing when the agent says no', async () => {
+      const asked: string[] = [];
+      const p = boot({ answers: listAnswer([row('k1')]) });
+      (p.media as any);
+      const q = p.w.MallanListingMedia.create({
+        prefix: 'rental', listingId: () => '', toast: () => undefined, confirm: (m: string) => { asked.push(m); return false; },
+        fetch: (url: string, init: any = {}) => { p.calls.push({ url, method: init.method ?? 'GET' }); return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ listing_id: 'RL-7', media: [row('k1')] }) }); },
+      });
+      await q.render('RL-7');
+      button(p.tiles(p.photos())[0], '×').click();
+      await p.flush();
+      expect(asked).toEqual(['Remove this photo?']);
+      expect(p.calls.filter((c) => c.method === 'DELETE')).toEqual([]);
+      expect(p.tiles(p.photos())).toHaveLength(1);
+    });
+
+    it('removes the picture, and the tile once the server has', async () => {
+      const p = await photos(['k1', 'k2']);
+      button(p.tiles(p.photos())[0], '×').click();
+      expect(p.tiles(p.photos())).toHaveLength(2);                                // still there: the server has not answered
+      await p.flush();
+      const del = p.calls.find((c) => c.method === 'DELETE')!;
+      expect(del.url).toBe('/api/crm/listings/RL-7/media/k1');
+      expect(del.credentials).toBe('same-origin');
+      expect(keys(p)).toEqual(['k2']);
+      expect(p.toasts.at(-1)).toEqual(['Photo removed', 'success']);
+    });
+
+    it('takes the tile of a picture the server no longer has (404)', async () => {
+      const p = boot({ answers: (c) => (c.method === 'DELETE' ? { ok: false, status: 404 } : { ok: true, status: 200, body: { listing_id: 'RL-7', media: [row('k1')] } }) });
+      await p.media.render('RL-7');
+      button(p.tiles(p.photos())[0], '×').click();
+      await p.flush();
+      expect(p.tiles(p.photos())).toHaveLength(0);
+    });
+
+    it('keeps the tile and says so when the server refuses', async () => {
+      const p = boot({ answers: (c) => (c.method === 'DELETE' ? { ok: false, status: 500 } : { ok: true, status: 200, body: { listing_id: 'RL-7', media: [row('k1')] } }) });
+      await p.media.render('RL-7');
+      button(p.tiles(p.photos())[0], '×').click();
+      await p.flush();
+      expect(p.tiles(p.photos())).toHaveLength(1);
+      expect(p.toasts.at(-1)).toEqual(['Could not remove the photo (HTTP 500)', 'error']);
+    });
+
+    it('keeps the tile and says so when the network is down', async () => {
+      const p = boot({ answers: (c) => (c.method === 'DELETE' ? { ok: false, status: 0, reject: 'offline' } : { ok: true, status: 200, body: { listing_id: 'RL-7', media: [row('k1')] } }) });
+      await p.media.render('RL-7');
+      button(p.tiles(p.photos())[0], '×').click();
+      await p.flush();
+      expect(p.tiles(p.photos())).toHaveLength(1);
+      expect(p.toasts.at(-1)).toEqual(['Could not remove the photo: offline', 'error']);
+    });
+
+    it('encodes the key of the picture in the address', async () => {
+      const p = boot({ answers: (c) => (c.method === 'GET' ? { ok: true, status: 200, body: { listing_id: 'RL-7', media: [row('k/1 a')] } } : undefined) });
+      await p.media.render('RL-7');
+      button(p.tiles(p.photos())[0], '×').click();
+      await p.flush();
+      expect(p.calls.find((c) => c.method === 'DELETE')!.url).toBe('/api/crm/listings/RL-7/media/k%2F1%20a');
+    });
+
+    it('removes a floor plan too', async () => {
+      const p = boot({ answers: listAnswer([row('f1', { media_type: 'FloorPlan' })]) });
+      await p.media.render('RL-7');
+      button(p.tiles(p.floors())[0], '×').click();
+      await p.flush();
+      expect(p.calls.find((c) => c.method === 'DELETE')!.url).toBe('/api/crm/listings/RL-7/media/f1');
+      expect(p.tiles(p.floors())).toHaveLength(0);
+    });
+  });
+});
+
+describe('another record in the form', () => {
+  it('forgets the files that were chosen and not saved', async () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg')], 'photo');
+    expect(p.media.hasPending()).toBe(true);
+    p.media.reset();
+    expect(p.media.hasPending()).toBe(false);
+    expect(p.count()).toBe('0 / 100 uploaded');
+    expect(await p.media.uploadPending('RL-7')).toEqual({ uploaded: 0, failed: 0 });
+    expect(p.calls).toEqual([]);
+  });
+});
+
+describe('a page without a toast, a confirmation, a network or a way to preview a file', () => {
+  const bare = () => {
+    const dom = new JSDOM('<!doctype html><body><div id="rentalPhotoPreview"></div><span id="rentalPhotoCount"></span></body>', { url: 'https://mallan.nyc/', runScripts: 'outside-only' });
+    const w: any = dom.window;
+    w.eval(SOURCE);
+    return w;
+  };
+
+  it('is built with the page itself when none is given: a file that cannot be previewed (jsdom has no object URL) is still taken, with a tile that has no picture', () => {
+    const w = bare();
+    const media = w.MallanListingMedia.create({ prefix: 'rental' });
+    media.addFiles([new w.File(['x'], 'a.jpg', { type: 'image/jpeg' })], 'photo');
+    expect(media.hasPending()).toBe(true);
+    const tile = w.document.getElementById('rentalPhotoPreview').children[0];
+    expect(tile.querySelector('img')).toBeNull();
+    expect(tile.querySelector('p').textContent).toBe('a.jpg');
+    expect(tile.querySelector('.bg-gray-100')).not.toBeNull();
+  });
+
+  it('a preview that fails is a tile without a picture, whatever the browser says', () => {
+    const w = bare();
+    const media = w.MallanListingMedia.create({ prefix: 'rental', createObjectURL: () => { throw new Error('no preview'); }, toast: () => undefined });
+    media.addFiles([new w.File(['x'], 'a.jpg', { type: 'image/jpeg' }), new w.File(['yy'], 'b.jpg', { type: 'image/jpeg' })], 'photo');
+    const tiles = [...w.document.getElementById('rentalPhotoPreview').children];
+    expect(tiles.map((t: any) => t.querySelector('p').textContent)).toEqual(['a.jpg', 'b.jpg']);
+    expect(tiles.every((t: any) => t.querySelector('img') === null)).toBe(true);
+    expect(w.document.getElementById('rentalPhotoCount').textContent).toBe('2 / 100 uploaded');
+  });
+
+  it('a preview that is an empty address is a tile without a picture too', () => {
+    const w = bare();
+    const media = w.MallanListingMedia.create({ prefix: 'rental', createObjectURL: () => '', toast: () => undefined });
+    media.addFiles([new w.File(['x'], 'a.jpg', { type: 'image/jpeg' })], 'photo');
+    expect(w.document.getElementById('rentalPhotoPreview').children[0].querySelector('img')).toBeNull();
+  });
+
+  it('exposes the web-address test', () => {
+    const dom = new JSDOM('<!doctype html><body></body>', { url: 'https://mallan.nyc/', runScripts: 'outside-only' });
+    const w: any = dom.window;
+    w.eval(SOURCE);
+    expect(w.MallanListingMedia.webAddress(' https://a.example/x ')).toBe('https://a.example/x');
+    expect(w.MallanListingMedia.webAddress('ftp://a')).toBe('');
+    expect(w.MallanListingMedia.webAddress(undefined)).toBe('');
+  });
+});
+
+// ── What an adversarial read of this module found it still got wrong (RP-11) ──────────────────────────────────────────────────────────────────────
+// Redrawing the saved tiles wiped the previews of files that were chosen and not saved (they stayed queued, and the agent could no longer see them); a file added while an upload was out was
+// told "uploading…", then "already in progress", and sent by nobody; Save Media on a saved listing sent each file with its place among the files chosen, which collides with the photos
+// the listing has, and showed no saved tile for what it had sent; Save Media pressed while an upload was out said "Uploading…" and then "0 uploaded" as a success; and a floor plan was
+// called a "floorplan(s)", a "photo(s)", and offered ◀/▶ it does not have.
+
+describe('the unsaved previews', () => {
+  const kinds = (p: ReturnType<typeof boot>, box: HTMLElement) => p.tiles(box).map((t) => t.getAttribute('data-media-key') ?? 'preview:' + t.getAttribute('data-media-index'));
+
+  it('stay when the saved tiles are drawn again, after the saved ones, and are counted with them', async () => {
+    const p = boot({ answers: listAnswer([row('k1')]) });
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2)], 'photo');                      // a new listing: the files wait
+    p.media.addFiles([p.file('plan.png', 3, 'image/png')], 'floorplan');
+    await p.media.render('RL-7');
+    expect(kinds(p, p.photos())).toEqual(['k1', 'preview:0', 'preview:1']);
+    expect(kinds(p, p.floors())).toEqual(['preview:2']);
+    expect(p.count()).toBe('3 / 100 uploaded');                                                // the saved photo and the two waiting
+    expect(p.media.hasPending()).toBe(true);
+  });
+
+  it('are counted with the saved photos when a file is chosen after they were drawn, and when one is removed', async () => {
+    const p = boot({ answers: listAnswer([row('k1'), row('k2')]) });
+    await p.media.render('RL-7');
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    expect(p.count()).toBe('3 / 100 uploaded');
+    ([...p.tiles(p.photos())[2].querySelectorAll('button')].find((b) => b.textContent === '×') as HTMLElement).click();
+    expect(p.count()).toBe('2 / 100 uploaded');
+  });
+
+  it('of a file that was saved are replaced by its saved tile, not shown twice', async () => {
+    const p = boot({ answers: listAnswer([row('k1'), row('k2')]) });
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    await p.media.uploadPending('RL-7');
+    await p.media.render('RL-7');
+    expect(kinds(p, p.photos())).toEqual(['k1', 'k2']);
+    expect(p.count()).toBe('2 / 100 uploaded');
+  });
+
+  it('of a file whose upload failed stay, so that the agent can send it again', async () => {
+    const p = boot({ answers: (c) => (c.method === 'POST' ? { ok: false, status: 500 } : { ok: true, status: 200, body: { listing_id: 'RL-7', media: [row('k1')] } }) });
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    await p.media.uploadPending('RL-7');
+    await p.media.render('RL-7');
+    expect(kinds(p, p.photos())).toEqual(['k1', 'preview:0']);
+    expect(p.media.hasPending()).toBe(true);
+  });
+
+  it('of a PDF the upload dropped are gone after a redraw', async () => {
+    const p = boot({ answers: listAnswer([]) });
+    p.media.addFiles([p.file('plan.pdf', 5, 'application/pdf')], 'floorplan');
+    await p.media.uploadPending('RL-7');
+    await p.media.render('RL-7');
+    expect(p.tiles(p.floors())).toHaveLength(0);
+  });
+
+  it('stay when the saved tiles cannot be loaded', async () => {
+    const p = boot({ answers: () => ({ ok: false, status: 500 }) });
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    await p.media.render('RL-7');
+    expect(kinds(p, p.photos())).toEqual(['preview:0']);
+  });
+
+  it('of files forgotten with another record go with them, and so do the last record\'s saved tiles (they act on its photos) and its count', async () => {
+    const p = boot({ answers: listAnswer([row('k1'), row('k2'), row('f1', { media_type: 'FloorPlan' })]) });
+    await p.media.render('RL-7');
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    p.media.addFiles([p.file('plan.png', 2, 'image/png')], 'floorplan');
+    expect(p.tiles(p.photos())).toHaveLength(3);
+    expect(p.tiles(p.floors())).toHaveLength(2);
+    expect(p.count()).toBe('3 / 100 uploaded');
+    p.media.reset();
+    expect(p.tiles(p.photos())).toHaveLength(0);
+    expect(p.tiles(p.floors())).toHaveLength(0);
+    expect(p.count()).toBe('0 / 100 uploaded');
+  });
+
+  it('a reset on a page without the preview boxes does not fail', () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    p.photos().remove(); p.floors().remove();
+    expect(() => p.media.reset()).not.toThrow();
+    expect(p.media.hasPending()).toBe(false);
+  });
+
+  it('a reset on a page with only one of the boxes empties that one', () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    p.floors().remove();
+    p.media.reset();
+    expect(p.tiles(p.photos())).toHaveLength(0);
+  });
+});
+
+describe('files chosen while an upload is out, and Save Media', () => {
+  /** A manager of the saved listing RL-7 whose uploads wait until `release()`. */
+  const slow = (p: ReturnType<typeof boot>) => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => { release = r; });
+    const media = p.w.MallanListingMedia.create({
+      prefix: 'rental', listingId: () => 'RL-7', toast: (m: string, t?: string) => p.toasts.push([m, t]), createObjectURL: (f: any) => 'blob:' + f.name, confirm: () => true,
+      fetch: (url: string, init: any = {}) => {
+        p.calls.push({ url, method: init.method ?? 'GET', body: init.body, credentials: init.credentials });
+        if ((init.method ?? 'GET') === 'POST') return gate.then(() => ({ ok: true, status: 200, json: () => Promise.resolve({ photo: { url: 'u' } }) }));
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ listing_id: 'RL-7', media: [] }) });
+      },
+    });
+    return { media, release };
+  };
+  const sent = (p: ReturnType<typeof boot>) => p.calls.filter((c) => c.method === 'POST').map((c) => c.body.get('file').name);
+
+  it('are sent when it is done, and say so, instead of waiting unseen after "already in progress"', async () => {
+    const p = boot();
+    const { media, release } = slow(p);
+    media.addFiles([p.file('a.jpg', 1)], 'photo');                                             // sending (held)
+    media.addFiles([p.file('b.jpg', 2)], 'photo');                                             // chosen while it is out
+    expect(p.said()).toContain('1 photo(s) added — uploading…');
+    expect(p.said()).toContain('1 photo(s) added — uploading as soon as the current upload is done…');
+    expect(p.said().filter((m) => /already in progress/.test(m))).toEqual([]);
+    expect(p.tiles(p.photos())).toHaveLength(2);                                               // both are shown while they wait
+    release();
+    await p.flush(); await p.flush(); await p.flush();
+    expect(sent(p)).toEqual(['a.jpg', 'b.jpg']);
+    expect(media.hasPending()).toBe(false);
+    expect(p.said().filter((m) => /photo\(s\) uploaded/.test(m))).toHaveLength(2);
+    expect(p.tiles(p.photos())).toHaveLength(0);                                               // saved: the redraw shows the listing's own tiles (none in this fake answer)
+  });
+
+  it('three batches chosen during one upload are each sent once, in the order chosen, by one upload that follows it, and the listing is drawn and told once for them', async () => {
+    const p = boot();
+    const { media, release } = slow(p);
+    media.addFiles([p.file('a.jpg', 1)], 'photo');
+    media.addFiles([p.file('b.jpg', 2)], 'photo');
+    media.addFiles([p.file('c.jpg', 3)], 'photo');
+    release();
+    for (let i = 0; i < 6; i++) await p.flush();
+    expect(sent(p)).toEqual(['a.jpg', 'b.jpg', 'c.jpg']);
+    expect(media.hasPending()).toBe(false);
+    expect(p.said().filter((m) => /already in progress/.test(m))).toEqual([]);
+    expect(p.calls.filter((c) => c.method === 'GET')).toHaveLength(2);                         // drawn after the first upload, and after the one that sent the other two
+    expect(p.said().filter((m) => /photo\(s\) uploaded/.test(m))).toEqual(['1 photo(s) uploaded — drag or use ◀/▶ to reorder.', '2 photo(s) uploaded — drag or use ◀/▶ to reorder.']);
+    media.addFiles([p.file('d.jpg', 4)], 'photo');                                             // and a batch chosen later is sent too (the queue is not left occupied)
+    for (let i = 0; i < 3; i++) await p.flush();
+    expect(sent(p)).toEqual(['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg']);
+  });
+
+  it('a queued upload of photos and a floor plan together says files; of floor plans alone, floor plans', async () => {
+    const p = boot();
+    const { media, release } = slow(p);
+    media.addFiles([p.file('a.jpg', 1)], 'photo');                                             // sending (held)
+    media.addFiles([p.file('b.jpg', 2)], 'photo');
+    media.addFiles([p.file('plan.png', 3, 'image/png')], 'floorplan');
+    release();
+    for (let i = 0; i < 6; i++) await p.flush();
+    expect(p.said().filter((m) => /uploaded/.test(m))).toEqual(['1 photo(s) uploaded — drag or use ◀/▶ to reorder.', '2 file(s) uploaded.']);
+    const q = boot();
+    const second = slow(q);
+    second.media.addFiles([q.file('a.jpg', 1)], 'photo');
+    second.media.addFiles([q.file('p1.png', 2, 'image/png')], 'floorplan');
+    second.media.addFiles([q.file('p2.png', 3, 'image/png')], 'floorplan');
+    second.release();
+    for (let i = 0; i < 6; i++) await q.flush();
+    expect(q.said().filter((m) => /uploaded/.test(m))).toEqual(['1 photo(s) uploaded — drag or use ◀/▶ to reorder.', '2 floor plan(s) uploaded.']);
+  });
+
+  it('files chosen after an upload is done are uploaded at once: they are not told to wait for an upload that is over', async () => {
+    const p = boot({ savedId: 'RL-7', answers: listAnswer([]) });
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    await p.flush(); await p.flush();
+    p.media.addFiles([p.file('b.jpg', 2)], 'photo');
+    await p.flush(); await p.flush();
+    expect(p.said().filter((m) => /added — uploading…/.test(m))).toHaveLength(2);
+    expect(p.said().filter((m) => /as soon as/.test(m))).toEqual([]);
+    expect(p.calls.filter((c) => c.method === 'POST').map((c) => c.body.get('file').name)).toEqual(['a.jpg', 'b.jpg']);
+  });
+
+  it('an upload that fails outright is told, and the files chosen while it was out are still sent (with the one that failed)', async () => {
+    const p = boot();
+    let first = true;
+    const media = p.w.MallanListingMedia.create({
+      prefix: 'rental', listingId: () => 'RL-7', toast: (m: string, t?: string) => p.toasts.push([m, t]), createObjectURL: (f: any) => 'blob:' + f.name, confirm: () => true,
+      fetch: (url: string, init: any = {}) => {
+        if ((init.method ?? 'GET') === 'POST' && first) { first = false; throw new Error('no network layer'); }        // a request that cannot even be made
+        p.calls.push({ url, method: init.method ?? 'GET', body: init.body, credentials: init.credentials });
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve((init.method ?? 'GET') === 'GET' ? { listing_id: 'RL-7', media: [] } : {}) });
+      },
+    });
+    media.addFiles([p.file('a.jpg', 1)], 'photo');
+    media.addFiles([p.file('b.jpg', 2)], 'photo');
+    for (let i = 0; i < 6; i++) await p.flush();
+    expect(p.said()).toContain('Upload failed: no network layer');
+    expect(sent(p)).toEqual(['a.jpg', 'b.jpg']);
+    expect(media.hasPending()).toBe(false);
+  });
+
+  it('Save Media on a saved listing adds after the photos it has: no order is sent, and the files go in the order they were arranged in', async () => {
+    const p = boot({ savedId: 'RL-7', canUpload: () => false, answers: listAnswer([]) });
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2), p.file('c.jpg', 3)], 'photo');
+    ([...p.tiles(p.photos())[2].querySelectorAll('button')].find((b) => b.textContent === '◀') as HTMLElement).click();          // a, c, b
+    await p.media.saveMedia();
+    const posts = p.calls.filter((c) => c.method === 'POST');
+    expect(posts.map((c) => c.body.get('file').name)).toEqual(['a.jpg', 'c.jpg', 'b.jpg']);
+    expect(posts.map((c) => c.body.has('order'))).toEqual([false, false, false]);
+  });
+
+  it('a new listing still sends each file with the place it was arranged in', async () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2)], 'photo');
+    await p.media.uploadPending('RL-7');
+    expect(p.calls.filter((c) => c.method === 'POST').map((c) => [c.body.get('file').name, c.body.get('order')])).toEqual([['a.jpg', '0'], ['b.jpg', '1']]);
+  });
+
+  it('Save Media shows the listing\'s own tiles for what it sent, in place of the previews, and tells the page how it went', async () => {
+    const p = boot({ savedId: 'RL-7', canUpload: () => false, answers: listAnswer([row('k1'), row('k2')]) });
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2)], 'photo');
+    expect(await p.media.saveMedia()).toEqual({ uploaded: 2, failed: 0 });
+    expect(p.tiles(p.photos()).map((t) => t.getAttribute('data-media-key'))).toEqual(['k1', 'k2']);
+    expect(p.count()).toBe('2 / 100 uploaded');
+  });
+
+  it('Save Media draws the listing again only when it saved something: when every file failed it shows their previews as they were', async () => {
+    const p = boot({ savedId: 'RL-7', canUpload: () => false, answers: (c) => (c.method === 'POST' ? { ok: false, status: 500 } : { ok: true, status: 200, body: { listing_id: 'RL-7', media: [] } }) });
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    expect(await p.media.saveMedia()).toEqual({ uploaded: 0, failed: 1 });
+    expect(p.tiles(p.photos())).toHaveLength(1);
+    expect(p.media.hasPending()).toBe(true);
+    expect(p.toasts.at(-1)).toEqual(['0 uploaded, 1 failed', 'warning']);
+    expect(p.calls.filter((c) => c.method === 'GET')).toEqual([]);
+  });
+
+  it('Save Media while an upload is out says only that it is in progress: not "Uploading…", not "0 uploaded"', async () => {
+    const p = boot();
+    const { media, release } = slow(p);
+    media.addFiles([p.file('a.jpg', 1)], 'photo');                                             // sending (held)
+    p.toasts.length = 0;
+    expect(await media.saveMedia()).toEqual({ uploaded: 0, failed: 0, busy: true });
+    expect(p.said()).toEqual(['Media upload already in progress — please wait.']);
+    release();
+    await p.flush(); await p.flush();
+    expect(sent(p)).toEqual(['a.jpg']);
+  });
+});
+
+describe('what is said about a floor plan', () => {
+  it('on a saved listing it is a floor plan(s), not a floorplan(s) or a photo(s), and it is not offered ◀/▶', async () => {
+    const p = boot({ savedId: 'RL-7', answers: listAnswer([row('f1', { media_type: 'FloorPlan' })]) });
+    p.media.addFiles([p.file('plan.png', 1, 'image/png')], 'floorplan');
+    expect(p.said()).toContain('1 floor plan(s) added — uploading…');
+    await p.flush(); await p.flush();
+    expect(p.said()).toContain('1 floor plan(s) uploaded.');
+    expect(p.said().filter((m) => /photo\(s\) uploaded|reorder|floorplan/.test(m))).toEqual([]);
+    expect(p.tiles(p.floors()).map((t) => t.getAttribute('data-media-key'))).toEqual(['f1']);
+  });
+
+  it('on a new listing it is kept until the listing is saved, and is not told to be reordered', () => {
+    const p = boot();
+    p.media.addFiles([p.file('plan.png', 1, 'image/png')], 'floorplan');
+    expect(p.said()).toContain('1 floor plan(s) added. Save the listing to upload.');
+    expect(p.said().filter((m) => /reorder|floorplan/.test(m))).toEqual([]);
+  });
+});
+
+// ── What an independent read of RP-11 found (RP-11b) ──────────────────────────────────────────────────────────────────────────────────────────────
+// A file removed with × while its batch was sending was still sent (the loop never looked again); reset() left an upload that was waiting for its turn with the OLD listing's id and the NEW record's
+// files (a photo chosen for the next record went to the last listing), and the running upload and a redraw that was out finished over the new record's form; and two redraws that overlap could
+// finish in the wrong order, the older drawing over the newer.
+
+describe('a removal, a reset and a redraw while an upload is out', () => {
+  /** A manager of the listing that `current()` names, whose uploads wait until release(), and whose redraws wait until releaseGets() when `holdGets` is set. A redraw answers one saved photo, keyed after its listing. */
+  const held = (p: ReturnType<typeof boot>, current: () => string, holdGets = false, canUpload?: () => boolean) => {
+    let release: () => void = () => undefined;
+    let releaseGets: () => void = () => undefined;
+    const gate = new Promise<void>((r) => { release = r; });
+    const getGate = new Promise<void>((r) => { releaseGets = r; });
+    const media = p.w.MallanListingMedia.create({
+      prefix: 'rental', listingId: current, canUpload, toast: (m: string, t?: string) => p.toasts.push([m, t]), createObjectURL: (f: any) => 'blob:' + f.name, confirm: () => true,
+      fetch: (url: string, init: any = {}) => {
+        const method = init.method ?? 'GET';
+        p.calls.push({ url, method, body: init.body, credentials: init.credentials });
+        if (method === 'POST') return gate.then(() => ({ ok: true, status: 200, json: () => Promise.resolve({}) }));
+        const listing = url.split('/')[4];
+        const answer = () => ({ ok: true, status: 200, json: () => Promise.resolve({ listing_id: listing, media: [row('k-' + listing)] }) });
+        return holdGets ? getGate.then(answer) : Promise.resolve(answer());
+      },
+    });
+    return { media, release, releaseGets };
+  };
+  const posts = (p: ReturnType<typeof boot>) => p.calls.filter((c) => c.method === 'POST').map((c) => [c.url.split('/')[4], c.body.get('file').name]);
+  const gets = (p: ReturnType<typeof boot>) => p.calls.filter((c) => c.method === 'GET').map((c) => c.url.split('/')[4]);
+  const keysOf = (p: ReturnType<typeof boot>, box: HTMLElement) => p.tiles(box).map((t) => t.getAttribute('data-media-key') ?? 'preview:' + t.getAttribute('data-media-index'));
+  const remove = (tile: HTMLElement) => ([...tile.querySelectorAll('button')].find((b) => b.textContent === '×') as HTMLElement).click();
+
+  it('a file the agent removes while its batch is sending is not sent, is not counted as uploaded, and does not come back as a saved tile', async () => {
+    const p = boot();
+    const { media, release } = held(p, () => 'RL-7');
+    media.addFiles([p.file('p1.jpg', 1), p.file('p2.jpg', 2), p.file('p3.jpg', 3)], 'photo');          // p1 is sending (held), p2 and p3 wait their turn in the same batch
+    remove(p.tiles(p.photos())[2]);                                                                    // p3 is removed while p1 is out
+    release();
+    for (let i = 0; i < 6; i++) await p.flush();
+    expect(posts(p)).toEqual([['RL-7', 'p1.jpg'], ['RL-7', 'p2.jpg']]);
+    expect(media.hasPending()).toBe(false);
+    expect(p.said().filter((m) => /photo\(s\) uploaded/.test(m))).toEqual(['2 photo(s) uploaded — drag or use ◀/▶ to reorder.']);
+  });
+
+  it('a file removed before Save Media sends it is not sent either', async () => {
+    const p = boot({ savedId: 'RL-7', canUpload: () => false, answers: listAnswer([row('k1')]) });
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2)], 'photo');
+    const first = p.media.saveMedia();                                                                  // sending a (the fake network answers at once, one request after the other)
+    remove(p.tiles(p.photos())[1]);                                                                     // b is removed while a is out
+    const result = await first;
+    expect(p.calls.filter((c) => c.method === 'POST').map((c) => c.body.get('file').name)).toEqual(['a.jpg']);
+    expect(result).toEqual({ uploaded: 1, failed: 0 });
+  });
+
+  it('after reset() the files of the last record are not sent: not the rest of the batch that was sending, not the batch that was waiting', async () => {
+    const p = boot();
+    const { media, release } = held(p, () => 'RL-A');
+    media.addFiles([p.file('a1.jpg', 1), p.file('a2.jpg', 2), p.file('a3.jpg', 3)], 'photo');          // a1 is sending (held); a2 and a3 are the rest of its batch
+    media.addFiles([p.file('b.jpg', 4)], 'photo');                                                      // waits for its turn
+    await p.flush();                                                                                    // a1's request is out
+    media.reset();                                                                                      // another record is in the form: the files were forgotten
+    release();
+    for (let i = 0; i < 6; i++) await p.flush();
+    expect(posts(p)).toEqual([['RL-A', 'a1.jpg']]);                                                     // a1's request was already out: nothing else is sent to RL-A
+  });
+
+  it('a file chosen for the next record after reset() goes to the next record, and is sent when the upload that was out is done', async () => {
+    const p = boot();
+    let current = 'RL-A';
+    const { media, release } = held(p, () => current);
+    media.addFiles([p.file('a.jpg', 1)], 'photo');                                                      // sending (held), to RL-A
+    media.addFiles([p.file('b.jpg', 2)], 'photo');                                                      // waiting for its turn, for RL-A
+    await p.flush();                                                                                    // a's request is out
+    media.reset();
+    current = 'RL-B';
+    media.addFiles([p.file('x.jpg', 3)], 'photo');                                                      // chosen for RL-B
+    release();
+    for (let i = 0; i < 8; i++) await p.flush();
+    expect(posts(p)).toEqual([['RL-A', 'a.jpg'], ['RL-B', 'x.jpg']]);                                   // not RL-A twice
+    expect(gets(p)).toEqual(['RL-B']);                                                                  // and RL-A is not drawn over RL-B's form
+    expect(keysOf(p, p.photos())).toEqual(['k-RL-B']);
+    expect(media.hasPending()).toBe(false);
+  });
+
+  it('a redraw that was out when another record was loaded does not draw the last record\'s tiles', async () => {
+    const p = boot();
+    const { media, releaseGets } = held(p, () => 'RL-A', true);
+    const drawn = media.render('RL-A');
+    media.reset();
+    releaseGets();
+    await drawn;
+    await p.flush();
+    expect(p.tiles(p.photos())).toHaveLength(0);
+    expect(p.count()).toBe('0 / 100 uploaded');
+  });
+
+  it('the redraw that is asked for after reset() draws, though an older one is still out', async () => {
+    const p = boot();
+    const { media, releaseGets } = held(p, () => 'RL-B', true);
+    const old = media.render('RL-A');
+    media.reset();
+    const fresh = media.render('RL-B');
+    releaseGets();
+    await Promise.all([old, fresh]);
+    expect(keysOf(p, p.photos())).toEqual(['k-RL-B']);
+    expect(p.count()).toBe('1 / 100 uploaded');
+  });
+
+  it('two redraws that overlap: an older one that answers after the newer one does not draw over it; one that answers first is drawn and then replaced', async () => {
+    const answerFor = (key: string) => ({ ok: true, status: 200, json: () => Promise.resolve({ listing_id: 'RL-7', media: [row(key)] }) });
+    // the older redraw's request is held until `late()`; the newer one answers at once
+    const build = (holdOlder: boolean) => {
+      const p = boot();
+      let asked = 0;
+      let late: () => void = () => undefined;
+      const gate = new Promise<void>((r) => { late = r; });
+      const media = p.w.MallanListingMedia.create({
+        prefix: 'rental', listingId: () => 'RL-7', toast: () => undefined, createObjectURL: () => 'blob:x', confirm: () => true,
+        fetch: () => { asked++; return asked === 1 && holdOlder ? gate.then(() => answerFor('older')) : Promise.resolve(answerFor(asked === 1 ? 'older' : 'newer')); },
+      });
+      return { p, media, late };
+    };
+    const a = build(true);
+    const older = a.media.render('RL-7');
+    const newer = a.media.render('RL-7');
+    await newer;
+    expect(keysOf(a.p, a.p.photos())).toEqual(['newer']);
+    a.late();
+    await older;
+    await a.p.flush();
+    expect(keysOf(a.p, a.p.photos())).toEqual(['newer']);                                               // the older answer came late: it is not drawn
+    const b = build(false);
+    await Promise.all([b.media.render('RL-7'), b.media.render('RL-7')]);
+    expect(keysOf(b.p, b.p.photos())).toEqual(['newer']);                                               // answered in order: the last one drawn is the newest
+  });
+
+  it('Save Media whose upload finishes after reset() says nothing and draws nothing about the listing that was left', async () => {
+    const p = boot();
+    const { media, release } = held(p, () => 'RL-A', false, () => false);
+    media.addFiles([p.file('a.jpg', 1)], 'photo');                                                      // the client is not ready: the file waits
+    const saving = media.saveMedia();                                                                   // sends it to RL-A (held)
+    await p.flush();
+    p.toasts.length = 0;
+    media.reset();
+    release();
+    const result = await saving;
+    await p.flush();
+    expect(result).toEqual({ uploaded: 1, failed: 0 });                                                  // the request was out: it went to RL-A
+    expect(p.said()).toEqual([]);
+    expect(gets(p)).toEqual([]);
+  });
+
+  it('a newer redraw that failed does not stop an older one that answers later from drawing', async () => {
+    const p = boot();
+    let asked = 0;
+    let late: () => void = () => undefined;
+    const gate = new Promise<void>((r) => { late = r; });
+    const media = p.w.MallanListingMedia.create({
+      prefix: 'rental', listingId: () => 'RL-7', toast: (m: string, t?: string) => p.toasts.push([m, t]), createObjectURL: () => 'blob:x', confirm: () => true,
+      fetch: () => {
+        asked++;
+        if (asked === 1) return gate.then(() => ({ ok: true, status: 200, json: () => Promise.resolve({ listing_id: 'RL-7', media: [row('older')] }) }));
+        return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) });                                  // the newer redraw fails at once
+      },
+    });
+    const older = media.render('RL-7');
+    await media.render('RL-7');
+    expect(p.said().filter((m) => /could not load/.test(m))).toHaveLength(1);
+    late();
+    await older;
+    await p.flush();
+    expect(keysOf(p, p.photos())).toEqual(['older']);                                                   // nothing was drawn by the newer one: the older answer is drawn
+  });
+
+  it('an older redraw that fails after a newer one was drawn does not say that the listing could not be loaded', async () => {
+    const p = boot();
+    let asked = 0;
+    let late: () => void = () => undefined;
+    const gate = new Promise<void>((r) => { late = r; });
+    const media = p.w.MallanListingMedia.create({
+      prefix: 'rental', listingId: () => 'RL-7', toast: (m: string, t?: string) => p.toasts.push([m, t]), createObjectURL: () => 'blob:x', confirm: () => true,
+      fetch: () => {
+        asked++;
+        if (asked === 1) return gate.then(() => ({ ok: false, status: 500, json: () => Promise.resolve({}) }));                  // the older redraw fails, late
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ listing_id: 'RL-7', media: [row('newer')] }) });
+      },
+    });
+    const older = media.render('RL-7');
+    await media.render('RL-7');
+    late();
+    await older;
+    await p.flush();
+    expect(keysOf(p, p.photos())).toEqual(['newer']);
+    expect(p.said().filter((m) => /could not load/.test(m))).toEqual([]);
+  });
+
+  it('a redraw that fails is told, and keeps what is shown', async () => {
+    const p = boot({ answers: () => ({ ok: false, status: 500 }) });
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    await p.media.render('RL-7');
+    expect(p.said().filter((m) => /could not load/.test(m))).toHaveLength(1);
+    expect(keysOf(p, p.photos())).toEqual(['preview:0']);
+  });
+});

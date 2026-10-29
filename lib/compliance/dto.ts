@@ -13,10 +13,13 @@
  *
  * VOW (Virtual Office Website) provides authenticated consumers with additional data
  * beyond IDX, such as sold/closed price, days on market, and listing history.
- * Active — Trestle IDX Plus WebAPI provides all 1,363 fields. VOW display is
+ * Active — field names and availability come from the live Cotality contract
+ * (data/cotality-enums.live.json is its committed copy). VOW display is
  * authorized for registered/logged-in portal consumers per REBNY RLS rules.
  *
- * FIELD AUTHORITY ORDER: UCBA → RLS TRUMPS ALL → RESO/IDX fills gaps → INTERNAL-ONLY → Fail closed
+ * AUTHORITY: MALLAN-PLATFORM-MASTER-PLAN.md §0 and §21 — UCBA and REBNY use and
+ * display rules and the verified live Cotality contract are separate layers, both
+ * enforced; anything unverified fails closed (internal-only / non-display).
  */
 
 import { affirmPermission, isOwnerOptOut, isParticipantOnly } from "./gates";
@@ -86,32 +89,32 @@ const IDX_SUPPRESSED_FIELDS = [
 /**
  * VOW-enriched fields — additional data available to authenticated portal consumers.
  *
- * IMPORTANT (verified 2026-03-26 against REBNY IDX Plus CSV + IDX/VOW Compliance Checklist):
+ * IMPORTANT (verified 2026-03-26 against the REBNY IDX/VOW Compliance Checklist; field
+ * membership re-checked against the live Cotality contract, data/cotality-enums.live.json):
  *   - ClosePrice, CloseDate, OriginalListPrice, PreviousListPrice, ListingContractDate,
- *     PurchaseContractDate, BuyerFinancing, WithdrawnDate are ALL in the REBNY IDX Plus
- *     field spec (902 fields). They CAN be displayed publicly on IDX. The REBNY IDX/VOW
- *     Compliance Checklist (Dec 2021) contains NO field-level restriction blocking these
- *     from IDX display.
- *   - DaysOnMarket, CumulativeDaysOnMarket are NOT in the IDX Plus CSV but ARE returned by
- *     Trestle on the IDX Plus feed (validated live 2026-03-04). Trestle provisions additional
- *     fields beyond the 902-field CSV. Fields returned on the feed are authorized for display.
- *   - Concessions, ConcessionsAmount are NOT in the IDX Plus CSV. Needs live verification.
+ *     PurchaseContractDate, BuyerFinancing, WithdrawnDate are ALL live Cotality Property
+ *     fields, and the REBNY IDX/VOW Compliance Checklist (Dec 2021) contains NO
+ *     field-level restriction blocking them from IDX display, so they CAN be displayed
+ *     publicly on IDX.
+ *   - DaysOnMarket, CumulativeDaysOnMarket are declared live Property fields, but the feed
+ *     suppresses them and they are null on every row (MALLAN-PLATFORM-MASTER-PLAN.md §0.5);
+ *     Mallan derives DOM from OnMarketDate (UCBA Art. I §11).
+ *   - Concessions, ConcessionsAmount are declared in live $metadata; that they carry data is
+ *     not yet verified by a live query.
  *   - ExpirationDate is explicitly "Hidden" per UCBA Exhibit A — never display.
- *   - CancelledDate is not in IDX Plus CSV.
+ *   - CancelledDate is not a live Property field (the live field is CancellationDate).
  *
  * This list is used by sanitizeForVOW() to re-add these fields after public sanitization.
- * Since sanitizeForPublic() does NOT strip IDX Plus fields, the VOW enrichment is primarily
- * relevant for fields NOT in IDX Plus (DaysOnMarket, Concessions, etc.) and for
- * ExpirationDate which is hidden from all public display.
+ * sanitizeForPublic() strips none of them today. ExpirationDate being in this list is not
+ * an authorization to display it (UCBA Exhibit A "Hidden" rule above).
  *
  * Sources:
- *   - REBNY IDX Plus CSV: data/rebny-rls-property-fields.csv (902 fields, "IDX Plus" feed)
+ *   - Live Cotality field contract: data/cotality-enums.live.json (live $metadata; no IDX/VOW field annotations)
  *   - REBNY IDX/VOW Compliance Checklist (Dec 2021): no field-level VOW-only restrictions
- *   - Trestle metadata: artifacts/metadata.xml (no IDX/VOW field annotations)
  *   - NAR IDX Policy 7.58: sold data must be on IDX when publicly accessible (NYC has ACRIS)
  */
 const VOW_ENRICHED_FIELDS = [
-  // ── In IDX Plus CSV (can display publicly, included here for VOW completeness) ──
+  // ── Live Property fields (can display publicly, included here for VOW completeness) ──
   "ClosePrice",
   "CloseDate",
   "OriginalListPrice",
@@ -120,10 +123,10 @@ const VOW_ENRICHED_FIELDS = [
   "PurchaseContractDate",
   "BuyerFinancing",
   "WithdrawnDate",
-  // ── NOT in IDX Plus CSV but returned by Trestle on IDX Plus feed (validated live 2026-03-04) ──
+  // ── Declared live but suppressed and null on the feed; DOM is derived from OnMarketDate (MALLAN-PLATFORM-MASTER-PLAN.md §0.5) ──
   "DaysOnMarket",
   "CumulativeDaysOnMarket",
-  // ── NOT in IDX Plus CSV — needs live verification whether Trestle provisions these ──
+  // ── Declared in live $metadata; data not yet verified by a live query ──
   "Concessions",
   "ConcessionsAmount",
   // ── Explicitly hidden per UCBA Exhibit A ──
@@ -187,7 +190,9 @@ export function sanitizeForPublic(listing: Record<string, unknown>): Record<stri
   );
   if (!addressDisplayable) {
     result.address = { street: "Address Undisclosed" };
-    // Strip both PascalCase (Trestle) and camelCase/snake_case (DB) variants
+    // Strip both PascalCase (Cotality) and camelCase/snake_case (DB) variants.
+    // OPEN COMPLIANCE ITEM: the live Cotality full-address key UnparsedAddress
+    // (lowercase p) is not deleted here; only the legacy UnParsedAddress spelling is.
     delete result.StreetNumber;
     delete result.streetNumber;
     delete result.StreetName;
@@ -409,7 +414,7 @@ export function sanitizeListingForPortal(
  */
 /**
  * Format a listing's raw address JSON into a single renderable line (e.g. "123 Main St #4B").
- * Handles both lowercase (streetNumber/streetName/unitNumber) and PascalCase (Trestle) shapes.
+ * Handles both lowercase (streetNumber/streetName/unitNumber) and PascalCase (Cotality) shapes.
  * Owner pages type `address: string` and render it directly, so the owner DTO must emit a string.
  */
 function formatOwnerAddressLine(address: unknown): string | null {
@@ -428,7 +433,7 @@ function formatOwnerAddressLine(address: unknown): string | null {
   const suffix = pick("streetSuffix", "StreetSuffix");
   const dirSuffix = pick("streetDirSuffix", "StreetDirSuffix");
   const unit = pick("unitNumber", "UnitNumber", "unit");
-  // Full RESO street order: number, dir-prefix, name, suffix, dir-suffix (e.g. "333 E 46th Street").
+  // Full street order: number, dir-prefix, name, suffix, dir-suffix (e.g. "333 E 46th Street").
   const street = [streetNumber, dirPrefix, streetName, suffix, dirSuffix].filter(Boolean).join(" ").trim();
   const full = unit ? `${street}${street ? " " : ""}#${unit}` : street;
   if (full.trim().length > 0) return full.trim();
@@ -475,7 +480,7 @@ const NEVER_EXPOSE_FIELDS = [
   "password_hash",
   "portal_token",
   "portal_token_expires_at",
-  // Trestle API credentials
+  // Provider API token key names (stripped defensively; pinned by lib/compliance/__tests__/portal-dto.test.ts)
   "trestle_token",
   "trestle_bearer",
   "api_key",

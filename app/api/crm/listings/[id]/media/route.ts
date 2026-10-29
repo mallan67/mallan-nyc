@@ -76,6 +76,7 @@ export async function GET(
       media_url_cached: true,
       media_url_original: true,
       media_type: true,
+      r2_key: true,
       media_category: true,
       order: true,
       preferred_photo_yn: true,
@@ -107,6 +108,7 @@ export async function GET(
       media_category: r.media_category,
       order: r.order,
       preferred_photo_yn: r.preferred_photo_yn,
+      caption: r.media_type === "Document" ? (r.r2_key ? r.r2_key.split("/").pop() : "Document") : undefined,
       // PROVENANCE, reported explicitly rather than inferred by the client.
       // Editability follows the KEY NAMESPACE — the same rule the write routes
       // enforce (`isCrmMediaKey` in the delete/set-main/reorder handlers) — so
@@ -125,7 +127,7 @@ export async function GET(
 
   // No rows ever imported → READ-ONLY legacy-JSON preview (no DB write).
   //
-  // PROVENANCE GATE. This JSON is NOT uniformly CRM media: the Trestle sync
+  // PROVENANCE GATE. This JSON is NOT uniformly CRM media: the Cotality sync
   // writes Cotality image URLs into `Listing.media` on every upsert
   // (lib/idx/sync.ts:821, plus the media backfills). Minting a `crm:` key for
   // every item — as this route used to — advertised a feed photo as a CRM

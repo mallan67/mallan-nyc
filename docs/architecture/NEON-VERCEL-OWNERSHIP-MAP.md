@@ -71,8 +71,6 @@ mcp__claude_ai_Vercel__get_deployment(idOrUrl=<dpl_*>, teamId=team_kZQh5NYLyrOKq
 ```
 Or use the inspector URL on the GitHub check row (`https://vercel.com/mallan/mallan-nyc/<id>`).
 
-Cross-reference: `docs/incidents/2026-05-21-chronic-media-sync-root-cause.md` §RC8 (canonical incident treatment).
-
 ---
 
 ## 📋 Operational Doctrine — RC8 Vercel/GitHub Status Drift (added 2026-05-22, post-PR-#179)
@@ -371,7 +369,6 @@ UNVERIFIED:
 - `.github/workflows/rotate-db-keys.yml` — DELETED 2026-09-20; no credential-rotation path exists
 - `app/api/cron/neon-branch-prune/route.ts` + `scripts/neon-prune-branches.ts` — DELETED 2026-09-20; not present in the repository
 - `docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md` — describes a future 3rd Neon project (`mallan-public-records`, intentionally Free); **unrelated to mallan-nyc's production/preview pair** (see Public-Records Firewall above)
-- **`docs/incidents/2026-05-21-chronic-media-sync-root-cause.md`** — canonical chronic-incident doctrine; documents RC1–RC7 (media-sync cursor freeze, stomping, R2 retry purgatory, storage churn, held migrations, observability gap, CI Trap #2) and RC8 (Vercel-GitHub status drift, expanded in this doc's RC8 section above)
 - **PR #176** (`b4f9ede0`, merged 2026-05-22) — paused `/api/cron/media-backfill` cron in `vercel.json`; first mitigation for the chronic media/Neon compute burn (see Separation section above)
 - **PR #178** (`4b81dc0b`, merged 2026-05-22) — `ops-health` media-sync + storage observability; closes the RC6 observability gap (`media_sync_state` cursor staleness, listing_media coverage, R2 mirror progress, dead-tuple ratio)
 - **PR #179** (`e53431eb`, merged 2026-05-22) — `NEON-VERCEL-OWNERSHIP-MAP` clarification (Do-Not-Fix-Blindly + RC8 + separation + public-records firewall); the **canonical case study** for the Operational Doctrine section above (preview-head `Vercel` status stayed `pending` while merge commit deployed READY)

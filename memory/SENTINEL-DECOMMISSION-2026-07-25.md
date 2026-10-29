@@ -48,10 +48,10 @@ sentinel-value comment). Git-reversible. Delivered as its own PR
 ## Governance-footprint cleanup (follow-up, `chore/finish-sentinel-governance-cleanup-2026-07-25`)
 #566 removed the executable subsystem but left LIVE governance references, some
 pointing at now-deleted files. This follow-up scrubbed the ACTIVE surfaces:
-- `docs/agents/AGENT-ROUTING-MANDATE` — deleted the live **Sentinel-G** routing
+- the agent-routing mandate (the whole file was later retired; git history holds it) — deleted the live **Sentinel-G** routing
   section (it told agents to run the deleted `run-sentinel-g.ts` + read the
   deleted mandate) and dropped "Sentinel" from the actionable-status line.
-- `docs/engineering/pr-verification-checklist.md` — removed Sentinel from the R9
+- the PR verification checklist (since deleted) — removed Sentinel from the R9
   hard-hold + the "does NOT touch" template line; deleted 3 dead pointer rows
   (`repo-audit-bot.md`, `repo-audit-bot.yml:441`, `sentinel-v2-redesign-plan`).
 - `CLAUDE.md` — removed the decommission parenthetical from the active hard rules

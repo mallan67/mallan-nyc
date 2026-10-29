@@ -3,12 +3,12 @@
  * Sale-form unit Real-Estate-Tax hydration (2026-06-23).
  *
  * The unit RE-Taxes field (`saleRETaxes` -> saves as `TaxAnnualAmount`) must hydrate the
- * UNIT's tax FEATURES-FIRST (the canonical bucket the public DTO + Trestle mapper write,
+ * UNIT's tax FEATURES-FIRST (the canonical bucket the public DTO + Cotality sync mapper write,
  * e.g. a Cotality-synced `features.TaxAnnualAmount`), then fall back to `raw_data`. It must
  * NEVER be filled from building-level annual taxes (`saleBldgAnnualTaxes`) — building tax is
  * not the unit's tax, and auto-filling it would create a false listing value.
  *
- * `TaxAnnualAmount` is a CONFIRMED-LIVE Cotality field (artifacts/metadata.xml); it is NOT
+ * `TaxAnnualAmount` is a CONFIRMED-LIVE Cotality field (data/cotality-enums.live.json); it is NOT
  * renamed here. The matching harness in this repo is source-structure assertion (no jsdom).
  */
 import { readFileSync } from 'fs';

@@ -36,9 +36,9 @@ describe("writer rule wired into every terminal-status writer", () => {
     expect(s).toMatch(/\.\.\.terminalSinceCreate/);
     expect(s).toMatch(/\.\.\.terminalSinceUpdate/);
   });
-  it("Trestle writers pass the un-stripped raw.ExpirationDate as expirationDateFallback (#446)", () => {
+  it("Cotality writers pass the un-stripped raw.ExpirationDate as expirationDateFallback (#446)", () => {
     // ExpirationDate is in PRIVATE_FIELDS → stripped from mapped.raw_data; the original
-    // raw record must be fed as the Expired fallback at every Trestle call site.
+    // raw record must be fed as the Expired fallback at every Cotality call site.
     for (const f of [
       "lib/idx/sync.ts",
       "app/api/cron/feed-reconcile/route.ts",

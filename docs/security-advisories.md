@@ -33,7 +33,6 @@ Living document. Updated whenever `npm audit` flags a new vulnerability that doe
 
 **Attack surface in this codebase:**
 - `app/api/crm/sales/prospects/import/route.ts` — runtime API route. Agents/brokers upload spreadsheets; uploaded data flows through xlsx parsing.
-- `scripts/rebuild-past-deals.js`, `scripts/validate-field-mapping.js`, `scripts/test-full-mapping.js`, `scripts/fix-wrong-matches.js`, `scripts/validate-deals.js` — admin-only ops scripts. Not exposed to user input.
 
 **Risk classification:** Medium-Real.
 - The API route is auth-gated (broker/agent role required) — not anonymous internet attackers.

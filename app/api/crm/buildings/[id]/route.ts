@@ -46,7 +46,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
 /**
  * PATCH /api/crm/buildings/[id]
- * Update manual-only fields. Trestle-sourced fields are read-only.
+ * Update manual-only fields. Cotality-sourced fields are read-only.
  * Allowed: management_company, management_phone, management_email,
  *           super_name, super_phone, super_live_in,
  *           porter_name, porter_phone,

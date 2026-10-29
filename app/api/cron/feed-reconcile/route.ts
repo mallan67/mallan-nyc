@@ -1,11 +1,11 @@
 // GET /api/cron/feed-reconcile
 // Daily cron — feed reconciliation pass.
-// Detects listings marked Active in our DB but no longer in the Trestle Active
+// Detects listings marked Active in our DB but no longer in the Cotality Active
 // feed (ghosts), and transitions them to Withdrawn with a full audit trail.
 //
 // WHY THIS EXISTS:
 // Incremental sync via ModificationTimestamp > watermark detects CHANGES but
-// not DISAPPEARANCES. When a listing is fully removed from Trestle (post-
+// not DISAPPEARANCES. When a listing is fully removed from Cotality (post-
 // listing Owner Opt-Out, broker cancellation with history deletion, aging out
 // of retention), there's no modification event to pull — our DB keeps the
 // last-known Active state forever, polluting public search.
@@ -15,7 +15,7 @@
 // gate on tomorrow's run.
 //
 // SAFETY:
-//   - GHOST_ABORT_CAP: aborts if delta > 2000 (suggests Trestle fetch failure)
+//   - GHOST_ABORT_CAP: aborts if delta > 2000 (suggests Cotality fetch failure)
 //   - Per-ghost transaction (one failure doesn't block the rest)
 //   - Idempotent (re-running doesn't re-transition already-Withdrawn listings)
 //   - Audit event per transition (REBNY RLS data-quality trail)
@@ -69,7 +69,7 @@ const GHOST_ABORT_CAP = 2000;
 // smaller than GHOST_ABORT_CAP would never trip the cap on an empty feed).
 const GHOST_ABORT_RATIO = 0.5;
 
-// Orphan = Trestle has a ListingId we don't (eligible set: Active/Pending/
+// Orphan = Cotality has a ListingId we don't (eligible set: Active/Pending/
 // AUC). P1C6b: abort-all on the orphan side is REPLACED by deterministic
 // chunked import (lib/idx/orphan-chunk.ts — ORPHAN_CHUNK_SIZE per run,
 // ListingId-ASC order, archive-excluded) because the probe-sized backlog
@@ -93,8 +93,8 @@ const ACTIVE_SEED_STATUSES = new Set([
   "Active", "ActiveUnderContract", "Pending",
 ]);
 
-/** Fetch every Active ListingId from Trestle, paginated. */
-async function fetchTrestleActiveIds(token: string): Promise<Set<string>> {
+/** Fetch every Active ListingId from Cotality, paginated. */
+async function fetchCotalityActiveIds(token: string): Promise<Set<string>> {
   const base = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
   const filter = "StandardStatus eq 'Active'";
   const ids = new Set<string>();
@@ -105,7 +105,7 @@ async function fetchTrestleActiveIds(token: string): Promise<Set<string>> {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) {
       throw new Error(
-        `Trestle fetch failed at skip=${skip}: ${res.status}`,
+        `Cotality fetch failed at skip=${skip}: ${res.status}`,
       );
     }
     const page = (await res.json()) as { value?: Array<{ ListingId?: string }> };
@@ -122,11 +122,11 @@ async function fetchTrestleActiveIds(token: string): Promise<Set<string>> {
  * ONLY. Live probe 2026-06-11 proved the 3 media-sync ghosts are
  * StandardStatus=Pending, invisible to the Active-only diff BY DESIGN (not an
  * $expand failure — the route's expand form returned HTTP 200 with media).
- * SEPARATE query so `fetchTrestleActiveIds` stays byte-identical: the
+ * SEPARATE query so `fetchCotalityActiveIds` stays byte-identical: the
  * ghost-transition semantics and that query's paging headroom under the 25K
  * skip cap are untouched.
  */
-async function fetchTrestleEligibleNonActiveIds(token: string): Promise<Set<string>> {
+async function fetchCotalityEligibleNonActiveIds(token: string): Promise<Set<string>> {
   const base = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
   // Non-active ON-MARKET set = Pending ∪ ActiveUnderContract ∪ ComingSoon. Used to extend
   // orphan detection AND (status-truth fix 2026-07-05) to SPARE ghosts: a local-Active
@@ -140,7 +140,7 @@ async function fetchTrestleEligibleNonActiveIds(token: string): Promise<Set<stri
     const url = `${base}/odata/Property?$filter=${encodeURIComponent(filter)}&$select=ListingId&$top=${pageSize}&$skip=${skip}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) {
-      throw new Error(`Trestle eligible-non-active fetch failed at skip=${skip}: ${res.status}`);
+      throw new Error(`Cotality eligible-non-active fetch failed at skip=${skip}: ${res.status}`);
     }
     const page = (await res.json()) as { value?: Array<{ ListingId?: string }> };
     const rows = page.value ?? [];
@@ -177,14 +177,14 @@ export async function GET(req: NextRequest) {
   const startTime = Date.now();
 
   try {
-    // 1. Fetch Trestle Active set
+    // 1. Fetch Cotality Active set
     const token = await getAccessToken();
-    const trestleIds = await fetchTrestleActiveIds(token);
+    const cotalityIds = await fetchCotalityActiveIds(token);
     // Non-active on-market set (Pending ∪ AUC ∪ ComingSoon). Extends orphan detection AND
     // (status-truth fix 2026-07-05) is unioned with the Active set to spare ghosts below.
-    const trestleNonActiveEligible = await fetchTrestleEligibleNonActiveIds(token);
+    const cotalityNonActiveEligible = await fetchCotalityEligibleNonActiveIds(token);
     // Full live on-market universe — the authority for "is this listing still live".
-    const liveOnMarketIds = new Set<string>([...trestleIds, ...trestleNonActiveEligible]);
+    const liveOnMarketIds = new Set<string>([...cotalityIds, ...cotalityNonActiveEligible]);
 
     // 2. Our DB Active set + full RLS ID set (both directions of diff)
     const ourActive = await prisma.listing.findMany({
@@ -215,11 +215,11 @@ export async function GET(req: NextRequest) {
     const ghosts = ourActive.filter(
       (r) => !TERMINAL_STATUSES.has(r.status) && !liveOnMarketIds.has(r.listing_id),
     );
-    // 3b. Orphans — in the Trestle ELIGIBLE set (Active/Pending/AUC, P1C6),
+    // 3b. Orphans — in the Cotality ELIGIBLE set (Active/Pending/AUC, P1C6),
     // missing from our DB entirely. P1C6b: archive-excluded (an archived id
     // must NEVER be re-imported — Maya rule, even though the probe showed 0
     // today) and selected as a bounded deterministic chunk per run.
-    const orphanIds = [...new Set([...trestleIds, ...trestleNonActiveEligible])].filter(
+    const orphanIds = [...new Set([...cotalityIds, ...cotalityNonActiveEligible])].filter(
       (id) => !ourAllIdsSet.has(id),
     );
 
@@ -242,13 +242,13 @@ export async function GET(req: NextRequest) {
       console.error(
         `[feed-reconcile] ABORT (${abortReason}) — ghosts=${ghosts.length} ` +
         `live_on_market=${liveOnMarketIds.size} our_active=${ourActive.length} cap=${GHOST_ABORT_CAP}. ` +
-        `Empty/partial Trestle feed or fetch failure. Not transitioning.`,
+        `Empty/partial Cotality feed or fetch failure. Not transitioning.`,
       );
 
       // Lifecycle/Crons Tier A P0 — out-of-band broker alert.
       // The pre-existing audit event below records the abort in the
       // database, but a silent audit row could go unnoticed for days
-      // during a real Trestle outage. Send a transactional email to
+      // during a real Cotality outage. Send a transactional email to
       // every active broker so ops sees the issue immediately.
       // Best-effort send — alert failure does NOT block the response.
       let brokerAlertsSent = 0;
@@ -265,7 +265,7 @@ export async function GET(req: NextRequest) {
             recipientName,
             ghostCount: ghosts.length,
             cap: GHOST_ABORT_CAP,
-            trestleActiveCount: trestleIds.size,
+            trestleActiveCount: cotalityIds.size,
             ourActiveCount: ourActive.length,
             abortReason,
           });
@@ -298,7 +298,7 @@ export async function GET(req: NextRequest) {
           user_id: null,
           changes: {
             reason: abortReason,
-            trestle_active: trestleIds.size,
+            trestle_active: cotalityIds.size,
             our_active: ourActive.length,
             ghosts_detected: ghosts.length,
             cap: GHOST_ABORT_CAP,
@@ -312,7 +312,7 @@ export async function GET(req: NextRequest) {
         success: false,
         aborted: true,
         reason: abortReason,
-        trestle_active: trestleIds.size,
+        trestle_active: cotalityIds.size,
         our_active: ourActive.length,
         ghosts_detected: ghosts.length,
         cap: GHOST_ABORT_CAP,
@@ -343,13 +343,13 @@ export async function GET(req: NextRequest) {
     if (chunkResult.totalEligible > ORPHAN_TOTAL_SANITY_CAP) {
       console.error(
         `[feed-reconcile] ABORT — eligible orphan total ${chunkResult.totalEligible} exceeds sanity cap ${ORPHAN_TOTAL_SANITY_CAP}. ` +
-        `Likely Trestle feed reset or broken local-id read (probe truth 2026-06-12: 1,361). Investigate.`,
+        `Likely Cotality feed reset or broken local-id read (probe truth 2026-06-12: 1,361). Investigate.`,
       );
       return NextResponse.json({
         success: false,
         aborted: true,
         reason: "orphan_total_exceeds_sanity_cap",
-        trestle_active: trestleIds.size,
+        trestle_active: cotalityIds.size,
         total_eligible: chunkResult.totalEligible,
         cap: ORPHAN_TOTAL_SANITY_CAP,
         duration_ms: Date.now() - startTime,
@@ -359,7 +359,7 @@ export async function GET(req: NextRequest) {
     const now = new Date();
     const base = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
 
-    // 5a. Orphan fetch + create — pull the full Trestle record for each ID
+    // 5a. Orphan fetch + create — pull the full Cotality record for each ID
     //     we don't have and route it through the same mapper + gate check
     //     that the normal cron sync uses.
     let orphansCreated = 0;
@@ -381,7 +381,7 @@ export async function GET(req: NextRequest) {
       const filter = batchIds
         .map((id) => `ListingId eq '${id.replace(/'/g, "''")}'`)
         .join(" or ");
-      // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+      // MediaStatus filter: exclude tombstoned photos retained by Cotality as historical records.
       const mediaExpand = `Media($filter=MediaStatus ne 'Deleted';$orderby=Order)`;
       const url = `${base}/odata/Property?$filter=${encodeURIComponent(filter)}&$expand=${encodeURIComponent(mediaExpand)}&$top=${ORPHAN_FETCH_BATCH}`;
       try {
@@ -414,7 +414,7 @@ export async function GET(req: NextRequest) {
               raw_data: mapped.raw_data as Record<string, unknown>,
               features: mapped.features as Record<string, unknown>,
               // #446: ExpirationDate is stripped from mapped.raw_data (PRIVATE_FIELDS); feed the
-              // original un-stripped Trestle record's ExpirationDate as the Expired fallback (not persisted).
+              // original un-stripped Cotality record's ExpirationDate as the Expired fallback (not persisted).
               expirationDateFallback: raw.ExpirationDate as string | undefined,
               now,
             });
@@ -441,7 +441,7 @@ export async function GET(req: NextRequest) {
                   user_id: null,
                   changes: {
                     listing_id: String(raw.ListingId),
-                    reason: "Present in the Trestle eligible set (Active/Pending/AUC) but missing from DB — incremental sync gap",
+                    reason: "Present in the Cotality eligible set (Active/Pending/AUC) but missing from DB — incremental sync gap",
                     standard_status: String(raw.StandardStatus || ""),
                     cron_run_at: now.toISOString(),
                   },
@@ -457,7 +457,7 @@ export async function GET(req: NextRequest) {
             // the SAME cycle. Never throws.
             // Orphan recovery makes the listing publicly visible again — its
             // building's cached payload must pick it up in the same cycle
-            // (raw is a full Trestle record: StreetNumber/StreetName/PostalCode).
+            // (raw is a full Cotality record: StreetNumber/StreetName/PostalCode).
             safeRevalidateTags([
               listingCacheTag(String(raw.ListingId)),
               ...buildingAndManifestInvalidationTags(raw),
@@ -544,16 +544,16 @@ export async function GET(req: NextRequest) {
               status: "Withdrawn",
               status_changed_at: now,
               idx_display_yn: false,
-              // TRESTLE CURSOR SAFETY — `modification_timestamp: now` REMOVED
+              // COTALITY SYNC-CURSOR SAFETY — `modification_timestamp: now` REMOVED
               // (post-correction audit, 2026-08-09).
               //
-              // A ghost is by definition a row the Trestle sync wrote earlier
+              // A ghost is by definition a row the Cotality sync wrote earlier
               // (it came from the feed), so `last_synced_from_trestle` is
               // non-null and the row sits INSIDE the cursor query:
               //   MAX(modification_timestamp) WHERE last_synced_from_trestle IS NOT NULL
               // Stamping local `now` made this row the MAX, pushing the
               // incremental filter `ModificationTimestamp gt SINCE` past every
-              // genuine Trestle timestamp — so the next sync skipped real
+              // genuine Cotality timestamp — so the next sync skipped real
               // upstream changes. That is the same hazard PR-S.6/S.7 closed for
               // the capped-batch and CRM-only-row cases; this daily cron
               // re-opened it every run that found a ghost.
@@ -563,7 +563,7 @@ export async function GET(req: NextRequest) {
               // audit event below, and data-retention ages rows off those two
               // clocks SPECIFICALLY because modification_timestamp is re-stamped
               // by idx-sync (data-retention/route.ts:270-273). MT keeps its last
-              // real Trestle value, which is the honest one.
+              // real Cotality value, which is the honest one.
               // Archive eligibility clock (#415): ghosts are sourced from status='Active'
               // (all non-terminal) → Withdrawn is always a real non-terminal→terminal
               // transition; no stable off-market date for a ghost → wall-clock `now`.
@@ -581,7 +581,7 @@ export async function GET(req: NextRequest) {
                 from_status: g.status,
                 to_status: "Withdrawn",
                 listing_id: g.listing_id,
-                reason: "Not present in Trestle Active feed at reconcile time",
+                reason: "Not present in Cotality Active feed at reconcile time",
                 cron_run_at: now.toISOString(),
               },
             },
@@ -627,7 +627,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      trestle_active: trestleIds.size,
+      trestle_active: cotalityIds.size,
       our_active_before: ourActive.length,
       ghosts_detected: ghosts.length,
       ghosts_transitioned: updated,
@@ -636,7 +636,7 @@ export async function GET(req: NextRequest) {
       orphans_detected: orphans.length,
       orphans_created: orphansCreated,
       orphans_errored: orphansErrored,
-      trestle_eligible_nonactive: trestleNonActiveEligible.size,
+      trestle_eligible_nonactive: cotalityNonActiveEligible.size,
       // P1C6b chunked catch-up counters (Maya's required set)
       total_eligible: chunkResult.totalEligible,
       chunk_size: ORPHAN_CHUNK_SIZE,

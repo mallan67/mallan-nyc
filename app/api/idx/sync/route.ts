@@ -1,5 +1,5 @@
 // POST /api/idx/sync
-// Broker-only manual trigger for Trestle sync.
+// Broker-only manual trigger for Cotality sync.
 // Rate-limited: 1 call per 5 minutes (enforced in middleware).
 import { NextRequest, NextResponse } from "next/server";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";

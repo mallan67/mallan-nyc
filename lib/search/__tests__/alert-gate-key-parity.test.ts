@@ -47,6 +47,22 @@ function backendSupportedKeys(): Set<string> {
   return new Set(tokens.map((t) => t.slice(1, -1)));
 }
 
+/** Pull the literal Set members from PROJECTION_RESERVED_CRITERIA_KEYS (view-state keys both layers skip). */
+function backendReservedKeys(): Set<string> {
+  const src = readFile("lib/search/criteria-to-prisma.ts");
+  const match = src.match(
+    /PROJECTION_RESERVED_CRITERIA_KEYS\s*=\s*new\s+Set\(\[\s*([\s\S]*?)\]\)/,
+  );
+  if (!match) {
+    throw new Error("Could not locate PROJECTION_RESERVED_CRITERIA_KEYS in criteria-to-prisma.ts");
+  }
+  // Drop line comments first: they may quote words that are not keys.
+  const body = match[1].replace(/\/\/[^\n]*/g, "");
+  const tokens = body.match(/"([^"]+)"/g);
+  if (!tokens) return new Set();
+  return new Set(tokens.map((t) => t.slice(1, -1)));
+}
+
 /** Pull the keys from frontend `_ALERT_SUPPORTED_KEYS` object literal. */
 function frontendSupportedKeys(): Set<string> {
   const src = readFile("public/crm/js/search/saved-searches.js");
@@ -64,16 +80,16 @@ function frontendSupportedKeys(): Set<string> {
 }
 
 describe("Codex Risk P0 fix #3 — alert-gate key parity", () => {
-  it("frontend _ALERT_SUPPORTED_KEYS matches backend PROJECTION_SUPPORTED_CRITERIA_KEYS plus the reserved key", () => {
+  it("frontend _ALERT_SUPPORTED_KEYS matches backend PROJECTION_SUPPORTED_CRITERIA_KEYS plus the reserved keys", () => {
     const backend = backendSupportedKeys();
     const frontend = frontendSupportedKeys();
 
-    // Frontend treats `_search_tab` as supported (reserved on the
-    // backend per PROJECTION_RESERVED_CRITERIA_KEYS, so the same end
-    // user experience). Build the canonical set the frontend should
-    // mirror.
+    // Frontend treats the reserved view-state keys (`_search_tab`,
+    // `_search_mode` — PROJECTION_RESERVED_CRITERIA_KEYS on the backend) as
+    // supported, so the end-user experience is the same. Build the
+    // canonical set the frontend should mirror from both backend sets.
     const expectedFrontend = new Set(backend);
-    expectedFrontend.add("_search_tab");
+    for (const reserved of backendReservedKeys()) expectedFrontend.add(reserved);
 
     const frontendOnly = [...frontend].filter((k) => !expectedFrontend.has(k)).sort();
     const backendOnly = [...expectedFrontend].filter((k) => !frontend.has(k)).sort();

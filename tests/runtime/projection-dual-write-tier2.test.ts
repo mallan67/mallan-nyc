@@ -8,8 +8,8 @@
  * orphan-restore branch inside cron/feed-reconcile). It did NOT cover the
  * remaining cron-side writers that flip Listing.idx_display_yn=false
  * without touching ListingSearchProjection. That gap produced the
- * 1,949-row projection drift documented in
- * docs/listing-search-projection-drift-report-2026-05-16.md.
+ * 1,949-row projection drift documented in the 2026-05-16 drift report
+ * (retired to git history).
  *
  * This Tier-2 guard pins the dual-write contract on:
  *   1. app/api/cron/data-retention/route.ts          — REBNY §2.05 24h closed-removal

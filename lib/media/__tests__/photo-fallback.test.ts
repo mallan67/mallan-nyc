@@ -9,10 +9,10 @@
  *   2. Failing fetcher → listing stays in response with empty media (fail-soft).
  *   3. Hanging fetcher → outer timeout kicks in, response completes.
  *   4. Listings that already have media do NOT trigger a fetch call.
- *   5. Trestle/Cotality hosts get proxied; R2 / non-Trestle hosts pass through.
+ *   5. Provider media hosts (DEFAULT_PROXY_HOSTS) get proxied; R2 / other hosts pass through.
  *   6. The function never mutates any field other than `media`.
  *
- * Pure unit tests — no Prisma, no Trestle, no Next runtime. Fixtures only.
+ * Pure unit tests — no Prisma, no Cotality, no Next runtime. Fixtures only.
  */
 
 import {
@@ -44,7 +44,7 @@ function makeListing(id: string, media: FillablePublicListing['media'] = []): Fi
 // ─── Tests ──────────────────────────────────────────────────────────────
 
 describe('maybeProxyUrl', () => {
-  it('wraps Trestle/Cotality URLs through /api/media/proxy', () => {
+  it('wraps Cotality URLs through /api/media/proxy', () => {
     const url = 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/abc/1.jpg';
     const out = maybeProxyUrl(url);
     expect(out).toBe(`/api/media/proxy?url=${encodeURIComponent(url)}`);
@@ -103,7 +103,7 @@ describe('fillEmptyMediaWithLiveFallback', () => {
 
   it('test 2: listing remains in response with empty media when fetcher rejects', async () => {
     const listings = [makeListing('RLS_FAIL', [])];
-    const fetcher: MediaFetcher = jest.fn().mockRejectedValue(new Error('Trestle 404'));
+    const fetcher: MediaFetcher = jest.fn().mockRejectedValue(new Error('Cotality 404'));
     await fillEmptyMediaWithLiveFallback(listings, { fetcher });
     expect(listings).toHaveLength(1);
     expect(listings[0].id).toBe('RLS_FAIL');
@@ -176,7 +176,7 @@ describe('fillEmptyMediaWithLiveFallback', () => {
   });
 
   it('handles fetcher returning empty array (no photos) without error', async () => {
-    const listings = [makeListing('RLS_EMPTY_TRESTLE', [])];
+    const listings = [makeListing('RLS_EMPTY_COTALITY', [])];
     const fetcher: MediaFetcher = jest.fn().mockResolvedValue([]);
     await fillEmptyMediaWithLiveFallback(listings, { fetcher });
     expect(listings[0].media).toEqual([]);

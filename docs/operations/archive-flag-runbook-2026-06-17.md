@@ -262,7 +262,7 @@ while production is draining stable-clock rows.
 - **Rollback means stop future selection, not undo prior archive-strip actions.** Rows already
   archived are not restored by the flag — each has `raw_data/media/compliance` emptied and
   `sync_status='archived'`; only the summary survives in `listings_archive`. Reversing a specific row
-  would require a manual un-archive **plus** a Trestle re-fetch (not guaranteed for terminal listings;
+  would require a manual un-archive **plus** a Cotality re-fetch (not guaranteed for terminal listings;
   out of scope for this runbook).
 - **Therefore:** treat each night as a committed checkpoint. The flag protects **future** rows, not
   past ones.

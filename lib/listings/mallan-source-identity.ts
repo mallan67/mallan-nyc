@@ -5,7 +5,7 @@
  * distinct — conflating them is the defect this module exists to prevent:
  *
  *   1. `isMallanExclusiveListing()` — Mallan-AUTHORED local listing (`SL-`/`RL-`
- *      prefix OR `rls_eligible === false`). Governs DATA/MEDIA AUTHORITY.
+ *      prefix). A distribution flag never proves authorship.
  *      NOT broadened here, and NOT re-implemented here.
  *   2. **Mallan RLS return-copy** (this module) — an inbound Cotality/RLS row
  *      whose VERIFIED LIST-SIDE identity is Mallan. Still Cotality-SOURCE-OWNED
@@ -43,18 +43,38 @@ export interface MallanSourceIdentityRow {
   listing_id?: string | null;
   /** Typed column, populated by the Trestle mapper from `ListOfficeMlsId`. */
   list_office_mls_id?: string | null;
-  /** Mallan-authored local rows are `false`; feed rows are true/null. */
+  /** Distribution setting; legacy feed stubs may also carry false. */
   rls_eligible?: boolean | null;
 }
 
-/** CRM prefixes that mark a Mallan-AUTHORED local listing. */
-const LOCAL_PREFIXES = ['SL-', 'RL-'] as const;
+import {
+  isMallanExclusiveListing,
+  MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES,
+} from '@/lib/listings/exclusive-agent-assignment';
 
 /** TRUE when the row is a Mallan-authored LOCAL listing (canonical publicly). */
 export function isMallanLocalListing(row: MallanSourceIdentityRow): boolean {
-  const id = String(row.listing_id ?? '');
-  if (LOCAL_PREFIXES.some((p) => id.startsWith(p))) return true;
-  return row.rls_eligible === false;
+  return isMallanExclusiveListing(row);
+}
+
+/** A first-party distribution exemption requires proven Mallan authorship AND the explicit flag. */
+export function isMallanWebsiteOnlyListing(row: MallanSourceIdentityRow): boolean {
+  return row.rls_eligible === false && isMallanLocalListing(row);
+}
+
+/** Same authorship rule before DB pagination, count and address filtering. */
+export function mallanLocalListingWhere(): {
+  OR: Array<{ listing_id: { startsWith: string } }>;
+} {
+  return {
+    OR: MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES.map((prefix) => ({
+      listing_id: { startsWith: prefix },
+    })),
+  };
+}
+
+export function mallanWebsiteOnlyWhere() {
+  return { rls_eligible: false, ...mallanLocalListingWhere() };
 }
 
 /**
@@ -83,8 +103,8 @@ export function isMallanRlsReturnCopy(row: MallanSourceIdentityRow): boolean {
  * one page and its twin on another would let the twin surface, and `total` /
  * `hasMore` would describe the pre-suppression population.
  *
- * Mallan-authored local rows are explicitly re-admitted, since `rls_eligible`
- * false rows carry no office id and must never be caught by this filter.
+ * Mallan-authored local rows are explicitly re-admitted by their canonical id.
+ * A legacy false eligibility flag on a feed stub does not establish authorship.
  */
 export function excludeMallanRlsReturnCopies(): {
   OR: Array<Record<string, unknown>>;
@@ -93,7 +113,6 @@ export function excludeMallanRlsReturnCopies(): {
   return {
     OR: [
       // Mallan-authored local rows are canonical — never excluded.
-      { rls_eligible: false },
       { listing_id: { startsWith: 'SL-' } },
       { listing_id: { startsWith: 'RL-' } },
       // Unclassifiable provenance keeps normal treatment (fail-open on display,

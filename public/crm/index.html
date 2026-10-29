@@ -37,7 +37,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&family=Urbanist:wght@200;300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- EmailJS SDK — client-side email delivery (free: 200/month) -->
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
     <!-- ═══ CSS Modules ═══ -->
     <link rel="stylesheet" href="css/base.css">
@@ -84,10 +83,12 @@ function toggleSection(header) {
 // ═══════════════════════════════════════════════════════
 </script>
 
+<!-- Live Cotality sale / rental search contract — inlined by build.js from data/cotality-enums.live.json -->
+<!-- @cotality-contract -->
+
 <!-- Core -->
 <script src="js/core/api-client.js"></script>
 <script src="js/core/agent-context.js"></script>
-<script src="js/core/email-service.js"></script>
 <script src="js/core/nav.js"></script>
 
 <!-- Manage Listings + Open Houses -->
@@ -97,6 +98,8 @@ function toggleSection(header) {
 <!-- Search -->
 <script src="js/search/date-range-picker.js"></script>
 <script src="js/search/search-engine.js"></script>
+<script src="js/search/agent-office-picker.js"></script>
+<script src="js/search/field-box.js"></script>
 <script src="js/search/form-ui-helpers.js"></script>
 <script src="js/search/agent-functions.js"></script>
 <script src="js/search/search-actions.js"></script>
@@ -145,6 +148,8 @@ function toggleSection(header) {
 
 <!-- Search: Pagination, Rent vs Buy, Filter -->
 <script src="js/search/pagination.js"></script>
+<!-- Comparable Reports: comparables from live Cotality, CMA valuation, reports -->
+<script src="js/search/comparables.js"></script>
 <script src="js/search/rent-vs-buy.js"></script>
 <script src="js/search/filter-modal.js"></script>
 <script src="js/search/neighborhood-autocomplete.js"></script>
@@ -162,7 +167,7 @@ function toggleSection(header) {
 <!-- Hash routing -->
 <script src="js/init/init-hash-routing.js"></script>
 
-<!-- Disable CRM search controls that don't reach the backend (Batch 3, 2026-05-04) -->
+<!-- Search controls checked against the live Cotality contract per sale / rental; generated advanced fields -->
 <script src="js/init/init-disable-dead-controls.js"></script>
 
 <!-- Compliance: REBNY Gates + Fair Housing + Content Scanners -->

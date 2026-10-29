@@ -47,7 +47,7 @@ function checkRateLimit(ip: string): boolean {
 /**
  * PR-S.1c + PR-S.1d (2026-05-15) — minimal `$select` for suggest's Trestle calls.
  *
- * Default `fetchFromTrestle()` pulls all 902 `IDX_PLUS_SELECT_FIELDS`. For
+ * Default `fetchFromTrestle()` pulls every `IDX_PLUS_SELECT_FIELDS` field. For
  * autocomplete that's wasteful (latency + payload bloat). We only need:
  *   - Gate fields (so `checkDistributionGates(raw)` and the secondary
  *     address-suppression check can evaluate correctly)
@@ -57,9 +57,12 @@ function checkRateLimit(ip: string): boolean {
  * Gate-input audit (vs `lib/compliance/gates.ts` `evaluateDisplayGate`,
  * via `checkDistributionGates` wrapper in `lib/idx/trestle-mapper.ts`):
  *
- *   - `Permission`                       → `isOwnerOptOut`, `isParticipantOnly`
- *   - `StandardStatus`                   → `readStatus`, terminal-status gate
- *   - `MlsStatus`                        → `readStatus` + `OwnerOptOut` sentinel
+ *   - `Permission`                       → `isParticipantOnly` (Owner Opt-Out has no
+ *                                          live Cotality signal -- see
+ *                                          lib/compliance/gates.ts::isOwnerOptOut, which
+ *                                          reads only the DB-cached owner_opt_out column)
+ *   - `StandardStatus`                   → `readStatus`, terminal-status gate (MlsStatus is
+ *                                          never consulted by any gate -- Master Plan Section 0.6)
  *   - `InternetEntireListingDisplayYN`   → Gate 3 (entire-listing display)
  *   - `InternetAddressDisplayYN`         → Gate 4 (address display)
  *   - `CloseDate`                        → Gate 5 (closed past 24h) +
@@ -80,9 +83,11 @@ export const SUGGEST_SELECT_FIELDS = [
   // Identifiers
   'ListingId',
   'ListingKey',
-  // Distribution-gate inputs (see REBNY compliance §2 + gates.ts above)
+  // Distribution-gate inputs (see REBNY compliance §2 + gates.ts above).
+  // MlsStatus removed (2026-10-02 Status cutover): no gate reads it (see
+  // the gate-input audit comment above) and no other reader in this route
+  // needs it.
   'StandardStatus',
-  'MlsStatus',
   'Permission',
   'InternetEntireListingDisplayYN',
   'InternetAddressDisplayYN',

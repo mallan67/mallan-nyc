@@ -98,6 +98,7 @@ describe('BUYER-DEAL-FORM submitBuyerDeal — backend wiring', () => {
     expect(body).toMatch(/payload\.company_fee_usd/);
     expect(body).toMatch(/payload\.gross_commission_usd/);
     expect(body).toMatch(/payload\.contract_signed/);
+    expect(body).toMatch(/payload\.contract_closed/);
     // property_address is set inside the initial payload literal
     // (`{ representation_code, property_address: propertyAddress }`),
     // not via `payload.property_address = …`. Accept either shape.
@@ -203,16 +204,17 @@ describe('TENANT-DEAL-FORM submitTenantDeal — backend wiring', () => {
     expect(body).toMatch(/representation_code\s*:\s*['"]tenant['"]/);
   });
 
-  it('annualizes monthly rent for price_usd (matches submitTenantCommissionRequest)', () => {
-    // The canonical commission handler at line ~1209 sets
-    // price_usd = parsedRent * 12. The header submit must use the
-    // same convention so the two handlers don't disagree.
-    expect(body).toMatch(/\*\s*12/);
+  it('persists the agreed monthly rent as price_usd for a tenant deal', () => {
+    expect(body).toMatch(/payload\.price_usd\s*=\s*monthlyRent/);
+    expect(body).not.toMatch(/payload\.price_usd\s*=\s*annualRentUsd/);
   });
 
-  it('uses lease start date as contract_signed', () => {
-    expect(body).toMatch(/tenantLeaseStartDate/);
+  it('keeps contract date, close date, and lease-start logistics semantically separate', () => {
+    expect(body).toMatch(/tenantContractDate/);
+    expect(body).toMatch(/tenantCloseDate/);
     expect(body).toMatch(/payload\.contract_signed/);
+    expect(body).toMatch(/payload\.contract_closed/);
+    expect(body).not.toMatch(/payload\.contract_signed\s*=\s*new Date\(leaseStart/);
   });
 
   it('payload field names match createDealSchema', () => {
@@ -292,6 +294,7 @@ describe('Backend contract — schema + route + client method exist', () => {
     expect(src).toMatch(/company_fee_usd\s*:\s*z\.coerce\.number/);
     expect(src).toMatch(/gross_commission_usd\s*:\s*z\.coerce\.number/);
     expect(src).toMatch(/contract_signed\s*:\s*z\.string\(\)\.datetime/);
+    expect(src).toMatch(/contract_closed\s*:\s*z\.string\(\)\.datetime/);
   });
 
   it('POST /api/crm/deals route exists and uses createDealSchema + createDeal()', () => {
@@ -372,6 +375,7 @@ describe('Out-of-scope guards (PR-CRM.1 must not touch unrelated files)', () => 
     expect(src).toMatch(/model\s+Deal\s*\{[\s\S]*?commission_rate_percent\s+Decimal\?/);
     expect(src).toMatch(/model\s+Deal\s*\{[\s\S]*?gross_commission_usd\s+Decimal\?/);
     expect(src).toMatch(/model\s+Deal\s*\{[\s\S]*?contract_signed\s+DateTime\?/);
+    expect(src).toMatch(/model\s+Deal\s*\{[\s\S]*?contract_closed\s+DateTime\?/);
   });
 
   it('PR-CRM.1 does NOT modify the IDX sync cron, schema, or compliance modules', () => {

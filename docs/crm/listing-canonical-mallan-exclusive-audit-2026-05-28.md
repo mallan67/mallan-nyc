@@ -1,11 +1,11 @@
-# Listing Identity Audit — Mallan CRM Exclusive vs Trestle/IDX Duplicate
+# Listing Identity Audit — Mallan CRM Exclusive vs Cotality/IDX Duplicate
 
 > Generated 2026-05-28, **revised the same day** after Maya's correction.
 > On branch `fix/listing-canonical-mallan-exclusive-identity`. **Audit only — no code changed.**
 >
 > **Original mis-diagnosis (now superseded):** I initially attributed SL-0004's "RLS · Listing Courtesy of MAllan Real Estate Inc" rendering on the agent page to "DTO drift / two converters out of sync." That diagnosis was incomplete. The actual render is correct — it's rendering a **DIFFERENT DB row** that legitimately has `_source: 'db+idx'`.
 >
-> **Corrected root cause (verified by direct API probe):** the production database contains TWO rows for the same physical listing — Maya's CRM exclusive (`SL-0004`) AND a Trestle-synced copy (`RLS20093870`) that REBNY assigned after Maya submitted the listing to RLS. Different surfaces of the frontend render different rows, producing the inconsistent attribution / URL / placement Maya observed.
+> **Corrected root cause (verified by direct API probe):** the production database contains TWO rows for the same physical listing — Maya's CRM exclusive (`SL-0004`) AND a Cotality-synced copy (`RLS20093870`) that REBNY assigned after Maya submitted the listing to RLS. Different surfaces of the frontend render different rows, producing the inconsistent attribution / URL / placement Maya observed.
 >
 > **Maya's decision (locked):** Option A — **query-time dedupe**. Public surfaces show only the CRM row when a CRM exclusive and an IDX-sourced duplicate exist for the same physical unit. The IDX row stays in DB for audit history; it just does not render publicly.
 
@@ -22,7 +22,7 @@ Returns SIX rows. **Two of them are the same physical unit (333 E 46th St #2G):*
 | Row | `id` | `mlsId` | `unit` | `_source` | `listOfficeName` | `attributionText` | Origin |
 |---|---|---|---|---|---|---|---|
 | 1 | `SL-0004` | `SL-0004` | 2G | `'exclusive'` | `'REBNY RLS'` (DTO fallback when `agent_info.ListOfficeName` is empty) | `Exclusive listing by Mallan Real Estate Inc.` | CRM POST by Maya |
-| 2 | `RLS20093870` | `RLS20093870` | 2G | `'db+idx'` | `'MAllan Real Estate Inc'` (literal value from Trestle, including the capital-A typo as Maya submitted it to REBNY) | `Listing courtesy of MAllan Real Estate Inc` | Trestle sync → after Maya submitted SL-0004 to REBNY RLS, the sync pulled the listing back as a separate row |
+| 2 | `RLS20093870` | `RLS20093870` | 2G | `'db+idx'` | `'MAllan Real Estate Inc'` (literal value from Cotality, including the capital-A typo as Maya submitted it to REBNY) | `Listing courtesy of MAllan Real Estate Inc` | Cotality sync → after Maya submitted SL-0004 to REBNY RLS, the sync pulled the listing back as a separate row |
 | 3 | `RLS20087929` | `RLS20087929` | 20B | `'db+idx'` | `'Douglas Elliman Real Estate'` | `Listing courtesy of Douglas Elliman` | Real third-party IDX — different unit, NOT a dedupe candidate |
 | 4 | `RLS20078427` | `RLS20078427` | 16F | `'db+idx'` | `'Douglas Elliman Real Estate'` | — | Real third-party IDX — different unit |
 | 5 | `RLS20036865` | `RLS20036865` | 1D | `'db+idx'` | `'Douglas Elliman Real Estate'` | — | Real third-party IDX — different unit |
@@ -64,7 +64,7 @@ Every server endpoint that returns public listing data calls `filterDisplayableD
 
 ### Why the agent page picks the IDX duplicate (S3)
 
-`/api/agents/[slug]/listings/route.ts:152` queries `prisma.listing.findMany` with a `where` that includes the agent's `mls_id` matching `agent_info.ListAgentMlsId`. Maya's listing was submitted to REBNY with her ListAgentMlsId attached, so the Trestle sync wrote that to `RLS20093870.agent_info.ListAgentMlsId`. The query matches both rows, but the IDX row sorts earlier (probably by `modification_timestamp` since the sync is more recent than the CRM POST), so the agent page renders RLS20093870 first.
+`/api/agents/[slug]/listings/route.ts:152` queries `prisma.listing.findMany` with a `where` that includes the agent's `mls_id` matching `agent_info.ListAgentMlsId`. Maya's listing was submitted to REBNY with her ListAgentMlsId attached, so the Cotality sync wrote that to `RLS20093870.agent_info.ListAgentMlsId`. The query matches both rows, but the IDX row sorts earlier (probably by `modification_timestamp` since the sync is more recent than the CRM POST), so the agent page renders RLS20093870 first.
 
 **Net:** the dedupe helper at S3 is required — the IDX duplicate is literally the active first match in the query result. Without dedupe, the agent page shows the wrong row.
 
@@ -78,11 +78,11 @@ New file: `lib/listings/dedupe-crm-vs-idx.ts`
 
 ```ts
 /**
- * Public-surface dedupe — prefer Mallan CRM exclusive over Trestle/IDX duplicate
+ * Public-surface dedupe — prefer Mallan CRM exclusive over Cotality/IDX duplicate
  * when both rows represent the same physical unit.
  *
  * Background: when a CRM exclusive (SL-/RL- prefix) is submitted to REBNY RLS
- * via Cotality, Trestle syncs the listing back into our DB as a separate row
+ * (via RealPlus), the Cotality feed syncs the listing back into our DB as a separate row
  * keyed by REBNY's ListingKey. The two rows are the same physical unit but
  * have different listing_ids, slugs, attribution text, and URLs. Public
  * surfaces should show only the CRM row to avoid duplicate cards, wrong
@@ -149,7 +149,7 @@ That UI label is a small follow-up — not required for the dedupe PR but worth 
 4. **Given** dedupe is applied at S1, the URL emitted in the response payload for the deduped CRM row uses `buildCanonicalListingPath` → `/listing/{address}/sl-0004` only. No hybrid, no `?key=`.
 5. **Given** SL-0004 and a hypothetical SL-0005 in different units of the same building, both are returned (different `UnitNumber`, no dedupe). Regression guard.
 6. **Given** "333 E 46th" and "333 W 46th" rows (same number/name, different `StreetDirPrefix`), both are returned (different direction, no dedupe). Regression guard.
-7. **Given** an SL-0004 row with `internet_address_display_yn === false` (suppressed address) and a Trestle row with the same address, **neither row is shown publicly** (suppression wins) — and the deduper does NOT leak the suppressed address by matching on it.
+7. **Given** an SL-0004 row with `internet_address_display_yn === false` (suppressed address) and a Cotality row with the same address, **neither row is shown publicly** (suppression wins) — and the deduper does NOT leak the suppressed address by matching on it.
 8. **Given** a pure-IDX group with no CRM exclusive (4 Douglas Elliman rows in the audit, different units), all are kept (helper is a no-op when no SL-/RL- row in group).
 9. **Sitemap** test: when a CRM exclusive + IDX duplicate exist, sitemap emits only the canonical CRM URL (one entry per physical listing).
 10. **CRM /api/crm/listings is untouched**: the same DB state returns BOTH rows on the CRM backend search path (broker can see the duplicate). Regression guard against accidentally deduping the CRM path.
@@ -194,7 +194,7 @@ That UI label is a small follow-up — not required for the dedupe PR but worth 
 
 ## 7 · TL;DR
 
-- **You were right.** The "looks like RLS" rendering is not a render bug — there are literally two rows in our DB for the same listing (SL-0004 CRM exclusive + RLS20093870 Trestle-synced duplicate).
+- **You were right.** The "looks like RLS" rendering is not a render bug — there are literally two rows in our DB for the same listing (SL-0004 CRM exclusive + RLS20093870 Cotality-synced duplicate).
 - **One dedupe helper, five insertion points.** New `lib/listings/dedupe-crm-vs-idx.ts`. Wired into `/api/listings`, `/api/listings/suggest`, `/api/agents/[slug]/listings`, `/api/listings/similar`, and `app/sitemap.ts`. ~5 lines of integration each.
 - **CRM backend NOT deduped.** Broker can still see both rows so duplicates remain visible internally for cleanup decisions.
 - **No DB mutation, no destructive operation.** The IDX duplicate stays in the DB for audit history; it just doesn't render publicly.

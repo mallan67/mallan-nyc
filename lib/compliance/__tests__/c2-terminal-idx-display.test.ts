@@ -1,9 +1,9 @@
 /**
- * C2 fix (2026-05-13) — status-aware idx_display_yn in the Trestle writer.
+ * C2 fix (2026-05-13) — status-aware idx_display_yn in the Cotality raw-mapper writer.
  *
  * Before this fix, `lib/idx/trestle-mapper.ts:724` computed
  * `idxDisplayYn = internetEntireListing && !participantOnly && !ownerOptOut`
- * without consulting `StandardStatus`. Every time Trestle re-emitted a
+ * without consulting `StandardStatus`. Every time Cotality re-emitted a
  * terminal row (price update, photo edit, ModificationTimestamp tick), the
  * next idx-sync pass set `idx_display_yn = true` again and undid the
  * 03:00 UTC data-retention cron's §2.05 §2.05 cleanup. Audit-event JOIN
@@ -19,7 +19,12 @@
  *   - Explicit `InternetEntireListingDisplayYN=false` still forces false
  *     regardless of status.
  *   - Permission='Private' (participant-only) still forces false.
- *   - Permission='OwnerOptOut' / 'Owner Opt-Out' still forces false.
+ *   - Owner Opt-Out (2026-10-02 Permission cutover): the pure mapper no
+ *     longer forces false on Permission='OwnerOptOut'/'Owner Opt-Out' --
+ *     there is no live Cotality signal for it (confirmed via
+ *     trestle_get_picklist). applyLocalOwnerOptOutGate forces it instead,
+ *     from the existing stored owner_opt_out row -- see the 'C2 — permission
+ *     overrides still force idx_display_yn=false' describe block below.
  *   - Regression: a closed row with all-true permissions cannot be
  *     re-flipped to true by the mapper's output.
  *
@@ -29,7 +34,7 @@
  * automatically expand the cron's effective scope via this same import.
  */
 
-import { mapTrestleToPrisma, TERMINAL_STATUSES } from '../../idx/trestle-mapper';
+import { mapTrestleToPrisma, TERMINAL_STATUSES, applyLocalOwnerOptOutGate } from '../../idx/trestle-mapper';
 
 const REQUIRED_MIN_FIELDS: Record<string, unknown> = {
   ListingId: 'RLS20000001',
@@ -87,7 +92,7 @@ describe('C2 — terminal statuses force idx_display_yn=false', () => {
     const mapped = mapTrestleToPrisma(raw);
     expect(mapped.idx_display_yn).toBe(false);
     // Sanity — the display permission booleans themselves are still TRUE
-    // (the writer doesn't lie about Trestle's input); only the legacy
+    // (the writer doesn't lie about Cotality's input); only the legacy
     // `idx_display_yn` aggregate is forced false.
     expect(mapped.internet_entire_listing_display_yn).toBe(true);
     expect(mapped.internet_address_display_yn).toBe(true);
@@ -165,7 +170,7 @@ describe('C2 — permission overrides still force idx_display_yn=false', () => {
   );
 
   it.each(['Active', 'ComingSoon', 'ActiveUnderContract'])(
-    '%s + Permission=OwnerOptOut → false',
+    '[Permission cutover 2026-10-02] %s + Permission=OwnerOptOut no longer blocks the pure mapper output — owner_opt_out has no live Cotality signal',
     (status) => {
       const raw = buildRaw({
         StandardStatus: status,
@@ -173,30 +178,27 @@ describe('C2 — permission overrides still force idx_display_yn=false', () => {
         Permission: 'OwnerOptOut',
       });
       const mapped = mapTrestleToPrisma(raw);
-      expect(mapped.idx_display_yn).toBe(false);
-      expect(mapped.owner_opt_out).toBe(true);
+      expect(mapped.idx_display_yn).toBe(true);
+      expect(mapped).not.toHaveProperty('owner_opt_out');
     },
   );
 
-  it.each(['Active', 'ComingSoon', 'ActiveUnderContract'])(
-    '%s + Permission="Owner Opt-Out" (display variant) → false',
-    (status) => {
-      const raw = buildRaw({
-        StandardStatus: status,
-        InternetEntireListingDisplayYN: true,
-        Permission: 'Owner Opt-Out',
-      });
-      const mapped = mapTrestleToPrisma(raw);
-      expect(mapped.idx_display_yn).toBe(false);
-    },
-  );
+  it('[Permission cutover 2026-10-02] applyLocalOwnerOptOutGate still forces idx_display_yn=false for an owner-opted-out row on UPDATE', () => {
+    const raw = buildRaw({
+      StandardStatus: 'Active',
+      InternetEntireListingDisplayYN: true,
+      Permission: 'OwnerOptOut',
+    });
+    const mapped = mapTrestleToPrisma(raw);
+    expect(applyLocalOwnerOptOutGate(mapped.idx_display_yn, true)).toBe(false);
+  });
 });
 
 describe('C2 — regression: a closed row cannot be re-flipped true by mapper output', () => {
   it('reproduces the audit-trail scenario from the C2 investigation', () => {
     // Synthesizes the production scenario observed on RLS20070684 etc.:
     //   - The data-retention cron set idx_display_yn=false at 03:00 UTC.
-    //   - Trestle then re-emits the same listing later in the day with the
+    //   - Cotality then re-emits the same listing later in the day with the
     //     status still Closed but display permissions still true (the
     //     normal post-close state on the IDX Plus feed).
     //   - Pre-fix: mapper recomputed true and the next idx-sync flipped the
@@ -262,7 +264,7 @@ describe('C2 — DOM/typo robustness', () => {
     // Phase A (2026-05-20): the inline gate computation moved into the
     // shared `computeGateColumns` helper, which always runs
     // `normalizeStandardStatus` on its `status` input. That means even the
-    // Trestle-sourced mapper path now case-folds "closed" → "Closed" and
+    // Cotality-sourced mapper path now case-folds "closed" → "Closed" and
     // matches the canonical TERMINAL_STATUSES set — so a hypothetical
     // upstream emit of lowercased "closed" is now correctly blocked at the
     // writer instead of silently passing through.
@@ -270,7 +272,7 @@ describe('C2 — DOM/typo robustness', () => {
     // The cron predicate at app/api/cron/data-retention/route.ts:79 still
     // uses Prisma's exact-case `status: { in: [...] }`, so this is a one-
     // sided defensive improvement: the writer is now MORE defensive than
-    // the cron. If Trestle ever did emit "closed" (lowercase), the writer
+    // the cron. If Cotality ever did emit "closed" (lowercase), the writer
     // would set idx_display_yn=false at ingest time and no cron sweep
     // would be needed. Strictly safer than the previous symmetric-but-
     // permissive contract.

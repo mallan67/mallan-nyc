@@ -15,11 +15,11 @@ strongly it is enforced, and the exact conditions under which it may merge.
 **Correction trace docs / templates**
 - `docs/audits/corrections/_TEMPLATE.md` — the per-correction Trace Record template (RED proof now
   forbids grep-only, per §F).
-- `docs/audits/corrections/U4-offer-transmit-ownership.md` — **PLANNED** seed only (no fix yet).
+- the U4 Correction Trace Record — **PLANNED** seed only at the time (since settled; retired to git history).
 
 **Settlement ledger / plan docs**
 - `docs/audits/settlement-ledger-2026-06.md` — single source of "is it settled."
-- `docs/audits/phase1-unverified-traces-2026-06-07.md` — read-only Phase 1 trace findings.
+- the 2026-06-07 Phase 1 unverified-trace sweep — read-only trace findings (retired to git history).
 - `docs/superpowers/plans/2026-06-07-settlement-gates-and-oversight-plan.md` — the gate/oversight
   plan (micro/macro, anti-skip §G, the implemented checkers §G8).
 - `docs/audits/pr372-improvement-and-merge-gate-2026-06-07.md` — this document.

@@ -2,7 +2,7 @@
 /**
  * Shared open-house resolver (lib/open-houses/upcoming-open-houses.ts) — the single source of truth
  * for the open-house SCOPE constants and the listing-card `nextOpenHouse` matching. Runtime unit
- * tests for the pure functions; the live Trestle/DB fetch is exercised separately (probes + e2e).
+ * tests for the pure functions; the live Cotality/DB fetch is exercised separately (probes + e2e).
  *
  * Key property under test: TWIN-SAFE matching. #4D is the website-only exclusive SL-0007 on
  * Featured/exclusive surfaces but its open house lives on the RLS twin RLS20099289 — a plain
@@ -36,7 +36,11 @@ describe('open-house resolver — scope constants (single source of truth)', () 
 
 describe('open-house resolver — isMallanOwnedLocalListing', () => {
   it('website-only exclusive (rls_eligible=false) is Mallan-owned', () => {
-    expect(isMallanOwnedLocalListing({ rls_eligible: false, listing_id: 'anything' })).toBe(true);
+    expect(isMallanOwnedLocalListing({ rls_eligible: false, listing_id: 'SL-0099' })).toBe(true);
+  });
+  it('a false eligibility flag on an imported row never grants local open-house ownership', () => {
+    expect(isMallanOwnedLocalListing({ rls_eligible: false, listing_id: 'RLS20105333' })).toBe(false);
+    expect(isMallanOwnedLocalListing({ rls_eligible: false, listing_id: 'unknown' })).toBe(false);
   });
   it('SL-/RL- prefixed CRM listing is Mallan-owned', () => {
     expect(isMallanOwnedLocalListing({ rls_eligible: true, listing_id: 'SL-0007' })).toBe(true);

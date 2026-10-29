@@ -57,6 +57,9 @@ const CRM_CSP = [
   "img-src 'self' data: blob: https://images.unsplash.com https://*.trestle.com https://api.cotality.com https://*.r2.dev https://images.mallan.nyc https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://tiles.openfreemap.org",
   "connect-src 'self' https://nominatim.openstreetmap.org https://api.mapbox.com https://*.basemaps.cartocdn.com https://tiles.openfreemap.org https://api.cotality.com",
   "worker-src 'self' blob:",
+  // Listing video / 3D tours embedded in the agent search detail view: exactly the hosts
+  // lib/search/crm-idx-mapper.ts TOUR_EMBED_HOSTS embeds (other tour links open in a new tab).
+  "frame-src https://www.youtube.com https://player.vimeo.com https://my.matterport.com https://listing3d.com https://kuula.co",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -125,6 +128,9 @@ export function applySecurityHeaders(response: NextResponse, pathname: string, m
         // /api/buildings/search, which is authenticated (handled as private above).
         pathname === "/api/buildings" ||
         pathname.startsWith("/api/media/proxy") ||
+        // ONLY the exact public route (app/api/media/health/route.ts): its whole purpose is its own `s-maxage` (Cotality, which meters media requests for the
+        // whole account, is asked once per photo per cache window), which no-store here would silently defeat.
+        pathname === "/api/media/health" ||
         pathname === "/api/idx/watermark");
     if (!isPublicCacheableApi) {
       response.headers.set("Cache-Control", "no-store");

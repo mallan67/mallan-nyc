@@ -74,25 +74,17 @@ import { POST } from '../route';
  * route used to exempt any `SL-`/`RL-` prefix from the IDX redistribution gates,
  * so an RLS-eligible row with `idx_display_yn: false` was sent anyway.
  *
- * SL-0004 is a WEBSITE-ONLY exclusive — non-RLS inventory — per four
- * independent sources in this repository:
- *
- *   docs/architecture/SELLER-001-SPEC-2026-07-03.md:21
- *     "SL-0004 (website-only exclusive; Trestle copy of same unit: RLS20093870)"
- *   docs/audits/corrections/P1C6-feed-reconcile-eligible-orphans.md:242
- *     "SL-0004 and other non-RLS exclusives correctly excluded — they are never
- *      in the Cotality Active [feed]"
- *   docs/audits/corrections/P1C6-feed-reconcile-eligible-orphans.md:200
- *     "SL-0004 (a Mallan exclusive, correctly never in the Trestle [feed])"
- *   app/listing/[...slug]/page.tsx:456
- *     "Mallan's own website-only exclusives like SL-0004"
+ * SL-0004 is a WEBSITE-ONLY Mallan exclusive — non-RLS inventory. It is never
+ * in the Cotality feed; the RLS copy of the same physical unit is RLS20093870.
+ * app/listing/[...slug]/page.tsx treats SL-0004 the same way (Mallan's own
+ * website-only exclusives show their address).
  *
  * With `rls_eligible: false` these tests now pass for the RIGHT reason —
  * SL-0004 is distributable because it is NOT RLS redistribution inventory, not
  * because its id happens to start with "SL-". The prefix carries no permission.
  *
  * The third-party case below overrides `listing_id` to `RLS20093870` (the
- * Trestle copy of the SAME unit) and sets `rls_eligible: true`, so it is
+ * Cotality feed copy of the SAME unit) and sets `rls_eligible: true`, so it is
  * correctly gated.
  */
 const baseRow = {
@@ -172,7 +164,7 @@ describe('gate — hard blockers still fail closed', () => {
   });
 
   it('blocks a THIRD-PARTY IDX listing when idx_display_yn is not affirmed', async () => {
-    // RLS20093870 is the Trestle copy of the SAME physical unit as SL-0004, and
+    // RLS20093870 is the Cotality feed copy of the SAME physical unit as SL-0004, and
     // it IS RLS inventory — so it must carry rls_eligible: true here.
     mockFindUnique.mockResolvedValue({
       ...baseRow,

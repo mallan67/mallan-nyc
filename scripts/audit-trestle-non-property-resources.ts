@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
-// Per-resource Trestle $select audit for non-Property resources.
+// Per-resource Cotality $select audit for non-Property resources.
 //
 // Scans every line that addresses a non-Property OData resource and extracts
 // the explicit $select field list. Then cross-checks each name against the
@@ -38,12 +38,19 @@ async function getToken(): Promise<string> {
       grant_type: 'client_credentials', scope: 'api',
     }),
   });
-  return ((await res.json()) as { access_token: string }).access_token;
+  if (!res.ok) throw new Error(`Cotality token request failed (${res.status})`);
+  const payload = (await res.json()) as { access_token?: unknown };
+  if (typeof payload.access_token !== 'string' || !payload.access_token.trim()) {
+    throw new Error('Cotality token response has no usable access_token');
+  }
+  return payload.access_token;
 }
 
 async function getResourceFields(): Promise<Map<string, Set<string>>> {
   const token = await getToken();
-  const xml = await (await fetch(`${TRESTLE_BASE}/odata/$metadata`, { headers: { authorization: `Bearer ${token}` } })).text();
+  const response = await fetch(`${TRESTLE_BASE}/odata/$metadata`, { headers: { authorization: `Bearer ${token}` } });
+  if (!response.ok) throw new Error(`Cotality metadata request failed (${response.status})`);
+  const xml = await response.text();
   const byResource = new Map<string, Set<string>>();
   const entityRegex = /<EntityType\s+Name\s*=\s*"([^"]+)"[\s\S]*?<\/EntityType>/g;
   let em;
@@ -54,6 +61,9 @@ async function getResourceFields(): Promise<Map<string, Set<string>>> {
     let pm;
     while ((pm = propRegex.exec(em[0])) !== null) fields.add(pm[1]);
     byResource.set(name, fields);
+  }
+  if (byResource.size === 0 || ![...byResource.values()].some((fields) => fields.size > 0)) {
+    throw new Error('Cotality metadata contains no readable entity fields; live audit is UNVERIFIED');
   }
   return byResource;
 }
@@ -82,7 +92,7 @@ interface Finding {
 }
 
 (async () => {
-  console.log('Pulling live Trestle metadata...');
+  console.log('Pulling live Cotality metadata...');
   const liveByResource = await getResourceFields();
   console.log(`  ✓ ${liveByResource.size} resources in live $metadata`);
   console.log('');

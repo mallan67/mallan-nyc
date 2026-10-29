@@ -143,18 +143,18 @@ export default async function AgentPage({ params }: Props) {
   const { activeSales, activeRentals, closedSales, closedRentals } = listingsData;
   const { sales: pastSales, rentals: pastRentals } = pastDealsData;
 
-  // Merge Trestle closed deals with PastDeal DB data, deduplicated
+  // Merge Cotality closed deals with PastDeal DB data, deduplicated
   const pastSaleIds = new Set(pastSales.map((d) => d.listingKey).filter(Boolean));
-  const trestleClosedSalesNew = closedSales.filter(
+  const cotalityClosedSalesNew = closedSales.filter(
     (l: any) => !pastSaleIds.has(l.mlsId) && !pastSaleIds.has(l.id)
   );
   const pastRentalIds = new Set(pastRentals.map((d) => d.listingKey).filter(Boolean));
-  const trestleClosedRentalsNew = closedRentals.filter(
+  const cotalityClosedRentalsNew = closedRentals.filter(
     (l: any) => !pastRentalIds.has(l.mlsId) && !pastRentalIds.has(l.id)
   );
 
-  // Convert Trestle closed listings to PastDeal shape for the component
-  const trestleToPastDeal = (l: any, dealType: 'sale' | 'rent') => ({
+  // Convert Cotality closed listings to PastDeal shape for the component
+  const cotalityToPastDeal = (l: any, dealType: 'sale' | 'rent') => ({
     id: l.id || l.mlsId,
     listingKey: l.mlsId || l.id,
     street: `${l.address?.streetNumber || ''} ${l.address?.streetName || ''}`.trim(),
@@ -178,11 +178,11 @@ export default async function AgentPage({ params }: Props) {
 
   const allClosedSales = [
     ...pastSales,
-    ...trestleClosedSalesNew.map((l: any) => trestleToPastDeal(l, 'sale')),
+    ...cotalityClosedSalesNew.map((l: any) => cotalityToPastDeal(l, 'sale')),
   ];
   const allClosedRentals = [
     ...pastRentals,
-    ...trestleClosedRentalsNew.map((l: any) => trestleToPastDeal(l, 'rent')),
+    ...cotalityClosedRentalsNew.map((l: any) => cotalityToPastDeal(l, 'rent')),
   ];
 
   const hasActive = activeSales.length > 0 || activeRentals.length > 0;
@@ -308,7 +308,7 @@ export default async function AgentPage({ params }: Props) {
           </div>
         )}
 
-        {/* Closed Deals — Sold / Rented (merged Trestle + PastDeal DB) */}
+        {/* Closed Deals — Sold / Rented (merged Cotality + PastDeal DB) */}
         {hasClosed && (
           <div id="closed-deals">
             <PastDealsSection sales={allClosedSales} rentals={allClosedRentals} />

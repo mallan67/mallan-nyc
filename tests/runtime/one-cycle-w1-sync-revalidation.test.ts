@@ -48,10 +48,10 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
-const mockFetchFromTrestle = jest.fn();
+const mockFetchFromCotality = jest.fn();
 jest.mock("@/lib/idx/fetch", () => ({
   __esModule: true,
-  fetchFromTrestle: (args: unknown) => mockFetchFromTrestle(args),
+  fetchFromTrestle: (args: unknown) => mockFetchFromCotality(args),
   buildIncrementalFilter: () => "mock-incremental-filter",
   buildActiveFilter: () => "mock-active-filter",
   buildAgentHistoricalFilter: () => "mock-agent-filter",
@@ -136,7 +136,6 @@ function dbRowFromRaw(raw: Record<string, unknown>): Record<string, unknown> {
     internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
     internet_address_display_yn: mapped.internet_address_display_yn,
     participant_only: mapped.participant_only,
-    owner_opt_out: mapped.owner_opt_out,
     address: JSON.parse(JSON.stringify(mapped.address)),
     features: JSON.parse(JSON.stringify(mapped.features)),
     raw_data: JSON.parse(JSON.stringify(mapped.raw_data)),
@@ -228,7 +227,7 @@ describe("One Cycle W1 — syncListings drives cache revalidation", () => {
       ]),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({ records: [rawA, rawBNew], totalFetched: 2 });
+    mockFetchFromCotality.mockResolvedValue({ records: [rawA, rawBNew], totalFetched: 2 });
 
     const result = await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
 
@@ -255,7 +254,7 @@ describe("One Cycle W1 — syncListings drives cache revalidation", () => {
       projections: new Map([["RLS100001", projectionRowFromRaw(rawA)]]),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({ records: [rawA], totalFetched: 1 });
+    mockFetchFromCotality.mockResolvedValue({ records: [rawA], totalFetched: 1 });
 
     const result = await syncListings({ fullSync: true });
 
@@ -266,7 +265,7 @@ describe("One Cycle W1 — syncListings drives cache revalidation", () => {
   it("a brand-new listing (insert) revalidates its tag + search", async () => {
     const rawA = rawRecord();
     wireMocks({ listings: new Map(), projections: new Map() });
-    mockFetchFromTrestle.mockResolvedValue({ records: [rawA], totalFetched: 1 });
+    mockFetchFromCotality.mockResolvedValue({ records: [rawA], totalFetched: 1 });
 
     await syncListings({ fullSync: true });
 
@@ -290,7 +289,7 @@ describe("One Cycle W1 — syncListings drives cache revalidation", () => {
       projections: new Map([["RLS100001", projectionRowFromRaw(oldRaw)]]),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({ records: [newRaw], totalFetched: 1 });
+    mockFetchFromCotality.mockResolvedValue({ records: [newRaw], totalFetched: 1 });
 
     await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
 
@@ -304,7 +303,7 @@ describe("One Cycle W1 — syncListings drives cache revalidation", () => {
   it("revalidation failures are COUNTED but never fail the sync run", async () => {
     const rawA = rawRecord();
     wireMocks({ listings: new Map(), projections: new Map() });
-    mockFetchFromTrestle.mockResolvedValue({ records: [rawA], totalFetched: 1 });
+    mockFetchFromCotality.mockResolvedValue({ records: [rawA], totalFetched: 1 });
     mockRevalidateTag.mockImplementation(() => {
       throw new Error("revalidation store unavailable");
     });

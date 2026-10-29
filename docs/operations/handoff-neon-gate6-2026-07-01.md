@@ -3,6 +3,12 @@
 > Authored by Maya 2026-07-01; fact-checked by Claude against the same-day full-coverage audit
 > (see verification annex at bottom). Give this file to any agent (Claude / Codex / ChatGPT)
 > continuing the Neon / Gate 6 stabilization work.
+>
+> **HISTORICAL (2026-07-01) — not current instruction.** The status, schedules, branches and read-first
+> list below are dated and partly superseded (the prune route and the keepalive cron no longer exist).
+> Current authority is `MALLAN-PLATFORM-MASTER-PLAN.md`; current state and holds are in
+> `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`. This file is kept only because the archive
+> invariants in "Shedding sequence" are not yet recorded in the Master.
 
 ## Read First
 
@@ -11,14 +17,13 @@ Before making any recommendations or changes, read:
 - `AGENTS.md`
 - `docs/PROJECT-HEALTH-DASHBOARD.md`
 - `docs/PLATFORM-ISSUE-REGISTRY.md`
-- `docs/operations/site-audit-handoff-2026-07-01.md`
 
-These are the authoritative project documents. **Do not create parallel documentation.**
+These were the working documents on 2026-07-01; the dated site-audit handoff it also listed is retired (Git history). **Do not create parallel documentation.**
 
 ## Current Objective
 
 We are **not** implementing new features. Current work is stabilizing the production platform
-before continuing development: Neon · Cotality/Trestle synchronization · Archive/Gate 6 ·
+before continuing development: Neon · Cotality synchronization · Archive/Gate 6 ·
 Production health · Platform audit · SEO corrections · Runtime stability.
 
 ## Canonical Production Database
@@ -70,7 +75,7 @@ execute become approvable.
 
 ## Production Scheduling (intentional — do not change)
 
-- Live Cotality/Trestle sync: every 10 minutes
+- Live Cotality sync: every 10 minutes
 - Media synchronization: every 15 minutes
 - DB keepalive: every 15 minutes
 

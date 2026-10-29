@@ -10,7 +10,7 @@
 // - Audit logged
 //
 // Content-Type: multipart/form-data
-// Body: file (image), caption? (string), order? (number)
+// Body: file (image, or a document when type=document: PDF / DOC / DOCX up to 20 MB), caption? (string), order? (number), type? (photo | floorplan | video | document)
 
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
@@ -23,6 +23,10 @@ import {
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateImage, optimizeImage } from "@/lib/images/optimize";
 import { uploadToR2 } from "@/lib/images/r2";
+
+// Documents the agent attaches to a listing (offering plan, financials, ...): PDF / DOC / DOCX, up to 20 MB, CRM-only
+const DOCUMENT_MIME = new Set(["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]);
+const DOCUMENT_MAX_BYTES = 20 * 1024 * 1024;
 import {
   crmMediaKey,
   crmMediaType,
@@ -113,14 +117,21 @@ export async function POST(
   const caption = formData.get("caption")?.toString() || "";
   const orderParam = formData.get("order");
 
-  // Validate image
+  // Validate: an image, or a document (PDF / DOC / DOCX, 20 MB) when the form says type=document
   const mimeType = file.type || "application/octet-stream";
-  const validation = validateImage(file.size, mimeType);
-  if (!validation.valid) {
-    return NextResponse.json(
-      { error: validation.error },
-      { status: 400 }
-    );
+  const isDocument = (formData.get("type")?.toString() || "").toLowerCase() === "document";
+  if (isDocument) {
+    const docOk = DOCUMENT_MIME.has(mimeType) || /\.(pdf|docx?)$/i.test(String(formData.get("caption") || ""));
+    if (!docOk) return NextResponse.json({ error: `Unsupported document type: ${mimeType}. Allowed: PDF, DOC, DOCX` }, { status: 400 });
+    if (file.size > DOCUMENT_MAX_BYTES) return NextResponse.json({ error: "Document exceeds the 20 MB limit" }, { status: 400 });
+  } else {
+    const validation = validateImage(file.size, mimeType);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: validation.error },
+        { status: 400 }
+      );
+    }
   }
 
   // Read file buffer
@@ -160,6 +171,42 @@ export async function POST(
       },
       { status: 409 },
     );
+  }
+
+  // A document: stored as it is (no image variants), listed in the CRM Media modal only — the public resolver drops Document rows
+  if (isDocument) {
+    const docListingId = (listing.listing_id || listing.id.toString()).replace(/[^a-zA-Z0-9_-]/g, "_");
+    const ext = mimeType === "application/pdf" ? "pdf" : mimeType === "application/msword" ? "doc" : mimeType.includes("wordprocessingml") ? "docx" : (String(formData.get("caption") || "").match(/\.(pdf|docx?)$/i)?.[1]?.toLowerCase() || "pdf");
+    const docKey = `listings/${docListingId}/${Date.now()}-document.${ext}`;
+    let docUrl: string;
+    try {
+      docUrl = await uploadToR2(docKey, buffer, mimeType === "application/octet-stream" ? (ext === "pdf" ? "application/pdf" : ext === "doc" ? "application/msword" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document") : mimeType);
+    } catch (err) {
+      console.error("[Media Upload] R2 document upload failed:", err instanceof Error ? err.message : err);
+      return NextResponse.json({ error: "Failed to store the document. Please try again." }, { status: 502 });
+    }
+    const docMax = await prisma.listingMedia.findFirst({ where: { listing_id: listing.listing_id, status: "active" }, orderBy: { order: "desc" }, select: { order: true } });
+    const docData = {
+      media_url_original: docUrl,
+      media_url_cached: docUrl,
+      media_type: "Document",
+      media_category: "Document",
+      media_classification: crmMediaClassification("Document"),
+      order: docMax ? docMax.order + 1 : 0,
+      preferred_photo_yn: false,
+      media_modification_ts: new Date(),
+      r2_key: docKey,
+      status: "active",
+      r2_attempts: null,
+      r2_last_attempt_at: null,
+    };
+    const docRow = existingRow
+      ? await prisma.listingMedia.update({ where: { media_key: mediaKey }, data: docData, select: { media_key: true, media_url_cached: true, order: true, media_type: true } })
+      : await prisma.listingMedia.create({ data: { listing_id: listing.listing_id, media_key: mediaKey, resource_record_key: listing.listing_id, ...docData }, select: { media_key: true, media_url_cached: true, order: true, media_type: true } });
+    const docTouch = crmListingTouchData(listing.last_synced_from_trestle);
+    if (docTouch) await prisma.listing.update({ where: { id: listing.id }, data: docTouch });
+    await logAuditEvent("media_upload", "listing", listing.id.toString(), auth, { action: "document_uploaded", media_key: mediaKey, media_type: "Document", caption, restored: !!existingRow }, req.headers.get("x-forwarded-for") ?? undefined);
+    return NextResponse.json({ listing_id: listing.listing_id, photo: { media_key: docRow.media_key, url: docRow.media_url_cached, order: docRow.order, media_type: docRow.media_type, caption }, document: true, restored: !!existingRow });
   }
 
   // Optimize: strip EXIF/GPS, convert to WebP, generate 3 variants
@@ -283,7 +330,7 @@ export async function POST(
       });
   const restored = !!existingRow;
 
-  // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);
+  // P1C4: never bump MT on Cotality-synced rows (idx-sync cursor reads it);
   // CRM-only exclusives keep the touch (legacy JSON left intact either way).
   // The old "ISR sees the change" rationale was inert — detail pages are
   // time-based ISR (revalidate=300), not MT-triggered.

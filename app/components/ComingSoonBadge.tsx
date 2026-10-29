@@ -11,7 +11,7 @@ export function isComingSoonStatus(status: string | null | undefined): boolean {
   return s === 'comingsoon';
 }
 
-// RESO date-only fields arrive as "YYYY-MM-DD". `new Date("2026-05-01")` parses
+// Cotality date-only fields arrive as "YYYY-MM-DD". `new Date("2026-05-01")` parses
 // as UTC midnight, so toLocaleDateString shifts to the prior calendar day in
 // US timezones west of UTC — that misstates the compliance-facing "until [date]"
 // copy. Construct in local time when the input is date-only; trust JS for full

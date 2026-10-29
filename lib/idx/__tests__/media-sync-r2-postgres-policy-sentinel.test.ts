@@ -138,7 +138,7 @@ function makeDeps(response: Response): MirrorMediaToR2Deps {
   };
 }
 
-/** LIVE-OBSERVED permanent failure — HTTP 404 + Trestle JSON error body. */
+/** LIVE-OBSERVED permanent failure — HTTP 404 + Cotality JSON error body. */
 const permanentDeps = () => makeDeps(makeResponse(404, "application/json; charset=utf-8", LIVE_404_MEDIA_GONE));
 /** LIVE-OBSERVED non-permanent failure — HTTP 200 with a non-image payload. */
 const nonImageDeps = () => makeDeps(makeResponse(200, "application/pdf", "%PDF-1.6"));

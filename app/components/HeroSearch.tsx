@@ -36,10 +36,10 @@ const DEFAULT_SUGGESTIONS: SearchSuggestion[] = [
   { type: 'neighborhood', label: 'Williamsburg', sublabel: 'Brooklyn', value: 'Williamsburg' },
 ];
 
-// Example queries shown as placeholder hints (rotate)
+// Example queries shown as placeholder hints (rotate). Each must be something the search can do: "no fee" is not (No Fee is disabled until a live Cotality field is found, lib/search/types.ts).
 const EXAMPLE_QUERIES = [
   '2br UES doorman under 3M',
-  'studio Chelsea no fee pet friendly',
+  'studio Chelsea pet friendly',
   'prewar coop Park Slope',
   'wburg 1bed w/d near the L',
   'sunny loft Tribeca with views',
@@ -244,6 +244,9 @@ export default function HeroSearch() {
     return {
       tab: parsed.tab,
       ...parsed.filters,
+      // A phrase that was read but is not searched ("no fee") travels in the link as the disabled filter it names: the search page cleans it out of the filters and tells the reader it was not applied,
+      // and why. (It used to vanish here, so the reader was never told.)
+      amenities: [...(parsed.filters.amenities ?? []), ...parsed.unavailable.map((u) => u.key)],
       neighborhood: parsed.neighborhood,
       borough: parsed.borough,
       remainingQuery: parsed.remainingQuery,
@@ -271,7 +274,7 @@ export default function HeroSearch() {
 
     // Natural language parsing (instant, client-side regex)
     setIsSearching(true);
-    const nlSignals = /(\$|under|over|below|above|budget|\d+\s*(br|bed|bath)|studio|condo|co-?op|townhouse|loft|pre-?war|doorman|elevator|pets?|laundry|gym|furnished|pool|parking|no\s*fee|renovated|quiet|sunny|bright|views?|fireplace|balcony|terrace|roof|washer|dryer|w\/d|dishwasher|dogs?|cats?|high\s*ceil)/i;
+    const nlSignals = /(\$|under|over|below|above|budget|\d+\s*(br|bed|bath)|studio|condo|co-?op|townhouse|loft|pre-?war|doorman|elevator|pets?|laundry|gym|furnished|pool|parking|no[\s-]*fees?|no[\s-]+broker[\s-]+fees?|(?:owner|landlord)\s+pays|renovated|quiet|sunny|bright|views?|fireplace|balcony|terrace|roof|washer|dryer|w\/d|dishwasher|dogs?|cats?|high\s*ceil)/i;
     if (nlSignals.test(q)) {
       router.push(buildSearchUrl(regexParse(q)));
       setIsSearching(false);

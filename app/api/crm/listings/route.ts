@@ -3,10 +3,13 @@
 // POST: Create a new listing (runs compliance validation + RLS enforcement gate).
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { resolveOwnerClientId } from "@/lib/crm/access";
+import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateListing } from "@/lib/compliance/rebny-validator";
-import { assertRlsCompliantPayload, scanRecordForFairHousing } from "@/lib/compliance/rls-enforcement";
+import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
+import { nonTextFreeTextKey, nonTextRemarkSlot, scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
@@ -17,6 +20,7 @@ import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
+import { MALLAN_LIST_OFFICE_MLS_IDS } from "@/lib/listings/mallan-source-identity";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -36,26 +40,49 @@ export async function GET(req: NextRequest) {
   const offset = parseInt(searchParams.get("offset") || "0");
 
   // Build where clause with ownership enforcement.
-  // CRM My Listings shows: (1) CRM-created listings (no mls_id — SL-/RL- prefix),
-  // and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle listings
-  // are managed via REBNY RLS directly, not through the CRM.
-  const TRESTLE_CLOSED = ["Closed", "Sold", "Leased", "Rented"];
+  // CRM My Listings shows MALLAN'S OWN listings only:
+  //   (1) CRM-created listings (no mls_id — SL-/RL- prefix), and
+  //   (2) Mallan's listings returned through Cotality/RLS: the row's VERIFIED list-side office is
+  //       Mallan (`list_office_mls_id` ∈ MALLAN_LIST_OFFICE_MLS_IDS, lib/listings/mallan-source-identity.ts;
+  //       '7041' = "MAllan Real Estate Inc", verified live 2026-10-27).
+  // 2026-10-27: the previous clause admitted EVERY closed Trestle-synced row (6,010 rows — Compass,
+  // Corcoran, Elliman …) with no list-side identity test, so "My Listings" showed other firms'
+  // closed deals and none of Mallan's. Identity is the source field: never `agent_id` (a history
+  // association that also matches buyer-side) and never a free-text office name.
   const CRM_HIDDEN = ["Withdrawn", "Cancelled"];
   const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" }, status: { notIn: CRM_HIDDEN } };
   const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" }, status: { notIn: CRM_HIDDEN } };
-  const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_CLOSED } };
-
-  const where: Record<string, unknown> = {
-    OR: [crmCreated, crmCreatedRental, trestleClosed],
+  const mallanRlsCopy = {
+    mls_id: { not: null },
+    list_office_mls_id: { in: [...MALLAN_LIST_OFFICE_MLS_IDS] },
+    status: { notIn: CRM_HIDDEN },
   };
 
-  // Ownership: agent sees only their own, broker sees all
+  const mallanOwn: Array<Record<string, unknown>> = [crmCreated, crmCreatedRental, mallanRlsCopy];
+  const where: Record<string, unknown> = { OR: mallanOwn };
+
+  // Ownership: the broker sees all of Mallan's; an agent sees the rows assigned to them or the
+  // rows they appear on as list / co-list agent (Agent.trestle_mls_id = REBNY member id).
   if (auth.role !== "BROKER") {
-    where.agent_id = auth.userId;
+    const me = await prisma.agent.findUnique({ where: { id: auth.userId }, select: { trestle_mls_id: true } });
+    const mine: Array<Record<string, unknown>> = [{ agent_id: auth.userId }];
+    if (me?.trestle_mls_id) {
+      mine.push({ list_agent_mls_id: me.trestle_mls_id }, { co_list_agent_mls_id: me.trestle_mls_id });
+    }
+    delete where.OR;
+    where.AND = [{ OR: mallanOwn }, { OR: mine }];
   }
 
   if (type) where.listing_type = type;
   if (status) where.status = status;
+
+  // The listings a client OWNS (the seller / landlord): the client workspace reads them by the typed relationship Listing.owner_client_id.
+  const ownerParam = searchParams.get("owner_client_id");
+  if (ownerParam) {
+    const ownerId = safeBigInt(ownerParam);
+    if (!ownerId) return NextResponse.json({ error: "Invalid owner_client_id" }, { status: 400 });
+    where.owner_client_id = ownerId;
+  }
 
   const [listings, total] = await Promise.all([
     prisma.listing.findMany({
@@ -68,6 +95,7 @@ export async function GET(req: NextRequest) {
         listing_id: true,
         mls_id: true,
         agent_id: true,
+        owner_client_id: true,
         status: true,
         listing_type: true,
         property_type: true,
@@ -173,6 +201,7 @@ export async function GET(req: NextRequest) {
       id: l.id.toString(),
       agent_id: l.agent_id?.toString() ?? null,
       assigned_agent_id: l.agent_id?.toString() ?? null,
+      owner_client_id: l.owner_client_id?.toString() ?? null,
       list_price: l.list_price.toString(),
       living_area: l.living_area?.toString() ?? null,
       media,
@@ -257,6 +286,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // The remark slots are text. The Fair Housing scans read text only, and the public listing page calls string methods on PublicRemarks, so an array or an object there is refused here; so is a list or an
+  // object under any other key the scan reads as free text (a headline, a comment, the layout / financing boxes ...): the scan reads strings only, and the value would be saved unread.
+  const nonTextSlot = nonTextRemarkSlot(body) ?? nonTextFreeTextKey(body);
+  if (nonTextSlot) {
+    return NextResponse.json({ error: `${nonTextSlot} must be text` }, { status: 400 });
+  }
+
   // Classify RLS eligibility using UCBA mixed-use model (Art. I, Sec. 5(F))
   // Mixed-use in ≤5 unit buildings → RLS-eligible; >5 units or pure commercial → website-only
   // InHouse listings are website-only by definition — not on RLS.
@@ -271,44 +307,55 @@ export async function POST(req: NextRequest) {
   });
   const rlsEligible = eligibility.rlsEligible;
 
-  // Run REBNY RLS compliance validation (only for RLS-eligible listings)
+  // REBNY RLS validation (RLS-eligible listings). Every row created here is a
+  // Draft (STATUS_INITIAL), so the validation is REPORTED — in the response and
+  // in the stored compliance record — and never refuses the draft; PATCH already
+  // reports it the same way. The hard gate is the status route, where a Mallan
+  // exclusive becomes display-ready (2026-10-28: while this was a 422 the forms'
+  // Save Draft could not create a row at all).
   let validation: { valid: boolean; errors: string[]; warnings: string[]; suggestions: string[]; compliance: unknown } = {
     valid: true, errors: [], warnings: [], suggestions: [], compliance: {},
   };
   if (rlsEligible) {
     validation = validateListing(body);
-    if (!validation.valid) {
-      return NextResponse.json(
-        {
-          error: "Listing failed compliance validation",
-          validation: {
-            errors: validation.errors,
-            warnings: validation.warnings,
-            suggestions: validation.suggestions,
-            compliance: validation.compliance,
-          },
-        },
-        { status: 422 }
-      );
-    }
 
     // RLS Enforcement Gate — hard gate on UCBA/RLS rules for write path
     const enforcement = assertRlsCompliantPayload(body, {
       listingType: listingType as "sale" | "rent",
-      isNewDevelopment: body.NewDevelopmentYN === true,
+      // New development IS new construction (owner rule, 2026-10-26): the live Cotality field is
+      // NewConstructionYN; NewDevelopmentYN is a legacy Mallan-only key kept for older payloads.
+      isNewDevelopment: body.NewConstructionYN === true || body.NewDevelopmentYN === true,
       currentStatus: (body.MlsStatus as string) || undefined,
       rlsEligible,
       mixedUseSmallBuilding: eligibility.mixedUseSmallBuilding,
     });
-    if (!enforcement.passed) {
+    // The row is created as a Draft: field COMPLETENESS (MF-001 mandatory field
+    // missing, MF-002 no price yet) is reported with the validation and settled
+    // at publish — exactly as PATCH treats a draft-like row. Every other blocker
+    // (UCBA content, Coming Soon rules, removed fields, state, display gates…)
+    // refuses the create as before.
+    // Fair Housing wording (FH-001) is deferred the same way: a Draft is not an advertisement, the wording is flagged (and
+    // reported again under  below) and refused at publication (PATCH /status) — owner rule: never blocks saving.
+    const isDraftDeferred = (code: string) =>
+      code === "MF-001" || code === "MF-002" || code.startsWith("CF-") || code === "FH-001"; // mandatory / price / conditional field completeness / wording
+    const deferred = enforcement.blockers.filter((b) => isDraftDeferred(b.code));
+    const fatal = enforcement.blockers.filter((b) => !isDraftDeferred(b.code));
+    if (fatal.length > 0) {
       return NextResponse.json(
         {
           error: "Listing blocked by RLS enforcement gate",
-          blockers: enforcement.blockers,
-          warnings: enforcement.warnings,
+          blockers: fatal,
+          warnings: [...enforcement.warnings, ...deferred],
         },
         { status: 422 }
       );
+    }
+    if (deferred.length > 0) {
+      validation = {
+        ...validation,
+        valid: false,
+        errors: [...validation.errors, ...deferred.map((b) => `[RLS] ${b.message}`)],
+      };
     }
 
     // D9: Coming Soon is one-time per address — cannot re-use for same property
@@ -345,6 +392,12 @@ export async function POST(req: NextRequest) {
   // 2. Rename aliases → canonical RLS field names
   // 3. Normalize enum values
   // 4. Apply defaults (IDXEntireListingDisplayYN, SyndicateYN)
+  // The owner (seller / landlord) of the listing is a CRM client (Lead) the signed-in user may work with. The relationship is the typed column
+  // Listing.owner_client_id (relation ListingOwner) — never a raw_data key — so it survives every edit and reload and the client workspace reads it.
+  const ownerLink = await resolveOwnerClientId(auth, body.owner_client_id);
+  if (ownerLink.response) return ownerLink.response;
+  delete body.owner_client_id;
+
   const { normalized, stripped } = normalizePayload(body);
 
   // Fair Housing applies to ALL advertising, regardless of RLS eligibility (Federal FHA, NY State
@@ -355,31 +408,12 @@ export async function POST(req: NextRequest) {
   // resolved first — scanning raw fields here would let an aliased payload bypass the gate) on EVERY
   // create, before any persistence. (RLS-eligible listings are also scanned inside
   // assertRlsCompliantPayload; the duplicate is harmless defense-in-depth.)
-  const fhRecord: Record<string, string | null | undefined> = {
-    PublicRemarks: normalized.PublicRemarks as string | null | undefined,
-    ShowingInstructions: normalized.ShowingInstructions as string | null | undefined,
-    PrivateRemarks: normalized.PrivateRemarks as string | null | undefined,
-    SyndicationRemarks: normalized.SyndicationRemarks as string | null | undefined,
-  };
-  // Also scan any RAW free-text field the normalizer does not canonicalize but which still persists
-  // (verbatim in raw_data) — the CRM forms POST camelCase remark fields like `agentRemarks`,
-  // `showingInstructions`, `webHeadline` that normalizePayload's aliasToCanonical does not map
-  // (only `description`/`privateRemarks` are aliased). Key on the field NAME so structured enums
-  // (property_sub_type, status, etc.) are NOT scanned and legit values like an "Active Adult"
-  // property type don't false-positive (Codex #460).
-  const FREE_TEXT_KEY = /(remark|description|instruction|headline|comment|note|caption)/i;
-  for (const [key, value] of Object.entries(body)) {
-    if (typeof value === "string" && FREE_TEXT_KEY.test(key)) {
-      fhRecord[`raw:${key}`] = value;
-    }
-  }
-  const fhViolations = scanRecordForFairHousing(fhRecord);
-  if (fhViolations.length > 0) {
-    return NextResponse.json(
-      { error: "Listing blocked by Fair Housing content gate", blockers: fhViolations },
-      { status: 422 }
-    );
-  }
+  // The scan itself (the canonical remark slots, then every other free-text key the body carries, named `raw:<key>`) is shared with the edit route
+  // so the two cannot drift: lib/compliance/listing-fair-housing.ts.
+  // Every create persists as a Draft (STATUS_INITIAL below), and a Draft is not an advertisement: the findings are REPORTED
+  // with the 201 (`fairHousing`), never refused — owner rule: flagged and highlighted, never blocks saving. The same scan
+  // refuses the move to a display-ready status (PATCH /status) and an edit of a display-ready listing (PATCH /:id).
+  const fhViolations = scanListingBodyForFairHousing(body, normalized);
 
   // Derive permission booleans from Permissions string
   // (forms send "OwnerOptOut"/"Private"/"RLS-Owner-OptOut"/etc. — normalizer resolves)
@@ -391,6 +425,8 @@ export async function POST(req: NextRequest) {
   const compliance: Record<string, unknown> = {
     validation_result: validation.compliance,
     validated_at: new Date().toISOString(),
+    valid: validation.valid,
+    errors: validation.errors,
     warnings: validation.warnings,
     stripped_fields: stripped, // Track which removed fields were stripped
     rls_eligibility: {
@@ -441,6 +477,7 @@ export async function POST(req: NextRequest) {
         listing_id: listingId,
         mls_id: (normalized.mls_id as string) ?? null,
         agent_id: auth.userId,
+        owner_client_id: ownerLink.id,
         // H1 amend (2026-05-13): normalize the initial status through the
         // canonical helper even though STATUS_INITIAL is a hardcoded literal
         // today. Pattern-uniform with the body-driven writers; if a future
@@ -499,7 +536,7 @@ export async function POST(req: NextRequest) {
         // if a future refactor allows the create status to come from the
         // request body, the SAME guard (normalize → check TERMINAL_STATUSES)
         // prevents a terminal listing from being born with
-        // idx_display_yn=true. Single source of truth:
+        // idx_display_yn=true. Status helpers:
         // lib/idx/trestle-mapper.ts exports TERMINAL_STATUSES +
         // normalizeStandardStatus.
         idx_display_yn:
@@ -575,7 +612,7 @@ export async function POST(req: NextRequest) {
   // docs/idx/post-reconciliation-tightening-audit-2026-05-20.md: before this
   // change, CRM POST only wrote `listings`; the projection row was created
   // lazily by the next `lib/idx/sync.ts` run — but that path only writes
-  // Trestle-sourced rows. Mallan exclusives could exist for hours / days
+  // Cotality-sourced rows. Mallan exclusives could exist for hours / days
   // with NO projection row until `npm run ops:projection-backfill` ran.
   // After PR 5B reader swap, that gap = Mallan exclusive invisible on
   // /search and any other projection-backed surface.
@@ -652,6 +689,15 @@ export async function POST(req: NextRequest) {
       eligibilityReason: publishContract.eligibilityReason,
       warnings: validation.warnings,
       suggestions: validation.suggestions,
+      // Fair Housing / UCBA wording found in the text: flagged here, refused only when the listing is to be displayed.
+      fairHousing: fhViolations,
+      // What the Draft still needs before it can be published (same shape PATCH returns).
+      validation: {
+        valid: validation.valid,
+        errors: validation.errors,
+        warnings: validation.warnings,
+        suggestions: validation.suggestions,
+      },
     },
     { status: 201 }
   );

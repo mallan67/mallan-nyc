@@ -1,13 +1,13 @@
 # Forms & RLS Submission
 
-> **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc) | **Feed:** REBNY RLS via Trestle (Cotality)
+> **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Cotality IDX Plus Web API (read-only on mallan.nyc) | **Feed:** REBNY RLS via the Cotality API
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
 
-> ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> ### AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+> 1. **NY law/DOS, Fair Housing and REBNY rules (UCBA 2026, REBNY Listing Service)** govern use, display and conduct. 2. **The live Cotality API** is the only authority for provider fields, values and picklists (`data/cotality-enums.live.json` is its committed copy).
+> 3. **Mallan business rules** govern how verified facts are used; Mallan-created fields (mostly commercial and private-listing fields) are Mallan facts, never presented as provider data, and can restrict but never override a law/REBNY/provider display restriction (Master §0.2, §4, §21.1). 4. **Fail closed = NON-DISPLAY.** Plan: `MALLAN-PLATFORM-MASTER-PLAN.md`; state: `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`.
 
 ---
 
@@ -89,7 +89,7 @@ Agent fills form → Auto-save (30s) → Validate (47+ fields) → Content scan
 - I28: Buyer Agent (at close only — BuyerAgentMlsId)
 
 **Gate Fields (I29-I31):**
-- I29: IDX Display (`InternetEntireListingDisplayYN` — no separate IDX field on Trestle)
+- I29: IDX Display (`InternetEntireListingDisplayYN` — no separate IDX field in the live Cotality schema)
 - I30: Participant Only (Permissions)
 - I31: Syndication (`SyndicateTo` — UCBA: `SyndicateYN`)
 

@@ -174,6 +174,28 @@
     var hasBounds = false;
     var features = geojson.features;
 
+    // Honest map: Cotality serves no coordinates, so every pin here sits near the listing's
+    // neighborhood centre (spiral-spread), not at the building. Say so on the map, and say how many
+    // listings have no neighborhood centre and are therefore not on it (added 2026-10-26).
+    (function noteAccuracy() {
+      var wrapper = document.getElementById('resultsMapWrapper');
+      if (!wrapper) return;
+      var note = document.getElementById('resultsMapAccuracyNote');
+      if (!note) {
+        note = document.createElement('div');
+        note.id = 'resultsMapAccuracyNote';
+        note.style.cssText = 'position:absolute;top:8px;left:8px;right:8px;z-index:5;background:#fffbeb;border:1px solid #fcd34d;color:#92400e;font-size:11px;line-height:1.3;padding:6px 10px;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.08);pointer-events:none;';
+        wrapper.appendChild(note);
+      }
+      var approx = features.filter(function (ft) { return ft.properties.approx; }).length;
+      var missing = listings.length - features.length;
+      var parts = [];
+      if (approx) parts.push(approx + ' of ' + listings.length + ' pins are approximate: placed near the neighborhood centre, not at the building (Cotality sends no coordinates).');
+      if (missing > 0) parts.push(missing + ' listing' + (missing === 1 ? '' : 's') + ' without a neighborhood centre are not on the map.');
+      note.textContent = parts.join(' ');
+      note.style.display = parts.length ? 'block' : 'none';
+    })();
+
     if (features.length === 0) return;
 
     // Get current zoom to decide clustering
@@ -203,7 +225,7 @@
           var el = createMarkerEl(f.properties.price, f.properties.status);
           var marker = new maplibregl.Marker({ element: el }).setLngLat(f.geometry.coordinates).addTo(_map);
           (function (feat) {
-            el.addEventListener('click', function () { showPopup(feat); highlightCard(feat.properties.id); });
+            el.addEventListener('click', function (ev) { if (ev && ev.stopPropagation) ev.stopPropagation(); showPopup(feat); highlightCard(feat.properties.id); }); // stopPropagation: the map's own click (closeOnClick) removed the popup in the same event (found 2026-10-26)
           })(f);
           _markers.push(marker);
         } else {
@@ -237,7 +259,7 @@
           .addTo(_map);
 
         (function (feat) {
-          el.addEventListener('click', function () {
+          el.addEventListener('click', function (ev) { if (ev && ev.stopPropagation) ev.stopPropagation();
             showPopup(feat);
             highlightCard(feat.properties.id);
           });
@@ -278,7 +300,7 @@
       + '<div style="padding:8px 10px;">'
       + '<div style="font-weight:700;font-size:14px;margin-bottom:2px;">' + fmtPrice(p.price) + (p.listingCategory === 'rental' ? '/mo' : '') + '</div>'
       + '<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">' + (p.address || 'Address Undisclosed') + '</div>'
-      + '<div style="font-size:11px;color:#374151;">' + p.beds + ' bd &middot; ' + p.baths + ' ba' + (p.neighborhood ? ' &middot; ' + p.neighborhood : '') + '</div>'
+      + '<div style="font-size:11px;color:#374151;">' + (p.beds ? p.beds + ' bd' : 'Studio') + ' &middot; ' + (p.baths ? p.baths + ' ba' : '-- ba') + (p.neighborhood ? ' &middot; ' + p.neighborhood : '') + '</div>'
       + (p.approx ? '<div style="font-size:9px;color:#d97706;margin-top:3px;"><i class="fas fa-info-circle"></i> Approximate location</div>' : '')
       + '<button onclick="showListingDetail(\'' + String(p.id).replace(/'/g, "\\'") + '\')" style="margin-top:6px;width:100%;padding:5px;background:#111827;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">View Details</button>'
       + '</div></div>';

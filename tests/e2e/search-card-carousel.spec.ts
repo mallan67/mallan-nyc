@@ -458,8 +458,8 @@ test.describe('Optimizer failure modes — exactly one fallback, never blank', (
   /**
    * Card photo delivery depends on the Next optimizer being able to fetch
    * the media URL. `/api/media/proxy` still exists because a browser
-   * <img> cannot send the Trestle Bearer header — the optimizer fetches
-   * server-side instead. If that ever stops working (Trestle tightens
+   * <img> cannot send the Cotality Bearer header — the optimizer fetches
+   * server-side instead. If that ever stops working (Cotality tightens
    * access, host de-listed, transform error), IDXImage must fall back to
    * the authenticated proxy EXACTLY ONCE and the card must still render.
    *

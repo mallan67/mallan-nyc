@@ -1,11 +1,11 @@
 /// <reference types="jest" />
 /**
  * P0 compute repair — the public listing page renders ONLY from the synchronized
- * Neon copy (listing + listing_media) and must NEVER reach the live Cotality/Trestle
+ * Neon copy (listing + listing_media) and must NEVER reach the live Cotality
  * feed during an ordinary page request.
  *
  * Root cause this pins: any live-feed call reachable from the render path (the
- * Trestle OAuth token fetch, a live Property fetch, or the live Media fallback)
+ * Cotality OAuth token fetch, a live Property fetch, or the live Media fallback)
  * opts the whole `/listing/[...slug]` route into DYNAMIC rendering — emitting
  * `Cache-Control: private, no-store` and `X-Vercel-Cache: MISS` on every request,
  * which kept Neon ~98% active. Removing the imports makes the live calls statically
@@ -31,30 +31,30 @@ const read = (p: string) => {
     .replace(/(^|[^:])\/\/.*$/gm, '$1');    // line comments (skip http://)
 };
 
-describe('listing page cannot reach the live Cotality/Trestle feed', () => {
+describe('listing page cannot reach the live Cotality feed', () => {
   const src = read(PAGE);
 
-  it('does not import the live Trestle fetch module (Property/Media)', () => {
+  it('does not import the live Cotality fetch module (Property/Media)', () => {
     expect(src).not.toMatch(/from ['"]@\/lib\/idx\/fetch['"]/);
     expect(src).not.toMatch(/\bfetchSingleListing\b/);
     expect(src).not.toMatch(/\bfetchListingByAddress\b/);
     expect(src).not.toMatch(/\bfetchListingMedia\b/);
   });
 
-  it('does not import the Trestle OAuth token accessor', () => {
+  it('does not import the Cotality OAuth token accessor', () => {
     expect(src).not.toMatch(/from ['"]@\/lib\/idx\/auth['"]/);
     expect(src).not.toMatch(/\bgetAccessToken\b/);
   });
 
-  it('does not perform the live last-sale comp lookups (Trestle + ACRIS)', () => {
+  it('does not perform the live last-sale comp lookups (Cotality + ACRIS)', () => {
     expect(src).not.toMatch(/\bfetchLastUnitSale\b/);
     expect(src).not.toMatch(/\bfetchLastSaleFromACRIS\b/);
     // ACRIS was the only remaining consumer of the SODA client on this page.
     expect(src).not.toMatch(/from ['"]@\/lib\/soda['"]/);
   });
 
-  it('does not fetch a raw Trestle record or map it on the render path', () => {
-    // rawToDTO + its RESO mapper/gate imports existed only for the live path.
+  it('does not fetch a raw Cotality record or map it on the render path', () => {
+    // rawToDTO + its provider mapper/gate imports existed only for the live path.
     expect(src).not.toMatch(/\brawToDTO\b/);
     expect(src).not.toMatch(/from ['"]@\/lib\/idx\/mapping['"]/);
   });

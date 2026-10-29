@@ -5,10 +5,10 @@
  * non-array, and empty-array media. The Layer 0 audit (2026-05-08) showed
  * that misses three real failure modes:
  *   - 171 FloorPlan-only / Video-only / VirtualTour-only rows
- *   - 17,521 rows where Trestle's PhotosChangeTimestamp had advanced past
+ *   - 17,521 rows where Cotality's PhotosChangeTimestamp had advanced past
  *     our DB modification_timestamp (PCT drift)
  *   - listings where the broker uploaded photos *after* we last sampled them
- *     and Trestle bumped PCT without bumping MT
+ *     and Cotality bumped PCT without bumping MT
  *
  * The expanded eligibility logic is inlined into a SQL query on
  * `prisma.listing` and is hard to unit-test directly. Instead this test
@@ -125,7 +125,7 @@ describe('backfillEmptyMedia eligibility — Layer 2', () => {
     ).toBe(false);
   });
 
-  it('catches a row WITH valid Photo when PCT drift is present (Trestle bumped PCT, our raw_data is stale)', () => {
+  it('catches a row WITH valid Photo when PCT drift is present (Cotality bumped PCT, our raw_data is stale)', () => {
     expect(
       isEligibleForBackfill({
         ...baseRow,
@@ -157,7 +157,7 @@ describe('backfillEmptyMedia eligibility — Layer 2', () => {
   });
 
   it('treats empty-string mediaType as Photo (legacy default — preserves prior behavior)', () => {
-    // Trestle's default Media is Photo; some legacy rows have `mediaType: ''`
+    // Cotality's default Media is Photo; some legacy rows have `mediaType: ''`
     // which the resolver treats as Photo. The eligibility query mirrors that.
     expect(
       isEligibleForBackfill({

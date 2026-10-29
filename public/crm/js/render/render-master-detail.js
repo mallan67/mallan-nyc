@@ -5,7 +5,7 @@
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 var selIdx = searchResultsState.selectedListings.indexOf(listing.id) + 1;
                 return `
-                <div class="p-2.5 border-b hover:bg-gray-50 cursor-pointer flex gap-2.5 ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="showListingInDetailPanel('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
+                <div class="p-2.5 border-b hover:bg-gray-50 cursor-pointer flex gap-2.5 ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || listing.id)}" onclick="showListingInDetailPanel('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                     <div class="relative flex-shrink-0">
                         <div class="w-[140px] h-[100px] rounded-lg cm-photo-wrap">
                             <img src="${getListingPhotoThumb(listing)}" alt="${displayAddress}" class="cm-photo rounded-lg" loading="lazy">
@@ -37,13 +37,13 @@
                             </div>
                             <span class="text-xs font-bold">$${listing.price.toLocaleString()}</span>
                         </div>
-                        <div class="text-[10px] text-gray-500 mt-0.5">CC: $${listing.maintCC} &nbsp; RET: $${listing.reTaxes}</div>
+                        <div class="text-[10px] text-gray-500 mt-0.5">CC: ${listing.maintCC ? "$" + Math.round(listing.maintCC).toLocaleString() : "--"} &nbsp; RET: ${listing.reTaxes ? '$' + Math.round(listing.reTaxes).toLocaleString() : '--'}</div>
                         <div class="flex items-center gap-2 text-[11px] mt-1">
                             <span><strong>${listing.rooms}</strong> Rooms</span>
                             <span class="text-gray-300">|</span>
                             <span><strong>${listing.beds}</strong> Beds</span>
                             <span class="text-gray-300">|</span>
-                            <span><strong>${listing.baths}</strong> Baths</span>
+                            <span><strong>${listing.baths || "--"}</strong> Baths</span>
                             <span class="text-gray-300">|</span>
                             <span><strong>${listing.intSqft || '--'}</strong> SqFt</span>
                             <span class="text-gray-300">|</span>
@@ -63,6 +63,18 @@
                 showListingInDetailPanel(filtered[0].id);
             }
         }
+
+        // REBNY CustomFields → display strings shared by the detail views (live keys 2026-10-26:
+        // AttendanceType, ElevatorsTotal, MaximumFinancingPercent, FlipTax, FlipTaxType, BuildingRules;
+        // PetsAllowed is a Property field). '--' = Cotality did not say.
+        window.rebnyDisplay = {
+            doorman: function (l) { var a = String((l && l.rebny && l.rebny.AttendanceType) || ''); if (!a) return '--'; if (/DoormanFullTime/.test(a)) return 'Full-time'; if (/DoormanPartTime/.test(a)) return 'Part-time'; if (/VideoDoorman/.test(a)) return 'Video'; if (/DoormanYes/.test(a)) return 'Yes'; return /None/.test(a) ? 'None' : '--'; },
+            elevators: function (l) { var n = l && l.rebny && l.rebny.ElevatorsTotal != null && l.rebny.ElevatorsTotal !== '' ? Number(l.rebny.ElevatorsTotal) : NaN; return isNaN(n) ? '--' : (n === 0 ? 'None' : String(n)); },
+            financing: function (l) { var p = l && l.rebny && l.rebny.MaximumFinancingPercent != null && l.rebny.MaximumFinancingPercent !== '' ? Number(l.rebny.MaximumFinancingPercent) : NaN; return isNaN(p) ? '--' : p + '% max'; },
+            flipTax: function (l) { var r = (l && l.rebny) || {}; if (r.FlipTax == null || r.FlipTax === '') return '--'; var n = Number(r.FlipTax); var t = String(r.FlipTaxType || ''); if (isNaN(n)) return String(r.FlipTax) + (t ? ' (' + t + ')' : ''); if (n === 0) return 'None'; if (/percent/i.test(t)) return n + '%'; if (/share/i.test(t)) return '$' + n.toLocaleString() + ' per share'; if (/dollar/i.test(t)) return '$' + n.toLocaleString(); return n.toLocaleString() + (t ? ' (' + t.replace(/([a-z])([A-Z])/g, '$1 $2') + ')' : ''); },
+            rule: function (l, name) { var r = String((l && l.rebny && l.rebny.BuildingRules) || ''); if (!r) return '--'; return r.indexOf(name) !== -1 ? 'Yes' : 'No'; },
+            pets: function (l) { var p = String((l && l.PetsAllowed) || ''); if (!p) return '--'; if (/BuildingNo|(^|,)No(,|$)/.test(p)) return 'No'; if (/Yes|CatsOk|DogsOk/.test(p)) return 'Yes'; if (/Conditional|Negotiable|Call/.test(p)) return 'Case by case'; return p; }
+        };
 
         function showListingInDetailPanel(listingId) {
             var listing = listings.find(l => l.id === listingId);
@@ -93,9 +105,9 @@
                 <div class="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-500 mb-1.5">
                     <span>L-ID: ${escapeHtml(listing.lid || '--')}</span>
                     <span>W-ID: ${escapeHtml(listing.wid || '--')}</span>
-                    <span>CC: $${listing.maintCC}</span>
-                    <span>RET: $${listing.reTaxes}</span>
-                    <span>EST. MONTHLY: $${listing.totalMonthly.toLocaleString()}</span>
+                    <span>CC: ${listing.maintCC ? "$" + Math.round(listing.maintCC).toLocaleString() : "--"}</span>
+                    <span>RET: ${listing.reTaxes ? '$' + Math.round(listing.reTaxes).toLocaleString() : '--'}</span>
+                    <span>EST. MONTHLY: ${listing.totalMonthly ? "$" + Math.round(listing.totalMonthly).toLocaleString() : "--"}</span>
                 </div>
 
                 <!-- Tags -->
@@ -110,7 +122,7 @@
 
                 <!-- Photo — single large, full width -->
                 <div class="rounded-xl cm-photo-wrap mb-3" style="height:320px">
-                    <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo rounded-xl" loading="lazy">
+                    <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo rounded-xl" loading="lazy" data-photo-lid="${escapeHtml(listing.lid || listing.id)}">
                     ${listing.priceChange === 'down' ? '<div class="absolute top-3 left-3 px-2 py-1 bg-red-500 text-white text-xs font-bold rounded"><i class="fas fa-arrow-down mr-1"></i>PRICE DROP!</div>' : ''}
                     <div class="cm-overlay rounded-b-xl px-3 py-2.5 flex items-center justify-between">
                         <button onclick="showListingDetail('${escapeHtml(listing.id)}')" class="px-3 py-1.5 bg-white/90 backdrop-blur rounded-lg text-xs shadow-sm flex items-center gap-2 text-gray-700 hover:bg-white"><i class="fas fa-th"></i> Floorplans</button>
@@ -140,7 +152,7 @@
                     <span class="text-gray-300">|</span>
                     <span><strong>${listing.beds}</strong> Beds</span>
                     <span class="text-gray-300">|</span>
-                    <span><strong>${listing.baths}</strong> Baths</span>
+                    <span><strong>${listing.baths || "--"}</strong> Baths</span>
                     <span class="text-gray-300">|</span>
                     <span><strong>${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</strong> SqFt</span>
                     <span class="text-gray-300">|</span>
@@ -165,9 +177,9 @@
                     <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Financial</h4>
                     <div class="grid grid-cols-3 gap-3 text-xs">
                         <div><span class="text-gray-500">List Price</span><div class="font-bold text-gray-900">$${listing.price.toLocaleString()}</div></div>
-                        <div><span class="text-gray-500">Common Charges</span><div class="font-semibold">$${listing.maintCC}/mo</div></div>
-                        <div><span class="text-gray-500">RE Taxes</span><div class="font-semibold">$${listing.reTaxes}/mo</div></div>
-                        <div><span class="text-gray-500">Est. Monthly</span><div class="font-semibold">$${listing.totalMonthly.toLocaleString()}/mo</div></div>
+                        <div><span class="text-gray-500">Common Charges</span><div class="font-semibold">${listing.maintCC ? "$" + Math.round(listing.maintCC).toLocaleString() + "/mo" : "--"}</div></div>
+                        <div><span class="text-gray-500">RE Taxes</span><div class="font-semibold">${listing.reTaxes ? '$' + Math.round(listing.reTaxes).toLocaleString() + '/mo' : '--'}</div></div>
+                        <div><span class="text-gray-500">Est. Monthly</span><div class="font-semibold">${listing.totalMonthly ? "$" + Math.round(listing.totalMonthly).toLocaleString() + "/mo" : "--"}</div></div>
                         <div><span class="text-gray-500">Price/SqFt</span><div class="font-semibold">${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '--'}</div></div>
                         ${listing.originalPrice ? '<div><span class="text-gray-500">Original Price</span><div class="font-semibold text-red-600">$' + listing.originalPrice.toLocaleString() + '</div></div>' : '<div><span class="text-gray-500">Price/Room</span><div class="font-semibold">' + (listing.rooms ? '$' + Math.round(listing.price / listing.rooms).toLocaleString() : '--') + '</div></div>'}
                     </div>
@@ -179,7 +191,7 @@
                     <div class="grid grid-cols-3 gap-3 text-xs">
                         <div><span class="text-gray-500">Rooms</span><div class="font-semibold">${listing.rooms || '--'}</div></div>
                         <div><span class="text-gray-500">Bedrooms</span><div class="font-semibold">${listing.beds}</div></div>
-                        <div><span class="text-gray-500">Bathrooms</span><div class="font-semibold">${listing.baths}</div></div>
+                        <div><span class="text-gray-500">Bathrooms</span><div class="font-semibold">${listing.baths || "--"}</div></div>
                         <div><span class="text-gray-500">Int. SqFt</span><div class="font-semibold">${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</div></div>
                         <div><span class="text-gray-500">Floor</span><div class="font-semibold">${escapeHtml(listing.floor || '--')}</div></div>
                         <div><span class="text-gray-500">Exposures</span><div class="font-semibold">${escapeHtml(listing.exposures || '--')}</div></div>
@@ -196,9 +208,9 @@
                         <div><span class="text-gray-500">Building Name</span><div class="font-semibold">${escapeHtml(listing.buildingName || '--')}</div></div>
                         <div><span class="text-gray-500">Ownership</span><div class="font-semibold">${ownershipLabel(listing.ownership)}</div></div>
                         <div><span class="text-gray-500">Era</span><div class="font-semibold">${escapeHtml(listing.era || '--')}${listing.yearBuilt ? ' (' + listing.yearBuilt + ')' : ''}</div></div>
-                        <div><span class="text-gray-500">Elevator</span><div class="font-semibold">--</div></div>
-                        <div><span class="text-gray-500">Doorman</span><div class="font-semibold">--</div></div>
-                        <div><span class="text-gray-500">Financing</span><div class="font-semibold">--</div></div>
+                        <div><span class="text-gray-500">Elevator</span><div class="font-semibold">${rebnyDisplay.elevators(listing)}</div></div>
+                        <div><span class="text-gray-500">Doorman</span><div class="font-semibold">${rebnyDisplay.doorman(listing)}</div></div>
+                        <div><span class="text-gray-500">Financing</span><div class="font-semibold">${rebnyDisplay.financing(listing)}</div></div>
                     </div>
                 </div>
 

@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // MANHATTAN GRID — Street/Avenue to Lat/Lng bounding box search
 // Converts "96th St to 72nd St, 5th Ave to 3rd Ave" into
-// Latitude/Longitude OData filters for Trestle
+// Latitude/Longitude OData filters for the Cotality API
 // ═══════════════════════════════════════════════════════════════
 var ManhattanGrid = (function() {
   'use strict';

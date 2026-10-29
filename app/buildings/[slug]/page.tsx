@@ -104,7 +104,7 @@ async function fetchBuildingData(params: {
   // Neon-quiet (2026-07-23): direct call into the shared cached accessor —
   // the page→internal-HTTP hop is GONE. The page render, generateMetadata,
   // and /api/buildings all read the SAME tagged cache entry, so a repeated
-  // building request executes zero Prisma/Trestle work.
+  // building request executes zero Prisma/Cotality work.
   try {
     const data = await getBuildingDataCached(params);
     return data.success ? (data as unknown as BuildingData) : null;
@@ -122,7 +122,7 @@ function formatDate(dateStr: string | null): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
 }
 
-/** Map raw Trestle enum values to human-readable NYC display labels */
+/** Map raw Cotality enum values to human-readable NYC display labels */
 function displayLabel(raw: string | null): string {
   if (!raw) return '';
   const map: Record<string, string> = {

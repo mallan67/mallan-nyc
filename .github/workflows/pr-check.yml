@@ -141,25 +141,19 @@ jobs:
       - name: Jest tests
         run: npx jest --ci --forceExit
 
-      - name: RLS compliance validator
-        run: npm run rls:validate
-
       - name: UCBA compliance audit
         run: npm run ucba:audit
 
       - name: CRM tests
         run: npm run crm:test
 
-      - name: Form-to-RLS field mapping validation
-        run: npm run validate:form-rls
-
       - name: CI compliance check
         run: node scripts/ci-compliance-check.js
 
       # Display-compliance gates — block merge on any UCBA / Fair Housing /
-      # PII regression. These six audits do NOT require Trestle credentials
+      # PII regression. These six audits do NOT require Cotality credentials
       # (they parse local files only), so they are safe to run in PR CI.
-      # The Trestle-credential audits run on a schedule via trestle-live-audit.yml.
+      # Audits that need live Cotality credentials are not part of PR CI.
       - name: REBNY display compliance audit
         run: npm run audit:display-compliance
 

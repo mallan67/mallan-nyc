@@ -86,7 +86,7 @@ describe("building-manifest cache-size proof (2 MB production limit)", () => {
     expect(selectBlock).toContain("primary_photo_url: true");
     expect(selectBlock).not.toContain("media: true");
     // The whole module keeps exactly ONE `media: true` usage: NONE in the
-    // manifest path (payload assembly uses Trestle records, not this select).
+    // manifest path (payload assembly uses Cotality records, not this select).
     expect(src.split("media: true").length - 1).toBe(0);
   });
 

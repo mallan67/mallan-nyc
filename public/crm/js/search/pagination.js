@@ -16,6 +16,7 @@
                 searchResultsState.sortField = field;
                 searchResultsState.sortOrder = 'asc';
             }
+            if (window.resortServerResults && window.resortServerResults()) return;
             renderSearchResults();
         }
 
@@ -89,8 +90,17 @@
 
             // Fetch full media (floor plans, videos, virtual tours) on demand
             if (typeof fetchDetailMedia === 'function' && listing.lid) {
+                var photosAtRender = (listing.images || []).length;
                 fetchDetailMedia(listing.lid, function() {
-                    // Re-render media sections after data arrives
+                    // Search results carry one photo; when the full set arrives, draw the detail again
+                    // (gallery, thumbnails, "All N photos", counter) on the tab the agent is viewing.
+                    if ((listing.images || []).length !== photosAtRender && _detailCurrentId === listing.id && !listing._detailPhotosDrawn) {
+                        listing._detailPhotosDrawn = true;
+                        var tab = _detailActiveTab;
+                        showListingDetail(listing.id);
+                        if (tab && tab !== 'overview') detailSwitchTab(tab);
+                        return;
+                    }
                     _refreshDetailMediaSections(listing);
                 });
             }
@@ -140,8 +150,8 @@
                         ${listing.newListing ? '<div class="absolute top-3 left-3 px-3 py-1.5 bg-green-500 text-white text-xs font-bold rounded-lg shadow-lg">NEW ON MARKET</div>' : ''}
                         ${listing.priceChange === 'down' ? '<div class="absolute top-3 left-3 px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-lg shadow-lg"><i class="fas fa-arrow-down mr-1"></i>PRICE DROP</div>' : ''}
                         ${comingSoonBadge(listing)}
-                        <button onclick="event.stopPropagation(); detailPhotoPrev()" class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-black/60 transition"><i class="fas fa-chevron-left text-white text-sm"></i></button>
-                        <button onclick="event.stopPropagation(); detailPhotoNext()" class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-black/60 transition"><i class="fas fa-chevron-right text-white text-sm"></i></button>
+                        <button onclick="event.stopPropagation(); detailPhotoPrev()" title="Previous photo" aria-label="Previous photo" class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-black/60 transition"><i class="fas fa-chevron-left text-white text-sm"></i></button>
+                        <button onclick="event.stopPropagation(); detailPhotoNext()" title="Next photo" aria-label="Next photo" class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-black/60 transition"><i class="fas fa-chevron-right text-white text-sm"></i></button>
                         <div class="absolute bottom-0 left-0 right-0 px-4 py-3 flex items-center justify-between" style="background:linear-gradient(transparent,rgba(0,0,0,0.55))">
                             <button onclick="event.stopPropagation(); detailSwitchTab('media')" class="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 backdrop-blur rounded-lg text-xs font-semibold text-gray-700 hover:bg-white transition"><i class="fas fa-images"></i> All ${photos.length} photos</button>
                             <span class="text-white text-xs font-medium" id="detailPhotoCounter">1 / ${photos.length}</span>
@@ -202,7 +212,7 @@
                             <div class="grid grid-cols-5 gap-3 text-xs">
                                 <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">Status</div><span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-[10px] font-semibold">${statusLabel}</span></div>
                                 <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">DOM</div><div class="text-sm font-bold text-gray-900">${listing.dom}</div></div>
-                                <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">CDOM</div><div class="text-sm font-bold text-gray-900">${listing.cdom || listing.dom}</div></div>
+                                <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">CDOM</div><div class="text-sm font-bold text-gray-900" title="Cumulative DOM is suppressed by Cotality">${listing.cdom != null ? listing.cdom : '---'}</div></div>
                                 <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">Listed</div><div class="text-xs font-semibold text-gray-700">${listing.listedDate}</div></div>
                                 <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">Updated</div><div class="text-xs font-semibold text-gray-700">${listing.updatedDate || '—'}</div></div>
                             </div>
@@ -219,13 +229,13 @@
                                 <div class="lux-field"><span>Est. Total Monthly</span><span class="text-green-700 font-bold">$${listing.totalMonthly.toLocaleString()}/mo</span></div>
                                 ${listing.intSqft ? '<div class="lux-field"><span>$/SqFt</span><span>$' + Math.round(listing.price / listing.intSqft).toLocaleString() + '</span></div>' : ''}
                                 ${listing.rooms ? '<div class="lux-field"><span>$/Room</span><span>$' + Math.round(listing.price / listing.rooms).toLocaleString() + '</span></div>' : ''}
-                                ${isSale ? '<div class="lux-field"><span>Financing</span><span>---</span></div><div class="lux-field"><span>Flip Tax</span><span>---</span></div>' : ''}
+                                ${isSale ? '<div class="lux-field"><span>Financing</span><span>' + rebnyDisplay.financing(listing) + '</span></div><div class="lux-field"><span>Flip Tax</span><span>' + rebnyDisplay.flipTax(listing) + '</span></div>' : ''}
                                 ${!isSale ? '<div class="lux-field"><span>Security Deposit</span><span>---</span></div>' : ''}
                             </div>
                         </div>
 
                         <!-- Description -->
-                        ${listing.description ? '<div class="lux-card mb-4"><h3 class="lux-section-title"><i class="fas fa-align-left text-gray-400"></i> Description</h3><p class="text-sm text-gray-600 leading-relaxed">' + escapeHtml(listing.description) + '</p></div>' : ''}
+                        ${listing.description ? '<div class="lux-card mb-4"><h3 class="lux-section-title"><i class="fas fa-align-left text-gray-400"></i> Description</h3><p class="text-sm text-gray-600 leading-relaxed whitespace-pre-line">' + escapeHtml(listing.description) + '</p></div>' : ''}
 
                         <!-- Key Features Grid (only show items with data) -->
                         <div class="lux-card mb-4">
@@ -331,7 +341,7 @@
                                     <div class="space-y-2 text-sm">
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Status</span><span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-xs font-semibold">${statusLabel}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Days on Market</span><span class="font-semibold text-blue-600">${listing.dom}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Cumulative DOM</span><span class="font-semibold">${listing.cdom || listing.dom}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Cumulative DOM</span><span class="font-semibold" title="Suppressed by Cotality">${listing.cdom != null ? listing.cdom : '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Updated Date</span><span class="font-semibold">${listing.updatedDate || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Date Listed</span><span class="font-semibold">${listing.listedDate}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">${isSale ? 'Available for Showing' : 'Available Date'}</span><span class="font-semibold">---</span></div>
@@ -341,7 +351,7 @@
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">Listing IDs</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">L-ID</span><span class="font-semibold">${listing.lid || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">W-ID</span><span class="font-semibold">${listing.wid || '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">SourceSystemKey</span><span class="font-semibold">${listing.wid || listing.lid || listing.id}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Listing Key</span><span class="font-semibold">${listing.listingKey || '---'}</span></div>
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">Internet Display</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Internet Entire Listing</span><span class="font-semibold">${listing.internetDisplayYN !== false ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">IDX Display</span><span class="font-semibold">${listing.idxDisplayYN !== false ? 'Yes' : 'No'}</span></div>
@@ -507,13 +517,9 @@
                                 <div class="flex items-center gap-2 mb-4"><i class="fas fa-user-tie text-amber-600"></i><h3 class="text-lg font-bold text-gray-900">Agent & Contacts</h3><span class="agent-only-badge ml-2"><i class="fas fa-lock text-[8px]"></i> Agent Only</span></div>
                                 <div class="grid grid-cols-3 gap-x-8">
                                     <!-- Col 1: Listing Agent -->
-                                    <div class="space-y-2 text-sm">
+                                    <div class="space-y-2 text-sm min-w-0">
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold">Listing Agent</div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Company</span><span class="font-semibold">${listing.company || '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Agent Name</span><span class="font-semibold">${listing.agentName || '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Phone</span><span class="font-semibold">${listing.agentPhone || '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Email</span><span class="font-semibold">${listing.agentEmail || '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">License #</span><span class="font-semibold">---</span></div>
+                                        ${_agentTableRowsHtml(_listingAgent(listing), listing.office || { name: listing.company })}
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Listing Type</span><span class="font-semibold">${listing.listingType || '---'}</span></div>
                                     </div>
                                     <!-- Col 2: Showing / Instructions -->
@@ -525,22 +531,27 @@
                                         }
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Showing Instructions</span><span class="font-semibold text-right max-w-[200px] truncate">${listing.showingInstructions || '(UCOM) ' + (listing.agentName || '') + ' ' + (listing.agentPhone || '')}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Broker Comments</span><span class="font-semibold">---</span></div>
-                                        <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">Co-Listing Agent</div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Company</span><span class="font-semibold">---</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Agent Name</span><span class="font-semibold">---</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Phone</span><span class="font-semibold">---</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Email</span><span class="font-semibold">---</span></div>
+                                        ${(listing.coAgents || []).length
+                                            ? listing.coAgents.map(function(c, i) { return '<div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">Co-Listing Agent' + (listing.coAgents.length > 1 ? ' ' + (i + 1) : '') + '</div>' + _agentTableRowsHtml(c, c.office || {}); }).join('')
+                                            : '<div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">Co-Listing Agent</div><div class="pl-4 text-xs text-gray-400">None on this listing in Cotality</div>'}
                                     </div>
                                     <!-- Col 3: Distribution -->
                                     <div class="space-y-2 text-sm">
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold">Distribution</div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Owner Opt-Out</span><span class="font-semibold">${listing.permissions && listing.permissions.ownerOptOut ? 'Yes' : 'No'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Participant Only</span><span class="font-semibold">${listing.permissions && listing.permissions.participantOnly ? 'Yes' : 'No'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Internet Entire Listing</span><span class="font-semibold">${listing.internetDisplayYN !== false ? 'Yes' : 'No'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">IDX Display</span><span class="font-semibold">${listing.idxDisplayYN !== false ? 'Yes' : 'No'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Syndication</span><span class="font-semibold">${listing.permissions && listing.permissions.syndication ? 'Yes' : 'No'}</span></div>
+                                        ${(function() {
+                                            // Live Cotality values only (Permission + IDX Plus display flags); "---" when Cotality has none.
+                                            var perm = listing.permission || [];
+                                            var yn = function(v) { return v === true ? 'Yes' : v === false ? 'No' : '---'; };
+                                            var row = function(label, value, title) { return '<div class="flex justify-between gap-3 border-b border-gray-100 pb-1.5 pl-4"' + (title ? ' title="' + escapeHtml(title) + '"' : '') + '><span class="text-gray-400">' + label + '</span><span class="font-semibold text-right">' + value + '</span></div>'; };
+                                            return row('Permission', perm.length ? escapeHtml(perm.join(', ')) : '---', 'Cotality Permission') +
+                                                row('Internet Entire Listing', yn(listing.internetDisplayYN === false ? false : (listing.permission ? true : null)), 'InternetEntireListingDisplayYN') +
+                                                row('IDX Display', perm.length ? (perm.indexOf('IDX') !== -1 ? 'Yes' : 'No') : '---', 'Permission includes IDX') +
+                                                row('Syndication opt-out', perm.length ? (perm.indexOf('SyndicateOptOut') !== -1 ? 'Yes' : 'No') : '---', 'Permission includes SyndicateOptOut') +
+                                                row('Consumer comments', yn(listing.consumerCommentsYN), 'InternetConsumerCommentYN') +
+                                                row('Automated valuation', yn(listing.avmDisplayYN), 'InternetAutomatedValuationDisplayYN');
+                                        })()}
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">CoBroke</div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">CoBroke Agreement</span><span class="font-semibold">---</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">CoBroke / compensation</span><span class="font-semibold text-right">Suppressed by Cotality</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -708,11 +719,11 @@
                                 <div class="lux-policy"><span class="text-gray-500">Board Application</span><span class="font-semibold">---</span></div>
                                 <div class="lux-policy"><span class="text-gray-500">Meet & Greet</span><span class="font-semibold">---</span></div>
                                 <div class="lux-policy"><span class="text-gray-500">Film Location</span><span class="font-semibold">---</span></div>
-                                <div class="lux-policy"><span class="text-gray-500">Live/Work</span><span class="font-semibold">---</span></div>
+                                <div class="lux-policy"><span class="text-gray-500">Live/Work</span><span class="font-semibold">${rebnyDisplay.rule(listing, 'LiveWorkAllowed')}</span></div>
                                 <div class="lux-policy"><span class="text-gray-500">Subletting</span><span class="font-semibold">---</span></div>
-                                <div class="lux-policy"><span class="text-gray-500">Pied-a-Terre</span><span class="font-semibold">---</span></div>
-                                <div class="lux-policy"><span class="text-gray-500">Pets</span><span class="font-semibold">---</span></div>
-                                <div class="lux-policy"><span class="text-gray-500">Financing Allowed</span><span class="font-semibold">---</span></div>
+                                <div class="lux-policy"><span class="text-gray-500">Pied-a-Terre</span><span class="font-semibold">${rebnyDisplay.rule(listing, 'PiedATerreAllowed')}</span></div>
+                                <div class="lux-policy"><span class="text-gray-500">Pets</span><span class="font-semibold">${rebnyDisplay.pets(listing)}</span></div>
+                                <div class="lux-policy"><span class="text-gray-500">Financing Allowed</span><span class="font-semibold">${rebnyDisplay.financing(listing)}</span></div>
                                 <div class="lux-policy"><span class="text-gray-500">Advertising</span><span class="font-semibold">---</span></div>
                                 <div class="lux-policy"><span class="text-gray-500">Open House Allowed</span><span class="font-semibold">---</span></div>
                             </div>
@@ -866,8 +877,8 @@
                             <div class="flex items-center justify-between mb-4">
                                 <h3 class="lux-section-title mb-0"><i class="fas fa-camera text-gray-400"></i> Photos <span class="text-xs font-normal text-gray-400 ml-2">${photos.length} total</span></h3>
                                 <div class="flex items-center gap-2">
-                                    <button class="lux-btn-outline text-xs"><i class="fas fa-th"></i> Grid</button>
-                                    <button class="lux-btn-outline text-xs"><i class="fas fa-list"></i> List</button>
+                                    <button class="lux-btn-outline text-xs" onclick="var g=document.getElementById('detailMediaFullGrid');g.classList.remove('grid-cols-1');g.classList.add('grid-cols-3');"><i class="fas fa-th"></i> Grid</button>
+                                    <button class="lux-btn-outline text-xs" onclick="var g=document.getElementById('detailMediaFullGrid');g.classList.remove('grid-cols-3');g.classList.add('grid-cols-1');"><i class="fas fa-list"></i> List</button>
                                 </div>
                             </div>
                             <div class="grid grid-cols-3 gap-4" id="detailMediaFullGrid">
@@ -881,31 +892,11 @@
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div class="lux-card">
                                 <h3 class="lux-section-title"><i class="fas fa-video text-blue-500"></i> Video Tour</h3>
-                                ${(function() {
-                                    var vids = listing._videos || [];
-                                    var videoUrl = vids.length > 0 ? vids[0].url : null;
-                                    if (videoUrl) {
-                                        var isEmbed = /youtube\.com|youtu\.be|vimeo\.com|wistia\.com/.test(videoUrl);
-                                        if (isEmbed) {
-                                            return '<div class="h-48 rounded-xl overflow-hidden"><iframe src="' + videoUrl + '" class="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="Video Tour"></iframe></div>';
-                                        } else {
-                                            return '<div class="h-48 rounded-xl overflow-hidden bg-black"><video src="' + videoUrl + '" class="w-full h-full object-contain" controls playsinline preload="metadata" title="Video Tour"></video></div>';
-                                        }
-                                    }
-                                    return '<div class="h-48 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200"><div class="text-center text-gray-400"><i class="fas fa-play-circle text-4xl mb-2"></i><div class="text-sm">No video available</div></div></div>';
-                                })()}
+                                ${_tourCardHtml(listing, 'video')}
                             </div>
                             <div class="lux-card">
                                 <h3 class="lux-section-title"><i class="fas fa-vr-cardboard text-purple-500"></i> Virtual Tour / 3D</h3>
-                                ${(function() {
-                                    var vtUrl = listing.virtualTourUrl || null;
-                                    var vtMedia = listing._virtualTours || [];
-                                    var tourUrl = vtUrl || (vtMedia.length > 0 ? vtMedia[0].url : null);
-                                    if (tourUrl) {
-                                        return '<div class="h-48 rounded-xl overflow-hidden"><iframe src="' + tourUrl + '" class="w-full h-full" allow="fullscreen; xr-spatial-tracking" allowfullscreen title="3D Virtual Tour"></iframe></div>';
-                                    }
-                                    return '<div class="h-48 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200"><div class="text-center text-gray-400"><i class="fas fa-cube text-4xl mb-2"></i><div class="text-sm">No virtual tour available</div></div></div>';
-                                })()}
+                                ${_tourCardHtml(listing, '3d')}
                             </div>
                         </div>
 
@@ -945,7 +936,7 @@
 
                         <!-- ═══ Primary Actions: Email / Print / Share ═══ -->
                         <div class="flex items-center gap-1.5 mb-4">
-                            <button onclick="openReportsModal(['${listing.id}'])" class="sidebar-action-primary" title="Email report to client">
+                            <button onclick="openReportsModal(['${listing.id}'], 'email')" class="sidebar-action-primary" title="Email report to client">
                                 <i class="fas fa-envelope"></i><span>Email</span>
                             </button>
                             <button onclick="openReportsModal(['${listing.id}'], 'print')" class="sidebar-action-primary" title="Print report in new tab">
@@ -962,16 +953,24 @@
                                 <span class="sidebar-section-label">Listing Agent</span>
                                 <span class="sidebar-badge-agent"><i class="fas fa-lock text-[7px]"></i> Agent Only</span>
                             </div>
-                            <div class="text-[14px] font-bold text-gray-900 tracking-tight">${escapeHtml(listing.agentName || '---')}</div>
-                            <div class="text-xs text-gray-500 mt-0.5">${escapeHtml(listing.company || '---')}</div>
+                            <div class="flex items-center gap-3">
+                                ${_agentAvatarHtml(_listingAgent(listing), 44)}
+                                <div class="min-w-0">
+                                    <div class="text-[14px] font-bold text-gray-900 tracking-tight">${escapeHtml(listing.agentName || '---')}</div>
+                                    <div class="text-xs text-gray-500 mt-0.5">${escapeHtml(listing.company || '---')}</div>
+                                </div>
+                            </div>
                             <div class="flex items-center gap-2 mt-2 mb-2.5">
                                 <span class="px-2 py-0.5 border border-gray-200 rounded-full text-[10px] text-gray-500 font-semibold">${escapeHtml(listing.listingType || 'Exclusive')}</span>
                             </div>
                             <div class="space-y-1.5">
-                                ${listing.agentPhone ? '<a href="tel:' + listing.agentPhone.replace(/[^0-9+]/g, '') + '" class="sidebar-contact-link"><i class="fas fa-phone text-[9px]"></i>' + escapeHtml(listing.agentPhone) + '</a>' : ''}
+                                ${_agentPhones(_listingAgent(listing)).map(function(ph) { return '<a href="tel:' + ph.number.replace(/[^0-9+]/g, '') + '" class="sidebar-contact-link"><i class="fas ' + (ph.kind === 'mobile' ? 'fa-mobile-alt' : 'fa-phone') + ' text-[9px]"></i>' + escapeHtml(ph.number) + ' <span class="text-gray-400 text-[10px]">' + ph.kind + '</span></a>'; }).join('')}
                                 ${listing.agentEmail ? `<button type="button" data-agent-inquiry-listing-id="${escapeHtml(String(listing.id || listing.lid || ''))}" class="sidebar-contact-link" title="Sends an audited inquiry through Mallan Real Estate (REBNY attribution + audit trail)"><i class="fas fa-envelope text-[9px]"></i>${escapeHtml(listing.agentEmail)}</button>` : ''}
-                                ${listing.agentLicense ? '<div class="flex items-center gap-2 text-[11px] text-gray-400"><i class="fas fa-id-badge text-[9px]"></i>' + escapeHtml(listing.agentLicense) + '</div>' : ''}
+                                ${_listingAgent(listing).url ? '<a href="' + escapeHtml(_httpUrl(_listingAgent(listing).url)) + '" target="_blank" rel="noopener" class="sidebar-contact-link"><i class="fas fa-globe text-[9px]"></i>Agent website</a>' : ''}
+                                ${(listing.agentLicense || _listingAgent(listing).license) ? '<div class="flex items-center gap-2 text-[11px] text-gray-400"><i class="fas fa-id-badge text-[9px]"></i>License ' + escapeHtml(listing.agentLicense || _listingAgent(listing).license) + '</div>' : ''}
+                                ${listing.office && listing.office.phone ? '<a href="tel:' + listing.office.phone.replace(/[^0-9+]/g, '') + '" class="sidebar-contact-link"><i class="fas fa-building text-[9px]"></i>' + escapeHtml(listing.office.phone) + ' <span class="text-gray-400 text-[10px]">office</span></a>' : ''}
                             </div>
+                            ${(listing.coAgents || []).length ? '<div class="border-t border-gray-100 mt-3 pt-3 space-y-2"><span class="sidebar-section-label" style="margin:0">Co-Listing</span>' + listing.coAgents.map(function(c) { var ph = _agentPhones(c)[0]; return '<div class="flex items-center gap-2">' + _agentAvatarHtml(c, 28) + '<div class="min-w-0 text-xs"><div class="font-semibold text-gray-800 truncate">' + escapeHtml(c.name || '---') + '</div><div class="text-gray-500 truncate">' + escapeHtml((c.office && c.office.name) || '') + '</div>' + (ph ? '<a href="tel:' + ph.number.replace(/[^0-9+]/g, '') + '" class="text-blue-600">' + escapeHtml(ph.number) + '</a>' : '') + '</div></div>'; }).join('') + '</div>' : ''}
                             <!-- Codex Risk P0 fix: removed direct mailto:
                                  link to listing-agent email. The link
                                  bypassed audit trail + REBNY attribution
@@ -1035,6 +1034,7 @@
                             <div class="grid grid-cols-2 gap-1.5">
                                 <button onclick="toggleWorkingSet('${listing.id}')" class="sidebar-tool-btn" id="workingSetBtn_${listing.id}"><i class="fas fa-folder-plus"></i> ${_isInWorkingSet(listing.id) ? 'In Set' : 'Add to Set'}</button>
                                 <button onclick="runCmaFromDetail()" class="sidebar-tool-btn"><i class="fas fa-chart-bar"></i> Run CMA</button>
+                                <a href="${listing.listingCategory === 'rental' ? '/crm/rental-view' : '/crm/sale-view'}?listingId=${encodeURIComponent(listing.lid || listing.id)}" target="_blank" rel="noopener" class="sidebar-tool-btn" title="Read-only ${listing.listingCategory === 'rental' ? 'Rental' : 'Sales'} Tools page, loaded live from Cotality"><i class="fas fa-toolbox"></i> ${listing.listingCategory === 'rental' ? 'Rental' : 'Sales'} Tools</a>
                                 <button onclick="addToCompareAndOpen('${listing.id}')" class="sidebar-tool-btn"><i class="fas fa-balance-scale"></i> Compare</button>
                                 <button onclick="toggleFlag('${listing.id}')" class="sidebar-tool-btn" id="flagBtn_${listing.id}"><i class="fas fa-flag ${_isFlagged(listing.id) ? 'text-red-500' : ''}"></i> ${_isFlagged(listing.id) ? 'Flagged' : 'Flag'}</button>
                                 ${isComingSoon(listing)
@@ -1090,42 +1090,92 @@
             } catch(e) { console.error('showListingDetail error:', e); }
         }
 
+        // Video / 3D card body. Live Cotality carries video and 3D on the Property
+        // ── Agent & office contact: live Cotality ListAgent* / ListOffice* / CoList* fields (server mapper
+        // agent / office / coAgents). Mallan's own agents carry their headshot (Mallan agent records);
+        // Cotality delivers no agent photos, so every other agent shows initials. Emails are shown, not
+        // linked: contacting the listing agent goes through the audited inquiry button.
+        function _listingAgent(listing) {
+            return listing.agent || { name: listing.agentName || '', email: listing.agentEmail || null, directPhone: listing.agentPhone || null, mlsId: listing.agentMlsId || null, license: listing.agentLicense || null, photo: listing.agentPhoto || null };
+        }
+        function _httpUrl(url) { return /^https?:\/\//i.test(url) ? url : 'https://' + url; }
+        function _agentAvatarHtml(a, px) {
+            var name = (a && a.name) || '';
+            var initials = name.split(/\s+/).map(function(w) { return w[0]; }).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+            var box = 'width:' + px + 'px;height:' + px + 'px;';
+            if (a && a.photo) return '<img src="' + escapeHtml(a.photo) + '" alt="' + escapeHtml(name) + '" class="rounded-full object-cover flex-shrink-0 bg-gray-100" style="' + box + '">';
+            return '<span class="rounded-full bg-gray-200 text-gray-600 font-semibold inline-flex items-center justify-center flex-shrink-0" style="' + box + 'font-size:' + Math.max(10, Math.round(px / 2.6)) + 'px" aria-hidden="true">' + escapeHtml(initials) + '</span>';
+        }
+        // The phones Cotality carries for one agent, without repeats.
+        function _agentPhones(a) {
+            var seen = {}, out = [];
+            [['directPhone', 'direct'], ['preferredPhone', 'preferred'], ['mobilePhone', 'mobile']].forEach(function(p) {
+                var v = a && a[p[0]], k = v && String(v).replace(/\D/g, '');
+                if (v && !seen[k]) { seen[k] = 1; out.push({ number: String(v), kind: p[1] }); }
+            });
+            return out;
+        }
+        function _contactRow(label, valueHtml) {
+            return '<div class="flex justify-between gap-3 border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400 flex-shrink-0">' + label + '</span><span class="font-semibold text-right min-w-0 break-words">' + (valueHtml || '---') + '</span></div>';
+        }
+        function _agentTableRowsHtml(a, office) {
+            a = a || {}; office = office || {};
+            var tel = function(n) { return '<a href="tel:' + String(n).replace(/[^0-9+]/g, '') + '" class="text-blue-600 hover:underline">' + escapeHtml(n) + '</a>'; };
+            return _contactRow('Company', escapeHtml(office.name || '')) +
+                _contactRow('Office phone', office.phone ? tel(office.phone) : '') +
+                (office.email ? _contactRow('Office email', escapeHtml(office.email)) : '') +
+                (office.url ? _contactRow('Office website', '<a href="' + escapeHtml(_httpUrl(office.url)) + '" target="_blank" rel="noopener" class="text-blue-600 hover:underline">Open</a>') : '') +
+                _contactRow('Agent', '<span class="inline-flex items-center gap-2">' + _agentAvatarHtml(a, 24) + escapeHtml(a.name || '') + '</span>') +
+                _contactRow('Phone', _agentPhones(a).map(function(ph) { return tel(ph.number) + ' <span class="text-gray-400 text-[11px] font-normal">' + ph.kind + '</span>'; }).join('<br>')) +
+                _contactRow('Email', escapeHtml(a.email || '')) +
+                (a.url ? _contactRow('Website', '<a href="' + escapeHtml(_httpUrl(a.url)) + '" target="_blank" rel="noopener" class="text-blue-600 hover:underline">Open</a>') : '') +
+                _contactRow('License #', escapeHtml(a.license || '')) +
+                _contactRow('RLS member ID', escapeHtml(a.mlsId || ''));
+        }
+
+        // VirtualTourURLUnbranded* links (listing.tours, classified by the server mapper; the
+        // branded fields are never used), not in Media. Embeddable tours play in place; other
+        // tour links open in a new tab.
+        function _tourCardHtml(listing, kind) {
+            var tours = (listing.tours || []).filter(function(t) { return t.kind === kind; });
+            var links = kind === '3d' ? (listing.tours || []).filter(function(t) { return t.kind === 'link'; }) : [];
+            var linkList = function(items, label) {
+                return items.map(function(t, i) {
+                    return '<a href="' + escapeHtml(t.url) + '" target="_blank" rel="noopener" class="block text-sm text-blue-600 underline truncate">' +
+                        escapeHtml(label + (items.length > 1 ? ' ' + (i + 1) : '')) + '</a>';
+                }).join('');
+            };
+            var embed = tours.filter(function(t) { return t.embedUrl; })[0];
+            if (embed) {
+                var allow = kind === 'video'
+                    ? 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
+                    : 'fullscreen; xr-spatial-tracking';
+                var others = tours.filter(function(t) { return t !== embed; }).concat(links);
+                // Some hosts refuse to play inside another site (e.g. a Vimeo video locked to its owner's
+                // domain): the direct link is always offered under the player.
+                return '<div><div class="h-48 rounded-xl overflow-hidden"><iframe src="' + escapeHtml(embed.embedUrl) + '" class="w-full h-full" allow="' + allow + '" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin" title="' + (kind === 'video' ? 'Video Tour' : '3D Virtual Tour') + '"></iframe></div>' +
+                    '<div class="mt-2 space-y-1">' + linkList([embed], kind === 'video' ? 'Open video in a new tab' : 'Open 3D tour in a new tab') + (others.length ? linkList(others, kind === 'video' ? 'More video' : 'More tours') : '') + '</div></div>';
+            }
+            if (tours.length || links.length) {
+                return '<div class="h-48 bg-gray-50 rounded-xl p-4 border space-y-1 overflow-y-auto">' +
+                    linkList(tours, kind === 'video' ? 'Open video' : 'Open 3D tour') + linkList(links, 'Open tour link') + '</div>';
+            }
+            var note = kind === 'video' && listing.videosCount
+                ? listing.videosCount + ' video' + (listing.videosCount > 1 ? 's' : '') + ' on file in RLS — no link provided by Cotality'
+                : (kind === 'video' ? 'No video available' : 'No virtual tour available');
+            return '<div class="h-48 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200"><div class="text-center text-gray-400"><i class="fas ' + (kind === 'video' ? 'fa-play-circle' : 'fa-cube') + ' text-4xl mb-2"></i><div class="text-sm">' + note + '</div></div></div>';
+        }
+
         // Refresh video/virtual tour/floor plan sections after detail media loads
         function _refreshDetailMediaSections(listing) {
             if (!listing) return;
-            // Video section
-            var videoContainer = document.querySelector('#detailPanelMedia .fa-video');
-            if (videoContainer) {
-                var videoCard = videoContainer.closest('.lux-card');
-                if (videoCard) {
-                    var vids = listing._videos || [];
-                    if (vids.length > 0) {
-                        var videoUrl = vids[0].url;
-                        var isEmbed = /youtube\.com|youtu\.be|vimeo\.com|wistia\.com/.test(videoUrl);
-                        var content = videoCard.querySelector('h3').nextElementSibling;
-                        if (content) {
-                            content.outerHTML = isEmbed
-                                ? '<div class="h-48 rounded-xl overflow-hidden"><iframe src="' + videoUrl + '" class="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>'
-                                : '<div class="h-48 rounded-xl overflow-hidden bg-black"><video src="' + videoUrl + '" class="w-full h-full object-contain" controls playsinline preload="metadata"></video></div>';
-                        }
-                    }
-                }
-            }
-            // Virtual Tour section
-            var vtContainer = document.querySelector('#detailPanelMedia .fa-vr-cardboard');
-            if (vtContainer) {
-                var vtCard = vtContainer.closest('.lux-card');
-                if (vtCard) {
-                    var vtMedia = listing._virtualTours || [];
-                    var tourUrl = listing.virtualTourUrl || (vtMedia.length > 0 ? vtMedia[0].url : null);
-                    if (tourUrl) {
-                        var vtContent = vtCard.querySelector('h3').nextElementSibling;
-                        if (vtContent) {
-                            vtContent.outerHTML = '<div class="h-48 rounded-xl overflow-hidden"><iframe src="' + tourUrl + '" class="w-full h-full" allow="fullscreen; xr-spatial-tracking" allowfullscreen></iframe></div>';
-                        }
-                    }
-                }
-            }
+            // Video and 3D sections — re-render from the listing's tours (Property VirtualTourURL* links)
+            [['.fa-video', 'video'], ['.fa-vr-cardboard', '3d']].forEach(function(pair) {
+                var icon = document.querySelector('#detailPanelMedia ' + pair[0]);
+                var card = icon && icon.closest('.lux-card');
+                var content = card && card.querySelector('h3').nextElementSibling;
+                if (content) content.outerHTML = _tourCardHtml(listing, pair[1]);
+            });
             // Floor Plans section
             var fpContainer = document.querySelector('#detailPanelMedia .fa-layer-group');
             if (fpContainer) {
@@ -1186,7 +1236,11 @@
 
             // Fallback to sessionStorage-cached state if in-memory was cleared.
             if (!hasResults && typeof _restoreSearchState === 'function') {
-                if (_restoreSearchState()) {
+                var _restored = _restoreSearchState();
+                // 'live': the saved query is re-running on Cotality and renders the results itself
+                // (a reload on a listing URL used to close onto an empty results page, 2026-10-26)
+                if (_restored === 'live') { history.replaceState(null, '', '#results'); return; }
+                if (_restored) {
                     hasResults =
                         typeof searchResultsState !== 'undefined' &&
                         searchResultsState &&
@@ -1228,9 +1282,7 @@
             var beds = listing.beds === 0 ? 'Studio' : (listing.beds || '—') + ' Bed';
             var baths = (listing.baths || '—') + ' Bath';
             var sqft = listing.intSqft ? listing.intSqft.toLocaleString() + ' SF' : '';
-            var isSale = listing.listingCategory !== 'rental';
-            var slug = addr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-            var url = 'https://mallan.nyc/' + (isSale ? 'buy' : 'rent') + '/' + slug + '-' + listing.id;
+            var url = publicListingUrl(listing);
             // RLS ID = ListingId (REBNY canonical); fall back to internal id
             var rlsId = listing.lid || listing.id || '';
             // Status — render the canonical mapped status (post-A14
@@ -1267,14 +1319,22 @@
                 'Mallan Real Estate Inc. is a participating broker.\n';
         }
 
+        // ── Public listing page URL (Share, agent email body, agent inquiry) ──
+        // The public site serves every listing under /listing/… (app/listing/[...slug]); the old
+        // /buy/<slug>-<id> and /rent/… links answered 404 (checked live 2026-10-27). An address-suppressed
+        // listing is linked by id only: its address may not appear in a URL.
+        function publicListingUrl(listing) {
+            var addr = (listing.address || '') + (listing.unit ? ', ' + listing.unit : '');
+            var slug = addr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+            return 'https://mallan.nyc/listing/' + (listing.addressDisplayYN === false || !slug ? listing.id : slug + '-' + listing.id);
+        }
+
         // ── Share listing link (copy or native share) ──
         function shareListing(e, listingId) {
             var listing = listings.find(function(l) { return l.id == listingId; });
             if (!listing) return;
             var addr = (listing.address || '') + (listing.unit ? ', ' + listing.unit : '');
-            var isSale = listing.listingCategory !== 'rental';
-            var slug = addr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-            var url = 'https://mallan.nyc/' + (isSale ? 'buy' : 'rent') + '/' + slug + '-' + listing.id;
+            var url = publicListingUrl(listing);
             var title = addr + ' — $' + Number(listing.price || 0).toLocaleString();
 
             if (navigator.share) {
@@ -1283,6 +1343,10 @@
                 navigator.clipboard.writeText(url).then(function() {
                     var btn = e && e.currentTarget;
                     if (btn) { var orig = btn.innerHTML; btn.innerHTML = '<i class="fas fa-check text-[11px]"></i> Copied'; setTimeout(function() { btn.innerHTML = orig; }, 1500); }
+                }).catch(function() {
+                    // Clipboard access can be refused (no user gesture, permission denied): say so and
+                    // show the link instead of failing silently with an unhandled rejection (found 2026-10-26).
+                    showToast('Could not copy automatically — link: ' + url, 'info');
                 });
             }
         }
@@ -1303,9 +1367,14 @@
                 return;
             }
 
-            var isSale = listing.listingCategory !== 'rental';
-            var listingSlug = listingAddr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-            var listingUrl = 'https://mallan.nyc/' + (isSale ? 'buy' : 'rent') + '/' + listingSlug + '-' + listing.id;
+            // A click on the agent's address used to email them at once, with nothing to confirm and no
+            // message shown (found 2026-10-27): a misclick wrote to another brokerage. Ask first.
+            if (!confirm('Send an inquiry about ' + listingAddr + ' to ' + listingAgentName + ' (' + listingAgentEmail + ')?\n\n' +
+                'Mallan Real Estate emails the listing agent asking for information and showing availability, and records the inquiry in the audit trail.')) {
+                return;
+            }
+
+            var listingUrl = publicListingUrl(listing);
             // P2 — Server-authoritative path via /api/crm/agent-inquiry.
             // Replaces the prior client-side mailto / sendEmailDirect path
             // which had no audit trail and no REBNY attribution. The route:
@@ -1412,8 +1481,8 @@
                         '<div class="photo-lightbox-caption" id="lightboxCaption"></div>' +
                     '</div>' +
                     '<button onclick="closePhotoLightbox()" class="photo-lightbox-close"><i class="fas fa-times"></i></button>' +
-                    '<button onclick="lightboxPrev()" class="photo-lightbox-nav photo-lightbox-prev"><i class="fas fa-chevron-left"></i></button>' +
-                    '<button onclick="lightboxNext()" class="photo-lightbox-nav photo-lightbox-next"><i class="fas fa-chevron-right"></i></button>' +
+                    '<button onclick="lightboxPrev()" class="photo-lightbox-nav photo-lightbox-prev" title="Previous photo" aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button>' +
+                    '<button onclick="lightboxNext()" class="photo-lightbox-nav photo-lightbox-next" title="Next photo" aria-label="Next photo"><i class="fas fa-chevron-right"></i></button>' +
                     '<div class="photo-lightbox-counter" id="lightboxCounter"></div>' +
                     '<div class="photo-lightbox-strip" id="lightboxStrip"></div>';
                 document.body.appendChild(lb);
@@ -1695,7 +1764,7 @@
             h += '<div class="print-status-bar"><div><div class="label">Status</div><strong>' + statusLabel + '</strong></div><div><div class="label">Updated</div><strong>' + (listing.updatedDate || '---') + '</strong></div><div><div class="label">Listed</div><strong>' + listing.listedDate + '</strong></div><div><div class="label">DOM</div><strong>' + listing.dom + '</strong></div><div><div class="label">CDOM</div><strong>' + (listing.cdom || listing.dom) + '</strong></div></div>';
 
             // Description
-            if (listing.description) h += '<div class="print-desc">' + escapeHtml(listing.description) + '</div>';
+            if (listing.description) h += '<div class="print-desc" style="white-space:pre-line">' + escapeHtml(listing.description) + '</div>';
 
             // Financial Details
             h += '<div class="print-section"><h3><i class="fas fa-dollar-sign" style="margin-right:6px"></i> Financial</h3><div class="print-grid">';
@@ -1734,7 +1803,7 @@
             h += '<div class="print-section"><h3><i class="fas fa-eye" style="margin-right:6px"></i> Showing Instructions</h3><div style="font-size:13px;color:#444">' + (listing.showingInstructions || '(UCOM) ' + (listing.agentName || '') + ' ' + (listing.agentPhone || '')) + '</div></div>';
 
             // Reference line
-            h += '<div class="print-ref">Reference: L-ID ' + (listing.lid || '---') + ' &middot; W-ID ' + (listing.wid || '---') + ' &middot; SourceSystemKey ' + (listing.wid || listing.lid || listing.id) + '</div>';
+            h += '<div class="print-ref">Reference: L-ID ' + (listing.lid || '---') + ' &middot; W-ID ' + (listing.wid || '---') + ' &middot; Listing Key ' + (listing.listingKey || '---') + '</div>';
 
             // Footer
             h += '<div class="print-footer">Listing data courtesy of the REBNY Listing Service (RLS) via Trestle &middot; ' + _agent.company + ' ' + (_agent.companyLicense || '') + ' &middot; Information deemed reliable but not guaranteed<br>&copy; ' + new Date().getFullYear() + ' ' + _agent.company + ' &middot; ' + (_agent.address || '') + (_agent.phone ? ' &middot; ' + _agent.phone : '') + '<br>' + _agent.name + ', ' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + (_agent.license ? ' &middot; Lic. ' + _agent.license : '') + '<span class="eho">&bull; Equal Housing Opportunity</span></div>';
@@ -1802,30 +1871,25 @@
         // OUTPUT ACTIONS — Wire detail page to report system
         // ═══════════════════════════════════════════════════════════════
 
-        function sendDetailToClient(format) {
-            if (!_detailCurrentId) return;
-            if (typeof reportState !== 'undefined' && typeof generateReport === 'function') {
-                reportState.selectedListingIds = [_detailCurrentId];
+        // Send to Client from the detail page: preset the report (this listing, customer version, the
+        // chosen format) and open the Reports modal so the agent picks the recipient and output.
+        // Generating straight away ran with the modal closed, so the "enter a recipient" error rendered
+        // inside the hidden modal and the click did nothing visible (found 2026-10-26).
+        function _openDetailReport(format) {
+            if (!_detailCurrentId || typeof openReportsModal !== 'function') return;
+            if (typeof reportState !== 'undefined') {
                 reportState.version = 'customer';
-                reportState.format = format || 'detail';
-                generateReport();
-            } else if (typeof openReportsModal === 'function') {
-                searchResultsState.selectedListings = [_detailCurrentId];
-                openReportsModal();
+                reportState.format = format;
             }
+            openReportsModal([_detailCurrentId]);
+        }
+
+        function sendDetailToClient(format) {
+            _openDetailReport(format || 'detail');
         }
 
         function generateFactSheet() {
-            if (!_detailCurrentId) return;
-            if (typeof reportState !== 'undefined' && typeof generateReport === 'function') {
-                reportState.selectedListingIds = [_detailCurrentId];
-                reportState.version = 'customer';
-                reportState.format = 'factSheet';
-                generateReport();
-            } else if (typeof openReportsModal === 'function') {
-                searchResultsState.selectedListings = [_detailCurrentId];
-                openReportsModal();
-            }
+            _openDetailReport('factSheet');
         }
 
         function generateOpenHouseSheet() {
@@ -2483,6 +2547,10 @@
             var listing = listings.find(function(l) { return l.id === _detailCurrentId; });
             if (!listing) { showToast('No listing selected', 'warning'); return; }
 
+            // Comparable Reports: this listing becomes the subject; comparables come from live Cotality,
+            // the agent picks them, values the subject and saves the CMA (js/search/comparables.js).
+            if (typeof openCompsForListing === 'function') { openCompsForListing(listing); return; }
+
             if (typeof MallanAPI === 'undefined') {
                 showToast('API not available', 'error');
                 return;
@@ -2599,7 +2667,7 @@
             if (listing.status && listing.status !== 'ACTIVE') {
                 events.push({ date: listing.updatedDate || 'N/A', label: 'Status: ' + listing.status, detail: '' });
             }
-            events.push({ date: 'Current', label: 'DOM: ' + (listing.dom || 0) + ' | CDOM: ' + (listing.cdom || 0), detail: '$' + (listing.price || 0).toLocaleString() });
+            events.push({ date: 'Current', label: 'DOM: ' + (listing.dom != null ? listing.dom : '---') + (listing.cdom != null ? ' | CDOM: ' + listing.cdom : ''), detail: '$' + (listing.price || 0).toLocaleString() });
 
             var timelineHtml = events.map(function(ev) {
                 return '<div class="flex items-start gap-3 pb-4">'

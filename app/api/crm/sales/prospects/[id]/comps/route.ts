@@ -1,12 +1,12 @@
 /**
  * GET  /api/crm/sales/prospects/[id]/comps?q=...
- *   - With q param: search Trestle for comparable sales (by ListingId or address)
+ *   - With q param: search Cotality for comparable sales (by ListingId or address)
  *   - Without q param: return saved comps from pitch_data
  *
  * POST /api/crm/sales/prospects/[id]/comps
  *   - Save curated comp list (with optional per-comp overrides) to pitch_data
  *
- * MLS data is server-side only — never expose Trestle responses raw to the browser.
+ * MLS data is server-side only — never expose Cotality responses raw to the browser.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -23,7 +23,7 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const TRESTLE_URL =
+const COTALITY_URL =
   process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
 
 const COMP_SELECT = [
@@ -43,7 +43,7 @@ const COMP_SELECT = [
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-interface TrestleComp {
+interface CotalityComp {
   ListingId?: string;
   UnparsedAddress?: string;
   UnitNumber?: string;
@@ -81,13 +81,13 @@ interface PitchData {
   [key: string]: unknown;
 }
 
-// ── Trestle helper ───────────────────────────────────────────────────────────
+// ── Cotality helper ───────────────────────────────────────────────────────────
 
-async function searchTrestle(filter: string): Promise<MappedComp[]> {
+async function searchCotality(filter: string): Promise<MappedComp[]> {
   try {
     const token = await getAccessToken();
     const url =
-      `${TRESTLE_URL}/odata/Property` +
+      `${COTALITY_URL}/odata/Property` +
       `?$filter=${encodeURIComponent(filter)}` +
       `&$select=${COMP_SELECT}` +
       `&$top=20` +
@@ -99,12 +99,12 @@ async function searchTrestle(filter: string): Promise<MappedComp[]> {
     });
 
     if (!res.ok) {
-      console.error(`[comps] Trestle query failed (${res.status})`);
+      console.error(`[comps] Cotality query failed (${res.status})`);
       return [];
     }
 
     const data = await res.json();
-    const items: TrestleComp[] = data.value || [];
+    const items: CotalityComp[] = data.value || [];
 
     return items.map(
       (s): MappedComp => ({
@@ -121,7 +121,7 @@ async function searchTrestle(filter: string): Promise<MappedComp[]> {
       }),
     );
   } catch (err) {
-    console.error("[comps] Trestle fetch error:", err);
+    console.error("[comps] Cotality fetch error:", err);
     return [];
   }
 }
@@ -170,7 +170,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         ` and StandardStatus eq 'Closed'`;
     }
 
-    const results = await searchTrestle(filter);
+    const results = await searchCotality(filter);
     return NextResponse.json({ results });
   }
 

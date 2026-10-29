@@ -6,15 +6,16 @@
  * slim call would silently regrow Listing.raw_data per-row from ~1 KB
  * to ~14 KB and 70 days later we hit the 500 MB Neon free-tier cap.
  *
- * The mapper is the single chokepoint for all Trestle writes
+ * The mapper is the single chokepoint for all Cotality writes
  * (lib/idx/sync.ts, app/api/cron/feed-reconcile, app/api/crm/listings/reset-sync) —
  * one test here covers every programmatic write path.
  */
 import { mapTrestleToPrisma } from '@/lib/idx/trestle-mapper';
 import { RAW_DATA_KEEP_SET } from '@/lib/compliance/raw-data-keep-fields';
+import { tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 
-/** Build a minimally-valid Trestle Property record + a bunch of unread fields. */
-function buildTrestleRow(extras: Record<string, unknown> = {}): Record<string, unknown> {
+/** Build a minimally-valid Cotality Property record + a bunch of unread fields. */
+function buildCotalityRow(extras: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     // Required identifiers
     ListingKey: 'RBNY-TEST-001',
@@ -53,7 +54,7 @@ function buildTrestleRow(extras: Record<string, unknown> = {}): Record<string, u
 
 describe('mapTrestleToPrisma — raw_data slimming', () => {
   it('keeps every consumer-required field in raw_data', () => {
-    const result = mapTrestleToPrisma(buildTrestleRow());
+    const result = mapTrestleToPrisma(buildCotalityRow());
     const raw = result.raw_data as Record<string, unknown>;
     // Spot-check the fields the public DTO + retention archive read.
     expect(raw.ListingKey).toBe('RBNY-TEST-001');
@@ -65,10 +66,10 @@ describe('mapTrestleToPrisma — raw_data slimming', () => {
     expect(raw.ListOfficeName).toBe('Mallan Real Estate Inc.');
   });
 
-  it('drops Trestle fields outside the keep set', () => {
-    // These are real Trestle Property fields that no consumer reads —
+  it('drops Cotality fields outside the keep set', () => {
+    // Property field names that no consumer reads —
     // dumping them into raw_data is what causes the 268 MB elephant.
-    const noisy = buildTrestleRow({
+    const noisy = buildCotalityRow({
       AccessibilityFeatures: 'Ramp',
       WaterSource: 'Public',
       SewerSource: 'Public Sewer',
@@ -103,7 +104,7 @@ describe('mapTrestleToPrisma — raw_data slimming', () => {
   });
 
   it('every key in the slimmed raw_data is in the keep set', () => {
-    const result = mapTrestleToPrisma(buildTrestleRow({ Junk1: 'a', Junk2: 'b' }));
+    const result = mapTrestleToPrisma(buildCotalityRow({ Junk1: 'a', Junk2: 'b' }));
     const raw = result.raw_data as Record<string, unknown>;
     for (const key of Object.keys(raw)) {
       // RAW_DATA_KEEP_SET is the contract. Anything else is a leak.
@@ -114,7 +115,7 @@ describe('mapTrestleToPrisma — raw_data slimming', () => {
   it('strips private fields BEFORE slimming (defense in depth)', () => {
     // PrivateRemarks / ShowingInstructions / ListAgentEmail must never
     // hit raw_data even if they happen to be on the keep set.
-    const withPrivate = buildTrestleRow({
+    const withPrivate = buildCotalityRow({
       PrivateRemarks: 'Lockbox 0420',
       ShowingInstructions: 'Call 24h ahead',
       ListAgentEmail: 'agent@example.com',
@@ -128,10 +129,10 @@ describe('mapTrestleToPrisma — raw_data slimming', () => {
     expect(raw.ListAgentDirectPhone).toBeUndefined();
   });
 
-  it('produces dramatically smaller raw_data on a typical Trestle row', () => {
-    // Simulate a representative Trestle row with the keep-set fields plus
-    // ~50 unread fields (real Trestle Property has ~1,457 columns).
-    const fat: Record<string, unknown> = buildTrestleRow();
+  it('produces dramatically smaller raw_data on a typical Cotality row', () => {
+    // Simulate a representative Cotality row with the keep-set fields plus
+    // ~50 unread fields (the live Cotality Property schema has hundreds of fields).
+    const fat: Record<string, unknown> = buildCotalityRow();
     for (let i = 0; i < 50; i++) {
       fat[`UnusedField${i}`] = 'x'.repeat(64);
     }
@@ -140,5 +141,27 @@ describe('mapTrestleToPrisma — raw_data slimming', () => {
     const slimJsonSize = JSON.stringify(result.raw_data).length;
     // The slim version must be MUCH smaller than the fat input.
     expect(slimJsonSize).toBeLessThan(fatJsonSize / 2);
+  });
+
+  it('keeps all of a listing\'s tour and video links, so the public card can show its video and its 3D tour (Cotality record -> raw_data -> public DTO)', () => {
+    const MATTERPORT = 'https://my.matterport.com/show/?m=abc';
+    const YOUTUBE = 'https://www.youtube.com/watch?v=RM4ef1CIo2k';
+    const result = mapTrestleToPrisma(buildCotalityRow({
+      VirtualTourURLUnbranded: MATTERPORT,
+      VirtualTourURLUnbranded2: YOUTUBE,
+      VirtualTourURLUnbranded3: 'https://vimeo.com/123456789',
+      VirtualTourURLBranded: 'https://tour.example.com/branded/xyz',
+    }));
+    const raw = result.raw_data as Record<string, unknown>;
+    expect(raw.VirtualTourURLUnbranded).toBe(MATTERPORT);
+    expect(raw.VirtualTourURLUnbranded2).toBe(YOUTUBE);
+    expect(raw.VirtualTourURLUnbranded3).toBe('https://vimeo.com/123456789');
+    expect(raw.VirtualTourURLBranded).toBe('https://tour.example.com/branded/xyz');
+    // what the public DTO makes of the saved record: the first tour and the first video
+    const dto = tourUrlsForDto(
+      [raw.VirtualTourURLUnbranded, raw.VirtualTourURLUnbranded2, raw.VirtualTourURLUnbranded3],
+      raw.VirtualTourURLBranded,
+    );
+    expect(dto).toEqual({ virtualTourURL: MATTERPORT, videoUrl: YOUTUBE });
   });
 });

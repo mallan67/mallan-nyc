@@ -35,10 +35,12 @@ const ROOT = resolve(__dirname, '../..');
 const roster = JSON.parse(readFileSync(resolve(ROOT, 'data/agents.json'), 'utf8')) as {
   agents: Array<{ id: string; name: string; title: string }>;
 };
+// Line endings normalised: the assertions below pin multi-line source, and a Windows checkout
+// with core.autocrlf=true serves this file as CRLF while CI reads LF.
 const routeSrc = readFileSync(
   resolve(ROOT, 'app/api/crm/agent-inquiry/route.ts'),
   'utf8',
-);
+).replace(/\r/g, '');
 
 const byId = (id: string) => roster.agents.find((a) => a.id === id)!;
 

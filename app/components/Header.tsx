@@ -159,7 +159,7 @@ export default function Header() {
     //       `propertySubType` distribution. Sample of 200 sale listings:
     //       Condo (118), SingleFamilyResidence (43), Co-op (25), Multi-Family (6),
     //       Condop (3), MixedUse (2), Retail (1), Duplex (1), Residential (1).
-    //       NYC townhouses are classified `SingleFamilyResidence` per RESO
+    //       NYC townhouses are classified `SingleFamilyResidence` per Cotality
     //       (verified: 4 E 79th St, 25 Riverside Dr, 18 E 80th St — all marked
     //       propertyType=SingleFamilyResidence).
     // - `?subTypes=SingleFamilyResidence` returns 483 active sale listings,

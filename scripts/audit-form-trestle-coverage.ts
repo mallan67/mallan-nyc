@@ -5,19 +5,19 @@
 // against LIVE Trestle metadata. Reports four classes of finding per
 // (file × resource):
 //
-//   1. STALE_BINDING     — data-rls-field points at a field that no
+//   1. STALE_BINDING     — data-concept points at a field that no
 //                           longer exists on live Trestle. Validation
 //                           was never going to catch this without a
 //                           live check.
 //   2. UNBOUND_INPUT     — a form <input>/<select>/<textarea> exists
 //                           with an id matching a live Trestle field
-//                           but no data-rls-field attribute is set,
+//                           but no data-concept attribute is set,
 //                           so the existing validator skips it.
 //   3. UNCOVERED_FIELD   — the live Trestle resource has a field that
 //                           NO form in the codebase binds to. May be
 //                           intentional (agents don't fill it) or a
 //                           gap (we should be collecting it).
-//   4. ORPHAN_BINDING    — data-rls-field set, but no matching live
+//   4. ORPHAN_BINDING    — data-concept set, but no matching live
 //                           Trestle resource has that field. Either
 //                           cross-resource lookup or stale name.
 //
@@ -52,7 +52,7 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
 const RESOURCES = ['Property', 'CustomProperty', 'Member', 'Office', 'Media', 'PropertyUnitTypes', 'OpenHouse'];
 
 // Files we audit. Include both submission forms AND search forms — the
-// search forms typically don't have data-rls-field today (which is the
+// search forms typically don't have data-concept today (which is the
 // gap), so the audit also reports their input ids vs Trestle fields.
 const FORM_FILES = [
   // Submission forms
@@ -78,14 +78,22 @@ async function getToken(): Promise<string> {
       scope: 'api',
     }),
   });
-  if (!res.ok) throw new Error(`Token: ${res.status}`);
-  return ((await res.json()) as { access_token: string }).access_token;
+  if (!res.ok) throw new Error(`Cotality token request failed (${res.status})`);
+  const payload = (await res.json()) as { access_token?: unknown };
+  if (typeof payload.access_token !== 'string' || !payload.access_token.trim()) {
+    throw new Error('Cotality token response has no usable access_token');
+  }
+  return payload.access_token;
 }
 
 async function getMetadataXml(token: string): Promise<string> {
   const res = await fetch(`${TRESTLE_BASE}/odata/$metadata`, { headers: { authorization: `Bearer ${token}` } });
-  if (!res.ok) throw new Error(`Metadata: ${res.status}`);
-  return res.text();
+  if (!res.ok) throw new Error(`Cotality metadata request failed (${res.status})`);
+  const xml = await res.text();
+  if (!/<EntityType\s/.test(xml) || !/<Property\s/.test(xml)) {
+    throw new Error('Cotality metadata contains no readable entity fields; live audit is UNVERIFIED');
+  }
+  return xml;
 }
 
 // REBNY's per-resource ${name}.CustomFields blob carries 40+ extra fields
@@ -97,7 +105,7 @@ async function getCustomPropertyFieldsFromSample(token: string): Promise<Set<str
   // key sets in CustomFields, so union across a small sample.
   const url = `${TRESTLE_BASE}/odata/CustomProperty?$top=20`;
   const res = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
-  if (!res.ok) return fields;
+  if (!res.ok) throw new Error(`Cotality CustomProperty request failed (${res.status})`);
   const json = (await res.json()) as { value?: Array<Record<string, unknown>> };
   for (const row of json.value || []) {
     const cf = row.CustomFields;
@@ -143,20 +151,20 @@ function surveyForm(filePath: string): FormSurvey | null {
     unboundInputs: [],
   };
 
-  // Collect data-rls-field bindings
-  const bound = root.querySelectorAll('[data-rls-field]');
+  // Collect data-concept bindings
+  const bound = root.querySelectorAll('[data-concept]');
   for (const el of bound) {
-    const field = el.getAttribute('data-rls-field') || '';
+    const field = el.getAttribute('data-concept') || '';
     if (!field) continue;
     survey.bindings.set(field, (survey.bindings.get(field) || 0) + 1);
   }
 
-  // Collect form-control elements lacking a binding (excluding data-rls-ignore)
+  // Collect form-control elements lacking a binding (excluding data-concept-disposition)
   const inputs = root.querySelectorAll('input, select, textarea');
   survey.totalInputs = inputs.length;
   for (const el of inputs) {
-    if (el.getAttribute('data-rls-ignore') === 'true') continue;
-    if (el.getAttribute('data-rls-field')) continue;
+    if (el.getAttribute('data-concept-disposition')) continue;
+    if (el.getAttribute('data-concept')) continue;
     const id = el.getAttribute('id') || '';
     const name = el.getAttribute('name') || '';
     const type = el.tagName.toLowerCase() + (el.getAttribute('type') ? `[type=${el.getAttribute('type')}]` : '');
@@ -278,7 +286,7 @@ async function main() {
               file: s.file,
               resource: hit.resource,
               field: hit.field,
-              detail: `<${inp.type}> id="${inp.id}" matches live Trestle ${hit.resource}.${hit.field} but has no data-rls-field`,
+              detail: `<${inp.type}> id="${inp.id}" matches live Trestle ${hit.resource}.${hit.field} but has no data-concept`,
             });
             break;
           }
@@ -353,7 +361,7 @@ async function main() {
 
   const stale = findings.filter((f) => f.kind === 'ORPHAN_BINDING');
   if (stale.length > 0) {
-    console.log('── ORPHAN BINDINGS (data-rls-field name not on any live resource) ─');
+    console.log('── ORPHAN BINDINGS (data-concept name not on any live resource) ─');
     for (const f of stale.slice(0, 50)) {
       console.log(`  ✗ ${path.basename(f.file || '?').padEnd(36)} ${f.field}`);
     }
@@ -363,7 +371,7 @@ async function main() {
 
   const unbound = findings.filter((f) => f.kind === 'UNBOUND_INPUT');
   if (unbound.length > 0) {
-    console.log('── UNBOUND INPUTS (id matches a live field but no data-rls-field) ─');
+    console.log('── UNBOUND INPUTS (id matches a live field but no data-concept) ─');
     for (const f of unbound.slice(0, 30)) {
       console.log(`  ◐ ${path.basename(f.file || '?').padEnd(36)} ${f.detail}`);
     }

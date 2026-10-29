@@ -207,8 +207,8 @@ async function handlePromoteToListing(
   // for symmetry with the other CRM writers (listings POST/PATCH) — if a
   // future refactor lets convert produce a non-Draft initial status, the
   // SAME guard (normalize → check TERMINAL_STATUSES) prevents a terminal
-  // listing from being born with idx_display_yn=true. Single source of
-  // truth: lib/idx/trestle-mapper.ts exports TERMINAL_STATUSES +
+  // listing from being born with idx_display_yn=true. Status
+  // helpers: lib/idx/trestle-mapper.ts exports TERMINAL_STATUSES +
   // normalizeStandardStatus.
   const convertInitialStatus = normalizeStandardStatus("Draft");
   await prisma.listing.create({

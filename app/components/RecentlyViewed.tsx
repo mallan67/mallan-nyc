@@ -88,7 +88,7 @@ export default function RecentlyViewed() {
             >
               {item.photo ? (
                 <div className="w-14 h-14 rounded-l-lg overflow-hidden flex-shrink-0">
-                  {/* Plain <img> — Trestle proxy URLs aren't whitelisted for
+                  {/* Plain <img> — Cotality proxy URLs aren't whitelisted for
                       next/image and the recently-viewed strip is below the fold. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img

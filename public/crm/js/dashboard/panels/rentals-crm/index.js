@@ -6,6 +6,16 @@
 var RentalsCRM = (function () {
   'use strict';
   var E = Utils.esc;
+
+  // "425 Park Avenue South #4D" + unit "4D" must read once, not "#4D #4D": the
+  // client's property_address often already carries the unit (2026-10-28).
+  function _addressWithUnit(address, unit) {
+    var a = String(address || '-');
+    var u = String(unit || '').trim();
+    if (!u) return a;
+    if (a.toLowerCase().indexOf('#' + u.toLowerCase()) !== -1) return a;
+    return a + ' #' + u;
+  }
   var $ = Utils.formatMoney;
   var D = Utils.formatDate;
   var _ago = typeof Utils.formatTimeAgo === 'function' ? Utils.formatTimeAgo : D;
@@ -129,8 +139,7 @@ var RentalsCRM = (function () {
             '<div><div class="font-semibold text-gray-900">' + E(r.name) + '</div>' + entity + '</div></div>';
         }},
         { key: 'property_address', label: 'Property', render: function (r) {
-          var unit = r.unit_number ? ' #' + r.unit_number : '';
-          return '<span class="text-sm">' + E((r.property_address || '-') + unit) + '</span>';
+          return '<span class="text-sm">' + E(_addressWithUnit(r.property_address, r.unit_number)) + '</span>';
         }},
         { key: 'stage', label: 'Stage', render: function (r) { return _stageBadge(r.stage, LANDLORD_STAGES); } },
         { key: 'listing_status', label: 'Listing', render: function (r) {
@@ -208,7 +217,7 @@ var RentalsCRM = (function () {
     h += '<div class="flex gap-3 mt-1 text-xs text-gray-500">';
     if (cl.email) h += '<span><i class="fas fa-envelope mr-1"></i>' + E(cl.email) + '</span>';
     if (cl.phone) h += '<span><i class="fas fa-phone mr-1"></i>' + E(cl.phone) + '</span>';
-    if (cl.property_address) h += '<span><i class="fas fa-map-marker-alt mr-1"></i>' + E(cl.property_address) + (cl.unit_number ? ' #' + cl.unit_number : '') + '</span>';
+    if (cl.property_address) h += '<span><i class="fas fa-map-marker-alt mr-1"></i>' + E(_addressWithUnit(cl.property_address, cl.unit_number)) + '</span>';
     h += '</div></div></div>';
 
     // Action buttons
@@ -1031,7 +1040,10 @@ var RentalsCRM = (function () {
         { key: 'lease_end_date', label: 'Lease Ends', render: function (r) {
           if (!r.lease_end_date) return '<span class="text-gray-400">—</span>';
           var days = _daysUntil(r.lease_end_date);
-          return _urgencyBadge(days) + ' <span class="text-xs text-gray-500">' + new Date(r.lease_end_date).toLocaleDateString() + '</span>';
+          // Lease dates are calendar days stored at UTC midnight: show the stored day, not the local-time day before
+          var m = String(r.lease_end_date).match(/^(\d{4})-(\d{2})-(\d{2})/);
+          var dayText = m ? (parseInt(m[2], 10) + '/' + parseInt(m[3], 10) + '/' + m[1]) : new Date(r.lease_end_date).toLocaleDateString();
+          return _urgencyBadge(days) + ' <span class="text-xs text-gray-500">' + dayText + '</span>';
         }},
         { key: 'renewal_status', label: 'Renewal', render: function (r) {
           var s = r.renewal_status || 'unknown';
@@ -1054,6 +1066,11 @@ var RentalsCRM = (function () {
           if (r.is_high_net_worth) return '<span class="text-xs text-gold font-bold"><i class="fas fa-gem mr-1"></i>Send Sales Listings</span>';
           return '<span class="text-xs text-gray-500"><i class="fas fa-check mr-1"></i>Monitor</span>';
         }},
+        { key: '_rvb', label: '', render: function (r) {
+          // Rent vs Buy / Cost to Become an Owner: the Lease Tracker's preview → confirm flow when the
+          // tenancy is tracked, otherwise a reviewed draft in the compose. Never a mail-app link.
+          return '<button class="px-2 py-1 text-[11px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded" onclick="event.stopPropagation();RentalsCRM._buyVsRent(\'' + E(String(r.id)) + '\',\'' + E(r.name || '') + '\')"><i class="fas fa-chart-bar mr-1"></i>Rent vs Buy</button>';
+        }},
       ],
       rows: rows, sort: st.sort, onSort: 'RentalsCRM._sortTenants', onRowClick: 'RentalsCRM._openTenant',
       page: st.page, pageSize: 25, onPage: 'RentalsCRM._pageTenants',
@@ -1063,6 +1080,7 @@ var RentalsCRM = (function () {
     c.innerHTML = h;
   }
 
+  function _buyVsRent(clientId, name) { Panels._sendBuyVsRent(clientId, name); }
   function _searchTenants(q) { _s.tenants.search = q; _s.tenants.page = 1; _renderTenants(CRM.getContent()); }
   function _filterTenants(k, v) { _s.tenants.filter[k] = v; _renderTenants(CRM.getContent()); }
   function _sortTenants(k) { var st = _s.tenants; st.sort = { key: k, dir: st.sort.key === k && st.sort.dir === 'asc' ? 'desc' : 'asc' }; _renderTenants(CRM.getContent()); }
@@ -1201,12 +1219,11 @@ var RentalsCRM = (function () {
         .then(function () { CRM.toast('Promoted to Seller!', 'success'); Router.navigate('/sales/sellers'); })
         .catch(function () { CRM.toast('Failed', 'error'); });
     } else if (action === 'send_weekly_report') {
-      CRM.toast('Sending weekly report...', 'info');
+      // Reviewed draft in the compose (attach the listings there) — this used to send three canned
+      // lines to the client immediately, with no update attached and no preview.
       var rptSubject = 'Weekly Rental Update — ' + (cl.name || 'Your Properties');
-      var rptBody = 'Hi ' + (cl.first_name || cl.name || '') + ',\n\nHere is your weekly rental listing update from Mallan Real Estate.\n\nPlease reach out if you have any questions.\n\nBest regards,\nMallan Real Estate Inc.';
-      MallanAPI._fetch('/api/crm/email', { method: 'POST', body: JSON.stringify({ type: 'weekly_report', client_ids: [String(cl.id)], subject: rptSubject, body: rptBody }) })
-        .then(function () { CRM.toast('Weekly report sent!', 'success'); })
-        .catch(function () { CRM.toast('Send failed', 'error'); });
+      var rptBody = 'Hi ' + (cl.first_name || cl.name || '') + ',\n\nHere is your weekly rental listing update from Mallan Real Estate.\n\nPlease reach out if you have any questions.\n\nBest regards,';
+      Panels._composeTo(cl.id, rptSubject, rptBody);
     } else if (action === 'send_comps') {
       _wsTab('pitch');
     } else if (action === 'send_market_report') {
@@ -1217,10 +1234,10 @@ var RentalsCRM = (function () {
     } else if (action === 'schedule_open_house') {
       _scheduleShowing();
     } else if (action === 'send_seller_comps') {
-      CRM.toast('Sending sale comps...', 'info');
-      MallanAPI._fetch('/api/crm/email', { method: 'POST', body: JSON.stringify({ type: 'sale_comps', client_ids: [String(cl.id)], subject: 'Sale Comps for Your Property — ' + (cl.property_address || ''), body: 'Hi ' + (cl.first_name || cl.name || '') + ',\n\nHere are recent comparable sales in your building and area from Mallan Real Estate.\n\nBest regards,\nMallan Real Estate Inc.' }) })
-        .then(function () { CRM.toast('Sale comps sent!', 'success'); })
-        .catch(function () { CRM.toast('Send failed', 'error'); });
+      // Reviewed draft in the compose — the comps themselves come from the CMA / pitch packet
+      // (send_comps); this used to send three canned lines with no comps attached.
+      Panels._composeTo(cl.id, 'Sale Comps for Your Property — ' + (cl.property_address || ''),
+        'Hi ' + (cl.first_name || cl.name || '') + ',\n\nHere are recent comparable sales in your building and area from Mallan Real Estate.\n\nBest regards,');
     }
   }
 
@@ -1287,7 +1304,12 @@ var RentalsCRM = (function () {
     if (data.monthly_rent) data.monthly_rent = Number(data.monthly_rent);
     if (_s.ws.client) data.landlord_lead_id = String(_s.ws.client.id);
     MallanAPI._fetch('/api/crm/active-leases', { method: 'POST', body: JSON.stringify(data) })
-      .then(function() { CRM.toast('Lease added', 'success'); CRM.closeModal(); Router.navigate('/lease-tracker'); })
+      .then(function(out) {
+        // Same landlord, unit and term = one tenancy: a retry returns the existing row (deduplicated: true).
+        if (out && out.deduplicated) CRM.toast('This tenancy already exists (#' + (out.lease && out.lease.id) + ') — nothing was duplicated', 'info');
+        else CRM.toast('Lease added (#' + (out && out.lease && out.lease.id) + ')', 'success');
+        CRM.closeModal(); Router.navigate('/lease-tracker');
+      })
       .catch(function(err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
   }
 
@@ -1459,7 +1481,7 @@ var RentalsCRM = (function () {
     _saveLeaseDate: _saveLeaseDate, _showCalc: _showCalc,
     _loadPropertyResearch: _loadPropertyResearch,
     _addLease: _addLease, _addNewLease: _addNewLease, _openLease: _openLease,
-    _showAddLeaseModal: _showAddLeaseModal, _submitLease: _submitLease,
+    _showAddLeaseModal: _showAddLeaseModal, _submitLease: _submitLease, _buyVsRent: _buyVsRent,
     _findRentalComps: _findRentalComps, _editRentalPricing: _editRentalPricing,
     _editMarketing: _editMarketing, _editTimeline: _editTimeline,
     _logOutreach: _logOutreach, _scheduleShowing: _scheduleShowing,

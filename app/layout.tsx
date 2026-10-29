@@ -213,7 +213,6 @@ const jsonLd = {
     'https://www.zillow.com/profile/Maya%20Allan',
     'https://streeteasy.com/profile/818487-maya-allan',
     'https://www.yelp.com/biz/mallan-real-estate-new-york',
-    'https://www.linkedin.com/in/mayaallan/',
   ],
   // Brokerage license
   hasCredential: [
@@ -323,7 +322,6 @@ const jsonLd = {
       'Provost Awards',
     ],
     sameAs: [
-      'https://www.linkedin.com/in/mayaallan/',
       'https://www.zillow.com/profile/Maya%20Allan',
       'https://streeteasy.com/profile/818487-maya-allan',
     ],

@@ -150,7 +150,7 @@
         };
 
         // ╔══════════════════════════════════════════════════════════════════╗
-        // ║  CRM → RESO MlsStatus MAPPING (Item 41)                       ║
+        // ║  CRM → Cotality MlsStatus MAPPING (Item 41)                   ║
         // ╚══════════════════════════════════════════════════════════════════╝
 
         var CRM_TO_RESO_STATUS = {
@@ -325,7 +325,7 @@
             var tsEl = document.getElementById(formType + 'StatusChangeTimestamp');
             if (tsEl) tsEl.textContent = timestamp;
 
-            // Update RESO MlsStatus display
+            // Update MlsStatus display
             var statusEl = document.getElementById(formType + 'Status');
             var resoEl = document.getElementById(formType + 'ResoMlsStatus');
             if (statusEl && resoEl && typeof getResoMlsStatus === 'function') {

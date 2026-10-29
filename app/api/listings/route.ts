@@ -14,8 +14,10 @@ import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE, ADDRESS_DISCLOSED_GATE } 
 import {
   applyPublicListingPostFilters,
   buildPublicListingDbSearch,
+  mallanAuthoredWhere,
 } from '@/lib/search/public-listing-db';
 import { buildPublicListingTrestleFilter } from '@/lib/search/public-listing-trestle';
+import { allowsPets } from '@/lib/search/pet-policy';
 import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
 // Trestle access audit logger — REBNY requires 12-month retention on MLS data access
 const logTrestleAccess = async (data: Record<string, unknown>) => {
@@ -79,7 +81,7 @@ function getNextWeekend(): { sat: string; mon: string } {
  * branches below, which already emit that label.
  */
 export function computeDbEnvelopeSource(
-  listings: ReadonlyArray<Pick<DbListing, 'agent_id' | 'owner_client_id' | 'rls_eligible'>>,
+  listings: ReadonlyArray<Pick<DbListing, 'listing_id' | 'rls_eligible'>>,
 ): 'db+idx' | 'db+exclusive' | 'db+mixed' {
   if (listings.length === 0) return 'db+exclusive';
   let hasThirdParty = false;
@@ -210,6 +212,15 @@ export function resolveAddressAlias(searchParams: URLSearchParams): void {
   searchParams.set('address', qParam);
 }
 
+/**
+ * The Trestle path's `amenities=pet-friendly` post-filter, on RAW records (PetsAllowed is in $select; the other amenity fields are not, so only this one is filterable here).
+ * Keeps the records whose PetsAllowed lets some pet in (lib/search/pet-policy.ts, the same reading as the DB path): any answer that is not No / BuildingNo, a list or a
+ * comma-joined string. A record with no answer is not kept. Exported for unit testing, like resolveAddressAlias.
+ */
+export function filterPetFriendlyRaw<T extends { PetsAllowed?: unknown }>(records: readonly T[]): T[] {
+  return records.filter((raw) => allowsPets(raw.PetsAllowed));
+}
+
 export async function GET(request: Request) {
   // Rate limiting — prevent bulk scraping
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
@@ -254,7 +265,11 @@ export async function GET(request: Request) {
     // advertising). The DB filter is applied in `buildPublicListingDbSearch`;
     // here we additionally short-circuit the Trestle fallback so external
     // listings can never reach the response on this path.
-    const isMallanExclusiveOnly = searchParams.get('exclusive') === 'mallan';
+    //
+    // `sort=exclusives` makes the same promise: the DB query narrows to the same Mallan-authored predicate (lib/search/public-listing-db.ts), and the case 'exclusives' below says "DB-only, skip
+    // Trestle". Nothing skipped it, so a request with no Mallan-authored match fell through to the Trestle fetch and listed other brokers' rows labelled idx+exclusive (found by the code review of
+    // 2026-10-09). It is short-circuited like exclusive=mallan.
+    const isMallanExclusiveOnly = searchParams.get('exclusive') === 'mallan' || sortParam === 'exclusives';
     // Numbered-address short-circuit (PR #107 + Codex follow-up).
     //
     // The search UI routes ALL plain free-text input through `address` (see
@@ -374,12 +389,12 @@ export async function GET(request: Request) {
                 list_office_mls_id: true, list_agent_mls_id: true,
                 co_list_office_mls_id: true, co_list_agent_mls_id: true,
                 // C1 fix (2026-05-13): provenance signals needed by the DTO
-                // to distinguish Mallan exclusives (agent_id / owner_client_id)
-                // from website-only commercial (rls_eligible=false) from
-                // third-party IDX/RLS (everything else). Without these the DTO
-                // hard-codes `_source: "exclusive"` for every row.
-                agent_id: true,
-                owner_client_id: true,
+                // to tell Mallan-authored listings (listing_id, selected above:
+                // the CRM's SL-/RL- prefix) from website-only commercial
+                // (rls_eligible=false) from third-party IDX/RLS (everything
+                // else). agent_id / owner_client_id are deliberately NOT
+                // selected: syncAgentHistory stamps agent_id onto third-party
+                // rows, and the DTO does not read either column.
                 rls_eligible: true,
                 idx_display_yn: true,
                 internet_entire_listing_display_yn: true,
@@ -433,11 +448,6 @@ export async function GET(request: Request) {
               id: l.id.toString(),
               list_price: l.list_price.toString(),
               living_area: l.living_area?.toString() ?? null,
-              // C1 fix: stringify BigInt FKs for JSON safety; the classifier
-              // only checks `!= null` so the value shape doesn't matter, but
-              // mixing BigInts into JSON.stringify throws at serialization.
-              agent_id: l.agent_id != null ? l.agent_id.toString() : null,
-              owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
             }));
 
             const displayable = filterDisplayableDbListings(serialized);
@@ -642,7 +652,8 @@ export async function GET(request: Request) {
           }
 
           // `exclusive=mallan` short-circuit. The DB filter
-          // (`buildPublicListingDbSearch` → `where.agent_id = { not: null }`)
+          // (`buildPublicListingDbSearch` → `mallanAuthoredWhere()`: an SL-/RL-
+          // listing id or rls_eligible=false, never agent_id)
           // returned 0 rows — meaning no Mallan-authored listings currently
           // exist. UCBA Art. III §2(A) + 19 NYCRR §175.25 require the page to
           // truthfully reflect this; falling through to the Trestle merge
@@ -822,11 +833,7 @@ export async function GET(request: Request) {
         if (amenitiesParam) {
           const amenityList = amenitiesParam.split(',');
           if (amenityList.includes('pet-friendly')) {
-            amenityFiltered = amenityFiltered.filter((raw) => {
-              const val = String(raw.PetsAllowed || '').toLowerCase();
-              if (!val) return false;
-              return !val.includes('no') || val.includes('catsok') || val.includes('dogsok');
-            });
+            amenityFiltered = filterPetFriendlyRaw(amenityFiltered);
           }
           // Note: doorman, gym, elevator, etc. cannot be filtered on Trestle path
           // because BuildingFeatures/InteriorFeatures are not in IDX Plus $select.
@@ -1265,6 +1272,10 @@ export async function GET(request: Request) {
 // ── Local Exclusive Listings from Database ──
 // UCBA Art. I, Sec. 5: Only Active listings that have been submitted to RLS
 // may be displayed publicly. Draft/Incomplete listings are NOT shown.
+//
+// "Exclusive" means Mallan-AUTHORED: an SL-/RL- listing id or rls_eligible=false (mallanAuthoredWhere, the canonical signal of
+// lib/listings/mallan-source-identity.ts). The query used to take every displayable RLS-eligible row in the table (any firm's, synced
+// from Cotality) and the response called the result "Exclusive listings by Mallan Real Estate Inc.".
 
 import type { PublicListingDTO } from '@/lib/idx/public-dto';
 import type { Prisma } from '@prisma/client';
@@ -1315,7 +1326,8 @@ async function fetchExclusiveListings(
     }
 
     const dbListings = await prisma.listing.findMany({
-      where,
+      // AND-ed here, after every filter above has been set (the neighborhood branch assigns where.AND): an "exclusive" is a Mallan-AUTHORED listing, never any row of the table
+      where: { AND: [where, mallanAuthoredWhere()] },
       orderBy: { updated_at: 'desc' },
       take: 50,
       select: {
@@ -1345,10 +1357,9 @@ async function fetchExclusiveListings(
         list_agent_email: true, list_agent_direct_phone: true,
         list_office_mls_id: true, list_agent_mls_id: true,
         co_list_office_mls_id: true, co_list_agent_mls_id: true,
-        // C1 fix (2026-05-13): provenance signals for the DTO classifier.
-        // Mirrors the main DB-first select above.
-        agent_id: true,
-        owner_client_id: true,
+        // C1 fix (2026-05-13): provenance signals for the DTO classifier
+        // (listing_id, selected above, and rls_eligible). Mirrors the main
+        // DB-first select above: agent_id / owner_client_id are not selected.
         rls_eligible: true,
         idx_display_yn: true,
         internet_entire_listing_display_yn: true,
@@ -1393,10 +1404,6 @@ async function fetchExclusiveListings(
       id: l.id.toString(),
       list_price: l.list_price.toString(),
       living_area: l.living_area?.toString() ?? null,
-      // C1 fix: stringify BigInt FKs for JSON safety; see the main DB-first
-      // path above for the same shape.
-      agent_id: l.agent_id != null ? l.agent_id.toString() : null,
-      owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
     }));
 
     const displayable = filterDisplayableDbListings(serialized);

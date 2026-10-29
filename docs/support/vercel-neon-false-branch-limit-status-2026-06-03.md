@@ -43,7 +43,7 @@
 - Background: `NEON.md` §10 (2026-06-01 row) already classified this as a Vercel-side false check, "only removable by Vercel."
 
 ## 4. Latest known-good example (PR #322 preview)
-- Deployment `dpl_7yZiw9Ywgxq2bm8CGV5vks7GYTWC` (branch `security/remove-tracked-trestle-dumps-2026-06-03`, SHA `dea63142`): **state READY**, branch alias assigned, **`/api/health` 200** on both URLs — despite the red integration check. The matching GitHub `Vercel` commit status stuck `pending` ("is deploying"), which cascades into `release-truth: PARTIAL` (also stale, not a real failure).
+- Deployment `dpl_7yZiw9Ywgxq2bm8CGV5vks7GYTWC` (a 2026-06-03 security-cleanup branch, SHA `dea63142`): **state READY**, branch alias assigned, **`/api/health` 200** on both URLs — despite the red integration check. The matching GitHub `Vercel` commit status stuck `pending` ("is deploying"), which cascades into `release-truth: PARTIAL` (also stale, not a real failure).
 
 ## 5. ⛔ Hard warnings
 - **DO NOT prune `morning-bread` to fix this.** It is not the check's target; pruning will not clear the red and risks its `main` (PITR/rollback) and the `rotate-db-keys` target.

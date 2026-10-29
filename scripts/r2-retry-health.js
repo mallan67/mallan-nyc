@@ -16,7 +16,7 @@ const R2_RETRY_EXHAUSTED_THRESHOLD = 8;
 
 // Actionable backlog keeps the historical 50/500 alarm levels; parked rows get
 // a FAIL-CLOSED growth guard — intentionally-parked rows are not urgent, but a
-// fast-growing parked count can mask a systemic R2/Trestle failure and must
+// fast-growing parked count can mask a systemic R2/Cotality failure and must
 // still surface (deep-review L11 / silent-failure principle).
 const THRESHOLDS = {
   actionable_warn: 50,
@@ -53,7 +53,7 @@ function classifyR2RetryBacklog(counts) {
     issues.push({
       level: 'critical',
       category: 'media-sync',
-      msg: `${parked} PARKED retry-exhausted rows (r2_attempts >= ${R2_RETRY_EXHAUSTED_THRESHOLD}; critical >= ${THRESHOLDS.parked_critical}) — mass parking can mask a systemic R2/Trestle failure`,
+      msg: `${parked} PARKED retry-exhausted rows (r2_attempts >= ${R2_RETRY_EXHAUSTED_THRESHOLD}; critical >= ${THRESHOLDS.parked_critical}) — mass parking can mask a systemic R2/Cotality failure`,
     });
   } else if (parked > THRESHOLDS.parked_warn) {
     issues.push({

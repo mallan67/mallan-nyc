@@ -213,7 +213,7 @@ const PARTITION_TRIGGER_AUDIT_EVENTS = 10_000_000;
       mb_per_day: Math.round(growthMbPerDay * 100) / 100,
       remaining_mb: Math.round(remainingMb * 10) / 10,
       days_to_storage_cap: daysToStorageCap === Infinity ? 'no growth' : daysToStorageCap,
-      note: 'estimated from actual per-row averages — assumes constant new-listing rate. Trestle delta sync churns existing rows (UPDATE not INSERT) so actual MB/day may be lower.',
+      note: 'estimated from actual per-row averages — assumes constant new-listing rate. Cotality delta sync churns existing rows (UPDATE not INSERT) so actual MB/day may be lower.',
     };
     if (daysToStorageCap !== Infinity && daysToStorageCap < 30) {
       record('critical', `Storage cap reachable in ~${daysToStorageCap} days`,

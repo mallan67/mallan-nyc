@@ -26,6 +26,6 @@ export default [
     },
   },
   {
-    ignores: ["lib/rls-validator/**", "lib/compliance/__tests__/**"],
+    ignores: ["lib/compliance/__tests__/**"],
   },
 ];

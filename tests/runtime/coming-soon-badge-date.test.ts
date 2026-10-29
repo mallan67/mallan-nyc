@@ -1,6 +1,6 @@
 /**
  * UCBA Art. I §16(C) Coming Soon badge date-parsing — must NOT timezone-shift
- * RESO date-only inputs ("YYYY-MM-DD"). Otherwise US timezones west of UTC
+ * Cotality date-only inputs ("YYYY-MM-DD"). Otherwise US timezones west of UTC
  * render the prior calendar day in the agent-facing "No Showings or Open House
  * until [date]" copy. Exact phrasing and exact date are penalty-bearing.
  */

@@ -247,8 +247,8 @@ describe("buildPublicListingTrestleFilter", () => {
   // ── 8. amenities including pet-friendly ─────────────────────────────
   describe("amenities (incl. pet-friendly)", () => {
     // Per the route, NO amenity field can be pushed to the OData $filter on
-    // Trestle's IDX Plus feed: BuildingFeatures / InteriorFeatures / etc. are
-    // not in $select and Trestle rejects unknown fields. Pet-friendly itself
+    // the live Cotality feed: BuildingFeatures / InteriorFeatures / etc. are
+    // not in $select and Cotality rejects unknown fields. Pet-friendly itself
     // is filtered as a RAW post-filter against PetsAllowed AFTER the fetch.
     // The helper therefore must NOT push any amenity clauses to OData.
     it("ignores amenities=pet-friendly in the OData filter", () => {

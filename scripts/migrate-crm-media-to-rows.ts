@@ -8,7 +8,7 @@
 //   npx tsx scripts/migrate-crm-media-to-rows.ts --apply         # WRITE (Maya-approved only)
 //
 // Idempotent: skips items whose media_key already exists. Leaves listing.media
-// JSON intact (read-compat). Never touches Trestle-synced rows (different key
+// JSON intact (read-compat). Never touches Cotality-synced rows (different key
 // namespace). PROD --apply requires explicit Maya approval per the plan.
 
 import { readFileSync } from "node:fs";

@@ -217,7 +217,7 @@ This rule is the principal lever keeping Neon under the 500 MB free-tier cap. A 
 
 ## 14. Raw PDFs / OCR / LLM outputs stored outside Neon — Cloudflare R2
 
-Cloudflare R2 is the chosen home for raw artifacts. mallan-nyc already uses R2 for Trestle listing media (see `CLAUDE.md` mention of "Trestle photos cached to Cloudflare R2"), so there is no new vendor relationship to set up.
+Cloudflare R2 is the chosen home for raw artifacts. mallan-nyc already uses R2 for Cotality listing media, so there is no new vendor relationship to set up.
 
 ### Bucket layout
 
@@ -226,7 +226,7 @@ Cloudflare R2 is the chosen home for raw artifacts. mallan-nyc already uses R2 f
 | `mallan-public-records` | Raw artifacts (PDFs, OCR text, LLM intermediate outputs) | ❌ Private | Permanent for source PDFs; 30-day for OCR/LLM intermediates |
 | `mallan-public-records-backups` | Weekly `pg_dump` exports + quarterly snapshots | ❌ Private | Per §11 retention |
 
-Both buckets are **separate from the existing R2 bucket used for Trestle media**. Charter Article 1.10 (no commingling) extends to object storage by analogy.
+Both buckets are **separate from the existing R2 bucket used for Cotality listing media**. Charter Article 1.10 (no commingling) extends to object storage by analogy.
 
 ### Object key conventions
 
@@ -421,7 +421,7 @@ Per charter Article 1.20: merging this plan does not authorize provisioning. Eac
 | Neon operational discipline (primary project) | `NEON.md` |
 | Branch-prune pattern | **NOT A REUSE MODEL — DELETED 2026-09-20.** The former route, CLI and library called the Neon control plane directly, which is no longer an authorized Mallan path. |
 | Existing ops-health pattern (reuse model) | `scripts/ops-health.js` |
-| External-inventory hold (NOT released by this plan) | `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md` |
+| Supplemental-inventory authority (not changed by this plan) | Master §4.5; current holds: Execution State |
 | REBNY compliance rulebook | `CLAUDE.md` (root) + `compliance/README.md` (entry point to `compliance/` directory: `UCBA-2026.md`, `IDX-VOW-DISPLAY-RULES.md`, `NYC-NYS-REQUIREMENTS.md`, `THIRD-PARTY-AND-FEED-GOVERNANCE.md`) + `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` (field authority order in §0) + `data/UCBA-2026-Requirements.md` |
 
 ---

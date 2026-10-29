@@ -2,7 +2,7 @@
  * HERO AUTHORITY — explicit precedence between a CRM choice and the feed hint.
  *
  * PROVEN DEFECT IN THE OLD SET-MAIN. `PATCH /api/crm/listings/[id]/media/[mediaId]`
- * cleared `preferred_photo_yn` on EVERY active sibling, including Trestle feed
+ * cleared `preferred_photo_yn` on EVERY active sibling, including Cotality feed
  * rows. But `preferred_photo_yn` on a feed row is source-owned: media-sync
  * rewrites it from `PreferredPhotoYN` on every complete set
  * (media-sync.ts:1263/1293) and treats a difference as a MATERIAL change

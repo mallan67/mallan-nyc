@@ -136,7 +136,7 @@ function ActiveListingCard({ listing, isRental }: { listing: ListingDTO; isRenta
             (Mallan IS the listing broker). Third-party RLS → courtesy line.
             "Exclusive" = our OWN CRM listing: SL-/RL- listing_id prefix OR the
             DTO already classified it exclusive (rls_eligible===false). The
-            prefix is the definitive CRM-authored signal — Trestle-synced rows
+            prefix is the definitive CRM-authored signal — Cotality-synced rows
             carry RLS… ids (and a synced agent_id), so they never match here and
             keep the required RLS courtesy. (Codex reviews, PR #307/#308.) */}
         <p className="text-sm text-brand-dark/60 mt-2 truncate">

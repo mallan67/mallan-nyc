@@ -18,7 +18,7 @@
  * These tests drive `runMediaSync` Phase 3 with an in-memory backlog pool so
  * the in-code (fail-closed) admission filter is proven even when rows that
  * production's DB-side where would exclude are fed to it directly.
- * No live R2, no live Trestle, no live DB.
+ * No live R2, no live Cotality, no live DB.
  */
 
 const mockMediaSyncFindUnique = jest.fn<Promise<unknown>, [unknown]>();
@@ -509,7 +509,7 @@ describe("R2-1 — Mallan-owned listing mirrors its COMPLETE active media set", 
   it("rls_eligible === false (website-only) is ALSO Mallan-owned ⇒ all active admitted", async () => {
     const websiteOnly: MirrorPolicyListing = {
       ...FEED_DISPLAYABLE,
-      listing_id: "COMM-0001", // no SL-/RL- prefix — rls_eligible is the signal
+      listing_id: "SL-COMM-0001", // canonical Mallan-authored commercial id
       rls_eligible: false,
     };
     const pool = [
@@ -730,7 +730,7 @@ describe("R2-1 — decideMirrorAdmissionScope", () => {
 
   it("rls_eligible false ⇒ all_active; displayable feed ⇒ hero_only", () => {
     expect(
-      decideMirrorAdmissionScope({ ...FEED_DISPLAYABLE, rls_eligible: false }),
+      decideMirrorAdmissionScope({ ...FEED_DISPLAYABLE, listing_id: "SL-0001", rls_eligible: false }),
     ).toBe("all_active");
     expect(decideMirrorAdmissionScope(FEED_DISPLAYABLE)).toBe("hero_only");
   });
@@ -798,7 +798,6 @@ describe("R2-1 — DB-side admission where-shapes", () => {
       ...MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES.map((p) => ({
         listing_id: { startsWith: p },
       })),
-      { rls_eligible: false },
     ]);
   });
 

@@ -20,12 +20,12 @@ import {
 const MAX_ROWS = 5000;
 
 /**
- * Codex #472 r1: IDX/Trestle rows store the address JSON in Cotality/Trestle PascalCase
+ * Codex #472 r1: IDX rows store the address JSON in Cotality PascalCase
  * split fields (StreetNumber/StreetDirPrefix/StreetName/StreetSuffix/StreetDirSuffix/
  * UnitNumber/City/StateOrProvince/PostalCode); CRM/local rows may carry legacy camelCase.
  * Read PascalCase first with camelCase fallback (pickAddressParts precedent, #463), and
  * compose the street via the canonical composeSlugStreetName (DirPrefix + Name + Suffix —
- * SEO-001 shared helper) PLUS StreetDirSuffix (Codex #472 r13 — Cotality/Trestle split-field
+ * SEO-001 shared helper) PLUS StreetDirSuffix (Codex #472 r13 — Cotality split-field
  * shapes like "Central Park S" / "Park Avenue S" carry the direction in StreetDirSuffix;
  * without it the report shows the wrong street) so IDX reports show the real address, not the
  * listing id. Exported for tests.

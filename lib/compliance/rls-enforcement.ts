@@ -2,16 +2,11 @@
  * RLS Enforcement Gate — Backend Write-Path Compliance
  *
  * PURPOSE: This is the HARD GATE on every listing write (create/update).
- * Unlike the HTML mockup validator (lib/rls-validator/) which validates mockup files,
- * this module enforces UCBA/RLS rules on live API payloads at the route handler level.
+ * This module enforces UCBA/RLS rules on live API payloads at the route handler level.
  *
- * FIELD AUTHORITY ORDER (ENFORCED):
- *   1. UCBA governs everything
- *   2. REBNY RLS rules + fields — RLS TRUMPS ALL
- *   3. RLS overrides RESO/IDX
- *   4. RESO/IDX fills gaps only
- *   5. INTERNAL-ONLY otherwise
- *   6. Fail closed = REJECT
+ * AUTHORITY: MALLAN-PLATFORM-MASTER-PLAN.md §0 and §21. UCBA and REBNY rules
+ * govern use, display and conduct; field names and values come from the verified live
+ * Cotality contract. Anything uncertain fails closed = REJECT.
  *
  * REBNY CHANGES ADDRESSED:
  *   - DOM reset: 90 → 30 days (UCBA 2026)
@@ -20,9 +15,9 @@
  *   - Distribution gates: All 6 enforced on write
  *   - Fair Housing: Federal + NY State + NYC HRL Title 8
  *
- * AUTHORITY SOURCE: REBNY_FIELD_TABLES (lib/compliance/rebny-field-tables.ts)
- *   All mandatory fields, removed fields, conditional rules, enum values,
- *   and content scanning patterns are imported from the single canonical authority table.
+ * SOURCE TABLES: REBNY_FIELD_TABLES (lib/compliance/rebny-field-tables.ts) supplies the
+ *   mandatory fields, removed fields, conditional rules, enum values and content-scanning
+ *   patterns used here. It is not provider authority; the live Cotality contract is.
  */
 
 import { REBNY_FIELD_TABLES } from './rebny-field-tables';
@@ -56,22 +51,23 @@ export type ListingContext = {
   mixedUseSmallBuilding?: boolean;
 };
 
-// ─── Derived from REBNY_FIELD_TABLES (single source of truth) ─────────────
+// ─── Derived from REBNY_FIELD_TABLES ──────────────────────────────────────
 
 const REMOVED_FIELDS = new Set<string>(REBNY_FIELD_TABLES.removedFields);
 
-// Agent-submitted mandatory fields from authority table
+// Agent-submitted mandatory fields from REBNY_FIELD_TABLES
 const MANDATORY_FIELDS = REBNY_FIELD_TABLES.requiredFields.agentSubmitted;
 
 // System-generated fields — NEVER block agent payloads for these.
-// Backend populates them before Trestle submission.
+// The gate does not require them from the agent payload; some (e.g. OnMarketDate)
+// may still arrive in it from the listing forms.
 const SYSTEM_GENERATED_FIELDS = new Set<string>(
   REBNY_FIELD_TABLES.requiredFields.systemGenerated
 );
 
 // Fields with documented RLS defaults — warn if missing, don't block.
 // LMPs MUST default these to true per RLS rules, so the backend can auto-fill.
-// Note: IDXEntireListingDisplayYN and SyndicateYN do NOT exist on live Trestle
+// Note: IDXEntireListingDisplayYN and SyndicateYN do NOT exist on live Cotality
 // (verified 2026-04-19 against $metadata). Use InternetEntireListingDisplayYN
 // and SyndicateTo (multi-select) respectively.
 const DEFAULTABLE_FIELDS = new Set<string>([
@@ -81,7 +77,7 @@ const DEFAULTABLE_FIELDS = new Set<string>([
   "InternetConsumerCommentYN",        // Default: true
 ]);
 
-// ─── Content Scanning Patterns (from authority table) ─────────────────────
+// ─── Content Scanning Patterns ───────────────────────────────────────────
 
 // Fair Housing scanner — hard-coded "obvious" patterns kept as a safety net,
 // MERGED with data/compliance/prohibited-terms.json (~80 terms in 8 categories).
@@ -212,7 +208,7 @@ const COMPENSATION_PATTERNS = [
   /\bseller\s+concession\b/i,
 ];
 
-// G4: Free/No-Cost claims (from authority table contentRules.freeService)
+// G4: Free/No-Cost claims (from REBNY_FIELD_TABLES.contentRules.freeService)
 const FREE_SERVICE_PATTERNS = REBNY_FIELD_TABLES.contentRules.freeService.map(
   (p) => new RegExp(p, 'gi')
 );
@@ -220,6 +216,7 @@ const FREE_SERVICE_PATTERNS = REBNY_FIELD_TABLES.contentRules.freeService.map(
 // ─── Status Transition Rules ──────────────────────────────────────────────
 
 import { DOM_RESET_DAYS } from "./dom-tracker";
+import { isCancelledStatus } from "./terminal-status";
 
 const TERMINAL_STATUSES = new Set(["Closed"]);
 
@@ -253,8 +250,8 @@ export function assertRlsCompliantPayload(
   }
 
   // ── 2. Validate mandatory fields ───────────────────────────────────
-  // Only check agent-submitted fields. System-generated fields are populated by
-  // the backend before Trestle submission — never block agent payloads for them.
+  // Only check agent-submitted fields. System-generated fields are not required from
+  // the agent payload — never block agent payloads for them.
   // Defaultable fields (distribution gates) get a warning, not a blocker,
   // because the backend auto-fills RLS-mandated defaults before submission.
   for (const field of MANDATORY_FIELDS) {
@@ -307,24 +304,27 @@ export function assertRlsCompliantPayload(
   }
 
   // PropertyType validation — REBNY RLS only accepts "Residential" or "ResidentialLease".
-  // Website-only listings (commercial, rls_eligible=false) can use any RESO PropertyType.
+  // Website-only listings (commercial, rls_eligible=false) can use any PropertyType in
+  // WEBSITE_ONLY_PROPERTY_TYPES: a subset of the live Cotality PropertyType values plus
+  // "Commercial", a non-live value the frozen Sale/Rental forms still emit (removed with
+  // property classification convergence).
   const pt = payload.PropertyType as string | undefined;
   if (pt) {
     const RLS_PROPERTY_TYPES = ["Residential", "ResidentialLease"];
-    const RESO_PROPERTY_TYPES = [
+    const WEBSITE_ONLY_PROPERTY_TYPES = [
       "Residential", "ResidentialLease", "ResidentialIncome",
       "Commercial", "CommercialLease", "CommercialSale",
       "Land", "Farm", "MultiFamily",
     ];
     if (ctx.rlsEligible === false) {
-      // Website-only: accept any RESO type, warn on unknown
-      if (!RESO_PROPERTY_TYPES.includes(pt)) {
+      // Website-only: accept any listed type, warn on unknown
+      if (!WEBSITE_ONLY_PROPERTY_TYPES.includes(pt)) {
         warnings.push({
           code: "MF-004W",
           severity: "WARNING",
           field: "PropertyType",
-          message: `PropertyType "${pt}" is non-standard. Expected one of: ${RESO_PROPERTY_TYPES.join(", ")}.`,
-          ucbaRef: "RESO Data Dictionary",
+          message: `PropertyType "${pt}" is non-standard. Expected one of: ${WEBSITE_ONLY_PROPERTY_TYPES.join(", ")}.`,
+          ucbaRef: "Website-only PropertyType check (live Cotality subset + legacy Commercial)",
         });
       }
     } else {
@@ -357,7 +357,7 @@ export function assertRlsCompliantPayload(
   // InternetEntireListingDisplayYN cascade — when master is false, all subordinate
   // Internet-* gates must also be false.
   //
-  // IDXEntireListingDisplayYN does NOT exist on live Trestle (verified 2026-04-19),
+  // IDXEntireListingDisplayYN does NOT exist on live Cotality (verified 2026-04-19),
   // but it IS retained in this list as a defensive guard: legacy form payloads
   // and third-party API callers may still include the dead field name. If they
   // submit IDXEntireListingDisplayYN=true while InternetEntireListingDisplayYN=false,
@@ -400,18 +400,35 @@ export function assertRlsCompliantPayload(
     }
   }
 
-  // Owner Opt-Out / Participant Only blocks all display
+  // Owner Opt-Out / Participant Only blocks all display. `perm` here is the
+  // AGENT-SUBMITTED CRM Permission/Permissions field (this payload is the
+  // route handler's agent-submitted body — app/api/crm/listings/route.ts,
+  // [id]/route.ts, [id]/status/route.ts — never a raw Cotality sync record),
+  // so 'OwnerOptOut'/'Owner Opt-Out' is a legitimate Mallan-internal CRM
+  // sentinel, not a claim about live Cotality data. The MlsStatus arm this
+  // used to OR in WAS a false Cotality-value claim (live MlsStatus has no
+  // OwnerOptOut member — confirmed via trestle_get_picklist, 2026-10-02
+  // Permission cutover) and is removed; MlsStatus is never agent-settable to
+  // this sentinel either.
   const permRaw = payload.Permission ?? payload.Permissions; // A2: canonical + legacy
   const perm = typeof permRaw === "string" ? permRaw : "";
+  // On the PATCH path `merged` carries over existingRaw's stored Permission, which
+  // CAN be a raw, live-Cotality-sourced multi-value string -- live Permission is a
+  // comma-separated Multi-Enum (IsFlags=true), so 'Private' must be matched as an
+  // exact member, never by whole-string equality (2026-10-02 Permission Multi-Enum
+  // cutover; see lib/cotality/property.ts::hasCotalityListingPermission's docstring).
+  // The OwnerOptOut arms stay whole-string equality -- OwnerOptOut has zero overlap
+  // with any real Cotality Permission value and remains a legitimate Mallan-internal
+  // CRM sentinel on the agent-submitted payload, never a raw Cotality claim.
+  const permMembers = perm.split(",").map((member) => member.trim());
   if (
-    payload.MlsStatus === "OwnerOptOut" ||
     perm === "OwnerOptOut" ||
     perm === "Owner Opt-Out" ||
-    perm === "Private"
+    permMembers.includes("Private")
   ) {
     // Check boolean display flags. InternetEntireListingDisplayYN is the canonical
-    // gate on live Trestle (verified 2026-04-19). IDXEntireListingDisplayYN does
-    // NOT exist on Trestle but is retained here as a defensive guard: a legacy
+    // gate on live Cotality (verified 2026-04-19). IDXEntireListingDisplayYN does
+    // NOT exist on Cotality but is retained here as a defensive guard: a legacy
     // payload submitting IDXEntireListingDisplayYN=true on an Owner Opt-Out
     // listing is still a contradiction we block (don't silently drop intent).
     const booleanDisplayFields = [
@@ -430,7 +447,7 @@ export function assertRlsCompliantPayload(
       }
     }
     // Syndication: SyndicateTo (multi-select picker) is the only valid field on
-    // live Trestle. SyndicateYN is retained as a defensive guard: legacy form
+    // live Cotality. SyndicateYN is retained as a defensive guard: legacy form
     // payloads may submit SyndicateYN=true (boolean) intending to syndicate
     // everywhere — we block that on opted-out listings rather than silently drop.
     if (payload.SyndicateYN === true) {
@@ -538,7 +555,7 @@ export function assertRlsCompliantPayload(
   // DOM reset info (30 days per UCBA 2026)
   if (
     ctx.previousStatus === "Withdrawn" ||
-    ctx.previousStatus === "Cancelled" ||
+    isCancelledStatus(ctx.previousStatus) ||
     ctx.previousStatus === "TemporarilyOffMarket"
   ) {
     if (ctx.statusChangedAt) {
@@ -630,7 +647,7 @@ export function assertRlsCompliantPayload(
         }
       }
 
-      // Free/no-cost service claims (G4 — from authority table contentRules.freeService)
+      // Free/no-cost service claims (G4 — from REBNY_FIELD_TABLES.contentRules.freeService)
       for (const pattern of FREE_SERVICE_PATTERNS) {
         pattern.lastIndex = 0; // Reset stateful regex
         const match = pattern.exec(text);
@@ -660,7 +677,7 @@ export function assertRlsCompliantPayload(
     });
   }
 
-  // ── 8. Conditional field checks (from authority table — 51 rules) ──
+  // ── 8. Conditional field checks (REBNY_FIELD_TABLES.conditionalRules) ──
   for (const rule of REBNY_FIELD_TABLES.conditionalRules) {
     if (conditionMatches(payload, rule.appliesWhen)) {
       for (const field of rule.requireFields) {
@@ -671,7 +688,7 @@ export function assertRlsCompliantPayload(
             severity: "BLOCKER",
             field,
             message: `Conditional field "${field}" required by ${rule.code}: ${rule.description}`,
-            ucbaRef: `RLS CSV conditional — ${rule.code}`,
+            ucbaRef: `REBNY_FIELD_TABLES conditional rule — ${rule.code}`,
           });
         }
       }
@@ -788,7 +805,7 @@ export function assertRlsCompliantPayload(
 
 // ─── Condition Matcher (evaluates appliesWhen from conditional rules) ────
 
-function conditionMatches(
+export function conditionMatches(
   payload: Record<string, unknown>,
   conditions: Record<string, unknown>
 ): boolean {

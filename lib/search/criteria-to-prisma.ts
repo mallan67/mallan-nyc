@@ -60,6 +60,9 @@ const PROJECTION_SUPPORTED_CRITERIA_KEYS = new Set([
 
 const PROJECTION_RESERVED_CRITERIA_KEYS = new Set([
   "_search_tab",
+  // Which CRM form (basic / advanced) the search was saved from. View state only — it never
+  // filters, so it must not make every saved search "unsupported" (count n/a, alerts refused).
+  "_search_mode",
 ]);
 
 function first(criteria: SearchCriteria, keys: string[]): unknown {
@@ -181,7 +184,7 @@ export function getUnsupportedProjectionCriteria(criteria: SearchCriteria): stri
 
 // ── Saved-search alert gate (P0-3) ──────────────────────────────────────
 //
-// Saved searches can be created from the CRM live-Trestle search (Engine A).
+// Saved searches can be created from the CRM live-Cotality search (Engine A).
 // Alerts replay through the Postgres projection (Engine B) at
 // app/api/cron/search-alerts/route.ts. Engine B's criteria vocabulary is a
 // strict subset of Engine A's — see PROJECTION_SUPPORTED_CRITERIA_KEYS

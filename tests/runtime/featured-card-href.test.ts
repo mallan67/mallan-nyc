@@ -4,7 +4,7 @@
  *
  * The Featured homepage card MUST build its detail link with the same canonical
  * builder search uses (route identity = `listing.id` / ListingId), NOT the
- * numeric Trestle ListingKey (`mlsId`). Passing `mlsId` produced
+ * numeric Cotality ListingKey (`mlsId`). Passing `mlsId` produced
  * `/listing/{address-WITH-suffix}/{numeric-key}`, which is unresolvable for IDX
  * rows ("Listing Not Found"). See the 2026-06-02 audit + Branch A (#320) which
  * makes the canonical id segment resolve case-insensitively.

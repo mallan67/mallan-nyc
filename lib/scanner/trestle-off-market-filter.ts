@@ -12,7 +12,7 @@
  *      expired with another broker until a cooling-off window has passed.
  *      Default: 30 days. Configurable, but never < 7 days.
  *
- *   2. **Internal use only.** Trestle/RLS data is licensed for IDX/VOW
+ *   2. **Internal use only.** REBNY RLS data (delivered via Cotality) is licensed for IDX/VOW
  *      display per REBNY rules. Off-market listings (Expired, Withdrawn,
  *      Canceled, Hold) MAY NOT be displayed publicly. The scanner uses
  *      them as INTERNAL CRM signals only — they surface prospects to a
@@ -53,7 +53,7 @@ export interface ListingRow {
   longitude?: number | null;
 }
 
-/** Trestle StandardStatus values that mean "not currently for sale, but the owner tried." */
+/** Cotality StandardStatus values that mean "not currently for sale, but the owner tried." */
 export const OFF_MARKET_STATUSES = new Set<string>([
   "Expired",
   "Withdrawn",

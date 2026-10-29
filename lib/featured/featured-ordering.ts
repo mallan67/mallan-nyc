@@ -14,7 +14,7 @@
  *   2. Then pinned configured listings (IDX/RLS) not already included.
  *   3. Then the regular featured / IDX listings.
  *
- * Dedupe collapses a Mallan CRM exclusive and its Trestle/IDX twin (same
+ * Dedupe collapses a Mallan CRM exclusive and its Cotality/IDX twin (same
  * physical unit, different `listing_id`) to the single CRM row — reusing the
  * canonical `buildAddressKey` so "333 East 46th St" and "333 E 46th St"
  * collapse. The exclusive is added first, so it always wins the collapse.
@@ -193,7 +193,7 @@ export function isPinnedFeatured(l: Pick<FeaturedOrderable, 'id' | 'mlsId' | 'li
  * Build the detail-page href for a Featured card.
  *
  * Route identity is the LISTING id (`id` / ListingId), exactly like search's
- * `listingHref` — NOT the numeric Trestle ListingKey (`mlsId`). The previous
+ * `listingHref` — NOT the numeric Cotality ListingKey (`mlsId`). The previous
  * `buildCanonicalListingPath({ slug, id: mlsId || id })` produced
  * `/listing/{address-with-suffix}/{numeric-key}`, which the detail route cannot
  * resolve for pure-IDX rows → "Listing Not Found". Routing through the shared

@@ -18,7 +18,7 @@
       "migration": "SQL migration file exists in prisma/migrations/",
       "helper": "Server-side helper module (lib/...) exists and exports the expected entry points",
       "backend_route": "Next.js API route file exists at the declared path",
-      "mapper": "Trestle/REBNY field mapper exists and references the field",
+      "mapper": "Cotality feed mapper exists and references the field",
       "gate": "Compliance gate (rls-enforcement, dto, content-restrictions) enforces the rule",
       "dto": "Public/portal DTO sanitizer applies the rule",
       "ui_form": "CRM form (HTML or React) collects the field from the user",
@@ -235,7 +235,7 @@
 
     {
       "name": "idx_sync",
-      "title": "IDX Trestle Delta Sync (cron, every 12 min)",
+      "title": "IDX Cotality Delta Sync (cron)",
       "rules": ["F-IDX-SYNC"],
       "required_surfaces": ["cron", "helper", "schema"],
       "evidence": {
@@ -250,7 +250,7 @@
       },
       "release_blocking": true,
       "ci_policy": "must_pass",
-      "notes": "Trestle is the source of truth. Sync runs every 12 minutes via vercel.json cron. Watermark in SyncState model prevents duplicate processing."
+      "notes": "The live Cotality feed is the source of truth. idx-sync runs as a member of the One Cycle orchestrator (app/api/cron/one-cycle/route.ts), invoked by the /api/cron/one-cycle-preflight cron in vercel.json (Maya-approved 10-minute cadence). Watermark in SyncState model prevents duplicate processing."
     },
 
     {

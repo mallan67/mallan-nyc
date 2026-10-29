@@ -1,11 +1,11 @@
 {
   "stats": {
-    "total_routes": 288,
+    "total_routes": 281,
     "by_auth_class": {
-      "public": 36,
+      "public": 35,
       "broker": 24,
       "public (auth)": 17,
-      "agent/broker": 145,
+      "agent/broker": 139,
       "agent/broker (path)": 2,
       "cron": 24,
       "portal": 25,
@@ -651,36 +651,6 @@
     {
       "route": "/api/crm/audit-log",
       "file": "app/api/crm/audit-log/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/automation/adjust-tier",
-      "file": "app/api/crm/automation/adjust-tier/route.ts",
-      "methods": [
-        "POST"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [
-        "audit-event"
-      ],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/automation/status",
-      "file": "app/api/crm/automation/status/route.ts",
       "methods": [
         "GET"
       ],
@@ -2836,62 +2806,6 @@
       "gate_enforced": false
     },
     {
-      "route": "/api/crm/tools/1031-timeline",
-      "file": "app/api/crm/tools/1031-timeline/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/tools/cap-rate",
-      "file": "app/api/crm/tools/cap-rate/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/tools/cash-on-cash",
-      "file": "app/api/crm/tools/cash-on-cash/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/tools/rental-yield",
-      "file": "app/api/crm/tools/rental-yield/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
       "route": "/api/crm/unassigned-leads",
       "file": "app/api/crm/unassigned-leads/route.ts",
       "methods": [
@@ -4409,20 +4323,6 @@
       "compliance_signals": [
         "audit-event",
         "consent-capture"
-      ],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/search-alerts/unsubscribe",
-      "file": "app/api/search-alerts/unsubscribe/route.ts",
-      "methods": [
-        "POST"
-      ],
-      "auth_class": "public",
-      "auth_signals": [],
-      "compliance_signals": [
-        "audit-event"
       ],
       "distribution_gate_signals": [],
       "gate_enforced": false

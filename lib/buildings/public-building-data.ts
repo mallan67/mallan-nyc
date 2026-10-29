@@ -11,7 +11,7 @@
  * PURE READ (the dormant fire-and-forget building upsert was removed — see
  * route) and serves it through the Next data cache keyed by canonical
  * building identity: repeated requests for the same building execute ZERO
- * Prisma/Trestle work.
+ * Prisma/Cotality work.
  *
  * The payload is JSON-safe by construction (it is exactly what the route
  * already serialized through NextResponse.json — no Date/BigInt/Decimal
@@ -28,13 +28,15 @@ import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 // path falls back to the source locator instead of crashing.
 import { r2PublicUrlForKeyRead } from '@/lib/images/r2';
 import { excludeMallanRlsReturnCopies } from '@/lib/listings/mallan-source-identity';
+import { petPolicyLabels } from '@/lib/search/pet-policy';
 
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
+import { readCotalityStandardStatus } from '@/lib/cotality/property';
 import { lookupBBL, fetchAcrisSales, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
 import { resolveVisibility } from '@/lib/search/visibility-contract';
 import { cachedPublicRead, buildingCacheTag, BUILDING_MANIFEST_TAG, manifestShardTag } from '@/lib/cache/public-cache';
 
-const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
+const COTALITY_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
 function formatFeatureLabel(val: string): string {
   return val
@@ -43,7 +45,7 @@ function formatFeatureLabel(val: string): string {
     .trim();
 }
 
-/** Parse comma-separated Trestle value list */
+/** Parse comma-separated Cotality value list */
 function parseList(raw: string | null | undefined): string[] {
   if (!raw) return [];
   return raw
@@ -52,13 +54,13 @@ function parseList(raw: string | null | undefined): string[] {
     .filter((v) => v.length > 0 && v.toLowerCase() !== 'none' && v.toLowerCase() !== 'other');
 }
 
-interface TrestleRecord {
+interface CotalityRecord {
   [key: string]: unknown;
   Media?: Array<{ MediaURL?: string; MediaCategory?: string; Order?: number; PreferredPhotoYN?: boolean }>;
 }
 
-/** Get the primary photo URL from a Trestle record's expanded Media (skips floor plans) */
-function getPhotoUrl(record: TrestleRecord): string | null {
+/** Get the primary photo URL from a Cotality record's expanded Media (skips floor plans) */
+function getPhotoUrl(record: CotalityRecord): string | null {
   const media = record.Media;
   if (!media || !Array.isArray(media) || media.length === 0) return null;
   // Find first actual photo (not floor plan, video, or virtual tour)
@@ -66,28 +68,33 @@ function getPhotoUrl(record: TrestleRecord): string | null {
   // fallback — never hero a floorplan.
   const photo = media.find(m => classifyMediaItem(m) === 'photo');
   if (!photo?.MediaURL) return null;
-  // Proxy through our server to avoid exposing Trestle Bearer tokens
+  // Proxy through our server to avoid exposing Cotality Bearer tokens
   return `/api/media/proxy?url=${encodeURIComponent(String(photo.MediaURL))}`;
 }
 
 /**
  * Common $select fields for building queries.
  * NOTE: IDXEntireListingDisplayYN, ParticipantOnlyYN, IDXParticipationYN do NOT exist
- * on Trestle's IDX Plus feed — including them causes OData 400 errors.
- * Trestle IDX feed pre-filters non-displayable listings, so gate fields are unnecessary.
+ * on Cotality's IDX Plus feed — including them causes OData 400 errors.
+ * Display gating is decided in Mallan's layer after retrieval (checkDistributionGates);
+ * the provider cannot gate for Mallan (Master §0.4). This $select does not carry the
+ * Internet*DisplayYN flags, so that gate currently sees them as absent.
  */
 const BUILDING_SELECT = [
   // Core listing fields
   'ListingId', 'ListingKey', 'SourceSystemKey', 'ListPrice', 'ClosePrice',
   'BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'LivingArea',
-  'UnitNumber', 'PropertySubType', 'PropertyType', 'StandardStatus', 'MlsStatus',
+  // MlsStatus removed (2026-10-02 Status cutover): the production reader
+  // below calls readCotalityStandardStatus() exclusively; no reader of
+  // MlsStatus remains anywhere in this file.
+  'UnitNumber', 'PropertySubType', 'PropertyType', 'StandardStatus',
   'ListOfficeName', 'CloseDate',
   // Building info
   'BuildingName', 'YearBuilt', 'StoriesTotal', 'NumberOfUnitsInCommunity',
   'NumberOfUnitsTotal', 'CommonInterest', 'OwnershipType',
   'StructureType', 'NewConstructionYN',
   // Building amenities (all IDX Plus available fields)
-  // NOTE: AttendanceType does NOT exist on Trestle Property — doorman info comes from SecurityFeatures/BuildingFeatures
+  // NOTE: AttendanceType does NOT exist on Cotality Property — doorman info comes from SecurityFeatures/BuildingFeatures
   'BuildingFeatures', 'AssociationAmenities', 'CommunityFeatures',
   'SecurityFeatures', 'AccessibilityFeatures',
   'ExteriorFeatures', 'PatioAndPorchFeatures',
@@ -108,9 +115,9 @@ const BUILDING_SELECT = [
   'AssociationFee', 'AssociationFeeFrequency', 'AssociationFeeIncludes',
 ].join(',');
 
-/** Extract building-level info from a set of Trestle records.
+/** Extract building-level info from a set of Cotality records.
  *  Scans ALL records to find the richest data for each field. */
-function extractBuildingInfo(records: TrestleRecord[]) {
+function extractBuildingInfo(records: CotalityRecord[]) {
   const info = {
     buildingName: null as string | null,
     yearBuilt: null as number | null,
@@ -213,7 +220,7 @@ function extractBuildingInfo(records: TrestleRecord[]) {
 /** Format amenities from raw building info into display-ready categorized data.
  *  STRICT WHITELIST — only approved building amenities are shown. */
 function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
-  // Trestle raw value → approved display label (whitelist)
+  // Cotality raw value → approved display label (whitelist)
   const APPROVED: Record<string, string> = {
     // Lobby & Services
     SecurityGuard: 'Doorman',
@@ -279,22 +286,13 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
     else if (val === 'ConciergeFullTime' || val === 'ConciergePartTime' || val === 'ConciergeYes') amenitySet.add('Concierge');
   }
 
-  // Pet policy
-  const petPolicySet = new Set<string>();
-  for (const v of buildingInfo.petsAllowed) {
-    const lower = v.toLowerCase();
-    if (lower.includes('cat')) petPolicySet.add('Cats Ok');
-    else if (lower.includes('dog')) petPolicySet.add('Dogs Ok');
-    else if (lower === 'no') petPolicySet.add('No Pets');
-    else if (lower === 'yes' || lower.includes('buildingyes') || lower === 'building yes') petPolicySet.add('Pets Allowed');
-    else if (lower.includes('sizelimit')) petPolicySet.add('Size Limit');
-    else if (lower.includes('numberlimit')) petPolicySet.add('Number Limit');
-    else { const label = formatFeatureLabel(v); if (label) petPolicySet.add(label); }
-  }
+  // Pet policy — the shared reading of Cotality's PetsAllowed answers (lib/search/pet-policy.ts), the same words as the listing page. The substring tests that stood here read
+  // "NoDogs" as "Dogs Ok", "NoSizeLimit" as "Size Limit" and "BuildingNo" as "No" (found 2026-10-09).
+  const petPolicy = petPolicyLabels(buildingInfo.petsAllowed);
 
   return {
     amenities: [...amenitySet].sort(),
-    petPolicy: [...petPolicySet],
+    petPolicy,
     view: buildingInfo.view.map(formatFeatureLabel).filter(v => v && v !== 'None'),
     parking: {
       features: buildingInfo.parkingFeatures.map(formatFeatureLabel),
@@ -318,7 +316,7 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
  * Returns building-level data: info, active listings (sale + rental), closed sales, aggregate stats.
  *
  * Strategy:
- * 1. Query Trestle for ALL statuses at address (not just Active/Closed) to get building info
+ * 1. Query Cotality for ALL statuses at address (not just Active/Closed) to get building info
  * 2. Separate into active/available vs closed for display
  * 3. If initial query returns 0, retry without postal code (fallback)
  * 4. Track gated records count for VOW login prompt
@@ -342,7 +340,7 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
 // most ~10 bounded Neon queries per sync window, then zero.
 //
 // Layers preserved: this manifest replaces ONLY the Neon layer. The live
-// Cotality/Trestle layer and the ACRIS public-record layer still run
+// Cotality layer and the ACRIS public-record layer still run
 // per-building (they are not Neon and Cotality remains the sole listing
 // truth). CRM exclusives (SL-/RL-), which exist only in Neon, stay visible
 // through the manifest.
@@ -751,7 +749,7 @@ async function buildBuildingPayload(
     const cleanStreetName = sanitizeOData(streetName);
     const cleanPostalCode = postalCode ? sanitizeOData(postalCode) : '';
 
-    // Parse the street name into components for Trestle's decomposed fields
+    // Parse the street name into components for Cotality's decomposed fields
     // e.g. "W 57th Street" → dirPrefix: "W", coreName: "57th", suffix: "Street"
     const DIR_PREFIXES = /^(N|S|E|W|North|South|East|West)\b\s*/i;
     const SUFFIXES = /\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter)\.?$/i;
@@ -760,7 +758,7 @@ async function buildBuildingPayload(
     const dirPrefix = dirMatch ? dirMatch[1].toUpperCase().charAt(0) : null; // "W", "E", "N", "S"
     if (dirMatch) coreStreetName = coreStreetName.replace(DIR_PREFIXES, '');
     coreStreetName = coreStreetName.replace(SUFFIXES, '').trim();
-    // Trestle stores street names in UPPERCASE — OData contains() is case-sensitive
+    // Cotality stores street names in UPPERCASE — OData contains() is case-sensitive
     const coreStreetNameUpper = coreStreetName.toUpperCase();
 
     // ── 1. DB layer via the shared building MANIFEST (zero per-building Neon
@@ -785,13 +783,13 @@ async function buildBuildingPayload(
       // OVERFLOW is a structural completeness failure — PROPAGATE (explicit
       // fail; never a silently DB-truncated payload). Transient DB errors keep
       // the PRE-EXISTING degrade production has today: continue with the live
-      // Cotality/Trestle + ACRIS layers so the page stays available.
+      // Cotality + ACRIS layers so the page stays available.
       // ALL structural manifest invariant failures propagate (OVERFLOW,
       // EMPTY NONTERMINAL PAGE, CURSOR DID NOT ADVANCE, PAGE OVER CACHE
       // LIMIT) — never a silently degraded incomplete payload. Ordinary
-      // Neon outages (no marker) still degrade to the Trestle layers.
+      // Neon outages (no marker) still degrade to the Cotality layers.
       if (dbErr instanceof Error && dbErr.message.includes('[building-manifest]')) throw dbErr;
-      console.warn('[/api/buildings] DB manifest lookup failed, continuing with Trestle only:', dbErr);
+      console.warn('[/api/buildings] DB manifest lookup failed, continuing with Cotality only:', dbErr);
     }
 
     // Canonical status helpers — was `new Set(['Active', 'ActiveUnderContract', 'Coming Soon'])`
@@ -805,9 +803,9 @@ async function buildBuildingPayload(
     // manifest skip the heavy raw_data JSON entirely. Agent/internal
     // surfaces are unaffected (they do not use this public module).
 
-    // ── 2. Fetch from Trestle — ALL records at this address ──
+    // ── 2. Fetch from Cotality — ALL records at this address ──
     // Single broad query: no status filter, get everything, then separate
-    let allTrestleRecords: TrestleRecord[] = [];
+    let allCotalityRecords: CotalityRecord[] = [];
     const gatedRecordsCount = 0; // Records that exist but are gated (VOW prompt)
 
     try {
@@ -818,7 +816,7 @@ async function buildBuildingPayload(
       const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetNameUpper}')${dirFilter}${zipFilter}`;
 
       // Fetch the first 10 media rows (not 1): getPhotoUrl scans for the first
-      // real PHOTO via classifyMediaItem, and Trestle often orders a FloorPlan at
+      // real PHOTO via classifyMediaItem, and Cotality often orders a FloorPlan at
       // Order 0. With $top=1 a floorplan-first listing returned only that row and
       // getPhotoUrl (no media[0] fallback) yielded null — the unit lost its
       // thumbnail. 10 rows clears any realistic run of leading floorplans. (Codex #482)
@@ -831,7 +829,7 @@ async function buildBuildingPayload(
         $top: '60',
       });
 
-      let allRes = await fetch(`${TRESTLE_URL}/odata/Property?${allParams}`, {
+      let allRes = await fetch(`${COTALITY_URL}/odata/Property?${allParams}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
         next: { revalidate: 3600 },
       });
@@ -839,7 +837,7 @@ async function buildBuildingPayload(
       // If direction prefix caused 0 results, retry without it
       if (allRes.ok) {
         const data = await allRes.json();
-        const rawRecords: TrestleRecord[] = data.value || [];
+        const rawRecords: CotalityRecord[] = data.value || [];
 
         if (rawRecords.length === 0 && dirPrefix) {
           // Fallback: drop direction prefix
@@ -851,20 +849,20 @@ async function buildBuildingPayload(
             $orderby: 'ListPrice desc',
             $top: '60',
           });
-          const fallbackRes = await fetch(`${TRESTLE_URL}/odata/Property?${fallbackParams}`, {
+          const fallbackRes = await fetch(`${COTALITY_URL}/odata/Property?${fallbackParams}`, {
             headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
             next: { revalidate: 3600 },
           });
           if (fallbackRes.ok) {
             const fallbackData = await fallbackRes.json();
-            allTrestleRecords = fallbackData.value || [];
+            allCotalityRecords = fallbackData.value || [];
           }
         } else {
-          allTrestleRecords = rawRecords;
+          allCotalityRecords = rawRecords;
         }
 
         // If STILL 0 results and we have a postal code, try without it
-        if (allTrestleRecords.length === 0 && cleanPostalCode) {
+        if (allCotalityRecords.length === 0 && cleanPostalCode) {
           const noZipFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetNameUpper}')`;
           const noZipParams = new URLSearchParams({
             $filter: noZipFilter,
@@ -873,13 +871,13 @@ async function buildBuildingPayload(
             $orderby: 'ListPrice desc',
             $top: '60',
           });
-          const noZipRes = await fetch(`${TRESTLE_URL}/odata/Property?${noZipParams}`, {
+          const noZipRes = await fetch(`${COTALITY_URL}/odata/Property?${noZipParams}`, {
             headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
             next: { revalidate: 3600 },
           });
           if (noZipRes.ok) {
             const noZipData = await noZipRes.json();
-            allTrestleRecords = noZipData.value || [];
+            allCotalityRecords = noZipData.value || [];
           }
         }
       } else if (allRes.status === 400) {
@@ -892,19 +890,19 @@ async function buildBuildingPayload(
           $orderby: 'ListPrice desc',
           $top: '60',
         });
-        allRes = await fetch(`${TRESTLE_URL}/odata/Property?${simpleParams}`, {
+        allRes = await fetch(`${COTALITY_URL}/odata/Property?${simpleParams}`, {
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
           next: { revalidate: 3600 },
         });
         if (allRes.ok) {
           const data = await allRes.json();
-          allTrestleRecords = data.value || [];
+          allCotalityRecords = data.value || [];
         }
       }
 
       // gatedRecordsCount stays 0 — IDX feed already excludes gated listings
-    } catch (trestleErr) {
-      console.warn('[/api/buildings] Trestle fetch error:', trestleErr);
+    } catch (cotalityErr) {
+      console.warn('[/api/buildings] Cotality fetch error:', cotalityErr);
     }
 
     // Neon-quiet (2026-07-23): the fire-and-forget upsertBuildingFromRecords
@@ -918,26 +916,29 @@ async function buildBuildingPayload(
     // Extract building-level info from ALL records BEFORE gate filtering.
     // Building metadata (year, stories, amenities) is building-level, not listing-level —
     // a closed sale from 2020 still tells us the building has an elevator.
-    const buildingInfo = extractBuildingInfo(allTrestleRecords);
+    const buildingInfo = extractBuildingInfo(allCotalityRecords);
 
     // Now filter for individual listing display (Closed > 24h removed per REBNY RLS Sec. 2.05)
-    allTrestleRecords = allTrestleRecords.filter(
+    allCotalityRecords = allCotalityRecords.filter(
       (r) => checkDistributionGates(r as Record<string, unknown>).displayable
     );
 
-    // Separate records by status — Trestle returns either canonical or
-    // legacy space-formatted values. isActiveDisplayStatus accepts both.
+    // Separate records by status — StandardStatus ONLY (2026-10-02 Status
+    // cutover; Master Plan Section 0.6: StandardStatus and MlsStatus are
+    // independent RESO enums, neither derived from the other, never
+    // substituted). isActiveDisplayStatus normalizes canonical and legacy
+    // space-formatted status spellings.
     // For closed: only Closed/Sold (buildings history UI shows
     // completed transactions, not withdrawn/expired listings).
-    const trestleActive = allTrestleRecords.filter((r) =>
-      isActiveDisplayStatus(r.MlsStatus || r.StandardStatus || '')
+    const cotalityActive = allCotalityRecords.filter((r) =>
+      isActiveDisplayStatus(readCotalityStandardStatus(r) ?? '')
     );
-    const trestleClosed = allTrestleRecords.filter((r) => {
-      const status = String(r.MlsStatus || r.StandardStatus || '');
+    const cotalityClosed = allCotalityRecords.filter((r) => {
+      const status = readCotalityStandardStatus(r) ?? '';
       return status === Status.CLOSED || status === Status.SOLD;
     });
 
-    // ── 3. Merge active units (Trestle + DB) ──
+    // ── 3. Merge active units (Cotality + DB) ──
     const seenIds = new Set<string>();
     const activeUnits: Array<{
       id: string;
@@ -955,7 +956,7 @@ async function buildBuildingPayload(
       photoUrl: string | null;
     }> = [];
 
-    for (const r of trestleActive) {
+    for (const r of cotalityActive) {
       const id = String(r.ListingKey || r.ListingId);
       const mlsId = String(r.ListingId || '');
       if (seenIds.has(mlsId)) continue;
@@ -973,7 +974,12 @@ async function buildBuildingPayload(
         unit: String(r.UnitNumber || ''),
         propertyType: unitDisplayType(r.CommonInterest as string | undefined, buildingInfo.commonInterest, r.OwnershipType as string | undefined, buildingInfo.ownershipType, listingType === 'rent', r.PropertySubType as string | null, String(r.PropertySubType || r.PropertyType || '')),
         office: String(r.ListOfficeName || ''),
-        status: String(r.StandardStatus || r.MlsStatus || 'Active'),
+        // Never MlsStatus, never a fabricated 'Active' (2026-10-02 Status
+        // cutover) -- unreachable in practice today (a record only reaches
+        // this line after already passing isActiveDisplayStatus on the same
+        // source value above), but 'Unknown' is the honest sentinel if that
+        // ever changes, matching lib/idx/trestle-mapper.ts::mapTrestleToPrisma.
+        status: readCotalityStandardStatus(r) ?? 'Unknown',
         listingType,
         photoUrl: getPhotoUrl(r),
       });
@@ -1022,7 +1028,7 @@ async function buildBuildingPayload(
 
     const seenSaleIds = new Set<string>();
 
-    for (const r of trestleClosed) {
+    for (const r of cotalityClosed) {
       const mlsId = String(r.ListingId || '');
       if (seenSaleIds.has(mlsId)) continue;
       seenSaleIds.add(mlsId);

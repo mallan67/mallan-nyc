@@ -53,10 +53,12 @@ export async function GET(request: NextRequest) {
     );
 
     // 1. Active listings in the building (other units for sale/rent)
-    // $select fields verified against live Trestle $metadata (2026-04-19):
+    // $select fields verified against live Trestle $metadata (2026-04-19;
+    // corrected 2026-10-02 Permission Multi-Enum cutover):
     //   - IDXEntireListingDisplayYN, OwnerOptOut, ParticipantOnlyYN do NOT exist;
-    //     Owner Opt-Out / Participant Only are encoded via the `Permission` enum
-    //     and read by checkDistributionGates(). InternetEntireListingDisplayYN
+    //     Participant Only is encoded via the `Permission` Multi-Enum and read
+    //     by checkDistributionGates(). Owner Opt-Out has NO Cotality signal at
+    //     all -- it is Mallan-local authority. InternetEntireListingDisplayYN
     //     is the canonical master display gate.
     const distributionFields =
       'Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN';

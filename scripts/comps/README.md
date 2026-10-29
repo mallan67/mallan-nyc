@@ -100,7 +100,7 @@ JSON output (when `--json`): structured object with `subject`, `phase1_same_buil
 
 ## Compliance
 
-- **Read-only.** No writes to Trestle or RLS.
+- **Read-only.** No writes to Cotality or RLS.
 - **Distribution gates respected.** All queries filter on the same gates as the public IDX feed (`idx_display_yn`, `internet_entire_listing_display_yn`, `owner_opt_out=false`, `participant_only=false`).
 - **No public-facing output.** Internal CMA tool only — output is formatted for the agent's terminal, not for client distribution.
 - **No agent PII in output.** Address, status, price, sqft, sub-type only.

@@ -53,7 +53,7 @@ describe('classifySuggestQuery', () => {
     // The minimum length the route will treat as a listing ID is the
     // alphanumeric regex `^[A-Z]{2,}\d{3,}$` — 2+ letters + 3+ digits.
     // "RLS123" matches (3 letters + 3 digits). "RLS1234" matches the
-    // RLS-prefix alternative too. Both produce 0 Trestle hits if the
+    // RLS-prefix alternative too. Both produce 0 Cotality hits if the
     // actual ID doesn't exist, which is the correct fail-soft behavior.
     expect(classifySuggestQuery('RLS123').isListingId).toBe(true);
     expect(classifySuggestQuery('RLS1234').isListingId).toBe(true);

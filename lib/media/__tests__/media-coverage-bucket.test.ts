@@ -29,7 +29,7 @@ describe('classifyMediaCoverage — buckets incl. tri-state Cotality', () => {
     expect(classifyMediaCoverage(base({ listingId: 'SL-0004', allStatusRowCount: 3, legacyUsablePhotoCount: 17, cotality: confirmed(9) }))).toBe('E');
   });
   it('E: website-only (rls_eligible=false) with rows', () => {
-    expect(classifyMediaCoverage(base({ listingId: 'C-1', rlsEligible: false, allStatusRowCount: 2 }))).toBe('E');
+    expect(classifyMediaCoverage(base({ listingId: 'SL-C-1', rlsEligible: false, allStatusRowCount: 2 }))).toBe('E');
   });
   it('C: legacy JSON has usable photos → served by render fix', () => {
     expect(classifyMediaCoverage(base({ allStatusRowCount: 5, legacyUsablePhotoCount: 7, cotality: confirmed(7) }))).toBe('C');
@@ -54,7 +54,7 @@ describe('classifyMediaCoverage — buckets incl. tri-state Cotality', () => {
     // put a Mallan listing into U, and a confirmed-zero must not put it in D.
     expect(classifyMediaCoverage(base({ listingId: 'SL-0004', allStatusRowCount: 0, cotality: UNKNOWN }))).toBe('E');
     expect(classifyMediaCoverage(base({ listingId: 'RL-0007', allStatusRowCount: 0, cotality: confirmed(0) }))).toBe('E');
-    expect(classifyMediaCoverage(base({ rlsEligible: false, allStatusRowCount: 0, cotality: UNKNOWN }))).toBe('E');
+    expect(classifyMediaCoverage(base({ listingId: 'SL-C-1', rlsEligible: false, allStatusRowCount: 0, cotality: UNKNOWN }))).toBe('E');
   });
 
   it('a Cotality error/timeout is UNKNOWN → U, NEVER coerced to D', () => {
@@ -99,4 +99,8 @@ describe('tallyBuckets', () => {
     ]);
     expect(t).toEqual({ A: 1, B_NEW: 1, B_INACTIVE: 1, C: 1, D: 1, E: 1, F: 1, U: 1 });
   });
+});
+
+it('an imported row with an old false eligibility flag remains third-party and needs provider evidence', () => {
+  expect(classifyMediaCoverage(base({ listingId: 'RLS20105333', rlsEligible: false, allStatusRowCount: 0, cotality: UNKNOWN }))).toBe('U');
 });

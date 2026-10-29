@@ -3,7 +3,7 @@
  * PROPERTY RECOVERY EXECUTOR — behavioral contract (MANIFEST-DRIVEN).
  *
  * These are REAL calls into `recoverStalePropertyListings` with a store-backed
- * Prisma mock and a mocked Trestle fetch. The mapper, distribution gates, the
+ * Prisma mock and a mocked Cotality fetch. The mapper, distribution gates, the
  * archived-rehydration guard, the new-terminal guard, the write-suppression
  * comparators, the change classifier and the cache-tag plumbing are all the
  * genuine production modules — only the two I/O boundaries are mocked.
@@ -124,7 +124,7 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
-// ── Trestle ─────────────────────────────────────────────────────────────────
+// ── Cotality ─────────────────────────────────────────────────────────────────
 
 const mockFetchSingleListing = jest.fn();
 jest.mock("@/lib/idx/fetch", () => ({
@@ -310,7 +310,6 @@ function dbRowFromRaw(
     internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
     internet_address_display_yn: mapped.internet_address_display_yn,
     participant_only: mapped.participant_only,
-    owner_opt_out: mapped.owner_opt_out,
     address: JSON.parse(JSON.stringify(mapped.address)),
     features: JSON.parse(JSON.stringify(mapped.features)),
     raw_data: JSON.parse(JSON.stringify(mapped.raw_data)),
@@ -370,7 +369,7 @@ function wireStore(store: Map<string, Row>) {
   mockSyncStateCreate.mockResolvedValue({});
 }
 
-/** Feed the mocked Trestle endpoint from a listing_id -> raw record map. */
+/** Feed the mocked Cotality endpoint from a listing_id -> raw record map. */
 function wireFeed(records: Map<string, Record<string, unknown> | null>) {
   mockFetchSingleListing.mockImplementation(async (id: string) => records.get(id) ?? null);
 }
@@ -984,9 +983,9 @@ describe("failure isolation", () => {
     }
     wireStore(store);
     wireFeed(feed);
-    // Row #2 throws hard inside the Trestle call.
+    // Row #2 throws hard inside the Cotality call.
     mockFetchSingleListing.mockImplementation(async (id: string) => {
-      if (id === "RLS400001") throw new Error("simulated Trestle 500");
+      if (id === "RLS400001") throw new Error("simulated Cotality 500");
       return feed.get(id) ?? null;
     });
 

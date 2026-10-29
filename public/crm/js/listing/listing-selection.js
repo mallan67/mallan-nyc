@@ -57,11 +57,14 @@
             if (currentWorkspaceClientId) {
                 saveSelectedToClient();
             } else {
-                // Open the customer dropdown to pick a client first
+                // Open the customer dropdown to pick a client first; picking one saves the selection
                 var dd = document.getElementById('workWithCustomerDropdown2') || document.getElementById('workWithCustomerDropdown');
                 if (dd) {
                     dd.classList.toggle('hidden');
+                    window._saveSelectionOnClientPick = !dd.classList.contains('hidden');
                     populateClientList(dd.querySelector('[id^="clientList"]'));
+                } else {
+                    showToast('Choose a working client first, then use Work With.', 'warning');
                 }
             }
         }
@@ -87,6 +90,9 @@
             searchResultsState.filteredListings = source.filter(function(l) {
                 return !removeSet[l.id];
             });
+            // The count and "Load more" read this: "67 of 70 Results · Load more" after removing three
+            // rows offered to load the rows just removed (found 2026-10-27).
+            searchResultsState.removedCount = (searchResultsState.removedCount || 0) + removeCount;
 
             // Store removed IDs so they stay removed during this session
             var removedKey = 'removedListings_' + LOGGED_IN_AGENT.id;
@@ -185,6 +191,8 @@
                 }
                 // Re-render to show like/dislike icons on cards
                 if (typeof renderSearchResults === 'function') renderSearchResults();
+                // Opened from "Work With" on selected listings: save them to this client now
+                if (window._saveSelectionOnClientPick) { window._saveSelectionOnClientPick = false; saveSelectedToClient(); }
             }
             // Close all dropdowns
             document.querySelectorAll('[id^="workWithCustomerDropdown"]').forEach(function(d) { d.classList.add('hidden'); });

@@ -109,19 +109,19 @@ async function main() {
   }
 
   // ── Sample listings.raw_data composition ───────────────────────────
-  // The Trestle mapper (lib/idx/trestle-mapper.ts mapTrestleToPrisma) is the
+  // The Cotality mapper (lib/idx/trestle-mapper.ts mapTrestleToPrisma) is the
   // ONLY code path that sets last_synced_from_trestle. The CRM POST route
   // never sets it. So this column is the deterministic signal for "this
-  // row's raw_data was last written by the Trestle mapper" — covering
+  // row's raw_data was last written by the Cotality mapper" — covering
   // - lib/idx/sync.ts main loop AND syncAgentHistory (both set it)
   // - app/api/cron/feed-reconcile/route.ts (sets it via mapped.* spread)
   // - app/api/crm/listings/reset-sync/route.ts (sets it explicitly)
-  // Filtering on agent_id IS NULL would miss Trestle imports that have an
+  // Filtering on agent_id IS NULL would miss Cotality imports that have an
   // agent linked (per Codex review on PR #75 — the syncAgentHistory + reset-sync
-  // paths both produce agent-linked Trestle rows).
-  console.log(`\n── Sampling ${SAMPLE} Trestle-imported listings (last_synced_from_trestle IS NOT NULL) ──`);
-  const trestleSample = await withRetry(
-    'trestle-sample',
+  // paths both produce agent-linked Cotality rows).
+  console.log(`\n── Sampling ${SAMPLE} Cotality-imported listings (last_synced_from_trestle IS NOT NULL) ──`);
+  const cotalitySample = await withRetry(
+    'cotality-sample',
     () => prisma.$queryRaw<ListingRow[]>`
       SELECT id, agent_id, raw_data
       FROM listings
@@ -131,13 +131,13 @@ async function main() {
       LIMIT ${SAMPLE}
     `
   );
-  if (trestleSample.length === 0) {
-    console.log('  (no Trestle-imported rows with raw_data found)');
+  if (cotalitySample.length === 0) {
+    console.log('  (no Cotality-imported rows with raw_data found)');
   } else {
     let totalKept = 0;
     let totalDropped = 0;
     const droppedFieldFreq = new Map<string, { count: number; bytes: number }>();
-    for (const row of trestleSample) {
+    for (const row of cotalitySample) {
       const raw = row.raw_data as Record<string, unknown> | null;
       const r = projectShedSavings(raw);
       totalKept += r.keptBytes;
@@ -151,23 +151,23 @@ async function main() {
         }
       }
     }
-    const avgKept = totalKept / trestleSample.length;
-    const avgDropped = totalDropped / trestleSample.length;
+    const avgKept = totalKept / cotalitySample.length;
+    const avgDropped = totalDropped / cotalitySample.length;
     const avgTotal = avgKept + avgDropped;
     const pctDropped = avgTotal > 0 ? (avgDropped / avgTotal) * 100 : 0;
 
-    console.log(`  Sampled rows:               ${trestleSample.length}`);
+    console.log(`  Sampled rows:               ${cotalitySample.length}`);
     console.log(`  Avg raw_data size:          ${fmtBytes(avgTotal)}`);
     console.log(`  Avg KEEP bytes (post-shed): ${fmtBytes(avgKept)}`);
     console.log(`  Avg DROP bytes (sheddable): ${fmtBytes(avgDropped)}`);
     console.log(`  % sheddable:                ${pctDropped.toFixed(1)}%`);
 
-    // Project total savings across all Trestle-imported listings
-    const totalTrestleCount = await withRetry('trestle-count', () =>
+    // Project total savings across all Cotality-imported listings
+    const totalCotalityCount = await withRetry('cotality-count', () =>
       prisma.listing.count({ where: { last_synced_from_trestle: { not: null } } })
     );
-    const projectedSavings = avgDropped * totalTrestleCount;
-    console.log(`  Trestle-imported total:     ${totalTrestleCount.toLocaleString()} rows`);
+    const projectedSavings = avgDropped * totalCotalityCount;
+    console.log(`  Cotality-imported total:    ${totalCotalityCount.toLocaleString()} rows`);
     console.log(
       `  Projected total savings:    ${fmtBytes(projectedSavings)}` +
         ` (assuming sample is representative)`
@@ -182,20 +182,20 @@ async function main() {
       const avgPerRow = info.bytes / info.count;
       console.log(
         `  ${field.padEnd(40)} ${fmtBytes(info.bytes).padStart(10)} total · ` +
-          `${fmtBytes(avgPerRow)}/row · ${info.count}/${trestleSample.length} rows`
+          `${fmtBytes(avgPerRow)}/row · ${info.count}/${cotalitySample.length} rows`
       );
     }
   }
 
   // ── CRM-created listings (full payload, NOT slimmed) ───────────────
-  // CRM-only listings = never been Trestle-synced. agent_id alone is
-  // ambiguous (syncAgentHistory + reset-sync produce agent-linked Trestle
+  // CRM-only listings = never been Cotality-synced. agent_id alone is
+  // ambiguous (syncAgentHistory + reset-sync produce agent-linked Cotality
   // rows), so we filter on the absence of last_synced_from_trestle.
   const crmCount = await withRetry('crm-count', () =>
     prisma.listing.count({ where: { last_synced_from_trestle: null } })
   );
   console.log(
-    `\n── CRM-only listings (never Trestle-synced): ${crmCount.toLocaleString()} rows ` +
+    `\n── CRM-only listings (never Cotality-synced): ${crmCount.toLocaleString()} rows ` +
       `(raw_data is NOT slimmed for these — preserves full form payload)`
   );
 

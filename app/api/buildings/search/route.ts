@@ -1,12 +1,14 @@
 // Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §18 (CRM Building Lookup)
+import { classifyBuilding } from '@/lib/buildings/classify-building';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
 import { canonicalizeDirection, canonicalizeSuffix, canonicalizeStreetName } from '@/lib/address/nyc-address-normalizer';
+import { parseCustomFields } from '@/lib/search/crm-idx-filter';
 
-const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
+const COTALITY_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
@@ -31,7 +33,14 @@ const DIR_PREFIX_MAP: Record<string, string> = {
   northeast: 'NE', northwest: 'NW', southeast: 'SE', southwest: 'SW',
 };
 
-const STREET_SUFFIX_RE = /\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter)\.?\s*$/i;
+const STREET_SUFFIX_RE = /\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter|Alley|Aly|Mews|Row|Walk|Plaza|Plz|Parkway|Pkwy|Square|Sq|Circle|Cir|Slip|Path|Loop)\.?\s*$/i;  // every live NYC street type (convergence 10-15)
+// A direction AFTER a street-type word is a direction SUFFIX, which Cotality
+// serves as its own field: "425 Park Avenue South" → StreetName PARK, StreetSuffix
+// Avenue, StreetDirSuffix S; "116 Central Park South" → CENTRAL / Park / S;
+// "60 Sutton Place South" → SUTTON / Place / S (live Property rows, 2026-10-28;
+// StreetDirSuffix is in $metadata and set on 13,595 rows). Both words are dropped
+// from the name so contains(tolower(StreetName),…) matches the served name.
+const DIR_SUFFIX_RE = /\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter|Alley|Aly|Mews|Row|Walk|Plaza|Plz|Parkway|Pkwy|Square|Sq|Circle|Cir|Slip|Path|Loop|Park)\.?\s+(North|South|East|West|N|S|E|W)\.?\s*$/i;
 const ORDINAL_RE = /(\d+)(st|nd|rd|th)\b/gi;
 
 function stripSuffix(v: string): string { return v.replace(STREET_SUFFIX_RE, '').trim(); }
@@ -41,6 +50,7 @@ export interface ParsedAddress {
   streetNumber?: string;
   streetDirPrefix?: string;
   streetName?: string;
+  streetDirSuffix?: string;
   buildingName?: string;
 }
 
@@ -52,7 +62,15 @@ export function parseAddressQuery(q: string): ParsedAddress {
   }
 
   const streetNumber = match[1];
-  let rest = stripSuffix(match[2]);
+  let restRaw = match[2].trim();
+  let streetDirSuffix: string | undefined;
+  const dirSuffixMatch = restRaw.match(DIR_SUFFIX_RE);
+  if (dirSuffixMatch && dirSuffixMatch.index !== undefined && dirSuffixMatch.index > 0) {
+    streetDirSuffix = DIR_PREFIX_MAP[dirSuffixMatch[2].toLowerCase()];
+    restRaw = restRaw.slice(0, dirSuffixMatch.index).trim();
+  }
+  const withDirSuffix = streetDirSuffix ? { streetDirSuffix } : {};
+  const rest = stripSuffix(restRaw);
 
   const tokens = rest.split(/\s+/);
   const firstLower = tokens[0]?.toLowerCase() || '';
@@ -62,11 +80,11 @@ export function parseAddressQuery(q: string): ParsedAddress {
     tokens.shift();
     const raw = tokens.length > 0 ? tokens.join(' ') : undefined;
     const streetName = raw ? stripOrdinal(raw).toLowerCase() : undefined;
-    return { streetNumber, streetDirPrefix: dirPrefix, streetName: streetName || undefined };
+    return { streetNumber, streetDirPrefix: dirPrefix, streetName: streetName || undefined, ...withDirSuffix };
   }
 
   const streetName = rest ? stripOrdinal(rest).toLowerCase() : undefined;
-  return { streetNumber, streetName: streetName || undefined };
+  return { streetNumber, streetName: streetName || undefined, ...withDirSuffix };
 }
 
 type ErrorClass =
@@ -101,14 +119,15 @@ function formatAddress(r: Record<string, unknown>): string {
   const dir = String(r.StreetDirPrefix || '');
   const name = String(r.StreetName || '');
   const suffix = String(r.StreetSuffix || '');
+  const dirSuffix = String(r.StreetDirSuffix || '');
   // Some DB records have the direction already inside StreetName (e.g., "E 46TH")
   // Don't duplicate the direction if StreetName already starts with it
   const nameAlreadyHasDir = dir && name.toUpperCase().startsWith(dir.toUpperCase() + ' ');
   const dirPart = dir && !nameAlreadyHasDir ? dir + ' ' : '';
-  return `${num} ${dirPart}${name} ${suffix}`.replace(/\s+/g, ' ').trim();
+  return `${num} ${dirPart}${name} ${suffix} ${dirSuffix}`.replace(/\s+/g, ' ').trim();
 }
 
-interface TrestleRecord {
+interface CotalityRecord {
   [key: string]: unknown;
 }
 
@@ -240,7 +259,7 @@ function registerBuilding(
 /**
  * Real-Cotality parking / laundry / documents / pets fields surfaced for the
  * CRM building-modal auto-fill (Track 1). EVERY field below is verified present
- * in live $metadata (artifacts/metadata.xml, 2026-05-30):
+ * in live $metadata (data/cotality-enums.live.json; re-checked 2026-10-01):
  *   GarageYN, AttachedGarageYN, GarageSpaces, OpenParkingSpaces, CoveredSpaces,
  *   ParkingFeatures, LaundryFeatures, DocumentsAvailable, PetsAllowed,
  *   PetsAllowedYN.
@@ -304,6 +323,12 @@ const SAVED_PROFILE_CONTRACT_TO_FORM: Record<string, string> = {
   building_board_president: 'saleBldgBoardPresident',
   building_board_email: 'saleBldgBoardEmail',
   building_max_financing: 'saleBldgMaxFinancing',
+  building_max_financing_amount: 'saleBldgMaxFinancingAmount',
+  building_financing_remarks: 'saleBldgMaxFinancingRemarks',
+  building_land_lease_yn: 'saleBldgLandLeaseYN',
+  building_land_lease_amount: 'saleBldgLandLeaseAmount',
+  building_land_lease_frequency: 'saleBldgLandLeaseFreq',
+  building_land_lease_expiration: 'saleBldgLandLeaseExp',
   building_min_down: 'saleBldgMinDownPayment',
   building_dti: 'saleBldgDTIRatio',
   building_post_close_liquidity: 'saleBldgPostCloseLiquidity',
@@ -416,9 +441,19 @@ function buildingLaundryPolicy(rec: Record<string, unknown>): string[] {
 
 function buildingExtras(rec: Record<string, unknown> | null | undefined) {
   const r = rec || {};
+  // REBNY CustomFields keys: inside CustomProperty.CustomFields on a Cotality record, top-level on a stored features bucket (the server's storage table keeps them there)
+  const cf = parseCustomFields(r as Record<string, unknown>);
+  const custom = (k: string) => (cf[k] !== undefined && cf[k] !== null && cf[k] !== '' ? cf[k] : r[k]);
+  const yn01 = (v: unknown) => (v === true || v === 1 || v === '1' || v === 'true' ? true : v === false || v === 0 || v === '0' || v === 'false' ? false : null);
+  const members = (v: unknown) => (Array.isArray(v) ? v.map(String).join(',') : String(v ?? ''));
   const num = (v: unknown) =>
     v === 0 || (v !== null && v !== undefined && v !== '') ? Number(v) : null;
   return {
+    // Land lease: only true / false when Cotality answered; a missing field is unknown, not "No".
+    land_lease_yn: r.LandLeaseYN === true ? true : r.LandLeaseYN === false ? false : null,
+    land_lease_amount: num(r.LandLeaseAmount),
+    land_lease_frequency: String(r.LandLeaseAmountFrequency || ''),
+    land_lease_expiration: r.LandLeaseExpirationDate ? String(r.LandLeaseExpirationDate).slice(0, 10) : '',
     garage_yn: r.GarageYN === true,
     attached_garage_yn: r.AttachedGarageYN === true,
     garage_spaces: num(r.GarageSpaces),
@@ -445,6 +480,34 @@ function buildingExtras(rec: Record<string, unknown> | null | undefined) {
     property_condition: String(r.PropertyCondition || ''),
     property_attached_yn: r.PropertyAttachedYN === true,
     building_area_total: num(r.BuildingAreaTotal),
+    // ── The RealPlus Building section items (live Property fields) ──
+    year_built_effective: num(r.YearBuiltEffective),
+    architectural_style: members(r.ArchitecturalStyle),
+    construction_materials: members(r.ConstructionMaterials),
+    security_features: members(r.SecurityFeatures),
+    lot_size_sqft: num(r.LotSizeSquareFeet) ?? (String(r.LotSizeUnits || '') === 'SquareFeet' ? num(r.LotSizeArea) : null),
+    lot_size_dimensions: String(r.LotSizeDimensions || ''),
+    // ── The REBNY CustomFields keys the Building panel reads ──
+    attendance_type: members(custom('AttendanceType')),
+    elevators_total: num(custom('ElevatorsTotal')),
+    landmark_yn: yn01(custom('LandmarkStatusYN')),
+    building_rules: members(custom('BuildingRules')),
+    building_staff_type: members(custom('BuildingStaffType')),
+    architect_name: String(custom('ArchitectName') || ''),
+    professional_units: num(custom('NumberOfProfessionalUnitsTotal')),
+    max_financing_percent: num(custom('MaximumFinancingPercent')),
+    max_financing_amount: num(custom('MaximumFinancingAmount')),
+    max_financing_remarks: String(custom('MaximumFinancingRemarks') || ''),
+    flip_tax: num(custom('FlipTax')),
+    flip_tax_type: String(custom('FlipTaxType') || ''),
+    flip_tax_remarks: String(custom('FlipTaxRemarks') || ''),
+    tax_deduction_percent: num(custom('TaxDeductionPercent')),
+    tax_abatement_yn: yn01(custom('TaxAbatementYN')),
+    tax_abatement_comments: String(custom('TaxAbatementComments') || ''),
+    tax_abatement_expiration_year: num(custom('TaxAbatementExpirationYear')),
+    capital_reserves_yn: yn01(custom('CapitalReservesYN')),
+    capital_reserves_total: num(custom('CapitalReservesTotal')),
+    building_parking_total: num(custom('BuildingParkingTotal')),
   };
 }
 
@@ -528,6 +591,11 @@ export async function GET(request: NextRequest) {
         params.push(parsed.streetDirPrefix);
         paramIdx++;
       }
+      if (parsed.streetDirSuffix) {
+        conditions.push(`address->>'StreetDirSuffix' = $${paramIdx}`);
+        params.push(parsed.streetDirSuffix);
+        paramIdx++;
+      }
       if (parsed.streetName) {
         conditions.push(`LOWER(address->>'StreetName') LIKE $${paramIdx}`);
         params.push(`%${parsed.streetName}%`);
@@ -591,6 +659,7 @@ export async function GET(request: NextRequest) {
           streetDirPrefix: String(addr.StreetDirPrefix || ''),
           streetName: String(addr.StreetName || ''),
           streetSuffix: String(addr.StreetSuffix || ''),
+          streetDirSuffix: String(addr.StreetDirSuffix || ''),
           cross_street: String(addr.CrossStreet || ''),
           crossStreet: String(addr.CrossStreet || ''),
           source: 'db',
@@ -703,6 +772,7 @@ export async function GET(request: NextRequest) {
           streetDirPrefix: String(addr.StreetDirPrefix || ''),
           streetName: String(addr.StreetName || ''),
           streetSuffix: String(addr.StreetSuffix || ''),
+          streetDirSuffix: String(addr.StreetDirSuffix || ''),
           cross_street: String(addr.CrossStreet || ''),
           crossStreet: String(addr.CrossStreet || ''),
           source: 'db',
@@ -754,7 +824,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── 2. Supplement from Trestle if DB has <5 results ──
+    // ── 2. Supplement from Cotality if DB has <5 results ──
     if (buildings.length < 5 && parsed.streetNumber && (parsed.streetName || parsed.streetDirPrefix)) {
       try {
         const token = await getAccessToken();
@@ -762,9 +832,9 @@ export async function GET(request: NextRequest) {
 
         const SELECT = [
           'ListingId', 'BuildingName', 'YearBuilt', 'StoriesTotal',
-          'NumberOfUnitsInCommunity', 'CommonInterest', 'OwnershipType',
-          'PropertyType', 'PropertySubType', 'StructureType',
-          'StreetNumber', 'StreetName', 'StreetSuffix', 'StreetDirPrefix',
+          'NumberOfUnitsInCommunity', 'NumberOfUnitsTotal', 'CommonInterest', 'OwnershipType',
+          'PropertyType', 'PropertySubType', 'StructureType', 'StandardStatus',
+          'StreetNumber', 'StreetName', 'StreetSuffix', 'StreetDirPrefix', 'StreetDirSuffix',
           'PostalCode', 'UnitNumber', 'SubdivisionName',
           'City', 'StateOrProvince',
           'CityRegion', 'CountyOrParish',
@@ -775,8 +845,8 @@ export async function GET(request: NextRequest) {
           // upstream.
           // 2026-05-29: REMOVED AttendanceType, NewDevelopmentYN, SponsorUnitYN,
           // RentingAllowedYN — none exist on the live Cotality Property entity
-          // (verified against artifacts/metadata.xml). Their presence made
-          // Trestle reject the whole $select with HTTP 400 (no 4xx retry),
+          // (verified against live $metadata). Their presence made
+          // Cotality reject the whole $select with HTTP 400 (no 4xx retry),
           // silently killing the Cotality building lookup. Concierge / on-site
           // manager are derived from BuildingFeatures (valid Multi enum); the
           // remaining flags have no valid Cotality equivalent and are left for
@@ -786,13 +856,15 @@ export async function GET(request: NextRequest) {
           'CrossStreet',
           'YearBuiltDetails', 'YearBuiltSource',
           'NewConstructionYN',
+          // Land lease — a building fact the Sale form's Building panel shows (verified in data/cotality-enums.live.json, pulled live 2026-10-24).
+          'LandLeaseYN', 'LandLeaseAmount', 'LandLeaseAmountFrequency', 'LandLeaseExpirationDate',
           'TaxBlock', 'TaxLot', 'TaxAnnualAmount',
           'AssociationName', 'AssociationFee', 'AssociationFeeFrequency',
           'ZoningDescription',
           // Parking / laundry / documents / pets — all verified in live
           // $metadata (2026-05-30). Surfaced for building-modal auto-fill.
           // Do NOT add a field here without a metadata check — an invalid
-          // $select makes Trestle reject the whole query with HTTP 400.
+          // $select makes Cotality reject the whole query with HTTP 400.
           'GarageYN', 'AttachedGarageYN', 'GarageSpaces',
           'OpenParkingSpaces', 'CoveredSpaces', 'ParkingFeatures',
           'LaundryFeatures', 'DocumentsAvailable', 'PetsAllowedYN',
@@ -808,6 +880,9 @@ export async function GET(request: NextRequest) {
           // AssociationAmenities was missing, so association-only amenities
           // (Concierge/IndoorPool) never filled on the Cotality path. (Codex #301)
           'ExteriorFeatures', 'CommunityFeatures', 'AccessibilityFeatures', 'AssociationAmenities',
+          // The RealPlus Building section items (2026-10-28): era / style, facade, security, renovation year, lot, zoning
+          'YearBuiltEffective', 'ArchitecturalStyle', 'ConstructionMaterials', 'SecurityFeatures',
+          'LotSizeArea', 'LotSizeUnits', 'LotSizeDimensions', 'LotSizeSquareFeet',
         ].join(',');
 
         const filterParts = [`startswith(StreetNumber,'${cleanNum}')`];
@@ -819,6 +894,9 @@ export async function GET(request: NextRequest) {
           const cleanName = sanitizeOData(parsed.streetName).toLowerCase();
           filterParts.push(`contains(tolower(StreetName),'${cleanName}')`);
         }
+        if (parsed.streetDirSuffix) {
+          filterParts.push(`StreetDirSuffix eq '${sanitizeOData(parsed.streetDirSuffix)}'`);
+        }
         const filter = filterParts.join(' and ');
         diag.cotality.odataFilter = filter;
 
@@ -828,8 +906,11 @@ export async function GET(request: NextRequest) {
           $orderby: 'ListPrice desc',
           $top: '20',
         });
+        // The REBNY CustomFields keys (AttendanceType, ElevatorsTotal, LandmarkStatusYN, BuildingRules, ArchitectName, MaximumFinancing*, FlipTax*, TaxDeductionPercent,
+        // BuildingStaffType, NumberOfProfessionalUnitsTotal, TaxAbatement*, CapitalReserves*) live in CustomProperty.CustomFields, reached through Property (live 2026-10-26: HTTP 200).
+        odataParams.set('$expand', 'CustomProperty($select=CustomFields,ListingKey)');
 
-        const res = await fetch(`${TRESTLE_URL}/odata/Property?${odataParams}`, {
+        const res = await fetch(`${COTALITY_URL}/odata/Property?${odataParams}`, {
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
           next: { revalidate: 3600 },
         });
@@ -838,7 +919,11 @@ export async function GET(request: NextRequest) {
 
         if (res.ok) {
           const data = await res.json();
-          const records: TrestleRecord[] = data.value || [];
+          const records: CotalityRecord[] = data.value || [];
+          // Every Cotality listing of a building is evidence for its type: the building is classified from all of them after the loop (lib/buildings/classify-building.ts),
+          // not from the first one seen (a condop's listings are tagged StockCooperative on most units and Condop on the rest).
+          const evidence = new Map<object, CotalityRecord[]>();
+          const addEvidence = (b: object, rec: CotalityRecord) => { const list = evidence.get(b); if (list) list.push(rec); else evidence.set(b, [rec]); };
           diag.cotality.resultCount = records.length;
           diag.cotality.firstThreeAddresses = records.slice(0, 3).map(formatAddress);
 
@@ -875,6 +960,7 @@ export async function GET(request: NextRequest) {
               // Re-register so any newly-known key (BK / fuller address) also
               // resolves to this object on a later row.
               registerBuilding(buildingByKey, buildingByAddrOnly, existing, _bkKey, _addrKey, _aoKey);
+              addEvidence(existing, r);
               continue;
             }
 
@@ -895,6 +981,7 @@ export async function GET(request: NextRequest) {
               streetDirPrefix: String(r.StreetDirPrefix || ''),
               streetName: String(r.StreetName || ''),
               streetSuffix: String(r.StreetSuffix || ''),
+              streetDirSuffix: String(r.StreetDirSuffix || ''),
               cross_street: String(r.CrossStreet || ''),
               crossStreet: String(r.CrossStreet || ''),
               source: 'cotality',
@@ -949,13 +1036,42 @@ export async function GET(request: NextRequest) {
               ...buildingExtras(r),
             });
             registerBuilding(buildingByKey, buildingByAddrOnly, buildings[buildings.length - 1], _bkKey, _addrKey, _aoKey);
+            addEvidence(buildings[buildings.length - 1], r);
+          }
+          // The display query above returns the 20 highest-priced listings: too few to say what a building is. The type is read from every listing of the building, asked for
+          // with only the fields that decide it.
+          const lean = new Map<string, CotalityRecord[]>();
+          if (evidence.size > 0) {
+            try {
+              const evParams = new URLSearchParams({
+                $filter: filter,
+                $select: 'StandardStatus,CommonInterest,PropertySubType,StructureType,NumberOfUnitsTotal,StreetNumber,StreetName,StreetDirPrefix,CityRegion,PostalCode',
+                $orderby: 'ModificationTimestamp desc',
+                $top: '200',
+              });
+              const evRes = await fetch(`${COTALITY_URL}/odata/Property?${evParams}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, next: { revalidate: 3600 } });
+              if (evRes.ok) {
+                for (const rec of ((await evRes.json()).value || []) as CotalityRecord[]) {
+                  const k = addressIdentityKey(rec);
+                  const list = lean.get(k); if (list) list.push(rec); else lean.set(k, [rec]);
+                }
+              }
+            } catch { /* the 20 listings already fetched are the evidence */ }
+          }
+          for (const [b, recs] of evidence) {
+            const all = lean.get(addressIdentityKey(recs[0]));
+            const c = classifyBuilding(all && all.length > 0 ? all : recs);
+            const target = b as Record<string, unknown>;
+            if (c.commonInterest) target.common_interest = c.commonInterest;
+            target.building_kind = c.kind;
+            target.ownership_votes = c.votes;
           }
         } else {
           diag.errorClass = 'cotality_non_200';
           diag.errorMessage = `Cotality returned HTTP ${res.status}`;
         }
-      } catch (trestleErr) {
-        const errMsg = trestleErr instanceof Error ? trestleErr.message : String(trestleErr);
+      } catch (cotalityErr) {
+        const errMsg = cotalityErr instanceof Error ? cotalityErr.message : String(cotalityErr);
         if (errMsg.includes('IDX Auth') || errMsg.includes('Missing IDX_CLIENT')) {
           diag.errorClass = 'token_failed';
           diag.errorMessage = 'Cotality token acquisition failed';
@@ -963,7 +1079,7 @@ export async function GET(request: NextRequest) {
           diag.errorClass = diag.errorClass === 'none' ? 'unknown' : diag.errorClass;
           diag.errorMessage = 'Cotality request failed';
         }
-        console.warn('[/api/buildings/search] Trestle error:', trestleErr);
+        console.warn('[/api/buildings/search] Cotality error:', cotalityErr);
       }
     }
 
@@ -979,7 +1095,7 @@ export async function GET(request: NextRequest) {
       if (diag.errorClass === 'cotality_non_200' || diag.errorClass === 'token_failed' || diag.errorClass === 'unknown') {
         errorHint = 'Building lookup temporarily unavailable.';
       } else {
-        errorHint = 'No Cotality/Trestle building match found.';
+        errorHint = 'No Cotality building match found.';
       }
     }
 

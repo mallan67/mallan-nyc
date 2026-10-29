@@ -30,8 +30,10 @@
                     var alertBadge = search.alert_enabled && search.alert_frequency
                         ? '<span class="ml-1 px-1.5 py-0.5 bg-green-100 text-green-700 text-[9px] font-semibold rounded-full">' + search.alert_frequency + '</span>'
                         : '';
+                    // Name the client the search was saved for (the badge used to be an icon alone)
+                    var savedFor = search.lead_id ? ((searchResultsState.clients || []).find(function (c) { return String(c.id) === String(search.lead_id); }) || null) : null;
                     var clientBadge = search.lead_id
-                        ? '<span class="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-semibold rounded-full"><i class="fas fa-user text-[7px]"></i></span>'
+                        ? '<span class="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-semibold rounded-full" title="Saved for ' + escapeHtml(savedFor ? savedFor.name : 'client ' + search.lead_id) + '"><i class="fas fa-user text-[7px]"></i> ' + escapeHtml(savedFor ? savedFor.name : 'client') + '</span>'
                         : '';
                     // ── P0-2 count badge honesty ──────────────────────
                     // Engine A (live Trestle) and Engine B (DB projection)
@@ -117,8 +119,8 @@
             min_beds: 1, max_beds: 1, minBeds: 1, maxBeds: 1, bedsMin: 1, bedsMax: 1, beds: 1,
             min_baths: 1, max_baths: 1, minBaths: 1, maxBaths: 1, bathsMin: 1, bathsMax: 1, baths: 1,
             min_sqft: 1, max_sqft: 1, minSqft: 1, maxSqft: 1, sqftMin: 1, sqftMax: 1,
-            // Reserved (skipped, treated as supported)
-            _search_tab: 1
+            // Reserved view state (skipped, treated as supported) — mirrors PROJECTION_RESERVED_CRITERIA_KEYS
+            _search_tab: 1, _search_mode: 1
         };
 
         function _evaluateAlertGate(apiCriteria) {
@@ -198,6 +200,33 @@
             var c = activeSearchCriteria;
             var parts = [];
             if (c.searchTab) parts.push(c.searchTab === 'rent' ? 'Rental' : c.searchTab === 'building' ? 'Building' : 'Sale');
+            if (c.searchMode === 'advanced') parts.push('Advanced form');
+            // The status being saved is shown here so the agent sees what the record will carry.
+            parts.push(c.statuses && c.statuses.length ? 'Status: ' + c.statuses.map(function (s) { return String(s).replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, function (ch) { return ch.toUpperCase(); }); }).join(', ') : 'Any status');
+            if (c.ownership && c.ownership.length) parts.push(c.ownership.join(', '));
+            if (c.zip) parts.push('Zip ' + c.zip);
+            if (c.address) parts.push(c.address);
+            if (c.checkboxGroups || c.checkboxFilters) {
+                var facets = [];
+                [c.checkboxGroups, c.checkboxFilters].forEach(function (set) {
+                    if (!set) return;
+                    Object.keys(set).forEach(function (k) {
+                        var v = set[k];
+                        if (v && typeof v === 'object' && !Array.isArray(v)) Object.keys(v).forEach(function (f) { facets.push(f + ' ' + [].concat(v[f]).join('/')); });
+                        else facets.push(k + ' ' + [].concat(v).join('/'));
+                    });
+                });
+                if (facets.length) parts.push(facets.join(', '));
+            }
+            if (c.fieldRanges) {
+                Object.keys(c.fieldRanges).forEach(function (f) {
+                    var b = c.fieldRanges[f] || {};
+                    parts.push(f + (b.min != null && b.min !== '' ? ' ≥ ' + b.min : '') + (b.max != null && b.max !== '' ? ' ≤ ' + b.max : ''));
+                });
+            }
+            if (c.fieldText) Object.keys(c.fieldText).forEach(function (f) { parts.push(f + ' "' + c.fieldText[f] + '"'); });
+            if (c.financingMin) parts.push('Financing ≥ ' + c.financingMin + '%');
+            if (c.openHouseDateFrom) parts.push('Open house ' + c.openHouseDateFrom + (c.openHouseDateTo && c.openHouseDateTo !== c.openHouseDateFrom ? ' - ' + c.openHouseDateTo : ''));
             if (c.priceMin || c.priceMax) {
                 var price = '$' + (c.priceMin ? c.priceMin.toLocaleString() : '0') + ' - $' + (c.priceMax ? c.priceMax.toLocaleString() : 'Any');
                 parts.push(price);
@@ -208,6 +237,7 @@
                 parts.push(c.neighborhoods.length === 1 ? c.neighborhoods[0] : c.neighborhoods.length + ' neighborhoods');
             }
             if (c.sqftMin) parts.push(c.sqftMin + '+ sqft');
+            if (c.agentOffice) parts.push('agent/office filter');
 
             summary.innerHTML = parts.length > 0
                 ? '<p class="text-xs text-blue-700"><i class="fas fa-search mr-1"></i> <strong>Criteria:</strong> ' + escapeHtml(parts.join(' | ')) + '</p>'
@@ -249,7 +279,7 @@
                 borough: c.borough || undefined,
                 zip: c.zip || undefined,
                 status: c.statuses && c.statuses.length > 0 ? c.statuses : undefined,
-                property_type: c.ownership && c.ownership.length > 0 ? c.ownership : undefined,
+                ownership: c.ownership && c.ownership.length > 0 ? c.ownership : undefined,
                 address: c.address || undefined,
                 listing_id: c.rlsId || undefined,
                 // Building-specific
@@ -268,6 +298,7 @@
                 close_date_to: c.soldDateTo || undefined,
                 // View state
                 _search_tab: c.searchTab || 'sale',
+                _search_mode: c.searchMode || undefined, // basic | advanced — an advanced search reloads into the advanced form
                 // ── P0-1: Trestle-search inputs that previously dropped on save ──
                 keyword: c.keyword || undefined,
                 management_company: c.managementCompany || undefined,
@@ -283,13 +314,112 @@
                 // BuildingFeatures/etc. set. Stored as a JSON string to
                 // preserve the inner shape unchanged across save/load.
                 checkbox_filters: c.checkboxFilters ? JSON.stringify(c.checkboxFilters) : undefined,
+                // Agent / office pickers: the entries the search used ({id|text, label} per filter); restored with no network call.
+                agent_office: c.agentOffice || undefined,
+                // "Match any ticked" building-status facets (New Development OR Sponsor Unit): one OR
+                // group across fields, stored as the same JSON the search sends.
+                checkbox_groups: c.checkboxGroups ? JSON.stringify(c.checkboxGroups) : undefined,
+                // Min / max boxes by live field (monthlies, taxes, $/sqft …) and free-text boxes by live field.
+                // They were never saved: the Anushree long form reloaded without its monthlies cap (found 2026-10-27).
+                field_ranges: c.fieldRanges && Object.keys(c.fieldRanges).length ? JSON.stringify(c.fieldRanges) : undefined,
+                field_text: c.fieldText && Object.keys(c.fieldText).length ? JSON.stringify(c.fieldText) : undefined,
+                // Building financing minimum and the open-house date range were collected and sent but never
+                // saved: a reload ran without them (found 2026-10-27).
+                financing_min: c.financingMin || undefined,
+                open_house_from: c.openHouseDateFrom || undefined,
+                open_house_to: c.openHouseDateTo || undefined,
             };
             return out;
         }
 
+        // Record key → collected-criteria key. The inverse of _criteriaToApiFormat: a saved record is
+        // executed from this object (search-engine.js executeSearchCriteria), the form only displays it.
+        var _API_TO_CRITERIA_KEY = {
+            min_price: 'priceMin', max_price: 'priceMax', min_beds: 'bedsMin', max_beds: 'bedsMax', min_baths: 'bathsMin', max_baths: 'bathsMax',
+            min_sqft: 'sqftMin', max_sqft: 'sqftMax', min_rooms: 'roomsMin', max_rooms: 'roomsMax', neighborhoods: 'neighborhoods', borough: 'borough',
+            zip: 'zip', status: 'statuses', property_type: 'ownership', ownership: 'ownership', address: 'address', listing_id: 'rlsId', min_year: 'yearMin', max_year: 'yearMax',
+            min_floors: 'floorsMin', max_floors: 'floorsMax', min_units: 'unitsMin', max_units: 'unitsMax', building_name: 'buildingName',
+            date_from: 'dateFrom', date_to: 'dateTo', date_type: 'dateActivityType', close_date_from: 'soldDateFrom', close_date_to: 'soldDateTo',
+            keyword: 'keyword', management_company: 'managementCompany', property_sub_type: 'propertySubType', unit: 'unit',
+            contract_date_from: 'contractDateFrom', contract_date_to: 'contractDateTo', checkbox_filters: 'checkboxFilters', checkbox_groups: 'checkboxGroups',
+            field_ranges: 'fieldRanges', field_text: 'fieldText', financing_min: 'financingMin', open_house_from: 'openHouseDateFrom', open_house_to: 'openHouseDateTo'
+        };
+        var _NUMERIC_API_KEYS = { min_price: 1, max_price: 1, min_beds: 1, max_beds: 1, min_baths: 1, max_baths: 1, min_sqft: 1, max_sqft: 1, min_rooms: 1, max_rooms: 1,
+            min_year: 1, max_year: 1, min_floors: 1, max_floors: 1, min_units: 1, max_units: 1, financing_min: 1 };
+        var _JSON_API_KEYS = { checkbox_filters: 1, checkbox_groups: 1, field_ranges: 1, field_text: 1 };
+        var _LIST_API_KEYS = { status: 1, property_type: 1, ownership: 1, neighborhoods: 1 };
+
+        /**
+         * Saved record → the criteria object the search runs on, validated and normalised.
+         * Returns { criteria, unsupported[] }: every key the record carries that this build cannot
+         * execute exactly is named in `unsupported` (never dropped silently).
+         */
+        function _criteriaFromApiFormat(saved) {
+            var unsupported = [], reported = {};
+            var c = {};
+            if (!saved || typeof saved !== 'object') return { criteria: c, unsupported: ['Saved criteria are unreadable'] };
+            c.searchTab = saved._search_tab || (saved.listing_type === 'rental' || saved.listing_type === 'rent' ? 'rent' : 'sale');
+            c.searchMode = saved._search_mode === 'advanced' ? 'advanced' : 'basic';
+            var report = function (key, text) { reported[key] = 1; unsupported.push(text); };
+            Object.keys(saved).forEach(function (key) {
+                var v = saved[key];
+                if (key === 'listing_type' || key === '_search_tab' || key === '_search_mode') return;
+                if (v == null || v === '') return;
+                var label = _CRITERIA_LABELS[key] || key;
+                if (key === 'sponsor_unit') {
+                    // Older records carried the sponsor flag on its own; the search reads it from the facet set.
+                    if (v === true || v === 'true') { c.checkboxFilters = c.checkboxFilters || {}; if (!c.checkboxFilters.SponsorUnit) c.checkboxFilters.SponsorUnit = ['true']; }
+                    return;
+                }
+                var target = _API_TO_CRITERIA_KEY[key];
+                if (!target) { report(key, label + ' (not a criterion this build can run)'); return; }
+                if (_NUMERIC_API_KEYS[key]) {
+                    var n = Number(v);
+                    if (isNaN(n)) { report(key, label + ' (stored value "' + v + '" is not a number)'); return; }
+                    if (key === 'min_beds' || key === 'max_beds') { c[target] = n; return; } // 0 = studio
+                    if (n) c[target] = n;
+                    return;
+                }
+                if (_JSON_API_KEYS[key]) {
+                    var parsed = v;
+                    if (typeof v === 'string') { try { parsed = JSON.parse(v); } catch (e) { report(key, label + ' (stored value unreadable)'); return; } }
+                    if (!parsed || typeof parsed !== 'object') { report(key, label + ' (stored value unreadable)'); return; }
+                    if (key === 'checkbox_filters' && c.checkboxFilters) parsed = Object.assign({}, parsed, c.checkboxFilters);
+                    if (Object.keys(parsed).length) c[target] = parsed;
+                    return;
+                }
+                if (_LIST_API_KEYS[key]) {
+                    var list = Array.isArray(v) ? v : String(v).split(',');
+                    list = list.map(function (x) { return String(x).trim(); }).filter(Boolean);
+                    if (list.length) c[target] = list;
+                    return;
+                }
+                c[target] = typeof v === 'string' ? v.trim() : v;
+            });
+            // Self-check: writing the executable criteria back must give the record again. A value that does
+            // not survive the round trip is reported, not run as something else.
+            var back = _criteriaToApiFormat(c);
+            var sponsorFolded = saved.sponsor_unit === true || saved.sponsor_unit === 'true';
+            Object.keys(saved).forEach(function (key) {
+                if (key === 'listing_type' || key === '_search_tab' || key === '_search_mode' || key === 'sponsor_unit') return;
+                if (!_API_TO_CRITERIA_KEY[key] || reported[key]) return; // already reported
+                var expected = saved[key];
+                if (key === 'checkbox_filters' && sponsorFolded && c.checkboxFilters) {
+                    // the folded flag is part of the executable set, not of the stored facets
+                    var stored = typeof expected === 'string' ? (function () { try { return JSON.parse(expected); } catch (e) { return null; } })() : expected;
+                    if (stored && typeof stored === 'object' && !stored.SponsorUnit) expected = Object.assign({ SponsorUnit: ['true'] }, stored);
+                }
+                var a = _canonCriterion(expected), b = _canonCriterion(back[key]);
+                if (a !== b) unsupported.push((_CRITERIA_LABELS[key] || key) + ' (stored value could not be executed exactly: ' + _describeCriterion(saved[key]) + ')');
+            });
+            if (sponsorFolded && !(c.checkboxFilters && c.checkboxFilters.SponsorUnit)) unsupported.push('Sponsor unit (could not be executed)');
+            return { criteria: c, unsupported: unsupported };
+        }
+
         /** Restore API criteria → form fields and re-run search */
         function _criteriaToFormFields(criteria) {
-            if (!criteria) return;
+            var unresolved = []; // saved values that found no control in this form — reported, never dropped
+            if (!criteria) return unresolved;
 
             // Set search tab
             var tab = criteria._search_tab || (criteria.listing_type === 'rental' ? 'rent' : 'sale');
@@ -298,43 +428,67 @@
             } else {
                 currentSearchTab = tab;
             }
+            // The basic form of this tab (Sales, Rentals and Buildings are separate forms)
+            var _basicFormId = typeof activeBasicFormId === 'function' ? activeBasicFormId()
+                : (tab === 'rent' ? 'searchBasicModeRental' : tab === 'building' ? 'searchBasicModeBuilding' : 'searchBasicMode');
+            var _quickPrefix = tab === 'rent' ? 'rental' : tab === 'building' ? 'building' : 'sale';
 
             // Determine element ID prefix based on tab
             var prefix = tab === 'rent' ? 'rental' : 'sale';
 
+            // Restore into the form the search was saved from. An advanced search reloaded into the
+            // basic form lost its facets, groups and keyword and ran a different query (found 2026-10-26).
+            var _wantAdv = criteria._search_mode === 'advanced';
+            if (typeof toggleSearchMode === 'function') toggleSearchMode(_wantAdv ? 'advanced' : 'basic');
+            var _ids = _wantAdv
+                ? { minPrice: prefix === 'rental' ? 'advRentalMinRent' : 'advSaleMinPrice', maxPrice: prefix === 'rental' ? 'advRentalMaxRent' : 'advSaleMaxPrice',
+                    minBeds: 'adv-min-beds', maxBeds: 'adv-max-beds', minBaths: 'adv-min-baths', maxBaths: 'adv-max-baths', minRooms: 'adv-min-rooms', maxRooms: 'adv-max-rooms',
+                    minSqft: 'adv-min-sqft', maxSqft: 'adv-max-sqft', address: 'advancedSearchAddress', zip: 'adv-zip', rls: 'adv-rls-id' }
+                : { minPrice: prefix === 'rental' ? 'rentalMinRent' : 'saleMinPrice', maxPrice: prefix === 'rental' ? 'rentalMaxRent' : 'saleMaxPrice',
+                    minBeds: prefix + 'MinBeds', maxBeds: prefix + 'MaxBeds', minBaths: prefix + 'MinBaths', maxBaths: prefix + 'MaxBaths', minRooms: prefix + 'MinRooms', maxRooms: prefix + 'MaxRooms',
+                    minSqft: prefix + 'MinSqft', maxSqft: prefix + 'MaxSqft',
+                    address: tab === 'rent' ? 'rentalSearchAddress' : tab === 'building' ? 'buildingSearchAddress' : 'saleSearchAddress',
+                    zip: tab === 'rent' ? 'rentalQuickZip' : tab === 'building' ? 'buildingQuickZip' : 'saleQuickZip',
+                    rls: tab === 'rent' ? 'rentalQuickRls' : tab === 'building' ? 'buildingQuickRls' : 'saleQuickRls' };
+            // A select takes the saved (or nearest) option; a text/number input takes the value as typed
+            var _setAny = function (id, value) {
+                if (value == null || value === '') return;
+                var el = document.getElementById(id);
+                if (!el) return;
+                if (el.tagName === 'SELECT') { _setSelectValue(id, value); return; }
+                el.value = value;
+            };
+
             // Price
-            _setSelectValue(prefix === 'rental' ? 'rentalMinRent' : 'saleMinPrice', criteria.min_price);
-            _setSelectValue(prefix === 'rental' ? 'rentalMaxRent' : 'saleMaxPrice', criteria.max_price);
+            _setAny(_ids.minPrice, criteria.min_price);
+            _setAny(_ids.maxPrice, criteria.max_price);
 
             // Beds
-            _setSelectValue(prefix + 'MinBeds', criteria.min_beds);
-            _setSelectValue(prefix + 'MaxBeds', criteria.max_beds);
+            _setAny(_ids.minBeds, criteria.min_beds);
+            _setAny(_ids.maxBeds, criteria.max_beds);
 
             // Baths
-            _setSelectValue(prefix + 'MinBaths', criteria.min_baths);
-            _setSelectValue(prefix + 'MaxBaths', criteria.max_baths);
+            _setAny(_ids.minBaths, criteria.min_baths);
+            _setAny(_ids.maxBaths, criteria.max_baths);
 
             // Rooms
-            _setSelectValue(prefix + 'MinRooms', criteria.min_rooms);
-            _setSelectValue(prefix + 'MaxRooms', criteria.max_rooms);
+            _setAny(_ids.minRooms, criteria.min_rooms);
+            _setAny(_ids.maxRooms, criteria.max_rooms);
 
             // Sqft
-            _setSelectValue(prefix + 'MinSqft', criteria.min_sqft);
-            _setSelectValue(prefix + 'MaxSqft', criteria.max_sqft);
+            _setAny(_ids.minSqft, criteria.min_sqft);
+            _setAny(_ids.maxSqft, criteria.max_sqft);
 
             // Address
-            var addrId = tab === 'rent' ? 'rentalSearchAddress' : tab === 'building' ? 'buildingSearchAddress' : 'saleSearchAddress';
-            var addrEl = document.getElementById(addrId);
+            var addrEl = document.getElementById(_ids.address);
             if (addrEl && criteria.address) addrEl.value = criteria.address;
 
             // Zip
-            var zipId = tab === 'rent' ? 'rentalQuickZip' : tab === 'building' ? 'buildingQuickZip' : 'saleQuickZip';
-            var zipEl = document.getElementById(zipId);
+            var zipEl = document.getElementById(_ids.zip);
             if (zipEl && criteria.zip) zipEl.value = criteria.zip;
 
             // RLS ID
-            var rlsId = tab === 'rent' ? 'rentalQuickRls' : tab === 'building' ? 'buildingQuickRls' : 'saleQuickRls';
-            var rlsEl = document.getElementById(rlsId);
+            var rlsEl = document.getElementById(_ids.rls);
             if (rlsEl && criteria.listing_id) rlsEl.value = criteria.listing_id;
 
             // Neighborhoods
@@ -371,38 +525,76 @@
                 var soldDrpName = drpPrefix + (drpPrefix === 'rental' ? 'RentedDate' : 'SoldDate');
                 _setDrpDates(soldDrpName, criteria.close_date_from, criteria.close_date_to);
             }
-
-            // Restore status checkboxes
-            if (criteria.status && Array.isArray(criteria.status) && criteria.status.length > 0) {
-                // Map saved statuses back to checkbox data-value attributes
-                var statusReverseMap = {
-                    'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'Pending',
-                    'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled',
-                    'EXPIRED': 'Expired', 'HOLD': 'Hold'
-                };
-                // First uncheck all status checkboxes in the active form
-                var activeForm = document.getElementById(tab === 'rent' ? 'searchBasicModeRental' : 'searchBasicMode');
-                if (activeForm) {
-                    activeForm.querySelectorAll('[data-field="MlsStatus"]').forEach(function(cb) { cb.checked = false; });
+            // Open-house date range (sale / rental pickers; the Buildings form has none)
+            if (criteria.open_house_from || criteria.open_house_to) {
+                var ohWrapper = tab === 'building' ? null : document.querySelector('[data-drp="' + drpPrefix + 'OpenHouse"]');
+                if (ohWrapper) _setDrpDates(drpPrefix + 'OpenHouse', criteria.open_house_from, criteria.open_house_to || criteria.open_house_from);
+                else unresolved.push('Open house ' + (criteria.open_house_from || '') + (criteria.open_house_to ? ' - ' + criteria.open_house_to : '') + ' (no date picker in this form)');
+            }
+            // Building financing minimum — the collector reads this box by id on every form (a text box in the
+            // basic forms; _setAny handles a select too)
+            if (criteria.financing_min) {
+                var finId = tab === 'rent' ? 'rentalBuildingFinancingMin' : tab === 'building' ? 'buildingFinancingMin' : 'saleBuildingFinancingMin';
+                var finEl = document.getElementById(finId);
+                if (!finEl || finEl.disabled) unresolved.push('Min financing % ' + criteria.financing_min + (finEl ? ' (box disabled)' : ' (no box in this form)'));
+                else {
+                    _setAny(finId, String(criteria.financing_min));
+                    if (parseInt(finEl.value, 10) !== Number(criteria.financing_min)) unresolved.push('Min financing % ' + criteria.financing_min + ' (this box cannot take it; it shows ' + finEl.value + ')');
                 }
-                // Then check the saved ones
-                criteria.status.forEach(function(s) {
-                    var resoVal = statusReverseMap[s] || s;
-                    var cb = activeForm ? activeForm.querySelector('[data-field="MlsStatus"][data-value="' + resoVal + '"]') : null;
-                    if (cb) cb.checked = true;
-                });
             }
 
-            // Restore ownership checkboxes
-            if (criteria.property_type && Array.isArray(criteria.property_type) && criteria.property_type.length > 0) {
-                var ownerForm = document.getElementById(tab === 'rent' ? 'searchBasicModeRental' : 'searchBasicMode');
+            // Restore status boxes into the container the search reads for this mode: the advanced form
+            // reads #saleStatusOptions / #rentalStatusOptions, each basic form reads itself (search-engine.js
+            // collectSearchCriteria). Restoring into the basic form while the advanced form ran left an
+            // advanced saved search on Clear's default (Active) — found 2026-10-27.
+            var statusScope = _wantAdv
+                ? document.getElementById(tab === 'rent' ? 'rentalStatusOptions' : 'saleStatusOptions')
+                : document.getElementById(_basicFormId);
+            var savedStatuses = Array.isArray(criteria.status) ? criteria.status : [];
+            // Map saved statuses back to checkbox data-value attributes
+            var statusReverseMap = {
+                'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'Pending', 'ACTIVEUNDERCONTRACT': 'ActiveUnderContract',
+                'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled',
+                'EXPIRED': 'Expired', 'HOLD': 'Hold', 'INCOMPLETE': 'Incomplete', 'FUTURE': 'Future'
+            };
+            if (statusScope) {
+                // Saved without a status = any status: Clear's default Active must not narrow the rerun.
+                var statusBoxes = Array.prototype.slice.call(statusScope.querySelectorAll('[data-field="StandardStatus"]'));
+                statusBoxes.forEach(function(cb) { cb.checked = false; });
+                var csv = function (b) { return String(b.getAttribute('data-value') || '').split(',').map(function (v) { return v.trim(); }); };
+                savedStatuses.forEach(function(s) {
+                    var resoVal = statusReverseMap[String(s).toUpperCase()] || s;
+                    var cb = statusBoxes.find(function (b) { return !b.hasAttribute('data-sub-status') && b.getAttribute('data-value') === resoVal; })   // one box = one status
+                          || statusBoxes.find(function (b) { return b.getAttribute('data-sub-status') === resoVal; })                                    // live sub-status (Back On Market …)
+                          || statusBoxes.find(function (b) { return !b.hasAttribute('data-sub-status') && csv(b).indexOf(resoVal) !== -1; });            // combined box (Withdrawn,Canceled,…)
+                    if (cb && !cb.disabled) cb.checked = true;
+                    else unresolved.push('Status ' + s + (cb ? ' (its box is disabled in this form)' : ' (no box in this form)'));
+                });
+            } else if (savedStatuses.length) {
+                unresolved.push('Status ' + savedStatuses.join(', ') + ' (this form has no status controls)');
+            }
+
+            // Restore ownership checkboxes. Ownership is its own saved criterion (ownership); a record saved before the cutover
+            // carried it as property_type, and those values restore only where a real CommonInterest control matches (a true
+            // PropertyType value is never reinterpreted).
+            var ownerForm = document.getElementById(_basicFormId);
+            var ownershipValues = Array.isArray(criteria.ownership) ? criteria.ownership.slice() : [];
+            if (ownershipValues.length === 0 && ownerForm && Array.isArray(criteria.property_type)) {
+                ownershipValues = criteria.property_type.filter(function(value) {
+                    return !!ownerForm.querySelector('[data-field="CommonInterest"][data-value="' + value + '"], [data-field="CommonInterest"][value="' + value + '"]');
+                });
+            }
+            if (ownershipValues.length > 0) {
                 if (ownerForm) {
                     ownerForm.querySelectorAll('[data-field="CommonInterest"]').forEach(function(cb) { cb.checked = false; });
-                    criteria.property_type.forEach(function(pt) {
+                    ownershipValues.forEach(function(pt) {
                         var cb = ownerForm.querySelector('[data-field="CommonInterest"][data-value="' + pt + '"]');
                         if (!cb) cb = ownerForm.querySelector('[data-field="CommonInterest"][value="' + pt + '"]');
-                        if (cb) cb.checked = true;
+                        if (cb && !cb.disabled) cb.checked = true;
+                        else unresolved.push('Ownership ' + pt + (cb ? ' (box disabled)' : ' (no box in this form)'));
                     });
+                } else {
+                    unresolved.push('Ownership ' + ownershipValues.join(', ') + ' (no ownership controls in this form)');
                 }
             }
 
@@ -411,28 +603,34 @@
             // the active input ID per tab/mode (mirrors search-engine.js
             // collectSearchCriteria input ID resolution exactly).
 
+            // Agent / office filters live in the advanced form: show it so the restored filter is visible and applied.
+            if (criteria.agent_office && typeof toggleSearchMode === 'function') toggleSearchMode('advanced');
+
             // Detect advanced mode for ID prefix selection
             var _isAdv = (function () {
                 var advMode = document.getElementById('searchAdvancedMode');
                 return advMode && advMode.style.display !== 'none' && !advMode.classList.contains('hidden');
             })();
 
-            // Keyword (PublicRemarks contains)
+            // Keyword (PublicRemarks contains) — each basic form has its own box
             if (criteria.keyword) {
-                var kwEl = document.getElementById(_isAdv ? 'adv-keyword' : 'searchKeyword');
+                var kwEl = document.getElementById(_isAdv ? 'adv-keyword' : _quickPrefix + 'KeywordSearch');
                 if (kwEl) kwEl.value = criteria.keyword;
             }
 
             // Management Company (ListOfficeName contains)
             if (criteria.management_company) {
-                var mgmtEl = document.getElementById(_isAdv ? 'adv-management' : 'searchManagementCompany');
+                var mgmtEl = document.getElementById(_isAdv ? 'adv-management' : _quickPrefix + 'ManagementCompany');
                 if (mgmtEl) mgmtEl.value = criteria.management_company;
             }
 
+            // Agent / office pickers
+            if (criteria.agent_office && window.AgentOfficeSearch) window.AgentOfficeSearch.setState(criteria.agent_office);
+
             // Unit number (mirrors collectSearchCriteria adv vs basic)
+            // Unit number (basic forms only; advanced search has no unit box)
             if (criteria.unit) {
-                var unitInputId = _isAdv ? 'searchQuickUnit' : 'searchQuickUnit';
-                var unitEl = document.getElementById(unitInputId);
+                var unitEl = document.getElementById(_quickPrefix + 'QuickUnit');
                 if (unitEl) unitEl.value = criteria.unit;
             }
 
@@ -449,25 +647,28 @@
             // depending on which is visible.
             if (criteria.property_sub_type) {
                 var pstValues = String(criteria.property_sub_type).split(',').map(function(s) { return s.trim(); }).filter(Boolean);
-                var pstScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
+                var pstScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById(_basicFormId);
                 if (pstScope && pstValues.length > 0) {
                     pstScope.querySelectorAll('input[data-field="PropertySubType"]').forEach(function(cb) { cb.checked = false; });
                     pstValues.forEach(function(v) {
                         var cb = pstScope.querySelector('input[data-field="PropertySubType"][data-value="' + v + '"]');
-                        if (cb) cb.checked = true;
+                        if (cb && !cb.disabled) cb.checked = true;
+                        else unresolved.push('Property sub-type ' + v + (cb ? ' (box disabled)' : ' (no box in this form)'));
                     });
                 }
             }
 
             // SponsorUnit — independent param (Bug A11 split). Restored
-            // by toggling the SponsorUnit/Yes checkbox if it exists.
+            // by toggling the SponsorUnit/Yes checkbox if it exists. The
+            // control is disabled while the search cannot know the flag
+            // (init-disable-dead-controls.js), and a disabled control is
+            // never ticked, as for the checkbox filters below.
             if (criteria.sponsor_unit === 'true' || criteria.sponsor_unit === true) {
-                var spScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
-                if (spScope) {
-                    var spCb = spScope.querySelector('input[data-field="SponsorUnit"][data-value="true"]') ||
-                               spScope.querySelector('input[data-field="SponsorUnit"][data-value="Yes"]');
-                    if (spCb) spCb.checked = true;
-                }
+                var spScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById(_basicFormId);
+                var spCb = spScope ? (spScope.querySelector('input[data-field="SponsorUnit"][data-value="true"]') ||
+                                      spScope.querySelector('input[data-field="SponsorUnit"][data-value="Yes"]')) : null;
+                if (spCb && !spCb.disabled) spCb.checked = true;
+                else unresolved.push('Sponsor unit' + (spCb ? ' (box disabled)' : ' (no box in this form)'));
             }
 
             // checkboxFilters — the whitelisted Cooling/Garage/View/
@@ -480,32 +681,174 @@
                     var cbFilters = typeof criteria.checkbox_filters === 'string'
                         ? JSON.parse(criteria.checkbox_filters)
                         : criteria.checkbox_filters;
-                    var cbScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
+                    var cbScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById(_basicFormId);
                     if (cbScope && cbFilters && typeof cbFilters === 'object') {
-                        Object.keys(cbFilters).forEach(function(field) {
-                            var values = cbFilters[field];
+                        Object.keys(cbFilters).forEach(function(rawField) {
+                            var values = cbFilters[rawField];
                             if (!Array.isArray(values)) return;
+                            // searches saved before the exposure boxes moved to Exposures name DirectionFaces
+                            var field = rawField === 'DirectionFaces' ? 'Exposures' : rawField;
                             // First clear existing checks for this field
                             cbScope.querySelectorAll('input[data-field="' + field + '"]').forEach(function(cb) { cb.checked = false; });
                             values.forEach(function(v) {
-                                var cb = cbScope.querySelector('input[data-field="' + field + '"][data-value="' + String(v).replace(/"/g, '\\"') + '"]');
+                                var cb = cbScope.querySelector('input[data-field="' + field + '"][data-value="' + String(_legacyCriterionValue(field, v)).replace(/"/g, '\\"') + '"]');
                                 if (cb && !cb.disabled) cb.checked = true;
+                                else unresolved.push(field + ' ' + v + (cb ? ' (box disabled)' : ' (no box in this form)'));
                             });
                         });
+                    } else if (!cbScope) {
+                        unresolved.push('Facets (no form to restore them into)');
                     }
                 } catch (e) {
-                    // Malformed JSON — silently skip restore. Saved
-                    // search payloads are agent-trusted but defensive
-                    // here against any future migration drift.
+                    // Malformed stored JSON: say so instead of dropping the facets.
+                    unresolved.push('Facets (stored value unreadable)');
                 }
             }
+
+            // checkboxGroups — "match any ticked" facets (New Development OR Sponsor Unit): tick the
+            // group's boxes and put the box in "any" mode so the same OR group is sent again.
+            if (criteria.checkbox_groups) {
+                try {
+                    var cbGroups = typeof criteria.checkbox_groups === 'string'
+                        ? JSON.parse(criteria.checkbox_groups)
+                        : criteria.checkbox_groups;
+                    var grScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById(_basicFormId);
+                    if (grScope && cbGroups && typeof cbGroups === 'object') {
+                        Object.keys(cbGroups).forEach(function(group) {
+                            var members = cbGroups[group];
+                            if (!members || typeof members !== 'object') return;
+                            var box = grScope.querySelector('[data-facet-group="' + group + '"]');
+                            Object.keys(members).forEach(function(field) {
+                                [].concat(members[field]).forEach(function(v) {
+                                    var cb = (box || grScope).querySelector('input[data-field="' + field + '"][data-value="' + String(v).replace(/"/g, '\\"') + '"]');
+                                    if (cb && !cb.disabled) { cb.checked = true; if (!box) cb.setAttribute('data-group', group); }
+                                    else unresolved.push(field + ' ' + v + (cb ? ' (box disabled)' : ' (no box in this form)'));
+                                });
+                            });
+                            if (box && typeof setFacetMatch === 'function') setFacetMatch(box, 'any');
+                        });
+                    } else if (!grScope) {
+                        unresolved.push('Facet groups (no form to restore them into)');
+                    }
+                } catch (e) {
+                    unresolved.push('Facet groups (stored value unreadable)');
+                }
+            }
+
+            // Min / max boxes by live field (monthlies, taxes, $/sqft …) — [data-field][data-range] selects or inputs
+            if (criteria.field_ranges) {
+                try {
+                    var ranges = typeof criteria.field_ranges === 'string' ? JSON.parse(criteria.field_ranges) : criteria.field_ranges;
+                    var rgScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById(_basicFormId);
+                    Object.keys(ranges || {}).forEach(function (field) {
+                        var bounds = ranges[field] || {};
+                        Object.keys(bounds).forEach(function (bound) {
+                            var el = rgScope ? rgScope.querySelector('[data-field="' + field + '"][data-range="' + bound + '"]') : null;
+                            var label = field + ' ' + bound + ' ' + bounds[bound];
+                            if (!el || el.disabled) { unresolved.push(label + (el ? ' (box disabled)' : ' (no box in this form)')); return; }
+                            if (el.tagName === 'SELECT') {
+                                _pickSelectOption(el, bounds[bound]);
+                                if (el._csdSync) el._csdSync();
+                                if (String(el.value) !== String(bounds[bound])) unresolved.push(label + ' (not a preset of this box; nearest ' + el.value + ')');
+                            } else {
+                                el.value = bounds[bound];
+                            }
+                        });
+                    });
+                } catch (e) {
+                    unresolved.push('Ranges (stored value unreadable)');
+                }
+            }
+            // Free-text boxes by live field — [data-field][data-text] inputs
+            if (criteria.field_text) {
+                try {
+                    var texts = typeof criteria.field_text === 'string' ? JSON.parse(criteria.field_text) : criteria.field_text;
+                    var txScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById(_basicFormId);
+                    Object.keys(texts || {}).forEach(function (field) {
+                        var el = txScope ? txScope.querySelector('input[data-field="' + field + '"][data-text]') : null;
+                        if (!el || el.disabled) { unresolved.push(field + ' "' + texts[field] + '"' + (el ? ' (box disabled)' : ' (no box in this form)')); return; }
+                        el.value = texts[field];
+                    });
+                } catch (e) {
+                    unresolved.push('Text criteria (stored value unreadable)');
+                }
+            }
+            return unresolved;
         }
 
+        // ── Saved-search reconciliation ──
+        // The form is the one source of a query (form → collectSearchCriteria → request). After a
+        // restore, what the form collects must equal the saved record; any difference is reported to
+        // the agent and the search is not run — a reload must never be broader or narrower than what
+        // was saved (found 2026-10-27: a reload from the results header sent no status at all).
+        var _CRITERIA_LABELS = {
+            status: 'Status', min_price: 'Min price', max_price: 'Max price', min_beds: 'Min beds', max_beds: 'Max beds',
+            min_baths: 'Min baths', max_baths: 'Max baths', min_sqft: 'Min sqft', max_sqft: 'Max sqft', min_rooms: 'Min rooms', max_rooms: 'Max rooms',
+            neighborhoods: 'Neighborhoods', borough: 'Borough', zip: 'Zip', property_type: 'Ownership', ownership: 'Ownership', address: 'Address', listing_id: 'Listing ID',
+            min_year: 'Min year', max_year: 'Max year', min_floors: 'Min floors', max_floors: 'Max floors', min_units: 'Min units', max_units: 'Max units',
+            building_name: 'Building', date_from: 'Date from', date_to: 'Date to', date_type: 'Date type', close_date_from: 'Closed from', close_date_to: 'Closed to',
+            keyword: 'Keyword', management_company: 'Management / office', property_sub_type: 'Property sub-type', unit: 'Unit',
+            contract_date_from: 'Contract from', contract_date_to: 'Contract to', sponsor_unit: 'Sponsor unit', checkbox_filters: 'Facets', checkbox_groups: 'Facet groups',
+            field_ranges: 'Ranges', field_text: 'Text criteria', listing_type: 'Listing type', _search_tab: 'Tab', _search_mode: 'Form',
+            financing_min: 'Min financing %', open_house_from: 'Open house from', open_house_to: 'Open house to'
+        };
+        // Canonical text for a saved or collected value: numbers as numbers, arrays sorted, JSON strings parsed.
+        function _canonCriterion(v) {
+            if (v == null || v === '') return '';
+            if (typeof v === 'string') {
+                var t = v.trim();
+                if (/^[\[{]/.test(t)) { try { return _canonCriterion(JSON.parse(t)); } catch (e) { /* plain text */ } }
+                return t !== '' && !isNaN(Number(t)) ? String(Number(t)) : t.toLowerCase();
+            }
+            if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+            if (Array.isArray(v)) {
+                var items = v.map(_canonCriterion).filter(function (x) { return x !== ''; }).sort();
+                return items.length ? JSON.stringify(items.filter(function (x, i) { return items.indexOf(x) === i; })) : '';
+            }
+            var pairs = Object.keys(v).sort().map(function (k) { return [k, _canonCriterion(v[k])]; }).filter(function (p) { return p[1] !== ''; });
+            return pairs.length ? JSON.stringify(pairs) : '';
+        }
+        function _describeCriterion(v) {
+            if (v == null || v === '') return 'none';
+            if (Array.isArray(v)) return v.join(', ');
+            if (typeof v === 'string' && /^[\[{]/.test(v.trim())) { try { return _describeCriterion(JSON.parse(v)); } catch (e) { return v; } }
+            if (typeof v === 'object') return Object.keys(v).map(function (k) { return k + ' ' + _describeCriterion(v[k]); }).join('; ');
+            return String(v);
+        }
+        /** Saved record vs what the restored form collects now → readable mismatches ([] = exact). */
+        function _reconcileSavedCriteria(saved) {
+            var restored = _criteriaToApiFormat(typeof collectSearchCriteria === 'function' ? collectSearchCriteria() : null);
+            var diffs = [], keys = {};
+            Object.keys(saved || {}).concat(Object.keys(restored)).forEach(function (k) { keys[k] = 1; });
+            Object.keys(keys).forEach(function (key) {
+                // Tab, form and listing type are set by the restore itself (older records carry no _search_mode)
+                if (key === 'listing_type' || key === '_search_tab' || key === '_search_mode') return;
+                var a = _canonCriterion(saved ? saved[key] : ''), b = _canonCriterion(restored[key]);
+                if (a === b) return; // same value, or nothing on either side
+                // A value the record never had (e.g. Clear's default Active) narrows the search as much as a lost one broadens it
+                diffs.push((_CRITERIA_LABELS[key] || key) + ': saved ' + _describeCriterion(saved ? saved[key] : null) + ', form now ' + _describeCriterion(restored[key]));
+            });
+            return diffs;
+        }
+        // ── /reconciliation ──
+
         /** Helper: set a <select> value, trying exact match then closest */
+        // Saved searches written before the live-Cotality cutover stored values Cotality does not have; map them to the live members.
+        var _LEGACY_DIRECTION_FACES = { N: 'North', S: 'South', E: 'East', W: 'West', NE: 'Northeast', NW: 'Northwest', SE: 'Southeast', SW: 'Southwest' };
+        function _legacyCriterionValue(field, v) {
+            if (field === 'ListingAgreement' && v === 'CoExclusive') return 'CoExclusiveAgency';
+            if ((field === 'DirectionFaces' || field === 'Exposures') && _LEGACY_DIRECTION_FACES[v]) return _LEGACY_DIRECTION_FACES[v];
+            return v;
+        }
+
         function _setSelectValue(elementId, value) {
             if (value == null) return;
             var el = document.getElementById(elementId);
             if (!el) return;
+            _pickSelectOption(el, value);
+            if (el._csdSync) el._csdSync(); // the custom dropdown box shows the restored option (init-ui.js)
+        }
+        function _pickSelectOption(el, value) {
             // Try exact match
             for (var i = 0; i < el.options.length; i++) {
                 if (el.options[i].value == value) {
@@ -513,6 +856,9 @@
                     return;
                 }
             }
+            // Not a preset: a box with a "Custom" option restores the amount as typed (init-ui.js),
+            // instead of rounding a saved $1,234,567 to the nearest preset.
+            if (!isNaN(Number(value)) && el._csdSetCustom && el._csdSetCustom(value)) return;
             // Try closest match for numeric selects
             var numVal = Number(value);
             if (!isNaN(numVal)) {
@@ -620,7 +966,11 @@
                 alert_enabled: !!alertFreq,
             };
 
-            MallanAPI.savedSearches.create(payload).then(function(result) {
+            // Saving under the name of one of the agent's existing searches updates that search instead of
+            // creating a duplicate (found 2026-10-26: two identical names, no way to change a saved search).
+            var existing = (searchResultsState.savedSearches || []).find(function (s) { return String(s.name || '').trim().toLowerCase() === name.trim().toLowerCase(); });
+            var request = existing ? MallanAPI.savedSearches.update(existing.id, payload) : MallanAPI.savedSearches.create(payload);
+            request.then(function(result) {
                 document.getElementById('savedSearchName').value = '';
                 document.getElementById('savedSearchNotes').value = '';
                 document.getElementById('savedSearchClientId').selectedIndex = 0;
@@ -628,7 +978,7 @@
                 closeSaveSearchModal();
                 populateSavedSearchList();
 
-                var msg = 'Search "' + name + '" saved!';
+                var msg = existing ? 'Search "' + name + '" updated.' : 'Search "' + name + '" saved!';
                 if (clientId) msg += ' Assigned to client.';
                 if (alertFreq) msg += ' ' + alertFreq.charAt(0).toUpperCase() + alertFreq.slice(1) + ' alerts enabled.';
                 showToast(msg, 'success');
@@ -651,18 +1001,26 @@
                     return;
                 }
 
-                // Clear current form
+                // 1. The record is the query: validate and normalise it into the criteria the search runs on.
+                var parsed = _criteriaFromApiFormat(search.criteria);
+
+                // 2. Show the same criteria in the form (clear first), so "Full Search" edits start from the record.
                 if (typeof clearSearchForm === 'function') clearSearchForm();
+                var unresolved = _criteriaToFormFields(search.criteria) || [];
 
-                // Restore form fields from saved criteria
-                _criteriaToFormFields(search.criteria);
-
+                // 3. The form must display exactly the record: a control that could not take a value, or a
+                //    form that now collects something else, is reported by name and the search is not run —
+                //    results the agent could not see or edit faithfully are a different search.
+                var diffs = parsed.unsupported.concat(unresolved, _reconcileSavedCriteria(search.criteria));
+                if (diffs.length) {
+                    showToast('"' + search.name + '" was not restored exactly — ' + diffs.join('; ') + '. Review the form, then search.', 'warning');
+                    if (typeof backToSearch === 'function') backToSearch();
+                    return;
+                }
                 showToast('Loaded: ' + search.name, 'success');
-
-                // Re-run the search with restored criteria
-                setTimeout(function() {
-                    if (typeof performSearch === 'function') performSearch();
-                }, 100);
+                // 4. Run the record itself — not a re-read of the (hidden) controls, and no timer.
+                if (typeof executeSearchCriteria === 'function') executeSearchCriteria(parsed.criteria);
+                else if (typeof performSearch === 'function') performSearch();
             }).catch(function(err) {
                 showToast('Failed to load search: ' + err.message, 'error');
             });

@@ -8,7 +8,7 @@
  * in visibility-contract.test.ts). (2026-07-09)
  *
  * UPDATE (PR #511): the LISTING DETAIL page no longer renders ANY closed-sale comp —
- * the live Trestle last-sale + the ACRIS lookup were removed with the DB-only render.
+ * the live Cotality last-sale + the ACRIS lookup were removed with the DB-only render.
  * With nothing shown, a raw MLS ClosePrice can never reach the public listing page (a
  * stronger guarantee than gating). The building routes still ship ACRIS-only via the
  * contract and keep their guards below.
@@ -53,7 +53,7 @@ describe('listing-detail Last Sale — no public MLS closed-sale (removed in PR 
   it('has no MLS-first "trestleSale || acrisSale" fallback', () => {
     expect(code).not.toMatch(/trestleSale\s*\|\|\s*acrisSale/);
   });
-  it('performs NO live closed-sale lookup on the public page (Trestle + ACRIS removed)', () => {
+  it('performs NO live closed-sale lookup on the public page (Cotality + ACRIS lookups removed)', () => {
     // The public listing page renders no closed-sale comp at all, so a raw MLS/Cotality
     // ClosePrice can never reach it — a stronger guarantee than the old public gate.
     expect(code).not.toMatch(/fetchLastUnitSale\s*\(/);

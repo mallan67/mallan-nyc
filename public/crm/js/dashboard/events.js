@@ -89,7 +89,10 @@ var Events = (function () {
 
   // ─── Load events from API ────────────────────────────────────────────
   function loadForEntity(entityType, entityId) {
-    return MallanAPI._fetch('/api/crm/events?entityType=' + entityType + '&entityId=' + entityId + '&limit=50')
+    // The route reads entity_type / entity_id (snake case). The camelCase query
+    // it was sent before answered 400 "entity_id (or lead_id) is required" on
+    // every workspace Activity / Listings tab, so no history ever loaded (2026-10-28).
+    return MallanAPI._fetch('/api/crm/events?entity_type=' + encodeURIComponent(entityType) + '&entity_id=' + encodeURIComponent(entityId) + '&limit=50')
       .then(function (data) {
         var events = data.events || [];
         // Merge into local cache

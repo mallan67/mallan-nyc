@@ -10,7 +10,7 @@
  *     plausibility/anti-abuse check on whether the submission matches the resolved listing.
  *     It fails CLOSED on uncertainty (a missed link undercounts; it never misattributes).
  *
- * ADDRESS FIELDS — the stored listing address is the Cotality/Trestle SPLIT address shape
+ * ADDRESS FIELDS — the stored listing address is the Cotality SPLIT address shape
  * (the exact field names verified live against the production DB 2026-07-03), NOT one composed
  * string. The distinct fields:
  *   StreetNumber · StreetDirPrefix · StreetName · StreetSuffix · StreetDirSuffix ·
@@ -159,7 +159,7 @@ export function rsvpAddressMatches(addressJson: unknown, submitted: unknown): bo
   const name = pick('StreetName', 'streetName');
   if (!num || !name) return false;
 
-  // Compose the stored comparison name from ALL Cotality/Trestle split address fields —
+  // Compose the stored comparison name from ALL Cotality split address fields —
   // StreetName alone is bare/partial in production; direction can live in either DirPrefix
   // or DirSuffix, the type in StreetSuffix.
   const storedFull = [

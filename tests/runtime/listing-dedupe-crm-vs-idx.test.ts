@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 /**
- * Public-surface dedupe — prefer Mallan CRM exclusive over Trestle/IDX
+ * Public-surface dedupe — prefer Mallan CRM exclusive over Cotality/IDX
  * duplicate when both rows represent the same physical unit.
  *
  * Background: see docs/crm/listing-canonical-mallan-exclusive-audit-2026-05-28.md
@@ -8,7 +8,7 @@
  * Verified production state (the bug this fixes):
  *   curl https://mallan.nyc/api/listings?address=333+E+46th
  *   → 6 rows returned, including BOTH SL-0004 (CRM exclusive) and
- *     RLS20093870 (Trestle-synced duplicate) for the SAME physical unit (2G).
+ *     RLS20093870 (Cotality-synced duplicate) for the SAME physical unit (2G).
  *
  * After this helper is wired into the 5 public surfaces, the CRM row
  * (SL-0004) is the only one returned; the IDX duplicate stays in the DB
@@ -37,7 +37,7 @@ const SL_0004: DedupeCandidate = {
 };
 
 // RLS20093870 — the same physical unit, synced back from REBNY RLS via
-// Trestle after Maya submitted SL-0004. Same address, different listing_id.
+// Cotality after Maya submitted SL-0004. Same address, different listing_id.
 const RLS_20093870: DedupeCandidate = {
   id: 'RLS20093870',
   address: {

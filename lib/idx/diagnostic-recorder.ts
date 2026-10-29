@@ -9,13 +9,13 @@
  *   cross-project DB repoint window (2026-05-21 → 2026-06-13) the sync
  *   write path hit a read-only connection and every record failed with the
  *   SAME error (Postgres 25006), producing a 46,011-row / ~30 MB burst —
- *   1,938 listings × one error signature × ~92 runs. See
- *   `docs/superpowers/plans/2026-06-24-p3-audit-events-cleanup-plan.md`.
+ *   1,938 listings × one error signature × ~92 runs. This module is the
+ *   dedupe/cap fix for that burst.
  *
  * WHAT THIS DOES (opt-in, system-only)
  *   Only actions in `SYNC_DIAGNOSTIC_DEDUPE_ACTIONS` are routed here by
  *   `recordSyncDiagnostic`. Everything else (and every human / admin /
- *   broker / compliance / security / Trestle / §2.05 / portal audit write,
+ *   broker / compliance / security / Cotality data-access / §2.05 / portal audit write,
  *   which never calls `recordSyncDiagnostic`) is FULL-RETAINED, unchanged.
  *
  *   Within a sync run, repeated failures are collapsed by
@@ -41,7 +41,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
  * Opt-IN allowlist: the ONLY actions that get deduped/capped. Any action
  * not listed here is written through immediately by `recordSyncDiagnostic`
  * (fail-safe full retention). NEVER add a human / compliance / security /
- * §2.05 / Trestle / portal action here — those must always be full-retained
+ * §2.05 / Cotality data-access / portal action here — those must always be full-retained
  * and they do not flow through `recordSyncDiagnostic` in the first place.
  */
 export const SYNC_DIAGNOSTIC_DEDUPE_ACTIONS: ReadonlySet<string> = new Set([

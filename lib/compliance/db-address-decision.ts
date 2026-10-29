@@ -1,3 +1,4 @@
+import { isMallanWebsiteOnlyListing } from '@/lib/listings/mallan-source-identity';
 /**
  * ONE canonical public-address decision for DB-backed listing rows.
  *
@@ -17,39 +18,38 @@
  * an "incurable UCBA penalty".
  *
  * The fix is NOT to change `generateListingSlug` globally — raw pre-filtered
- * Trestle records legitimately use the other convention. The fix is to make ONE
+ * Cotality records legitimately use the other convention. The fix is to make ONE
  * decision here and feed it to BOTH the address fields and the slug input.
  *
- * NULL SEMANTICS ARE ALREADY SETTLED IN-REPO — `lib/compliance/gates.ts:166-171`:
- *
- *   "Use `idxPlusPreFiltered: true` ONLY for raw Trestle records on the live
- *    `/api/idx/search` path ... DB-row callers (db-to-public-dto, sitemap,
- *    listing-access-decision) leave the default `false` so any drift from the
- *    recovered `internet_entire_listing_display_yn=true` baseline still
- *    fails-closed defensively."
+ * NULL SEMANTICS ARE ALREADY SETTLED IN-REPO — `lib/compliance/gates.ts:166-171`
+ * (`GateOptions.idxPlusPreFiltered`): the pre-filter convention is ONLY for raw
+ * Cotality records on the live `/api/idx/search` path. DB-row callers
+ * (db-to-public-dto, sitemap, listing-access-decision) leave the default `false`
+ * so any drift from the recovered `internet_entire_listing_display_yn=true`
+ * baseline still fails closed defensively.
  *
  * So for a DB row, null/undefined => NOT displayable. This module is for DB
- * rows only; raw Trestle records are governed by `checkDistributionGates`.
+ * rows only; raw Cotality records are governed by `checkDistributionGates`.
  *
  * THE RULE
  * --------
- *   WEBSITE-ONLY (`rls_eligible === false`)
+ *   WEBSITE-ONLY (canonical Mallan id AND `rls_eligible === false`)
  *     Mallan's own non-RLS inventory. The IDX display booleans do not bind;
  *     the approved first-party policy applies.
  *
- *   RLS-BACKED (`rls_eligible !== false`) — INCLUDING RLS-eligible `SL-`/`RL-`
+ *   RLS-BACKED (every other row) — INCLUDING RLS-eligible `SL-`/`RL-`
  *     `internet_entire_listing_display_yn` AND `internet_address_display_yn`
  *     must BOTH permit. Null/undefined fails closed.
  *
- * A listing-id PREFIX is provenance, never permission. Only an explicit
- * `rls_eligible === false` exempts a row, so unknown provenance fails closed.
+ * A listing-id PREFIX is provenance, never permission. The explicit
+ * `rls_eligible === false` exemption also requires proven Mallan authorship.
  */
 
 import { isAddressDisplayable } from './gates';
 
 export interface DbAddressDecisionInput {
   listing_id: string;
-  /** `false` = website-only (non-RLS). Anything else is treated as RLS-backed. */
+  /** false exempts only a canonical Mallan-authored listing. */
   rls_eligible?: boolean | null;
   internet_entire_listing_display_yn?: boolean | null;
   internet_address_display_yn?: boolean | null;
@@ -64,11 +64,11 @@ export interface DbAddressDecision {
   isRlsBacked: boolean;
 }
 
-/** Is this row RLS redistribution inventory? Only an explicit `false` exempts. */
+/** Every row except a proven Mallan website-only listing is RLS-backed. */
 export function isRlsBackedRow(
-  input: Pick<DbAddressDecisionInput, 'rls_eligible'>,
+  input: Pick<DbAddressDecisionInput, 'rls_eligible'> & { listing_id?: string | null },
 ): boolean {
-  return input.rls_eligible !== false;
+  return !isMallanWebsiteOnlyListing(input);
 }
 
 /**

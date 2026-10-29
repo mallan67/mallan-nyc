@@ -49,7 +49,7 @@ describe("W1 — anonymous read surfaces are cache-wired (positive contract)", (
     expect(src).toMatch(/BigInt/); // the documented deferral reason
   });
 
-  it("/api/listings/building caches Trestle queries with the rotating token OUTSIDE the key", () => {
+  it("/api/listings/building caches Cotality queries with the rotating token OUTSIDE the key", () => {
     const src = read("app/api/listings/building/route.ts");
     expect(src).toMatch(/cachedPublicRead\(trestleFetchJson/);
     expect(src).toMatch(/buildingCacheTag\(/);

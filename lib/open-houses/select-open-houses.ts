@@ -5,7 +5,7 @@
 // tests without pulling server code into the client bundle.
 //
 // Twin-safe matching (follow-up to #463): a property can exist as a local CRM exclusive (SL-0007) AND
-// as a Cotality RLS listing (RLS20099289). /api/open-houses dedupes the two and keeps only the Trestle
+// as a Cotality RLS listing (RLS20099289). /api/open-houses dedupes the two and keeps only the Cotality
 // entry, so the SL-0007 detail page would never match by exact listingId. We therefore match by exact
 // listingId OR by a shared normalized `addressKey` (computed server-side by the route + the page from
 // the same normalizeAddressKey used by the dedup/banner resolver).

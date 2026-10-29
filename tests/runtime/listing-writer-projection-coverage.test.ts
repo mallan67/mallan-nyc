@@ -62,7 +62,7 @@ const ALLOWLIST: ReadonlySet<string> = new Set<string>([
   // next sync run or data-retention cron tick re-mirrors it.
   "app/api/crm/listings/[id]/media/upload/route.ts",
   "app/api/crm/listings/[id]/photos/route.ts",
-  // Writes listing.raw_data only (reorders the raw Trestle media JSON).
+  // Writes listing.raw_data only (reorders the raw Cotality media JSON).
   // raw_data is the giant input blob — projection never reads it; it pulls
   // specific typed columns. No projection mirror needed.
   "app/api/crm/listings/[id]/media-order/route.ts",

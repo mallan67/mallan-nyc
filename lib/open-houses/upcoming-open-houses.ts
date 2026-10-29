@@ -1,3 +1,4 @@
+import { isMallanLocalListing, isMallanWebsiteOnlyListing } from '@/lib/listings/mallan-source-identity';
 // lib/open-houses/upcoming-open-houses.ts
 //
 // Canonical resolver for UPCOMING MALLAN open houses, used to attach a `nextOpenHouse` banner to
@@ -37,12 +38,11 @@ export const MALLAN_OH_OFFICE_MLS_IDS = ['7041'] as const;
 // listing must have NO public open house (UCBA Art. I §16; the showing write path also rejects it).
 export const OPEN_HOUSE_ELIGIBLE_STATUSES = DISPLAYABLE_STATUSES.filter((s) => s !== 'ComingSoon');
 
-/** A LOCAL open house is Mallan's own only when the listing is a website-only Mallan exclusive
- *  (rls_eligible=false) or carries the Mallan CRM exclusive prefix (SL-/RL-). Synced RLS listings are
+/** A LOCAL open house is Mallan's own only when its listing carries the canonical
+ *  Mallan CRM prefix (SL-/RL-), including website-only exclusives. Synced RLS listings are
  *  served via the office-scoped Cotality feed instead. */
 export function isMallanOwnedLocalListing(l: { rls_eligible?: boolean | null; listing_id?: string | null }): boolean {
-  if (l.rls_eligible === false) return true;
-  return /^(SL|RL)-/i.test(String(l.listing_id || ''));
+  return isMallanLocalListing(l);
 }
 
 /** Format a Trestle ISO time (e.g. "2026-06-28T12:00:00.000-04:00") in Eastern. NYC open houses
@@ -69,8 +69,8 @@ export function formatEasternTime(time: string | null | undefined): string {
 // One helper decides the consumer-facing PUBLIC open-house designation, so the API, the shared card
 // resolver, the /open-houses cards and the listing sidebar all agree. Appointment-only is detected
 // from the ACTUAL production data contract (verified live against Cotality 2026-07-16):
-//   - local sale-form showings persist a `[ByAppointment]` marker at the START of showing.notes
-//     (saveSaleOpenHouse in public/crm/SALE-FORM-REDESIGN.html);
+//   - local showings (the Sale and Rental forms) persist a `[ByAppointment]` marker at the START of showing.notes
+//     (public/crm/js/forms/listing-open-houses.js writes it);
 //   - Cotality OpenHouse rows are OpenHouseType='Public' WITH the boolean AppointmentRequiredYN=true
 //     (NOT OpenHouseType='Private'); OpenHouseRemarks free-text is a defensive fallback.
 // Broker/Office/Private events are excluded UPSTREAM (feed `OpenHouseType eq 'Public'` filter + the
@@ -350,7 +350,7 @@ async function fetchLocalUpcoming(): Promise<UpcomingEntry[]> {
       if (!l || !isMallanOwnedLocalListing(l)) continue;
       // Website-only exclusive bypass (rls_eligible=false): displayable on a displayable status.
       const displayable =
-        l.rls_eligible === false
+        isMallanWebsiteOnlyListing(l)
           ? OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status)
           : evaluateDisplayGate({
               status: l.status,
@@ -372,8 +372,8 @@ async function fetchLocalUpcoming(): Promise<UpcomingEntry[]> {
         date: s.date.toISOString().split('T')[0],
         startTime: timeParts[0] || '',
         endTime: timeParts[1] || '',
-        // Sale-form By-Appointment events persist as type='openhouse' with a `[ByAppointment]` notes
-        // marker (saveSaleOpenHouse); resolve that marker to the public designation.
+        // By-Appointment events of the Sale and Rental forms persist as type='openhouse' with a `[ByAppointment]` notes
+        // marker (public/crm/js/forms/listing-open-houses.js); resolve that marker to the public designation.
         type: resolvePublicOpenHouseType({ notes: s.notes }),
         source: 'local',
       });

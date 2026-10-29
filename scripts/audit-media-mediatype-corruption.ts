@@ -5,7 +5,7 @@
 //
 // THE BUG (2026-05-01 audit, fixed in lib/media/media-sync-service.ts +
 // lib/idx/sync.ts):
-//   Trestle's MediaCategory enum value "FloorPlan" was failing the writer's
+//   Cotality's MediaCategory enum value "FloorPlan" was failing the writer's
 //   detection check `cat.toLowerCase().includes("floor plan")` (with space)
 //   because lowercased "floorplan" does NOT include "floor plan". Floor-plan
 //   media items were therefore tagged mediaType="Photo" on write, then routed
@@ -13,7 +13,7 @@
 //   actual photo at the same Order. Last-writer-wins meant 5/6 homepage
 //   Featured listings ended up serving the FloorPlan image as the hero.
 //
-// THIS SCRIPT does NOT re-fetch from Trestle. It reads the DB media JSONB and
+// THIS SCRIPT does NOT re-fetch from Cotality. It reads the DB media JSONB and
 // reports listings whose media array shows the corruption fingerprint:
 //   - duplicate URLs in `media[]` (same URL appears twice)
 //   - URL path containing `/floorplans/` but mediaType !== "FloorPlan"
@@ -24,7 +24,7 @@
 // EXECUTE MODE REMOVED (QUAL-006 / OPS-008, 2026-07-02):
 //   The old `--execute` mode cleared corrupted listings' `media` JSONB to `[]`
 //   on the assumption that "the next media-backfill cron run (every 8 minutes)"
-//   would re-fetch from Trestle and repopulate. That assumption has been false
+//   would re-fetch from Cotality and repopulate. That assumption has been false
 //   since 2026-05-21: PR #176 removed /api/cron/media-backfill from vercel.json
 //   (2026-05-21 P0 Neon/media incident mitigation), and the route itself was
 //   deleted 2026-07-02 (QUAL-006). Nothing repopulates `listings.media` after a
@@ -293,7 +293,7 @@ async function main() {
 
   // NOTE (QUAL-006 / OPS-008, 2026-07-02): the former execute block cleared
   // affected listings' `media` JSONB to [] here, expecting the (now-deleted)
-  // /api/cron/media-backfill cron to repopulate from Trestle. It was removed
+  // /api/cron/media-backfill cron to repopulate from Cotality. It was removed
   // because nothing repopulates a cleared array anymore — the clear would be
   // permanent data loss. This script reports only; any repair must go through
   // the live media lane (media-sync → listing_media) with Maya approval.

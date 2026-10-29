@@ -5,9 +5,9 @@
  * The route handler is verified via mocks for:
  *   - prisma.auditEvent (concurrency guard + run summary)
  *   - runMediaSync (mocked entirely; we don't exercise orchestration here)
- *   - lib/idx/auth.hasCredentials (Trestle creds pre-check)
+ *   - lib/idx/auth.hasCredentials (Cotality creds pre-check)
  *
- * No live cron trigger. No live Trestle. No live R2. No live DB.
+ * No live cron trigger. No live Cotality. No live R2. No live DB.
  */
 
 // ─── Mocks ───────────────────────────────────────────────────────────────
@@ -182,13 +182,13 @@ describe("GET /api/cron/media-sync — auth", () => {
   });
 });
 
-// ─── Trestle credentials gate ────────────────────────────────────────────
+// ─── Cotality credentials gate ────────────────────────────────────────────
 
-describe("GET /api/cron/media-sync — trestle credentials gate", () => {
-  it("returns 503 when Trestle credentials are missing — no sync work runs", async () => {
+describe("GET /api/cron/media-sync — Cotality credentials gate", () => {
+  it("returns 503 when Cotality credentials are missing — no sync work runs", async () => {
     // W2 (2026-07-24): the route is a thin claim wrapper; the credential
     // pre-check now lives in runMediaSyncMember and soft-fails 503 before any
-    // Trestle/R2/DB work. (The claim may be taken and released around it — that
+    // Cotality/R2/DB work. (The claim may be taken and released around it — that
     // is harmless; the point is NO media sync executes.)
     mockHasCredentials.mockReturnValue(false);
     const res = await GET(authedReq());

@@ -73,16 +73,132 @@
 
                 var label = document.createElement('span');
                 label.className = 'csd-label';
-                var selOpt = sel.options[sel.selectedIndex];
-                label.textContent = selOpt ? selOpt.text : '';
-                // If first option has empty value, treat as placeholder
-                if (!sel.value || sel.value === '') label.classList.add('placeholder');
-                btn.appendChild(label);
-
                 var arrow = document.createElement('span');
                 arrow.className = 'csd-arrow';
                 arrow.innerHTML = '&#9662;';
+
+                // "Custom" option — the box itself takes the typed amount (Maya 2026-10-27: "custom when you
+                // select it should allow to write the price inside the box … in all boxes with custom").
+                // The typed amount becomes the select's own value through a hidden typed option, so every
+                // reader of sel.value (criteria collector, saved searches, calculators) sees the number;
+                // the value stays 'custom' only while nothing has been typed yet.
+                var customIdx = -1;
+                for (var ci = 0; ci < sel.options.length; ci++) if (sel.options[ci].value === 'custom') customIdx = ci;
+                var isMoney = customIdx >= 0 && Array.prototype.some.call(sel.options, function (o) { return o.text.indexOf('$') !== -1; });
+                var allowDecimal = customIdx >= 0 && Array.prototype.some.call(sel.options, function (o) { return /^\d+\.\d/.test(o.value); });
+                var backIdx = 0; // "Back to the list" returns to the default option (calculators default to a preset)
+                for (var bi = 0; bi < sel.options.length; bi++) if (sel.options[bi].defaultSelected && sel.options[bi].value !== 'custom') backIdx = bi;
+                var custom = null; // { prefix, input, clear } while the box is in typing mode
+                function typedOption() { return sel.querySelector('option[data-typed]'); }
+                function sanitize(raw) {
+                    var s = String(raw == null ? '' : raw).replace(allowDecimal ? /[^0-9.]/g : /[^0-9]/g, '');
+                    if (allowDecimal) { var parts = s.split('.'); s = parts.shift() + (parts.length ? '.' + parts.join('') : ''); }
+                    return s;
+                }
+                function formatTyped(v) {
+                    if (!v || !isMoney) return v;
+                    var n = Number(v);
+                    return isNaN(n) ? v : n.toLocaleString('en-US');
+                }
+                function setTyped(digits) {
+                    var opt = typedOption();
+                    if (!digits) { if (opt) opt.remove(); sel.selectedIndex = customIdx; return; }
+                    if (!opt) { opt = document.createElement('option'); opt.setAttribute('data-typed', '1'); opt.hidden = true; sel.appendChild(opt); }
+                    opt.value = digits;
+                    opt.text = (isMoney ? '$' : '') + formatTyped(digits);
+                    opt.selected = true;
+                }
+                function inCustomMode() {
+                    var o = sel.options[sel.selectedIndex];
+                    return customIdx >= 0 && !!o && (o.value === 'custom' || o.hasAttribute('data-typed'));
+                }
+                function leaveToList() {
+                    sel.selectedIndex = backIdx;
+                    syncLabel();
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                function enterCustom() {
+                    if (custom) return;
+                    var first = sel.options[0] ? sel.options[0].text : '';
+                    custom = {};
+                    if (isMoney) {
+                        custom.prefix = document.createElement('span');
+                        custom.prefix.className = 'csd-prefix';
+                        custom.prefix.textContent = '$';
+                        btn.insertBefore(custom.prefix, arrow);
+                    }
+                    var input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'csd-input';
+                    input.setAttribute('inputmode', allowDecimal ? 'decimal' : 'numeric');
+                    input.setAttribute('autocomplete', 'off');
+                    input.placeholder = /^(min|max)\b/i.test(first) ? 'Type ' + first.toLowerCase() : 'Type value';
+                    input.setAttribute('aria-label', (first || 'Custom') + ' — type a value');
+                    input.addEventListener('click', function (e) { e.stopPropagation(); }); // typing never opens the list
+                    input.addEventListener('input', function () {
+                        var digits = sanitize(input.value);
+                        if (input.value !== digits) input.value = digits;
+                        setTyped(digits);
+                    });
+                    input.addEventListener('blur', function () {
+                        input.value = formatTyped(sanitize(input.value));
+                        sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
+                    input.addEventListener('keydown', function (e) {
+                        if (e.key === 'Escape') { e.stopPropagation(); leaveToList(); }
+                    });
+                    custom.input = input;
+                    custom.clear = document.createElement('span');
+                    custom.clear.className = 'csd-clear';
+                    custom.clear.innerHTML = '&times;';
+                    custom.clear.title = 'Back to the list';
+                    custom.clear.setAttribute('role', 'button');
+                    custom.clear.addEventListener('click', function (e) { e.stopPropagation(); leaveToList(); });
+                    btn.insertBefore(input, arrow);
+                    btn.insertBefore(custom.clear, arrow);
+                    btn.classList.add('csd-custom');
+                    label.style.display = 'none';
+                }
+                function exitCustom() {
+                    if (!custom) return;
+                    [custom.prefix, custom.input, custom.clear].forEach(function (n) { if (n) n.remove(); });
+                    custom = null;
+                    label.style.display = '';
+                    btn.classList.remove('csd-custom');
+                    var opt = typedOption();
+                    if (opt) opt.remove();
+                }
+                // The visible box always mirrors the select's current option. Clear, Last Search and a
+                // saved search set the select without a click in the panel; the box kept reading "$1M"
+                // after the select was back on "Min Price" (acceptance walkthrough 2026-10-27, A7-clear).
+                function syncLabel() {
+                    var selOpt = sel.options[sel.selectedIndex];
+                    if (inCustomMode()) {
+                        enterCustom();
+                        if (document.activeElement !== custom.input) {
+                            custom.input.value = formatTyped(selOpt.hasAttribute('data-typed') ? selOpt.value : '');
+                        }
+                        return;
+                    }
+                    exitCustom();
+                    label.textContent = selOpt ? selOpt.text : '';
+                    // If first option has empty value, treat as placeholder
+                    label.classList.toggle('placeholder', !sel.value || sel.value === '');
+                }
+                btn.appendChild(label);
                 btn.appendChild(arrow);
+                syncLabel(); // after label and arrow are in the box: a select that starts on "Custom" inserts before the arrow
+                sel._csdSync = syncLabel;
+                // Restore a saved / last search whose amount is not a preset: the box shows it as typed.
+                sel._csdSetCustom = function (value) {
+                    var digits = sanitize(value);
+                    if (customIdx < 0 || !digits) return false;
+                    setTyped(digits);
+                    syncLabel();
+                    return true;
+                };
+                sel._csdFocusCustom = function () { if (custom) custom.input.focus(); };
+                sel.addEventListener('change', syncLabel);
 
                 wrap.insertBefore(btn, sel);
 
@@ -97,22 +213,18 @@
                 function buildItems() {
                     panel.innerHTML = '';
                     for (var i = 0; i < sel.options.length; i++) {
+                        if (sel.options[i].hasAttribute('data-typed')) continue; // the typed amount is not a list entry
                         var item = document.createElement('div');
                         item.className = 'csd-item';
-                        if (i === sel.selectedIndex) item.classList.add('active');
+                        if (i === sel.selectedIndex || (i === customIdx && inCustomMode())) item.classList.add('active');
                         item.textContent = sel.options[i].text;
                         item.setAttribute('data-i', i);
                         item.addEventListener('click', (function(idx) {
                             return function(e) {
                                 e.stopPropagation();
                                 sel.selectedIndex = idx;
-                                label.textContent = sel.options[idx].text;
-                                // Update placeholder style
-                                if (!sel.value || sel.value === '') {
-                                    label.classList.add('placeholder');
-                                } else {
-                                    label.classList.remove('placeholder');
-                                }
+                                syncLabel();
+                                if (idx === customIdx) sel._csdFocusCustom(); // "Custom" picked: type straight into the box
                                 panel.classList.remove('open');
                                 // Trigger change event (fires onchange handlers + addEventListener)
                                 sel.dispatchEvent(new Event('change', { bubbles: true }));
@@ -161,6 +273,15 @@
                     container.querySelectorAll('select').forEach(convertSelect);
                 });
             }
+
+            // Re-read every converted select after a programmatic change (Clear, Last Search, saved
+            // search, defaults) so each box shows the option its select is on.
+            window.syncCustomSelects = function(root) {
+                (root || document).querySelectorAll('select').forEach(function(sel) {
+                    if (sel._csdSync) sel._csdSync();
+                    sel.classList.toggle('placeholder-active', !sel.value || sel.value === '');
+                });
+            };
 
             // Run on DOMContentLoaded
             if (document.readyState === 'loading') {

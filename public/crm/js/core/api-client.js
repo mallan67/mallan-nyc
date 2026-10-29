@@ -22,6 +22,20 @@ var MallanAPI = (function () {
   // ─── Internal helpers ────────────────────────────────────────────────────
 
   /**
+   * The error of a request the server answered with a failure. It carries the HTTP status and the body: a caller can tell a refusal (4xx: the server did not do what was asked) from a failure after
+   * which nothing is known (5xx: the listing create route answers 500 when the listing was committed and the answer could not be built). A request that got no answer at all (the network) has no status.
+   */
+  function _failure(message, status, body) {
+    var err = new Error(message);
+    err.status = status;
+    // The body under both names the callers use: err.data (search: refused criteria on 422) and err.details (forms: the
+    // server's named refusals). One object, two names, until the forms read err.data too.
+    err.data = body;
+    err.details = body;
+    return err;
+  }
+
+  /**
    * Core fetch wrapper. Sends credentials (cookies) for auth.
    * Handles 401 → dispatch unauthorized event.
    */
@@ -43,17 +57,21 @@ var MallanAPI = (function () {
       if (res.status === 401) {
         console.warn('[MallanAPI] 401 Unauthorized — redirecting to login');
         window.dispatchEvent(new CustomEvent('mallan:auth:unauthorized'));
-        return Promise.reject(new Error('Unauthorized'));
+        return Promise.reject(_failure('Unauthorized', 401));
       }
       if (res.status === 403) {
+        // Keep the server's reason: a consent gate ("recipient has unsubscribed", "declined
+        // outreach") is a 403 with a message and a `gate` code the panel must show verbatim.
         console.warn('[MallanAPI] 403 Forbidden');
-        return Promise.reject(new Error('Access denied'));
+        return res.json().then(function (data) { return data; }, function () { return null; }).then(function (data) {
+          return Promise.reject(_failure((data && typeof data.error === 'string' && data.error) || 'Access denied', 403, data));
+        });
       }
       if (!res.ok) {
-        return res.json().then(function (data) {
-          return Promise.reject(new Error(data.error || 'Request failed: ' + res.status));
-        }).catch(function () {
-          return Promise.reject(new Error('Request failed: ' + res.status));
+        // Keep the server's message and body (e.g. Agent Search's refused criteria on 422).
+        // The server's own words reach the caller (an error answer is {"error": "..."}); an answer that holds none says the status
+        return res.json().then(function (data) { return data; }, function () { return null; }).then(function (data) {
+          return Promise.reject(_failure((data && typeof data.error === 'string' && data.error) || 'Request failed: ' + res.status, res.status, data));
         });
       }
       return res.json();
@@ -181,6 +199,7 @@ var MallanAPI = (function () {
       var qs = [];
       if (params.type) qs.push('type=' + encodeURIComponent(params.type));
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
+      if (params.owner_client_id) qs.push('owner_client_id=' + encodeURIComponent(params.owner_client_id));   // the listings a client owns
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.offset) qs.push('offset=' + params.offset);
       var query = qs.length ? '?' + qs.join('&') : '';
@@ -611,53 +630,39 @@ var MallanAPI = (function () {
     },
   };
 
+  // ─── Reports (the Reports modal's outputs) ───────────────────────────
+
+  var reports = {
+    /**
+     * Email a rendered report through the server mail pipeline (From = the sending agent).
+     * @param {object} data - { to_email, to_name, subject, html, title, format, version, listing_ids, client_id }
+     */
+    email: function (data) {
+      return _fetch('/api/crm/reports/email', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+  };
+
   // ─── IDX / Trestle RLS (read-only) ───────────────────────────────────────
 
   var idx = {
     /**
-     * Search listings via Trestle/REBNY RLS.
-     * Returns listings in CRM flat shape (same as listings).
-     * @param {object} params - { type, minPrice, maxPrice, minBeds, minBaths, neighborhood, borough, status, limit, skip, minYear, maxYear, minFloors, maxFloors, minUnits, maxUnits, buildingName }
+     * Agent Search against live Cotality. Returns listings in CRM flat shape.
+     * Every criterion is forwarded — the server's live sale/rental mapping
+     * (lib/search/crm-idx-filter.ts) executes it, applies it in Mallan's layer,
+     * or refuses it by name with HTTP 422 (err.data.refused). Nothing is dropped here.
+     * @param {object} params - built by window.buildIdxSearchParams(criteria), plus limit/skip/sort
      */
     search: function (params) {
       params = params || {};
-      var qs = [];
-      if (params.type) qs.push('type=' + encodeURIComponent(params.type));
-      if (params.minPrice) qs.push('minPrice=' + params.minPrice);
-      if (params.maxPrice) qs.push('maxPrice=' + params.maxPrice);
-      if (params.minBeds != null) qs.push('minBeds=' + params.minBeds);
-      if (params.maxBeds != null) qs.push('maxBeds=' + params.maxBeds);
-      if (params.minBaths) qs.push('minBaths=' + params.minBaths);
-      if (params.maxBaths) qs.push('maxBaths=' + params.maxBaths);
-      if (params.neighborhood) qs.push('neighborhood=' + encodeURIComponent(params.neighborhood));
-      if (params.borough) qs.push('borough=' + encodeURIComponent(params.borough));
-      if (params.status) qs.push('status=' + encodeURIComponent(params.status));
-      if (params.propertySubType) qs.push('propertySubType=' + encodeURIComponent(params.propertySubType));
-      if (params.address) qs.push('address=' + encodeURIComponent(params.address));
-      if (params.listingId) qs.push('listingId=' + encodeURIComponent(params.listingId));
-      if (params.zip) qs.push('zip=' + encodeURIComponent(params.zip));
-      if (params.minRooms) qs.push('minRooms=' + params.minRooms);
-      if (params.maxRooms) qs.push('maxRooms=' + params.maxRooms);
-      if (params.minSqft) qs.push('minSqft=' + params.minSqft);
-      if (params.maxSqft) qs.push('maxSqft=' + params.maxSqft);
-      if (params.dateFrom) qs.push('dateFrom=' + encodeURIComponent(params.dateFrom));
-      if (params.dateTo) qs.push('dateTo=' + encodeURIComponent(params.dateTo));
-      if (params.dateType) qs.push('dateType=' + encodeURIComponent(params.dateType));
-      if (params.closeDateFrom) qs.push('closeDateFrom=' + encodeURIComponent(params.closeDateFrom));
-      if (params.closeDateTo) qs.push('closeDateTo=' + encodeURIComponent(params.closeDateTo));
-      if (params.ownership) qs.push('ownership=' + encodeURIComponent(params.ownership));
-      if (params.sponsorUnit) qs.push('sponsorUnit=' + encodeURIComponent(params.sponsorUnit));
-      // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
-      if (params.minYear) qs.push('minYear=' + params.minYear);
-      if (params.maxYear) qs.push('maxYear=' + params.maxYear);
-      if (params.minFloors) qs.push('minFloors=' + params.minFloors);
-      if (params.maxFloors) qs.push('maxFloors=' + params.maxFloors);
-      if (params.minUnits) qs.push('minUnits=' + params.minUnits);
-      if (params.maxUnits) qs.push('maxUnits=' + params.maxUnits);
-      if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
-      if (params.sort) qs.push('sort=' + encodeURIComponent(params.sort));
-      if (params.limit) qs.push('limit=' + params.limit);
-      if (params.skip) qs.push('skip=' + params.skip);
+      var qs = Object.keys(params).filter(function (k) {
+        var v = params[k];
+        return v !== undefined && v !== null && v !== '';
+      }).map(function (k) {
+        return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+      });
       var query = qs.length ? '?' + qs.join('&') : '';
       return _fetch('/api/idx/search' + query);
     },
@@ -807,6 +812,7 @@ var MallanAPI = (function () {
     idx: idx,
     cma: cma,
     listingSends: listingSends,
+    reports: reports,
 
   };
 })();

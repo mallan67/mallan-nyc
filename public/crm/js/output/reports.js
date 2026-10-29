@@ -111,11 +111,18 @@
         }
 
         // ── Helper: get listing description (uses custom if edited) ──
-        function getReportDescription(listing) {
+        // The feed's remarks and the agent's edits are text, not markup. Some live remarks arrive as HTML
+        // (<p>…</p>); injected raw, a nested <p> escaped the styled paragraph and printed in a larger font,
+        // and any markup in the remarks would have run in the report (found 2026-10-27). The mapper now
+        // delivers plain text with blank-line paragraphs; here it is escaped and the breaks kept.
+        function getReportDescriptionText(listing) {
             if (reportState.customDescription && reportState.customDescription !== reportState.originalDescription) {
-                return reportState.customDescription;
+                return String(reportState.customDescription);
             }
-            return listing.description || '';
+            return String(listing.description || '');
+        }
+        function getReportDescription(listing) {
+            return escapeHtml(getReportDescriptionText(listing)).replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
         }
 
         // ── Render validation errors ──
@@ -166,8 +173,8 @@
 
         // ── Open / Close modal ──
         function openReportsModal(selectedIds, presetOutput) {
-            // Enforce 250 cap at selection model
-            var allListings = searchResultsState.filteredListings || listings;
+            // Enforce 250 cap at selection model. Comparable Reports hands over its own subject + comps.
+            var allListings = window._reportSourceListings || searchResultsState.filteredListings || listings;
             var selIds = selectedIds || searchResultsState.selectedListings || [];
             reportState.selectedListingIds = selIds.slice(0, 250);
 
@@ -198,17 +205,27 @@
             if (presetOutput) {
                 reportState.output = presetOutput;
             }
+            // The recipient controls follow the output. Only the output tile click used to reveal them,
+            // so a preset "email" (toolbar Email button) opened with the recipient box hidden and the
+            // client list empty (found 2026-10-26).
+            if (typeof populateReportRecipientDropdown === 'function') populateReportRecipientDropdown();
+            var presetRecipientSec = document.getElementById('reportEmailRecipientSection');
+            if (presetRecipientSec) presetRecipientSec.classList.toggle('hidden', reportState.output !== 'email');
 
             reportState.customDescription = '';
             reportState.originalDescription = '';
             renderReportSelections();
             renderReportErrors([]);
             populateReportDescription();
-            document.getElementById('reportsModal').classList.remove('hidden');
+            var reportsModal = document.getElementById('reportsModal');
+            reportsModal.style.display = ''; // never left hidden by an inline style
+            reportsModal.classList.remove('hidden');
         }
 
         function closeReportsModal() {
             document.getElementById('reportsModal').classList.add('hidden');
+            // A Comparable Reports hand-over is for one report; the next report reads the search results again
+            window._reportSourceListings = null;
         }
 
         // ── Tab switching ──
@@ -317,6 +334,8 @@
                     if (val === 'factSheet' || val === 'detail') fsSection.classList.remove('hidden');
                     else fsSection.classList.add('hidden');
                 }
+                // Start the full-photo download now, so Generate rarely has to wait for it
+                try { prefetchReportMedia(getReportListings(), null); } catch(err) { /* fetched at Generate instead */ }
             }
             if (step === 'version') {
                 reportState.version = val;
@@ -472,6 +491,92 @@
             'floor','totalFloors','unitNumber','condition','exposures','dom','listedDate','updatedDate',
             'publicDescription','rlsId','webId'];
 
+        // ── Report media prefetch ──
+        // Search results carry one photo per listing. Formats that show more (Fact Sheet / Detail "Photos: N",
+        // the Images format) need the full set, fetched once per listing in batches of 25 (detail=true returns
+        // every photo, so one request per listing is enough — a listing without media used to be fetched 11
+        // times in one preview). The in-flight promise is kept so Generate can wait for it: Print and Email
+        // built the page while the photos were still downloading, so "Photos: 4" printed one photo per
+        // listing (found 2026-10-27).
+        var _reportMediaPending = null;
+        function reportWantedPhotos() {
+            var fmt = reportState.format || 'grid';
+            if (fmt === 'images') return 8;
+            if (fmt !== 'factSheet' && fmt !== 'detail') return 1;
+            var sel = document.getElementById('fsPhotoCount');
+            var n = sel ? parseInt(sel.value, 10) : NaN;
+            if (isNaN(n)) n = reportState.options.factSheetPhotoCount != null ? Number(reportState.options.factSheetPhotoCount) : 4;
+            return n;
+        }
+        // The images of a report listing, from the media rows of /api/media/batch?detail=true. Each row's mediaType is the
+        // server's classification (lib/media/listing-media-resolver.ts: Photo, FloorPlan, Video, VirtualTour or Unknown). A
+        // report shows pictures: photos, and floor plans on their own pages. A video or a tour row is a link, never an <img>;
+        // an Unknown row (an agent photo, an office logo) is no picture of the listing. In the provider's order (2026-10-16).
+        function reportImagesFromMedia(rows) {
+            return (rows || []).filter(function(m) {
+                return m && (m.mediaType === 'Photo' || m.mediaType === 'FloorPlan');
+            }).map(function(m) {
+                return {
+                    url: m.url, mediaType: m.mediaType,
+                    mediaCategory: m.mediaType,
+                    imageOf: m.mediaType === 'FloorPlan' ? 'FloorPlan' : 'Photo',
+                    order: m.order, caption: m.caption || '',
+                    isPrimary: m.order === -1 || m.order === 0
+                };
+            }).sort(function(a, b) { return a.order - b.order; });
+        }
+        function prefetchReportMedia(listings, onDone) {
+            var want = reportWantedPhotos();
+            var needPhotos = (listings || []).filter(function(l) { return (!l.images || l.images.length < want) && !l._reportMediaRequested; });
+            if (needPhotos.length === 0 || typeof fetch === 'undefined') return _reportMediaPending;
+            var allIds = needPhotos.map(function(l) { return l.lid || l.id; }).filter(Boolean);
+            needPhotos.forEach(function(l) { l._reportMediaRequested = true; });
+            var BATCH_SIZE = 25;
+            var batches = [];
+            for (var bi = 0; bi < allIds.length; bi += BATCH_SIZE) {
+                batches.push(allIds.slice(bi, bi + BATCH_SIZE));
+            }
+            function applyMediaToListings(data) {
+                if (!data) return;
+                var photos = data.photos || {};
+                var media = data.media || {};
+                needPhotos.forEach(function(l) {
+                    if (l._reportMediaApplied) return; // already populated by an earlier batch
+                    var lid = l.lid || l.id;
+                    var reportImages = reportImagesFromMedia(media[lid]);
+                    if (reportImages.length > 0) {
+                        l._reportMediaApplied = true;
+                        l.images = reportImages;
+                        l.photoCount = l.images.filter(function(m) { return m.mediaCategory !== 'FloorPlan'; }).length;
+                    } else if (photos[lid] && (!l.images || l.images.length === 0)) {
+                        l.images = [{ url: photos[lid], isPrimary: true, mediaType: 'Photo', mediaCategory: 'Photo', imageOf: 'Photo' }];
+                        if (!l.photoCount) l.photoCount = 1;
+                    }
+                });
+            }
+            var run = Promise.all(batches.map(function(batchIds) {
+                return fetch('/api/media/batch?ids=' + encodeURIComponent(batchIds.join(',')) + '&detail=true', { credentials: 'same-origin' })
+                    .then(function(r) { return r.ok ? r.json() : null; })
+                    .then(applyMediaToListings)
+                    .catch(function() { /* this batch keeps its single photo */ });
+            })).then(function() { if (onDone) onDone(); });
+            var chained = _reportMediaPending ? Promise.all([_reportMediaPending, run]) : run;
+            var pending = chained.then(function() { if (_reportMediaPending === pending) _reportMediaPending = null; });
+            _reportMediaPending = pending;
+            return pending;
+        }
+        // Run cb once the photo download has landed. Bounded at 4s so the print tab still opens inside the
+        // browser's click-activation window; whatever photos have arrived by then are used.
+        function whenReportMediaReady(listings, cb) {
+            var pending = prefetchReportMedia(listings, null);
+            if (!pending) { cb(); return; }
+            var done = false;
+            function go() { if (done) return; done = true; cb(); }
+            showReportToast('Loading listing photos…', 'info');
+            pending.then(go, go);
+            setTimeout(go, 4000);
+        }
+
         function populateReportPreview() {
             // Use the same listing selection logic as generateReport
             // getReportListings() handles: selection radio (all/selected/picked/liked),
@@ -482,52 +587,10 @@
                 return;
             }
 
-            // Pre-fetch photos for listings missing images before rendering
-            // Batch in groups of 25 (API detail mode limit) to handle larger reports
-            var needPhotos = listings.filter(function(l) { return !l.images || l.images.length === 0; });
-            if (needPhotos.length > 0 && typeof fetch !== 'undefined') {
-                var allIds = needPhotos.map(function(l) { return l.lid || l.id; }).filter(Boolean);
-                var BATCH_SIZE = 25;
-                var batches = [];
-                for (var bi = 0; bi < allIds.length; bi += BATCH_SIZE) {
-                    batches.push(allIds.slice(bi, bi + BATCH_SIZE));
-                }
-                var completedBatches = 0;
-                function applyMediaToListings(data) {
-                    if (!data) return;
-                    var photos = data.photos || {};
-                    var media = data.media || {};
-                    needPhotos.forEach(function(l) {
-                        if (l.images && l.images.length > 0) return; // already populated by earlier batch
-                        var lid = l.lid || l.id;
-                        if (media[lid] && media[lid].length > 0) {
-                            l.images = media[lid].map(function(m) {
-                                return {
-                                    url: m.url, mediaType: m.mediaType,
-                                    mediaCategory: m.mediaType,
-                                    imageOf: m.mediaType === 'FloorPlan' ? 'FloorPlan' : 'Photo',
-                                    order: m.order, caption: m.caption || '',
-                                    isPrimary: m.order === -1 || m.order === 0
-                                };
-                            }).sort(function(a, b) { return a.order - b.order; });
-                            l.photoCount = l.images.filter(function(m) { return m.mediaCategory !== 'FloorPlan'; }).length;
-                        } else if (photos[lid]) {
-                            l.images = [{ url: photos[lid], isPrimary: true, mediaType: 'Photo', mediaCategory: 'Photo', imageOf: 'Photo' }];
-                            if (!l.photoCount) l.photoCount = 1;
-                        }
-                    });
-                    completedBatches++;
-                    if (completedBatches >= batches.length) {
-                        try { populateReportPreview(); } catch(e) { console.warn('Report re-render with photos failed:', e); }
-                    }
-                }
-                batches.forEach(function(batchIds) {
-                    fetch('/api/media/batch?ids=' + encodeURIComponent(batchIds.join(',')) + '&detail=true', { credentials: 'same-origin' })
-                        .then(function(r) { return r.ok ? r.json() : null; })
-                        .then(applyMediaToListings)
-                        .catch(function() { completedBatches++; });
-                });
-            }
+            // Pre-fetch the full photo sets the chosen format needs; the preview re-renders when they land.
+            prefetchReportMedia(listings, function() {
+                try { populateReportPreview(); } catch(e) { console.warn('Report re-render with photos failed:', e); }
+            });
 
             // Track address-suppressed listings for compliance warning banner
             var complianceWarnings = listings.filter(function(l) { return l.addressDisplayYN === false; });
@@ -712,8 +775,8 @@
                     '<div><p style="font-size:10px;color:#C4A052;text-transform:uppercase;letter-spacing:0.2em;margin:0 0 6px;font-family:Inter,system-ui,sans-serif;font-weight:600">Prepared By</p>' +
                     '<p style="font-weight:600;color:#0A0A0A;margin:0;font-family:Urbanist,system-ui,sans-serif;font-size:15px">' + agentInfo.name + '</p>' +
                     '<p style="font-size:13px;color:rgba(10,10,10,0.7);margin:3px 0 0;font-family:Inter,system-ui,sans-serif;font-weight:300">' + agentInfo.title + '</p>' +
-                    '<p style="font-size:13px;color:rgba(10,10,10,0.7);margin:3px 0 0;font-family:Inter,system-ui,sans-serif;font-weight:300">' + agentInfo.company + ' &middot; Lic. ' + agentInfo.companyLicense + '</p>' +
-                    '<p style="font-size:13px;color:#64748b;margin:3px 0 0;font-family:Inter,system-ui,sans-serif;font-weight:300">' + agentInfo.email + ' | ' + agentInfo.phone + '</p></div>' +
+                    '<p style="font-size:13px;color:rgba(10,10,10,0.7);margin:3px 0 0;font-family:Inter,system-ui,sans-serif;font-weight:300">' + agentInfo.company + (agentInfo.companyLicense ? ' &middot; Lic. ' + agentInfo.companyLicense : '') + '</p>' +
+                    '<p style="font-size:13px;color:#64748b;margin:3px 0 0;font-family:Inter,system-ui,sans-serif;font-weight:300">' + [agentInfo.email, agentInfo.phone].filter(Boolean).join(' | ') + '</p></div>' +
                     '<div><p style="font-size:10px;color:#C4A052;text-transform:uppercase;letter-spacing:0.2em;margin:0 0 6px;font-family:Inter,system-ui,sans-serif;font-weight:600">Prepared For</p>' +
                     '<p style="font-weight:600;color:#0A0A0A;margin:0;font-family:Urbanist,system-ui,sans-serif;font-size:15px">' + (preparedFor || 'Client') + '</p></div></div></div>';
             }
@@ -729,7 +792,16 @@
                         else pl = 'Up to ' + fmtCurrency(activeSearchCriteria.priceMax);
                         pills += '<span style="' + pS + '">' + pl + '</span>';
                     }
-                    if (activeSearchCriteria.bedsMin) pills += '<span style="' + pS + '">' + activeSearchCriteria.bedsMin + '+ BR</span>';
+                    // The collector names them minBeds/maxBeds; zip, address, RLS id, keyword and statuses
+                    // were never shown, so a zip search printed "3 matching properties" and nothing else.
+                    var _esc = function (s) { return typeof escapeHtml === 'function' ? escapeHtml(String(s)) : String(s); };
+                    var _bmin = activeSearchCriteria.minBeds || activeSearchCriteria.bedsMin, _bmax = activeSearchCriteria.maxBeds || activeSearchCriteria.bedsMax;
+                    if (_bmin || _bmax) pills += '<span style="' + pS + '">' + (_bmin && _bmax ? _bmin + '–' + _bmax + ' BR' : _bmin ? _bmin + '+ BR' : 'Up to ' + _bmax + ' BR') + '</span>';
+                    if (activeSearchCriteria.zip) pills += '<span style="' + pS + '">Zip ' + _esc(activeSearchCriteria.zip) + '</span>';
+                    if (activeSearchCriteria.address) pills += '<span style="' + pS + '">' + _esc(activeSearchCriteria.address) + '</span>';
+                    if (activeSearchCriteria.rlsId) pills += '<span style="' + pS + '">' + _esc(activeSearchCriteria.rlsId) + '</span>';
+                    if (activeSearchCriteria.keyword) pills += '<span style="' + pS + '">“' + _esc(activeSearchCriteria.keyword) + '”</span>';
+                    if (activeSearchCriteria.statuses && activeSearchCriteria.statuses.length) pills += '<span style="' + pS + '">' + _esc(activeSearchCriteria.statuses.join(', ')) + '</span>';
                     if (activeSearchCriteria.neighborhoods && activeSearchCriteria.neighborhoods.length)
                         pills += '<span style="' + pS + '">' + activeSearchCriteria.neighborhoods.join(', ') + '</span>';
                     if (activeSearchCriteria.ownership && activeSearchCriteria.ownership.length)
@@ -967,9 +1039,9 @@
                 li += '</div>';
 
                 // Row 3: Description snippet
-                var listDesc = getReportDescription(l);
+                var listDesc = getReportDescriptionText(l);
                 if (listDesc) {
-                    var snippet = listDesc.length > 180 ? listDesc.substring(0, 177) + '...' : listDesc;
+                    var snippet = escapeHtml(listDesc.length > 180 ? listDesc.substring(0, 177) + '...' : listDesc).replace(/\s*\n+\s*/g, ' ');
                     li += '<p style="font-size:12px;color:#4b5563;line-height:1.5;margin:0 0 8px">' + snippet + '</p>';
                 }
 
@@ -1116,14 +1188,17 @@
             document.getElementById('previewSummary').innerHTML = s;
 
             // ═══════════════ DETAIL FORMAT ═══════════════
-            // Detail = entire form loaded — ALL sections always shown
-            var first = listings[0] || {};
+            // Detail = entire form loaded — ALL sections always shown. One section per listing, each on
+            // its own page: three selected listings used to print only the first (found 2026-10-27).
             var d = headerBlock() + agentClientBar();
-            d += '<div style="padding:24px">';
+            listings.forEach(function(first, detailIdx) {
+            d += '<div style="padding:24px"' + (detailIdx > 0 ? ' class="pkg-per-listing"' : '') + '>';
             var detailImgs = getListingPhotos(first).filter(function(img) { return img.imageOf !== 'FloorPlan' && img.mediaCategory !== 'FloorPlan'; });
-            var detPhotoCount = optContent.factSheetPhotoCount || 4;
+            // The Photo Layout selector (None, 1 … 8) decides the photos of a Detail or Fact Sheet report;
+            // "Listing Images" is the switch for the other formats ("Photos: 4" printed none — 2026-10-27).
+            var detPhotoCount = optContent.factSheetPhotoCount != null ? Number(optContent.factSheetPhotoCount) : 4;
             var detPhotoLayout = optContent.factSheetPhotoLayout || 'vertical';
-            var detShowPhotos = optContent.listingImages ? Math.min(detailImgs.length, detPhotoCount) : 0;
+            var detShowPhotos = Math.min(detailImgs.length, detPhotoCount);
 
             // ── Photos section ──
             if (detShowPhotos > 0 && detPhotoLayout === 'horizontal') {
@@ -1219,8 +1294,8 @@
             // Property Details card
             d += '<div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px" class="pkg-no-break">' +
                 '<h3 style="font-weight:700;color:#111827;margin:0 0 12px;font-size:15px"><i class="fas fa-home" style="color:#C4A052;margin-right:8px"></i>Property Details</h3>' +
-                detRow('Type', ownershipLabel(first.ownership)||'\u2014') +
-                detRow('Ownership', ownershipLabel(first.ownership)||'\u2014') +
+                detRow('Property Subtype', first.propertySubType||'\u2014') +
+                detRow('Ownership Type', ownershipLabel(first.ownership)||'\u2014') +
                 detRow('Building', first.era||'\u2014') +
                 detRow('Total Rooms', first.rooms||'\u2014') +
                 detRow('Exposures', first.exposures||'\u2014');
@@ -1312,7 +1387,9 @@
                     d += '</div></div>';
                 }
             }
-            d += '</div>' + brokerFooter();
+            d += '</div>';
+            });
+            d += brokerFooter();
             document.getElementById('previewDetail').innerHTML = d;
 
             // ═══════════════ COMPARISON FORMAT ═══════════════
@@ -1347,7 +1424,8 @@
             compRows.push(['Bedrooms', function(l){ return '<td style="' + compTdS + '">' + (l.beds||'\u2014') + '</td>'; }, true]);
             compRows.push(['Bathrooms', function(l){ return '<td style="' + compTdS + '">' + (l.baths||'\u2014') + '</td>'; }, true]);
             compRows.push(['SqFt', function(l){ return '<td style="' + compTdS + '">' + (l.intSqft?l.intSqft.toLocaleString():'\u2014') + '</td>'; }, true]);
-            compRows.push(['Type', function(l){ return '<td style="' + compTdS + '">' + (ownershipLabel(l.ownership)||'\u2014') + '</td>'; }, true]);
+            compRows.push(['Property Subtype', function(l){ return '<td style="' + compTdS + '">' + (l.propertySubType||'\u2014') + '</td>'; }, true]);
+            compRows.push(['Ownership Type', function(l){ return '<td style="' + compTdS + '">' + (ownershipLabel(l.ownership)||'\u2014') + '</td>'; }, true]);
             compRows.push(['Era', function(l){ return '<td style="' + compTdS + '">' + (l.era||'\u2014') + '</td>'; }, true]);
             compRows.push(['Monthly', function(l){ return '<td style="' + compTdS + '">' + (l.totalMonthly?fmtCurrency(l.totalMonthly):'\u2014') + '</td>'; }, true]);
             compRows.push(['Floor', function(l){ return '<td style="' + compTdS + '">' + (l.floor||'\u2014') + '</td>'; }, true]);
@@ -1391,7 +1469,8 @@
             listings.forEach(function(l, idx) {
                 var isRental = l.listingCategory === 'rental';
                 var mlsId = l.lid || l.wid || '';
-                var ownerType = ownershipLabel(l.ownership) || l.propertySubType || '';
+                var ownerType = ownershipLabel(l.ownership) || '';
+                var propertySubType = l.propertySubType || '';
 
                 // ── Page 1: Listing fact sheet ──
                 fs += '<div class="pkg-per-listing">';
@@ -1417,14 +1496,17 @@
                 fs += '</div>';
                 fs += '<div style="text-align:right">' +
                     '<p style="font-size:20px;font-weight:700;color:#111;margin:0">' + fmtPrice(l) + '</p>' +
-                    '<p style="font-size:11px;color:#555;margin:2px 0 0">' + (l.status || 'Active') + ' / ' + ownerType + (mlsId ? ' / #' + mlsId : '') + '</p></div></div>';
+                    '<p style="font-size:11px;color:#555;margin:2px 0 0">' +
+                    [l.status || 'Active', ownerType, propertySubType, mlsId ? '#' + mlsId : ''].filter(Boolean).join(' / ') +
+                    '</p></div></div>';
                 fs += '<hr style="border:none;border-top:1px solid #bbb;margin:0 0 12px">';
 
                 // Body: photos + description + details table
                 var photos = getListingPhotos(l).filter(function(img) { return img.imageOf !== 'FloorPlan' && img.mediaCategory !== 'FloorPlan'; });
-                var fsPhotoCount = optContent.factSheetPhotoCount || 4;
+                // The Photo Layout selector decides the fact sheet photos (None … 8), not "Listing Images"
+                var fsPhotoCount = optContent.factSheetPhotoCount != null ? Number(optContent.factSheetPhotoCount) : 4;
                 var fsPhotoLayout = optContent.factSheetPhotoLayout || 'vertical';
-                var showPhotos = optContent.listingImages ? Math.min(photos.length, fsPhotoCount) : 0;
+                var showPhotos = Math.min(photos.length, fsPhotoCount);
 
                 // Horizontal layout: photos as full-width row above details
                 if (showPhotos > 0 && fsPhotoLayout === 'horizontal') {
@@ -1467,19 +1549,19 @@
 
                 trs += fsRow('Building Name', l.buildingName || '');
                 if (!isRental) {
-                    trs += fsRow('Maintenance', l.maintCC ? '$' + Number(l.maintCC).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '');
+                    trs += fsRow('Maintenance', l.maintCC ? '$' + Math.round(l.maintCC).toLocaleString() + '/mo' : '—');
                     if (l.ownership === 'StockCooperative' && l.shares) trs += fsRow('Shares', l.shares);
                 }
                 var rmBdBth = '';
                 if (isRental) {
                     rmBdBth = (l.rooms || '\u2014') + '/' + (l.beds === 0 ? 'Studio' : (l.beds || '\u2014')) + '/' + (l.baths || '\u2014');
                 } else {
-                    rmBdBth = (l.rooms ? l.rooms + '.0' : '\u2014') + '/' + (l.beds || '\u2014') + '/' + (l.baths ? l.baths + '.0' : '\u2014');
+                    rmBdBth = (l.rooms || '\u2014') + '/' + (l.beds === 0 ? 'Studio' : (l.beds || '\u2014')) + '/' + (l.baths || '\u2014');
                 }
                 trs += fsRow('Rm/Bd/Bth', rmBdBth);
-                trs += fsRow('Approx Interior SqFt', l.intSqft ? l.intSqft.toLocaleString() : '');
+                trs += fsRow('Approx Interior SqFt', l.intSqft ? l.intSqft.toLocaleString() : '\u2014');
                 if (optContent.priceSqft && l.intSqft) trs += fsRow('Price / SqFt', '$' + Math.round(l.price / l.intSqft).toLocaleString());
-                trs += fsRow('Approx Exterior SqFt', l.extSqft !== undefined ? l.extSqft : '0');
+                trs += fsRow('Approx Exterior SqFt', l.extSqft ? Number(l.extSqft).toLocaleString() : '—');
                 trs += fsRow('Private Outdoor Space', l.outdoorSpace || 'None');
                 trs += fsRow('Attended Lobby', l.lobby || l.attendedLobby || '');
                 if (optContent.originalPrice && l.originalPrice) trs += fsRow('Original Price', '$' + Number(l.originalPrice).toLocaleString());
@@ -1565,8 +1647,86 @@
 
             // ═══════════════ CMA FORMAT (Step 3) ═══════════════
             // Respects optContent: photos, address, $/SF, DOM, original price, dates, averages, agent info
-            var subject = listings[0] || {};
-            var comps = listings.slice(1);
+            // Subject: the one Comparable Reports handed over (reportState.cmaSubjectId), else the first listing
+            var subject = (reportState.cmaSubjectId != null && listings.filter(function(l) { return String(l.id) === String(reportState.cmaSubjectId); })[0]) || listings[0] || {};
+            var comps = listings.filter(function(l) { return l !== subject; });
+            // Comparable prices: close price for sold / rented comps, list price otherwise; date = closed or listed
+            var compPrice = function(l) { return l.status === 'CLOSED' && l.closePrice ? fmtCurrency(l.closePrice) + (l.listingCategory === 'rental' ? '/mo' : '') : fmtPrice(l); };
+            var compDate = function(l) { return l.status === 'CLOSED' && l.closedDate ? 'Closed ' + String(l.closedDate).slice(0, 10) : (l.listedDate || '—'); };
+            // Which rules priced this CMA (reportState.cmaRates from Comparable Reports; the engine defaults otherwise)
+            function cmaRuleWords() {
+                var r = reportState.cmaRates || {};
+                var words = [];
+                if (r.bedroom !== 0) words.push('bedrooms'); if (r.bathroom !== 0) words.push('bathrooms'); if (r.living_area !== 0) words.push('size'); if (r.floor !== 0) words.push('floor');
+                if (r.monthly_per_100 > 0) words.push('monthlies'); if ((reportState.cmaComps || []).some(function (c) { return (c.adjustments || []).some(function (a) { return /^manual:/.test(a.field); }); })) words.push("the broker's own lines");
+                return words.length ? words.join(', ') : 'nothing';
+            }
+            function cmaComparisonGrid(subject, comps, optContent) {
+                var priced = reportState.cmaComps || [];
+                if (!priced.length) return '';
+                var byKey = {}; comps.forEach(function (l) { byKey[String(l.wid || l.id)] = l; });
+                var cols = priced.map(function (c) { return { c: c, l: byKey[String(c.listing_key)] || null }; });
+                var sf = reportState.cmaSubjectFacts || {};
+                var th = 'padding:8px;font-size:11px;font-weight:600;color:#374151;background:#f3f4f6;text-align:left;white-space:nowrap;border-bottom:1px solid #e5e7eb';
+                var td = 'padding:8px;font-size:12px;border-bottom:1px solid #f3f4f6;vertical-align:top';
+                var label = 'padding:8px;font-size:11px;color:#6b7280;border-bottom:1px solid #f3f4f6;white-space:nowrap';
+                var money = function (n) { return n == null || n === '' || isNaN(Number(n)) ? '—' : fmtCurrency(Number(n)); };
+                var signed = function (n) { return !n ? '—' : (n > 0 ? '+' : '−') + fmtCurrency(Math.abs(n)); };
+                var photoOf = function (l) { return l ? getListingPhoto(l) : ''; };
+                var planOf = function (l) { var p = l && (l.images || []).filter(function (i) { return i.mediaType === 'FloorPlan'; })[0]; return p ? p.url : ''; };
+                var g = '<h2 style="font-size:16px;font-weight:700;color:#111827;margin:24px 0 16px;border-bottom:2px solid #C4A052;padding-bottom:8px">Comparison Grid — Broker Price Opinion</h2>' +
+                    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="' + th + '"></th><th style="' + th + ';background:#fef9ee">Subject</th>';
+                cols.forEach(function (x, i) { g += '<th style="' + th + '">Comp ' + (i + 1) + '</th>'; });
+                g += '</tr></thead><tbody>';
+                var row = function (name, subjectCell, compCell) {
+                    g += '<tr><td style="' + label + '">' + name + '</td><td style="' + td + ';background:#fffbf2">' + subjectCell + '</td>';
+                    cols.forEach(function (x) { g += '<td style="' + td + '">' + compCell(x.c, x.l) + '</td>'; });
+                    g += '</tr>';
+                };
+                if (optContent.listingImages) {
+                    row('Photo', photoOf(subject) ? '<img src="' + photoOf(subject) + '" style="width:120px;height:80px;object-fit:cover;border-radius:6px" onerror="' + _imgErr + '">' : '<span style="color:#9ca3af">—</span>',
+                        function (c, l) { var u = photoOf(l); return u ? '<img src="' + u + '" style="width:120px;height:80px;object-fit:cover;border-radius:6px" onerror="' + _imgErr + '">' : '<span style="color:#9ca3af">—</span>'; });
+                }
+                if (optContent.listingFloorplans || optContent.listingImages) {
+                    row('Floor plan', planOf(subject) ? '<img src="' + planOf(subject) + '" style="width:120px;height:80px;object-fit:contain;border-radius:6px;background:#fff" onerror="' + _imgErr + '">' : '<span style="color:#9ca3af">none on file</span>',
+                        function (c, l) { var u = planOf(l); return u ? '<img src="' + u + '" style="width:120px;height:80px;object-fit:contain;border-radius:6px;background:#fff" onerror="' + _imgErr + '">' : '<span style="color:#9ca3af">none on file</span>'; });
+                }
+                row('Address', '<strong>' + (subject.address || '') + (subject.unit ? ' #' + subject.unit : '') + '</strong>', function (c) { return '<strong>' + (c.address || '') + (c.unit ? ' #' + c.unit : '') + '</strong>'; });
+                row('Status / date', (subject.status || '') + (subject.listedDate ? ' · listed ' + subject.listedDate : ''), function (c) { return (c.status || '') + (c.close_date ? ' · closed ' + c.close_date : ''); });
+                row('Price', fmtPrice(subject), function (c) { return money(c.close_price || c.list_price); });
+                row('$/SF', subject.intSqft && subject.price ? fmtCurrency(Math.round(subject.price / subject.intSqft)) : '—', function (c) { return c.price_per_sqft ? fmtCurrency(c.price_per_sqft) : '—'; });
+                row('Days on market', subject.dom != null ? subject.dom : '—', function (c) { return c.days_on_market != null ? c.days_on_market : '—'; });
+                row('Ownership', ownershipLabel(subject.ownership) || '—', function (c, l) { return l ? (ownershipLabel(l.ownership) || '—') : '—'; });
+                row('Year built', subject.yearBuilt || '—', function (c) { return c.year_built || '—'; });
+                row('Floor', subject.floor || '—', function (c) { return c.floor != null ? c.floor : '—'; });
+                row('Bedrooms / baths', (subject.beds || 0) + ' / ' + (subject.baths || 0), function (c) { return (c.bedrooms != null ? c.bedrooms : '—') + ' / ' + (c.bathrooms != null ? c.bathrooms : '—'); });
+                row('Square feet', subject.intSqft ? subject.intSqft.toLocaleString() : '—', function (c) { return c.living_area ? c.living_area.toLocaleString() : '—'; });
+                row('Monthlies', sf.monthly > 0 ? fmtCurrency(sf.monthly) + '/mo' : (subject.totalMonthly > 0 ? fmtCurrency(subject.totalMonthly) + '/mo' : '—'), function (c) { return c.monthly_cost ? fmtCurrency(c.monthly_cost) + '/mo' : '—'; });
+                row('Exposure', subject.exposures || '—', function (c) { return c.exposures || '—'; });
+                row('View', subject.View || '—', function (c) { return c.view || '—'; });
+                row('Outdoor space', subject.PatioAndPorchFeatures || '—', function (c) { return c.outdoor || '—'; });
+                // One row per adjustment line that any comparable carries
+                var names = { bedrooms: 'Bedrooms', bathrooms: 'Bathrooms', living_area: 'Size', floor: 'Floor', monthlies: 'Monthlies' };
+                var fields = []; priced.forEach(function (c) { (c.adjustments || []).forEach(function (a) { if (fields.indexOf(a.field) === -1) fields.push(a.field); }); });
+                g += '<tr><td colspan="' + (cols.length + 2) + '" style="padding:10px 8px 4px;font-size:11px;font-weight:700;color:#111827;background:#fafafa">Adjustments (+ raises the comparable toward the subject, − lowers it)</td></tr>';
+                fields.forEach(function (f) {
+                    var name = names[f] || (f.indexOf('manual:') === 0 ? f.slice(7) : f);
+                    row(name, '', function (c) { var a = (c.adjustments || []).filter(function (x) { return x.field === f; })[0]; return a ? signed(a.adjustment_usd) + (a.comp_value != null && f.indexOf('manual:') === 0 && typeof a.comp_value === 'string' ? '<div style="font-size:10px;color:#9ca3af">' + a.comp_value + '</div>' : '') : '—'; });
+                });
+                row('<strong>Net adjustment</strong>', '', function (c) { var n = (c.adjustments || []).reduce(function (s, a) { return s + (a.adjustment_usd || 0); }, 0); return '<strong>' + signed(n) + '</strong>'; });
+                row('<strong>Adjusted value</strong>', reportState.cmaValuation && reportState.cmaValuation.estimated ? '<strong style="color:#1d4ed8">' + fmtCurrency(reportState.cmaValuation.estimated) + '</strong><div style="font-size:10px;color:#6b7280">indicated</div>' : '', function (c) { return '<strong>' + money(c.adjusted_price) + '</strong>'; });
+                row('Weight', '', function (c) { return c.similarity_score != null ? c.similarity_score + ' / 100' : '—'; });
+                g += '</tbody></table></div>';
+                var o = reportState.cmaOpinion || {};
+                if (o.list_price || o.sale_price_90 || o.comments) {
+                    g += '<div style="border:1px solid #C4A052;border-radius:8px;padding:14px 16px;margin:16px 0;background:#fffbf2"><p style="font-size:11px;font-weight:700;letter-spacing:.06em;color:#8a6d2b;margin:0 0 8px;text-transform:uppercase">Broker\'s price opinion</p>' +
+                        '<div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px;color:#111827">' +
+                        (o.list_price ? '<div><span style="color:#6b7280;font-size:11px">Suggested list price</span><br><strong>' + fmtCurrency(o.list_price) + '</strong></div>' : '') +
+                        (o.sale_price_90 ? '<div><span style="color:#6b7280;font-size:11px">Expected sale price (90 days)</span><br><strong>' + fmtCurrency(o.sale_price_90) + '</strong></div>' : '') +
+                        '</div>' + (o.comments ? '<p style="font-size:12px;color:#374151;margin:8px 0 0">' + escapeHtml(String(o.comments)) + '</p>' : '') + '</div>';
+                }
+                return g;
+            }
             var cma = headerBlock() + agentClientBar() + complianceBanner;
             // Subject property
             cma += '<div style="padding:24px"><h2 style="font-size:16px;font-weight:700;color:#111827;margin:0 0 16px;border-bottom:2px solid #C4A052;padding-bottom:8px">Subject Property</h2>';
@@ -1594,6 +1754,8 @@
                 '<span><i class="fas fa-bath" style="margin-right:4px"></i>' + (subject.baths||0) + ' BA</span>' +
                 '<span><i class="fas fa-ruler-combined" style="margin-right:4px"></i>' + (subject.intSqft?subject.intSqft.toLocaleString():'--') + ' SF</span>';
             if (optContent.priceSqft) cma += '<span>' + priceSF(subject) + '/SF</span>';
+            // Monthlies (sales): maintenance or common charges plus taxes per month, live Cotality
+            if (subject.listingCategory !== 'rental' && subject.totalMonthly > 0) cma += '<span title="Maintenance / common charges + taxes per month">' + fmtCurrency(subject.totalMonthly) + '/mo</span>';
             if (optContent.dom) cma += '<span>DOM: ' + (subject.dom||'\u2014') + '</span>';
             if (optContent.originalPrice && subject.originalPrice && subject.originalPrice !== subject.price) cma += '<span>Original: ' + fmtCurrency(subject.originalPrice) + '</span>';
             cma += '</div></div></div>';
@@ -1615,10 +1777,12 @@
                 if (optContent.originalPrice) cmaHeaders += '<th style="' + cmaThS + '">Orig Price</th>';
                 cmaHeaders += '<th style="' + cmaThS + '">BR</th><th style="' + cmaThS + '">BA</th><th style="' + cmaThS + '">SqFt</th>';
                 if (optContent.priceSqft) cmaHeaders += '<th style="' + cmaThS + '">$/SF</th>';
+                var cmaMonthlies = subject.listingCategory !== 'rental';
+                if (cmaMonthlies) cmaHeaders += '<th style="' + cmaThS + '" title="Maintenance / common charges + taxes per month">Monthlies</th>';
                 cmaHeaders += '<th style="' + cmaThS + '">Type</th>';
                 if (optContent.dom) cmaHeaders += '<th style="' + cmaThS + '">DOM</th>';
                 cmaHeaders += '<th style="' + cmaThS + '">Status</th>';
-                if (optContent.updatedSoldDate) cmaHeaders += '<th style="' + cmaThS + '">Listed</th>';
+                if (optContent.updatedSoldDate) cmaHeaders += '<th style="' + cmaThS + '">Listed / Closed</th>';
                 if (!isCustomer && optContent.listingContact) cmaHeaders += '<th style="' + cmaThS + '">Company</th>';
                 cma += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">' +
                     '<thead><tr>' + cmaHeaders + '</tr></thead><tbody>';
@@ -1627,24 +1791,39 @@
                     cma += '<tr style="' + rowBg + '">' +
                         '<td style="' + cmaTdS + ';color:#6b7280">' + (ci+1) + '</td>' +
                         '<td style="' + cmaTdS + ';font-weight:500">' + addrLink(cl) + '<br>' + mediaLink(cl) + '</td>' +
-                        '<td style="' + cmaTdS + ';font-weight:600;color:#15803d">' + fmtPrice(cl) + '</td>';
+                        '<td style="' + cmaTdS + ';font-weight:600;color:#15803d">' + compPrice(cl) + '</td>';
                     if (optContent.originalPrice) cma += '<td style="' + cmaTdS + '">' + (cl.originalPrice ? fmtCurrency(cl.originalPrice) : '\u2014') + '</td>';
                     cma += '<td style="' + cmaTdS + '">' + (cl.beds||'\u2014') + '</td>' +
                         '<td style="' + cmaTdS + '">' + (cl.baths||'\u2014') + '</td>' +
                         '<td style="' + cmaTdS + '">' + (cl.intSqft?cl.intSqft.toLocaleString():'\u2014') + '</td>';
                     if (optContent.priceSqft) cma += '<td style="' + cmaTdS + '">' + priceSF(cl) + '</td>';
+                    if (cmaMonthlies) cma += '<td style="' + cmaTdS + '">' + (cl.totalMonthly > 0 ? fmtCurrency(cl.totalMonthly) + '/mo' : '\u2014') + '</td>';
                     cma += '<td style="' + cmaTdS + '">' + (ownershipLabel(cl.ownership)||'\u2014') + '</td>';
                     if (optContent.dom) cma += '<td style="' + cmaTdS + '">' + (cl.dom||'\u2014') + '</td>';
                     cma += '<td style="' + cmaTdS + '">' + statusBadge(cl.status, cl) + '</td>';
-                    if (optContent.updatedSoldDate) cma += '<td style="' + cmaTdS + ';font-size:12px">' + (cl.listedDate||'\u2014') + '</td>';
+                    if (optContent.updatedSoldDate) cma += '<td style="' + cmaTdS + ';font-size:12px">' + compDate(cl) + '</td>';
                     if (!isCustomer && optContent.listingContact) cma += '<td style="' + cmaTdS + ';font-size:12px">' + (cl.company||'\u2014') + '</td>';
                     cma += '</tr>';
                 });
                 cma += '</tbody></table></div>';
             }
+            // CMA valuation saved from Comparable Reports (live Cotality comparables, lib/cma/engine.ts)
+            if (reportState.cmaValuation && reportState.cmaValuation.estimated) {
+                var cv = reportState.cmaValuation;
+                cma += '<h2 style="font-size:16px;font-weight:700;color:#111827;margin:24px 0 16px;border-bottom:2px solid #C4A052;padding-bottom:8px">Estimated Value</h2>' +
+                    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px">' +
+                    '<div style="text-align:center;padding:16px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0"><p style="font-size:12px;color:#6b7280;margin:0">Low</p><p style="font-size:20px;font-weight:700;color:#15803d;margin:4px 0 0">' + fmtCurrency(cv.low) + '</p></div>' +
+                    '<div style="text-align:center;padding:16px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe"><p style="font-size:12px;color:#6b7280;margin:0">Estimated</p><p style="font-size:20px;font-weight:700;color:#1d4ed8;margin:4px 0 0">' + fmtCurrency(cv.estimated) + '</p></div>' +
+                    '<div style="text-align:center;padding:16px;background:#fff7ed;border-radius:8px;border:1px solid #fed7aa"><p style="font-size:12px;color:#6b7280;margin:0">High</p><p style="font-size:20px;font-weight:700;color:#c2410c;margin:4px 0 0">' + fmtCurrency(cv.high) + '</p></div></div>' +
+                    '<p style="font-size:11px;color:#6b7280;margin:0 0 16px">Weighted by similarity, adjusted for ' + cmaRuleWords() + ' against the selected comparables. For internal reference only; not an appraisal.</p>';
+            }
+            // Broker Price Opinion comparison grid: subject beside each priced comparable — photo, floor plan,
+            // the live Cotality facts (size, monthlies, floor, exposure, view, outdoor space) and every
+            // adjustment line, net adjustment, adjusted value and weight (Maya 2026-10-27).
+            cma += cmaComparisonGrid(subject, comps, optContent);
             // Market summary stats (controlled by includeAverages)
             if (optContent.includeAverages) {
-                var allCma = listings;
+                var allCma = comps.length ? comps : listings;
                 var cmaTP=0,cmaTSF=0,cmaTD=0,cmaCsf=0;
                 allCma.forEach(function(l){ cmaTP+=l.price||0; if(l.intSqft){cmaTSF+=l.intSqft;cmaCsf++;} cmaTD+=l.dom||0; });
                 var cmaN = allCma.length||1;
@@ -1681,9 +1860,11 @@
             document.getElementById('previewCma').innerHTML = cma;
 
             // ═══════════════ OPEN HOUSE FORMAT (Step 4) ═══════════════
-            // Respects optContent: photos, address, $/SF, DOM, cross streets, description editor, open house date
-            var ohFirst = listings[0] || {};
+            // Respects optContent: photos, address, $/SF, DOM, cross streets, description editor, open house date.
+            // One flyer per listing, each on its own page (three selected listings used to print one — 2026-10-27).
             var oh = '';
+            listings.forEach(function(ohFirst, ohIdx) {
+            if (ohIdx > 0) oh += '<div class="pkg-per-listing" style="height:0"></div>';
             // Large hero photo area (controlled by listingImages)
             if (optContent.listingImages) {
                 var ohp = getListingColor(ohFirst.id||1);
@@ -1752,6 +1933,7 @@
                 '<div style="display:flex;gap:16px;margin-top:8px;font-size:14px">' +
                 '<span style="color:#C4A052"><i class="fas fa-phone" style="margin-right:4px"></i>' + agentInfo.phone + '</span>' +
                 '<span style="color:#C4A052"><i class="fas fa-envelope" style="margin-right:4px"></i>' + agentInfo.email + '</span></div></div></div></div>';
+            });
             oh += brokerFooter();
             document.getElementById('previewOpenHouse').innerHTML = oh;
 
@@ -1839,7 +2021,6 @@
             var toName = escapeHTML(opts.toName || to);
             var subject = opts.subject || 'Property Report — Mallan Real Estate';
             var count = opts.count || 0;
-            var useRealEmail = (typeof isEmailConfigured === 'function') && isEmailConfigured();
 
             // Show sending overlay
             var overlay = document.createElement('div');
@@ -1857,7 +2038,7 @@
             document.body.appendChild(overlay);
 
             // Store record + log audit + show result
-            function storeAndShowResult(realSend, error) {
+            function storeAndShowResult(_viaServer, error) {
                 var record = {
                     id: 'email_' + Date.now(),
                     to: to, toName: toName,
@@ -1867,8 +2048,8 @@
                     listingIds: opts.listingIds || [],
                     sentAt: new Date().toISOString(),
                     source: opts.source || 'manual',
-                    status: error ? 'failed' : 'delivered',
-                    method: realSend ? 'emailjs' : 'simulated'
+                    status: error ? 'failed' : 'delivered_to_provider',   // the route's state: accepted by the provider, not proof of receipt
+                    method: 'server'
                 };
                 sentEmails.push(record);
                 localStorage.setItem(_sentEmailsKey, JSON.stringify(sentEmails));
@@ -1877,7 +2058,7 @@
                     to: to, toName: toName, subject: subject,
                     listingIds: opts.listingIds || [],
                     count: count, source: opts.source,
-                    method: realSend ? 'emailjs' : 'simulated',
+                    method: 'server',
                     error: error || null
                 });
 
@@ -1892,50 +2073,51 @@
                     if (icon) { icon.style.display = 'block'; icon.innerHTML = '<div style="width:48px;height:48px;background:#dc2626;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;"><span style="color:#fff;font-size:24px;font-weight:bold;">&times;</span></div>'; }
                     if (msg) { msg.style.color = '#dc2626'; msg.textContent = 'Email failed to send'; }
                     if (detail) {
-                        detail.innerHTML = (error || 'Unknown error') +
-                            '<br><a href="#" onclick="openEmailSettings();var ov=document.getElementById(\'emailSendingOverlay\');if(ov)ov.remove();return false;" style="color:#C4A052;font-weight:600;font-size:12px;text-decoration:underline;margin-top:8px;display:inline-block;">Check Email Settings</a>';
+                        detail.innerHTML = (error || 'Unknown error');
                     }
                     setTimeout(function() { var ov = document.getElementById('emailSendingOverlay'); if (ov) ov.remove(); }, 6000);
                 } else {
                     // Success state
                     if (icon) { icon.style.display = 'block'; icon.innerHTML = '<div style="width:48px;height:48px;background:#059669;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;"><span style="color:#fff;font-size:24px;font-weight:bold;">&#10003;</span></div>'; }
-                    if (msg) { msg.style.color = '#059669'; msg.textContent = realSend ? 'Email delivered!' : 'Email sent (simulated)'; }
+                    if (msg) { msg.style.color = '#059669'; msg.textContent = 'Handed to the mail provider'; }
                     if (detail) {
                         var html = count + ' listing' + (count !== 1 ? 's' : '') + ' sent to ' + toName + (to ? ' (' + to + ')' : '');
                         html += '<br><a href="/crm/dashboard" target="_blank" style="color:#C4A052;font-weight:600;font-size:12px;text-decoration:underline;margin-top:8px;display:inline-block;">View in Dashboard</a>';
-                        if (!realSend) {
-                            html += '<br><a href="#" onclick="openEmailSettings();var ov=document.getElementById(\'emailSendingOverlay\');if(ov)ov.remove();return false;" style="color:#6b7280;font-size:11px;text-decoration:underline;margin-top:4px;display:inline-block;">Configure real email delivery &rarr;</a>';
-                        }
                         detail.innerHTML = html;
                     }
-                    setTimeout(function() { var ov = document.getElementById('emailSendingOverlay'); if (ov) ov.remove(); }, realSend ? 4000 : 3500);
+                    setTimeout(function() { var ov = document.getElementById('emailSendingOverlay'); if (ov) ov.remove(); }, 4000);
                 }
             }
 
-            // Route: real email via EmailJS or simulated
-            if (useRealEmail && typeof sendViaEmailJS === 'function') {
-                sendViaEmailJS({
-                    to_email: to,
-                    to_name: toName,
-                    from_name: agent.name + ' — Mallan Real Estate',
-                    subject: subject,
-                    message_html: opts.htmlBody || '<p>Property report from ' + agent.name + '</p>'
-                }).then(function() {
-                    storeAndShowResult(true, null);
-                }).catch(function(err) {
-                    storeAndShowResult(true, err.text || err.message || 'EmailJS error');
-                });
-            } else {
-                // Not configured — simulate with delay
-                setTimeout(function() {
-                    storeAndShowResult(false, null);
-                }, 1200);
+            // The server mail pipeline (POST /api/crm/reports/email → lib/email/sendgrid.ts, From = the
+            // agent). The former client-side EmailJS / "Email sent (simulated)" path never delivered a
+            // report and left no server record (found 2026-10-27). A failure is shown as a failure.
+            if (typeof MallanAPI === 'undefined' || !MallanAPI.reports) {
+                storeAndShowResult(true, 'The CRM API client is not loaded — the report was not sent.');
+                return;
             }
+            MallanAPI.reports.email({
+                to_email: opts.to || '',
+                to_name: opts.toName || '',
+                subject: subject,
+                html: opts.htmlBody || '<p>Property report from ' + agent.name + '</p>',
+                title: opts.title || subject,
+                format: (typeof reportState !== 'undefined' && reportState.format) || null,
+                version: (typeof reportState !== 'undefined' && reportState.version) || null,
+                listing_ids: opts.listingIds || [],
+                client_id: opts.clientId || null
+            }).then(function() {
+                storeAndShowResult(true, null);
+            }).catch(function(err) {
+                storeAndShowResult(true, (err && err.message) || 'The report could not be emailed.');
+            });
         }
 
         // ── Wrap format-specific report HTML in an email-safe shell ──
         function wrapReportForEmail(reportBody, title, preparedFor, listings) {
             var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', phone: '', email: '', company: '', companyLicense: '', license: '', address: '', website: 'mallan.nyc' };
+            // A mail client has no origin to resolve /api/media/proxy?… against: make every photo and link absolute.
+            reportBody = String(reportBody || '').replace(/(src|href)="\/(api|crm)\//g, '$1="' + location.origin + '/$2/');
             var dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             var firstName = preparedFor ? preparedFor.split(' ')[0] : '';
             var listingCount = listings ? listings.length : 0;
@@ -2029,8 +2211,9 @@
             h += '<span style="font-size:10px;text-transform:uppercase;color:#9ca3af;letter-spacing:1px;">Prepared By</span><br>';
             h += '<span style="font-size:14px;font-weight:600;color:#1a1a1a;">' + agent.name + '</span><br>';
             h += '<span style="font-size:12px;color:#4b5563;">' + (agent.licenseTitle || agent.title || 'Licensed Real Estate Broker') + '</span><br>';
-            h += '<span style="font-size:12px;color:#6b7280;">' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; Lic. ' + (agent.companyLicense || '') + '</span><br>';
-            h += '<span style="font-size:12px;color:#6b7280;">' + (agent.phone || '') + ' &middot; ' + (agent.email || '') + '</span>';
+            // Only what the profile has: no "Lic." without a number, no dangling separators (found 2026-10-26)
+            h += '<span style="font-size:12px;color:#6b7280;">' + (agent.company || 'Mallan Real Estate Inc.') + (agent.companyLicense ? ' &middot; Lic. ' + agent.companyLicense : '') + '</span><br>';
+            h += '<span style="font-size:12px;color:#6b7280;">' + [agent.phone, agent.email].filter(Boolean).join(' &middot; ') + '</span>';
             h += '</td>';
             h += '<td style="vertical-align:top;width:50%;text-align:right;">';
             h += '<span style="font-size:10px;text-transform:uppercase;color:#9ca3af;letter-spacing:1px;">Prepared For</span><br>';
@@ -2084,7 +2267,7 @@
 
                 // Extra details row
                 var extras = [];
-                if (l.ownership) extras.push(l.ownership === 'StockCooperative' ? 'Co-op' : l.ownership);
+                if (l.ownership) extras.push(ownershipLabel(l.ownership));
                 if (l.era) extras.push(l.era);
                 if (l.dom !== undefined) extras.push(l.dom + ' DOM');
                 if (l.floor) extras.push('Floor ' + l.floor);
@@ -2150,19 +2333,20 @@
                 var clientSelect = document.getElementById('reportRecipientClient');
                 if (clientSelect && clientSelect.value) {
                     var selectedClient = customerDB[clientSelect.value];
-                    if (selectedClient) recipientEmail = selectedClient.email || (clientSelect.value === 'test-client' && typeof getConfiguredAgentEmail === 'function' ? getConfiguredAgentEmail() : '');
+                    if (selectedClient) recipientEmail = selectedClient.email || (clientSelect.value === 'test-client' && typeof AGENT_PROFILE !== 'undefined' && AGENT_PROFILE.email ? AGENT_PROFILE.email : '');
                 }
             }
 
-            if (!recipientEmail && !preparedFor) {
-                showReportToast('Please enter a recipient email or select a client.');
+            // An address is required to send: a name alone used to go to the server and fail there (2026-10-27)
+            if (!recipientEmail) {
+                showReportToast('Please select a client or enter a recipient email address first.', 'error');
                 return;
             }
 
             // Get listings with compliance filtering
             var listings = typeof getReportListings === 'function' ? getReportListings() : [];
             if (listings.length === 0) {
-                showReportToast('No listings to include in report.');
+                showReportToast('No listings to include in report.', 'error');
                 return;
             }
 
@@ -2260,14 +2444,26 @@
                 fields = fields.filter(function(f){ return csvExcelAllowlistCustomer.indexOf(f) > -1; });
             }
 
-            var header = fields.map(function(f){ return '"' + (reportFieldLabels[f]||f) + '"'; }).join(',');
+            // Address columns follow the report's address option (on by default). A CSV without the
+            // address was unusable (found 2026-10-26). InternetAddressDisplayYN=false stays suppressed.
+            var opts = reportState.options || {};
+            var withAddr = opts.fullListingAddress || opts.streetNameOnly;
+            var q = function (v) { return '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"'; };
+            var addrHeader = withAddr ? [q('Address'), q('Unit'), q('Neighborhood'), q('Zip')] : [];
+            var addrCells = function (l) {
+                if (!withAddr) return [];
+                var hidden = l.addressDisplayYN === false;
+                return [q(hidden ? 'Address Upon Request' : (l.address || '')), q(hidden ? '' : (l.unit || '')), q(l.neighborhood || ''), q(hidden ? '' : (l.zip || ''))];
+            };
+            var header = addrHeader.concat(fields.map(function(f){ return q(reportFieldLabels[f]||f); })).join(',');
             var rows = listings.map(function(l) {
-                return fields.map(function(f) {
+                return addrCells(l).concat(fields.map(function(f) {
                     var val = getFieldValue(l, f);
                     if (val === null || val === undefined) val = '';
-                    val = String(val).replace(/"/g, '""');
-                    return '"' + val + '"';
-                }).join(',');
+                    // 0 taxes / 0 square feet mean "not given", not zero
+                    if (val === 0 && /^(reTaxes|approxInteriorSqft|approxExteriorSqft|totalRooms)$/.test(f)) val = '';
+                    return q(val);
+                })).join(',');
             });
             var csv = header + '\n' + rows.join('\n');
             var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -2323,34 +2519,28 @@
 
         // ── Step 12: Shareable Link ──
         function generateShareableLink() {
-            var config = {
-                format: reportState.format || 'grid',
-                version: reportState.version || 'customer',
-                listingIds: getReportListings().map(function(l){ return l.id; }),
-                optionalContent: getOptionalContentConfig(),
-                fields: getSelectedReportFields(),
-                title: (document.getElementById('reportTitle') || {}).value || '',
-                preparedFor: (document.getElementById('reportPreparedFor') || {}).value || '',
-                created: new Date().toISOString()
-            };
-            var encoded = btoa(unescape(encodeURIComponent(JSON.stringify(config))));
-            var shareUrl = 'https://mallan.nyc/reports/view?config=' + encoded;
-            navigator.clipboard.writeText(shareUrl).then(function() {
-                showReportToast('Link copied to clipboard');
-            }).catch(function() {
-                prompt('Copy this shareable link:', shareUrl);
-            });
-            logAuditEntry('report_shareable_link', { format: config.format, listingCount: config.listingIds.length });
+            // A shareable link needs a client-facing page on mallan.nyc that renders a saved report
+            // configuration. No such page exists (there is no /reports/view route), and this used to
+            // copy that dead link to the clipboard and say "Link copied" (found 2026-10-27). Refused
+            // visibly until the page is built — owner decision pending.
+            renderReportErrors(['Shareable links are not available yet: the client report page is not built. Use Email, Print, CSV or Excel.']);
+            logAuditEntry('report_shareable_link_refused', { format: reportState.format || 'grid', listingCount: getReportListings().length });
+            return false;
         }
 
         // ── Toast notification helper ──
-        function showReportToast(message) {
+        // kind: 'error' (a refusal — red mark, not a green tick), 'info' (in progress — spinner), default success
+        function showReportToast(message, kind) {
             var existing = document.getElementById('reportToast');
             if (existing) existing.remove();
             var toast = document.createElement('div');
             toast.id = 'reportToast';
+            toast.setAttribute('role', kind === 'error' ? 'alert' : 'status');
             toast.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 24px;background:#1f2937;color:#fff;border-radius:8px;font-size:14px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:center;gap:8px;animation:fadeInUp 0.3s ease';
-            toast.innerHTML = '<i class="fas fa-check-circle" style="color:#4ade80"></i> ' + message;
+            var icon = kind === 'error' ? '<i class="fas fa-exclamation-circle" style="color:#f87171"></i> '
+                     : kind === 'info' ? '<i class="fas fa-circle-notch fa-spin" style="color:#93c5fd"></i> '
+                     : '<i class="fas fa-check-circle" style="color:#4ade80"></i> ';
+            toast.innerHTML = icon + message;
             document.body.appendChild(toast);
             setTimeout(function() { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(function(){ toast.remove(); }, 300); }, 3000);
         }
@@ -2359,7 +2549,7 @@
         function getReportListings() {
             var reportSelRadio = document.querySelector('input[name="reportSelection"]:checked');
             var reportSel = reportSelRadio ? reportSelRadio.value : 'all';
-            var allListings = searchResultsState.filteredListings || (typeof listings !== 'undefined' ? listings : []);
+            var allListings = window._reportSourceListings || searchResultsState.filteredListings || (typeof listings !== 'undefined' ? listings : []);
             var reportListings;
 
             // Helper: match listing ID flexibly (string/number, id/lid/listingKey)
@@ -2562,7 +2752,8 @@
             // ── Property + Financial Details ──
             html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">';
             html += '<div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px"><h3 style="font-weight:700;color:#111827;margin:0 0 12px;font-size:15px">Property Details</h3>' +
-                dr('Type', (typeof ownershipLabel === 'function' ? ownershipLabel(l.ownership) : l.ownership) || '\u2014') +
+                dr('Property Subtype', l.propertySubType || '\u2014') +
+                dr('Ownership Type', (typeof ownershipLabel === 'function' ? ownershipLabel(l.ownership) : l.ownership) || '\u2014') +
                 dr('Building', l.era||'\u2014') +
                 dr('Total Rooms', l.rooms||'\u2014') +
                 dr('Exposures', l.exposures||'\u2014');
@@ -2705,7 +2896,7 @@
             if (!sel) return;
             sel.innerHTML = '<option value="">— Choose a client —</option>';
             var clients = typeof customerDB !== 'undefined' ? customerDB : {};
-            var configuredEmail = (typeof getConfiguredAgentEmail === 'function') ? getConfiguredAgentEmail() : '';
+            var configuredEmail = (typeof AGENT_PROFILE !== 'undefined' && AGENT_PROFILE.email) ? AGENT_PROFILE.email : '';   // the signed-in agent's own address (the demo client)
             Object.keys(clients).forEach(function(id) {
                 var c = clients[id];
                 // Test client uses configured email from Email Settings
@@ -2726,7 +2917,7 @@
             if (clientId && typeof customerDB !== 'undefined' && customerDB[clientId]) {
                 var c = customerDB[clientId];
                 // Test client uses configured email from Email Settings
-                var email = c.email || (clientId === 'test-client' && typeof getConfiguredAgentEmail === 'function' ? getConfiguredAgentEmail() : '');
+                var email = c.email || (clientId === 'test-client' && typeof AGENT_PROFILE !== 'undefined' && AGENT_PROFILE.email ? AGENT_PROFILE.email : '');
                 if (emailInput) emailInput.value = email;
                 if (preparedForInput) preparedForInput.value = c.name || '';
             }
@@ -2830,6 +3021,9 @@
         // ── Open report in a standalone new tab ──
         function printReportViaIframe(reportBodyHTML, title) {
             var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">';
+            // The report opens from a blob: URL, so photo paths like /api/media/proxy?\u2026 resolved against
+            // nothing and every image printed blank (found 2026-10-27). Anchor them to the CRM origin.
+            html += '<base href="' + location.origin + '/">';
             html += '<title>' + title + ' \u2014 Mallan Real Estate</title>';
             // Fonts: Urbanist (headings), Inter (body), Font Awesome 6.7.2
             html += '<link rel="preconnect" href="https://fonts.googleapis.com">';
@@ -2949,17 +3143,19 @@
 
                 case 'share':
                 case 'shareableLink':
-                    generateShareableLink();
+                    if (generateShareableLink() === false) return; // refused visibly; the modal stays open with the reason
                     logAuditEntry('report_generate', { format: format, version: version, output: 'share', count: listings.length });
                     closeReportsModal();
                     break;
 
                 case 'print':
-                    var printContent = buildFullReportHTML(title);
-                    closeReportsModal();
-                    printReportViaIframe(printContent, title);
-                    logAuditEntry('report_generate', { format: format, version: version, output: 'print', count: listings.length });
-                    showReportToast('Print dialog opening...');
+                    whenReportMediaReady(listings, function() {
+                        var printContent = buildFullReportHTML(title);
+                        closeReportsModal();
+                        printReportViaIframe(printContent, title);
+                        logAuditEntry('report_generate', { format: format, version: version, output: 'print', count: listings.length });
+                        showReportToast('Print dialog opening...');
+                    });
                     break;
 
                 case 'email':
@@ -2971,7 +3167,7 @@
                     if (clientSel && clientSel.value) {
                         var sc = customerDB[clientSel.value];
                         if (sc) {
-                            recipientEmail = sc.email || (clientSel.value === 'test-client' && typeof getConfiguredAgentEmail === 'function' ? getConfiguredAgentEmail() : '');
+                            recipientEmail = sc.email || (clientSel.value === 'test-client' && typeof AGENT_PROFILE !== 'undefined' && AGENT_PROFILE.email ? AGENT_PROFILE.email : '');
                             recipientName = sc.name || preparedFor;
                         }
                     }
@@ -2984,19 +3180,23 @@
                     }
 
                     // Build format-aware email: use the actual selected format (grid, summary, etc.)
-                    var reportBody = buildFullReportHTML(title);
-                    var emailHTML = wrapReportForEmail(reportBody, title, recipientName, listings);
+                    whenReportMediaReady(listings, function() {
+                        var reportBody = buildFullReportHTML(title);
+                        var emailHTML = wrapReportForEmail(reportBody, title, recipientName, listings);
 
-                    // Send directly from the system
-                    closeReportsModal();
-                    sendEmailDirect({
-                        to: recipientEmail,
-                        toName: recipientName,
-                        subject: title + ' — Mallan Real Estate',
-                        htmlBody: emailHTML,
-                        listingIds: listings.map(function(l) { return l.id; }),
-                        count: listings.length,
-                        source: 'report_email'
+                        // Send directly from the system
+                        closeReportsModal();
+                        sendEmailDirect({
+                            to: recipientEmail,
+                            toName: recipientName,
+                            subject: title + ' — Mallan Real Estate',
+                            title: title,
+                            htmlBody: emailHTML,
+                            listingIds: listings.map(function(l) { return l.id; }),
+                            clientId: (clientSel && clientSel.value) || null,
+                            count: listings.length,
+                            source: 'report_email'
+                        });
                     });
                     break;
             }

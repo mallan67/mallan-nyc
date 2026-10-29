@@ -2,7 +2,7 @@
 
 **Status: TOOLING ONLY. The PR that adds this runbook + the operator script executes NOTHING.** No drain, no cron re-arm, no env/Vercel change, no production DB writes. Every `--execute` run is a SEPARATE, explicitly-approved, attended step.
 
-**Plan:** `docs/superpowers/plans/2026-06-29-gate6-accelerated-archive-drain-plan.md` · **Board:** GitHub issue #415 · **Predecessor:** Gate 5 3-night 500/run trial (clean; `listings_archive`=2,033; flag OFF).
+**Plan:** the 2026-06-29 Gate 6 accelerated archive-drain plan (retired; Git history) · **Board:** GitHub issue #415 · **Predecessor:** Gate 5 3-night 500/run trial (clean; `listings_archive`=2,033; flag OFF).
 
 **Tooling:**
 - `scripts/drain-archive-backlog.ts` — the bounded operator drain (dry-run default).

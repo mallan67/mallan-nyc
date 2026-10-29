@@ -1,5 +1,5 @@
 /**
- * Phase A2 (agent_info normalization, spec #410 / plan #411): the Trestle mapper
+ * Phase A2 (agent_info normalization, spec #410 / plan #411): the Cotality raw mapper
  * must DUAL-WRITE the 8 typed agent columns alongside the unchanged `agent_info`
  * JSON, so the typed columns added in A1 populate on every new/updated row.
  *
@@ -32,7 +32,7 @@ function mapRow() {
   } as unknown as Record<string, unknown>);
 }
 
-describe("Phase A2 — Trestle mapper dual-writes typed agent columns", () => {
+describe("Phase A2 — Cotality raw mapper dual-writes typed agent columns", () => {
   it("emits all 8 typed columns", () => {
     const out = mapRow() as Record<string, unknown>;
     expect(out.list_agent_full_name).toBe("Jane Doe");

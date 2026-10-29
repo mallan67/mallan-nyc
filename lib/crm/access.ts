@@ -77,3 +77,13 @@ export async function assertLeadIdsAccess(auth: SessionUser, values: string[]) {
 
   return { ids, response: null };
 }
+
+/**
+ * The CRM client a listing names as its OWNER (the seller / landlord — Listing.owner_client_id, relation ListingOwner).
+ * Absent, null or '' is "no owner"; anything else must be one Lead the signed-in user may work with (the broker: any; an agent: their own).
+ */
+export async function resolveOwnerClientId(auth: SessionUser, value: unknown): Promise<{ id: bigint | null; response: NextResponse | null }> {
+  if (value === undefined || value === null || value === "") return { id: null, response: null };
+  const access = await assertLeadIdsAccess(auth, [String(value)]);
+  return { id: access.response ? null : access.ids[0] ?? null, response: access.response };
+}

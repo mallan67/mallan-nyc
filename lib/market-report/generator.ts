@@ -1,10 +1,10 @@
 /**
  * Manhattan Market Report Builder
  *
- * Pulls REAL listing data from Trestle RLS feed, computes market statistics,
+ * Pulls REAL listing data from the Cotality REBNY RLS feed, computes market statistics,
  * generates AI narrative using Claude.
  *
- * Data source: Trestle API (same feed as IDX search)
+ * Data source: Cotality API (same feed as IDX search)
  * AI: Anthropic Claude API for narrative generation
  *
  * Reports/CMA Tier A P0 (2026-05-06):
@@ -115,7 +115,8 @@ function getCurrentQuarter(): string {
   return `Q${q} ${now.getFullYear()}`;
 }
 
-// Map display names to Trestle PropertySubType values
+// Map display names to PropertySubType filter clauses. 'Condo', 'Cooperative',
+// 'SingleFamilyTownhouse' and 'Condop' are not live Cotality PropertySubType values.
 const TYPE_FILTERS: Record<string, string> = {
   "Condo": "PropertySubType eq 'Condominium' or PropertySubType eq 'Condo'",
   "Co-op": "PropertySubType eq 'StockCooperative' or PropertySubType eq 'Cooperative'",
@@ -123,7 +124,7 @@ const TYPE_FILTERS: Record<string, string> = {
   "Townhouse": "PropertySubType eq 'SingleFamilyTownhouse' or PropertySubType eq 'Townhouse'",
 };
 
-async function fetchTrestleStats(
+async function fetchCotalityStats(
   listingType: string,
   propertyType: string,
   borough?: string,
@@ -272,7 +273,7 @@ async function fetchTrestleStats(
         : err.message.toLowerCase().includes("timeout") ? "timeout"
         : "source_unavailable")
       : "unknown";
-    console.error(`[market-report] Trestle fetch failed | listing_type=${listingType} | property_type=${propertyType} | category=${cat}`);
+    console.error(`[market-report] Cotality fetch failed | listing_type=${listingType} | property_type=${propertyType} | category=${cat}`);
     return { section: null, data_failed: true };
   }
 }
@@ -330,7 +331,7 @@ async function generateNarrative(
 
   const prompt = `You are a senior real estate market analyst for Mallan Real Estate Inc., a REBNY-licensed brokerage in Manhattan, NYC. Write a professional market report for ${period}.
 
-REAL MARKET DATA FROM REBNY RLS (via Trestle):
+REAL MARKET DATA FROM REBNY RLS (via Cotality):
 Total active listings analyzed: ${totalListings}
 
 ${dataSummary}
@@ -418,18 +419,18 @@ export async function generateMarketReport(
 
   let sections: MarketReportSection[] = [];
 
-  // Fetch from Trestle in parallel
+  // Fetch from Cotality in parallel
   const promises: Promise<MarketReportFetchResult>[] = [];
 
   if (input.report_type === "sale" || input.report_type === "both") {
     for (const pt of propertyTypes) {
-      promises.push(fetchTrestleStats("sale", pt, input.borough, input.neighborhoods));
+      promises.push(fetchCotalityStats("sale", pt, input.borough, input.neighborhoods));
     }
   }
 
   if (input.report_type === "rent" || input.report_type === "both") {
     for (const pt of propertyTypes) {
-      promises.push(fetchTrestleStats("rent", pt, input.borough, input.neighborhoods));
+      promises.push(fetchCotalityStats("rent", pt, input.borough, input.neighborhoods));
     }
   }
 

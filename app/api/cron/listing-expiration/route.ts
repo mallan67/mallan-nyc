@@ -204,7 +204,7 @@ export async function GET(req: NextRequest) {
   // BuyerAgentMlsId as well as ListAgentMlsId), so this cron could expire
   // another brokerage's listing — a source mutation Mallan has no authority to
   // make — and, because those rows carry a non-null `last_synced_from_trestle`,
-  // the `modification_timestamp` bump also poisoned the Trestle incremental
+  // the `modification_timestamp` bump also poisoned the Cotality incremental
   // cursor (the same hazard the comment below already names as the "H1
   // ping-pong").
   //

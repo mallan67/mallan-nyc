@@ -14,10 +14,10 @@ export async function GET(req: NextRequest) {
 
   const results: Record<string, unknown> = {};
 
-  // 1. Check Trestle credentials
+  // 1. Check Cotality credentials
   results.trestleCredentials = hasCredentials() ? "CONFIGURED" : "MISSING";
 
-  // 2. Check Trestle token acquisition
+  // 2. Check Cotality token acquisition
   if (hasCredentials()) {
     try {
       const token = await getAccessToken();
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
       WHERE status IN ('Active', 'ComingSoon', 'ActiveUnderContract')
         AND (media IS NULL OR media::text = '[]' OR media::text = '{}')
     `;
-    const trestleUrls = await prisma.$queryRaw<{ count: bigint }[]>`
+    const cotalityUrls = await prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(*) as count FROM "listings"
       WHERE status IN ('Active', 'ComingSoon', 'ActiveUnderContract')
         AND media IS NOT NULL AND media::text != '[]'
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     results.dbState = {
       totalActive: totalListings,
       emptyMedia: Number(emptyMedia[0]?.count ?? 0),
-      trestleUrls: Number(trestleUrls[0]?.count ?? 0),
+      trestleUrls: Number(cotalityUrls[0]?.count ?? 0),
       r2Urls: Number(r2Urls[0]?.count ?? 0),
     };
   } catch (err) {
@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
       results.sampleMediaUrl = rawUrl ? `${rawUrl.substring(0, 80)}...` : "EMPTY";
 
       if (rawUrl && (rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com"))) {
-        // Actually test fetching this photo from Trestle
+        // Actually test fetching this photo from Cotality
         try {
           const token = await getAccessToken();
           const controller = new AbortController();
@@ -103,7 +103,7 @@ export async function GET(req: NextRequest) {
           results.samplePhotoFetch = `FAIL: ${err instanceof Error ? err.message : String(err)}`;
         }
       } else if (rawUrl) {
-        results.samplePhotoFetch = `URL is not Trestle (likely R2 or other): ${rawUrl.substring(0, 50)}`;
+        results.samplePhotoFetch = `URL is not Cotality (likely R2 or other): ${rawUrl.substring(0, 50)}`;
       }
     } else {
       results.sampleListing = "NO ACTIVE LISTINGS WITH MEDIA FOUND";

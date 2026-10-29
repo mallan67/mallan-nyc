@@ -63,8 +63,8 @@ describe('detail page — address suppression respects opt-outs, slug from the s
     expect(page).not.toMatch(/isCrmExclusiveListing/);
   });
 
-  it('isRlsBacked is rls_eligible !== false → website-only (SL-0004) is NOT RLS-backed → address shown', () => {
-    expect(page).toMatch(/const isRlsBacked = dbListing\.rls_eligible !== false/);
+  it('only a proven Mallan website-only listing is exempt from the RLS address gate', () => {
+    expect(page).toMatch(/const isRlsBacked = !isMallanWebsiteOnlyListing\(dbListing\)/);
   });
 
   it('slug derives from the suppression DECISION, NOT the raw column (canonical owner)', () => {

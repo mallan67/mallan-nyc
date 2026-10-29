@@ -3,7 +3,7 @@
  * Building architecture stabilization (2026-05-31). Classifies building-section
  * fields: Cotality auto-fill (A), Mallan Building Profile internal (B), unit
  * Cotality suggestions (C). Enforces:
- *  - internal/manual building-profile fields carry NO data-rls-field and are
+ *  - internal/manual building-profile fields carry NO data-concept and are
  *    not labeled "RLS/RESO/IDX/Trestle" (phantom fields are not Cotality);
  *  - Management company / building staff / board contacts persist + reload;
  *  - a Cotality building lookup never overwrites manual profile policy/contacts;
@@ -13,8 +13,9 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 const FORM = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
-const META = readFileSync(resolve(__dirname, '../../artifacts/metadata.xml'), 'utf8');
-const hasField = (f: string) => new RegExp(`Property Name="${f}"`).test(META);
+const LIVE: { entities: Record<string, Record<string, string>>; enums: Record<string, string[]> } =
+  JSON.parse(readFileSync(resolve(__dirname, '../../data/cotality-enums.live.json'), 'utf8'));
+const hasField = (f: string) => Object.values(LIVE.entities).some((e) => Object.prototype.hasOwnProperty.call(e, f));
 
 function extractFn(src: string, name: string): string {
   const sig = `function ${name}(`;
@@ -30,13 +31,13 @@ function extractFn(src: string, name: string): string {
   throw new Error(`unbalanced: ${name}`);
 }
 
-// Internal Mallan Building Profile fields (bucket B) — must be data-rls-ignore.
+// Internal Mallan Building Profile fields (bucket B) — must be data-concept-disposition.
 const INTERNAL_IDS = [
   'saleBldgMgmtCompany', 'saleBldgMgmtPhone', 'saleBldgMgmtEmail', 'saleBldgMgmtAddress',
   'saleBldgSuperName', 'saleBldgSuperPhone', 'saleBldgSuperEmail',
   'saleBldgManagerName', 'saleBldgManagerPhone', 'saleBldgManagerEmail',
   'saleBldgBoardPresident', 'saleBldgBoardEmail',
-  'saleBldgMaxFinancing', 'saleBldgMinDownPayment', 'saleBldgDTIRatio', 'saleBldgPostCloseLiquidity',
+  'saleBldgMinDownPayment', 'saleBldgDTIRatio', 'saleBldgPostCloseLiquidity',
   'saleBldgBoardApproval', 'saleBldgBoardInterview',
 ];
 
@@ -50,18 +51,21 @@ describe('Cotality authority — building phantoms vs real', () => {
   });
 });
 
-describe('Bucket-B internal fields carry NO data-rls-field', () => {
+describe('Bucket-B internal fields carry NO data-concept', () => {
   INTERNAL_IDS.forEach((id) => {
-    it(`${id} is internal (no data-rls-field)`, () => {
+    it(`${id} is internal (no data-concept)`, () => {
       const m = FORM.match(new RegExp(`id="${id}"[^>]*>`));
       expect(m).not.toBeNull();
-      expect(m![0]).not.toMatch(/data-rls-field=/);
+      expect(m![0]).not.toMatch(/data-concept=/);
     });
   });
-  it('phantom multi-groups are not data-rls-field', () => {
-    expect(FORM).not.toMatch(/data-rls-field="BuildingLaundryFeatures"/);
-    expect(FORM).not.toMatch(/data-rls-field="BuildingPetsAllowed"/);
-    expect(FORM).not.toMatch(/data-rls-field="AttendanceType"/);
+  it('phantom multi-groups are not data-concept', () => {
+    expect(FORM).not.toMatch(/data-concept="BuildingLaundryFeatures"/);
+    expect(FORM).not.toMatch(/data-concept="BuildingPetsAllowed"/);
+  });
+  it('AttendanceType and the maximum financing percent are live CustomFields keys: the building profile claims them', () => {
+    expect(FORM).toMatch(/data-concept="AttendanceType"/);
+    expect(FORM).toMatch(/id="saleBldgMaxFinancing"[^>]*data-concept="MaximumFinancingPercent"/);
   });
 });
 
@@ -80,7 +84,7 @@ describe('Labels — no false RLS/RESO/IDX on internal/manual fields', () => {
     expect(FORM).toMatch(/Cotality auto-fills available building facts; policy &amp; contact fields are your internal/);
   });
   it('DocumentsAvailable (real Cotality) keeps Cotality wording', () => {
-    expect(FORM).toMatch(/Cotality: DocumentsAvailable \(multi-select\)/);
+    expect(FORM).toMatch(/data-concept="DocumentsAvailable"/);                       // bound to the real Cotality field; the label carries no field tag
   });
 });
 
@@ -237,6 +241,6 @@ describe('Building lookup fills SAVED Mallan profile fields only when blank', ()
     const fn = extractFn(FORM, 'populateBuildingFromIDX');
     expect(fn).toContain("prefix + 'BldgStreetAddress'");
     expect(fn).toContain("prefix + 'BldgAssociationName'");
-    expect(fn).toContain("prefix + 'BldgDoorman'");
+    expect(fn).toContain("prefix + 'AttendanceType'");
   });
 });

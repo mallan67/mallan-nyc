@@ -70,7 +70,7 @@ function buildTimeline(props: PriceHistoryProps): PriceEvent[] {
     const changeAmount = props.previousListPrice - originalPrice;
     const changePercent = (changeAmount / originalPrice) * 100;
     events.push({
-      // Approximate date — we don't have the exact timestamp from Trestle
+      // Approximate date — we don't have the exact timestamp from Cotality
       date: props.modificationTimestamp,
       eventType: 'Price Change',
       price: props.previousListPrice,

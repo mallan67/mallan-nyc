@@ -38,7 +38,7 @@ describe('_commonInterestToFormType mapper', () => {
     expect(body).toContain("'Condop': 'Condop'");
   });
 
-  it('maps Co-op to Coop', () => {
+  it('also reads the labels an older building profile may hold (the index answers CommonInterest, else the saved OwnershipType)', () => {
     const body = formHtml.slice(fnStart, fnStart + 500);
     expect(body).toContain("'Co-op': 'Coop'");
   });
@@ -53,14 +53,14 @@ describe('fetchBuildingsFromAPI applies type mapping', () => {
 
   it('sets type and model from mapped value', () => {
     const fnStart = formHtml.indexOf('async function fetchBuildingsFromAPI');
-    const fnBody = formHtml.slice(fnStart, fnStart + 2500);
+    const fnBody = formHtml.slice(fnStart, fnStart + 6000);
     expect(fnBody).toContain('type: formType');
     expect(fnBody).toContain('model: formType');
   });
 
   it('preserves raw commonInterestRaw for reference', () => {
     const fnStart = formHtml.indexOf('async function fetchBuildingsFromAPI');
-    const fnBody = formHtml.slice(fnStart, fnStart + 2500);
+    const fnBody = formHtml.slice(fnStart, fnStart + 6000);
     expect(fnBody).toContain('commonInterestRaw: ci');
   });
 });
@@ -84,8 +84,8 @@ describe('salePropertyType radio values match mapper output', () => {
 // ── 4. selectBuildingFromIDX calls address derivation ──
 
 describe('selectBuildingFromIDX triggers address derivation', () => {
-  const fnStart = formHtml.indexOf('function selectBuildingFromIDX(prefix, address)');
-  const fnBody = formHtml.slice(fnStart, fnStart + 3000);
+  const fnStart = formHtml.indexOf('function selectBuildingFromIDX(prefix, picked)');   // the row the agent clicked, or the address of a cached building
+  const fnBody = formHtml.slice(fnStart, fnStart + 4500);
 
   it('calls parseSaleAddress after setting street address', () => {
     expect(fnBody).toContain('parseSaleAddress()');
@@ -110,7 +110,9 @@ describe('populateBuildingFromIDX fills all building fields', () => {
   // checks (BldgDoorman/BldgElevator/…) past the window. The function still
   // sets them — the slice was just truncating. If this function grows again,
   // bump the window; do NOT weaken the assertions.
-  const fnBody = formHtml.slice(fnStart, fnStart + 12000);
+  // 12000 -> 24000 (A1b): the doorman / concierge fill (the Building Attendance Type group) sits with the other groups, after the amenity checks.
+  // 24000 -> 32000 (2026-10-28): the select-safe writer at the top of the function, and the CustomFields fills (attendance, rules, staff, financing) after the groups.
+  const fnBody = formHtml.slice(fnStart, fnStart + 32000);
 
   it('sets BldgStreetAddress', () => {
     expect(fnBody).toContain("prefix + 'BldgStreetAddress'");
@@ -136,8 +138,10 @@ describe('populateBuildingFromIDX fills all building fields', () => {
     expect(fnBody).toContain("prefix + 'StructureType'");
   });
 
-  it('checks doorman amenity', () => {
-    expect(fnBody).toContain("prefix + 'BldgDoorman'");
+  it('fills the Building Attendance Type from the building\'s doorman (the form has no doorman checkbox of its own)', () => {
+    expect(fnBody).toContain("prefix + 'AttendanceType'");
+    expect(fnBody).toContain("'DoormanYes'");
+    expect(fnBody).not.toContain("prefix + 'BldgDoorman'");
   });
 
   it('checks elevator amenity', () => {
@@ -145,9 +149,9 @@ describe('populateBuildingFromIDX fills all building fields', () => {
   });
 });
 
-// ── 6. Backend includes CityRegion in Trestle $select ──
+// ── 6. Backend includes CityRegion in Cotality $select ──
 
-describe('Backend Trestle query includes borough fields', () => {
+describe('Backend Cotality query includes borough fields', () => {
   it('$select includes CityRegion', () => {
     expect(routeTs).toContain("'CityRegion'");
   });
@@ -156,7 +160,7 @@ describe('Backend Trestle query includes borough fields', () => {
     expect(routeTs).toContain("'CountyOrParish'");
   });
 
-  it('Trestle result uses CityRegion for borough', () => {
+  it('Cotality result uses CityRegion for borough', () => {
     expect(routeTs).toContain("borough: String(r.CityRegion || '')");
   });
 });
@@ -164,16 +168,22 @@ describe('Backend Trestle query includes borough fields', () => {
 // ── 7. Candidate display shows building facts ──
 
 describe('Candidate display shows building facts', () => {
+  // The Rental form's candidates are written by public/crm/js/forms/building-lookup.js (with DOM calls); the fixed Sale form builds its rows as elements in its own code.
+  const lookupSource = readFileSync(resolve(__dirname, '../../public/crm/js/forms/building-lookup.js'), 'utf8');
+  const fnStart = formHtml.indexOf('function searchBuildingForListing');
+  const fnBody = formHtml.slice(fnStart, fnStart + 2000);
+
+  it('the form builds its candidate rows as elements (a building name is never markup)', () => {
+    expect(fnBody).toContain('_saleBuildingCandidateRow(b, subtitle');
+    expect(fnBody).not.toMatch(/innerHTML = matches/);
+  });
+
   it('shows stories count in candidate', () => {
-    const fnStart = formHtml.indexOf('function searchBuildingForListing');
-    const fnBody = formHtml.slice(fnStart, fnStart + 2000);
-    expect(fnBody).toContain("stories");
+    expect(lookupSource).toContain("' stories'");
   });
 
   it('shows year built in candidate', () => {
-    const fnStart = formHtml.indexOf('function searchBuildingForListing');
-    const fnBody = formHtml.slice(fnStart, fnStart + 2000);
-    expect(fnBody).toContain("built");
+    expect(lookupSource).toContain("'built '");
   });
 });
 

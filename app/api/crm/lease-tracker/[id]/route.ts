@@ -15,7 +15,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
-import { serializeBigInts } from "@/lib/api/serialize";
+import { LEASE_TERM_LOCKED_MESSAGE, dayKey, parseLeaseDate, serializeLease } from "@/lib/crm/leases";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -34,7 +34,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
   const lease = await prisma.activeLease.findUnique({
     where: { id: leaseId },
-    select: { id: true, agent_id: true },
+    select: { id: true, agent_id: true, status: true, lease_start_date: true, lease_end_date: true },
   });
 
   if (!lease) {
@@ -64,20 +64,24 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     update.monthly_rent = rent;
   }
 
-  if (body.lease_start_date !== undefined) {
-    const d = new Date(String(body.lease_start_date));
-    if (isNaN(d.getTime())) {
-      return NextResponse.json({ error: "Invalid lease_start_date" }, { status: 400 });
+  // The recorded term is history (Master §13): a date change on an open tenancy is a renewal — a new
+  // term through POST /api/crm/active-leases/[id]/renew — unless the agent declares a correction.
+  const dateChange: Record<string, { from: string; to: string }> = {};
+  for (const f of ["lease_start_date", "lease_end_date"] as const) {
+    if (body[f] === undefined) continue;
+    const d = parseLeaseDate(body[f]);
+    if (!d) {
+      return NextResponse.json({ error: `Invalid ${f}` }, { status: 400 });
     }
-    update.lease_start_date = d;
+    if (dayKey(d) !== dayKey(lease[f])) dateChange[f] = { from: dayKey(lease[f]), to: dayKey(d) };
+    update[f] = d;
   }
-
-  if (body.lease_end_date !== undefined) {
-    const d = new Date(String(body.lease_end_date));
-    if (isNaN(d.getTime())) {
-      return NextResponse.json({ error: "Invalid lease_end_date" }, { status: 400 });
-    }
-    update.lease_end_date = d;
+  const termChanged = Object.keys(dateChange).length > 0;
+  if (termChanged && (lease.status === "active" || lease.status === "pending") && body.correction !== true) {
+    return NextResponse.json(
+      { error: LEASE_TERM_LOCKED_MESSAGE, code: "lease_term_locked", change: dateChange },
+      { status: 409 }
+    );
   }
 
   if (body.lease_type !== undefined) {
@@ -121,9 +125,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   });
 
   const ip = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown";
-  await logAuditEvent("update_lease", "active_lease", leaseId.toString(), auth, {
+  await logAuditEvent(termChanged ? "lease_dates_corrected" : "update_lease", "active_lease", leaseId.toString(), auth, {
     fields: Object.keys(update),
+    ...(termChanged ? { change: dateChange } : {}),
   }, ip);
 
-  return NextResponse.json(serializeBigInts({ success: true, lease: updated }));
+  return NextResponse.json({ success: true, lease: serializeLease(updated), corrected: termChanged });
 }

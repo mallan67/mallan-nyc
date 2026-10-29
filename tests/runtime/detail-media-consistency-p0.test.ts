@@ -59,7 +59,7 @@ const IDX_CTX: MediaFallbackContext = { listingId: 'RLS20103891', rlsEligible: t
 const IDX_CTX_BARE: MediaFallbackContext = { listingId: 'RLS20103891' };       // no rls_eligible either
 const CRM_SL_CTX: MediaFallbackContext = { listingId: 'SL-0004' };
 const CRM_RL_CTX: MediaFallbackContext = { listingId: 'RL-0007' };
-const WEBSITE_ONLY_CTX: MediaFallbackContext = { listingId: 'C-1001', rlsEligible: false };
+const WEBSITE_ONLY_CTX: MediaFallbackContext = { listingId: 'SL-C-1001', rlsEligible: false };
 
 // ════════════════════════════════════════════════════════════════════════════
 // isMallanOwnedListing — canonical signal, NEVER agent_id (Codex #2)
@@ -117,7 +117,7 @@ describe('isMallanOwnedListing — SL-/RL- OR rls_eligible===false, never agent_
   it('the MediaFallbackContext type carries NO agent_id/owner_client_id signal', () => {
     // Codex #2: syncAgentHistory stamps agent_id onto third-party IDX rows, so it
     // must not reach the media-ownership gate. The context type intentionally has
-    // no such field — a third-party RLS listing is never Mallan-owned here.
+    // no such field — a third-party Cotality listing is never Mallan-owned here.
     const ctx = { listingId: '', rlsEligible: false, mlsId: '' } satisfies MediaFallbackContext;
     expect(Object.keys(ctx)).not.toContain('agentId');
     expect(Object.keys(ctx)).not.toContain('ownerClientId');
@@ -177,7 +177,7 @@ describe('resolveDbListingMedia — relational precedence + safe fallback', () =
     const out = resolveDbListingMedia(rows, legacyPhotos, IDX_CTX, { legacyMapUrl: (u) => u });
     expect(out.length).toBe(2);
   });
-  it('third-party (bare RLS ctx) with all-deleted rows → still falls back to Cotality JSON', () => {
+  it('third-party (bare ListingId-only ctx) with all-deleted rows → still falls back to Cotality JSON', () => {
     const out = resolveDbListingMedia([row({ status: 'deleted' })], legacyPhotos, IDX_CTX_BARE, { legacyMapUrl: (u) => u });
     expect(out.length).toBe(2);
   });

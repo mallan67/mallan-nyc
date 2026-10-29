@@ -10,6 +10,11 @@ import { parseAddressQuery } from '@/app/api/buildings/search/route';
 // ── parseAddressQuery unit tests ──
 
 describe('parseAddressQuery', () => {
+  it('drops a suffix Cotality keeps apart from StreetName: "9 MacDougal Alley" asks for MacDougal (live: StreetName MacDougal, StreetSuffix Alley)', () => {
+    expect(parseAddressQuery('9 MacDougal Alley')).toEqual({ streetNumber: '9', streetName: 'macdougal' });
+    expect(parseAddressQuery('40 Gay Street')).toEqual({ streetNumber: '40', streetName: 'gay' });
+  });
+
   it('parses "333 East 46th Street"', () => {
     const result = parseAddressQuery('333 East 46th Street');
     expect(result).toEqual({
@@ -181,21 +186,21 @@ describe('debug response shape contract', () => {
 describe('error class differentiation', () => {
   it('auth_failed is distinguishable from empty result', () => {
     const authFailed = { errorClass: 'auth_failed', _errorHint: 'Session expired. Please log in again.' };
-    const emptyResult = { errorClass: 'cotality_zero_results', _errorHint: 'No Cotality/Trestle building match found.' };
+    const emptyResult = { errorClass: 'cotality_zero_results', _errorHint: 'No Cotality building match found.' };
     expect(authFailed.errorClass).not.toBe(emptyResult.errorClass);
     expect(authFailed._errorHint).not.toBe(emptyResult._errorHint);
   });
 
   it('cotality_non_200 is distinguishable from empty result', () => {
     const cotError = { errorClass: 'cotality_non_200', _errorHint: 'Building lookup temporarily unavailable.' };
-    const emptyResult = { errorClass: 'cotality_zero_results', _errorHint: 'No Cotality/Trestle building match found.' };
+    const emptyResult = { errorClass: 'cotality_zero_results', _errorHint: 'No Cotality building match found.' };
     expect(cotError.errorClass).not.toBe(emptyResult.errorClass);
     expect(cotError._errorHint).not.toBe(emptyResult._errorHint);
   });
 
   it('token_failed is distinguishable from empty result', () => {
     const tokenFailed = { errorClass: 'token_failed', _errorHint: 'Building lookup temporarily unavailable.' };
-    const emptyResult = { errorClass: 'cotality_zero_results', _errorHint: 'No Cotality/Trestle building match found.' };
+    const emptyResult = { errorClass: 'cotality_zero_results', _errorHint: 'No Cotality building match found.' };
     expect(tokenFailed.errorClass).not.toBe(emptyResult.errorClass);
   });
 
@@ -218,14 +223,14 @@ describe('frontend error hints', () => {
   });
 
   it('200 empty hint says no match found', () => {
-    expect('No Cotality/Trestle building match found.').toContain('No Cotality/Trestle building match found');
+    expect('No Cotality building match found.').toContain('No Cotality building match found');
   });
 
   it('all three hints are distinct strings', () => {
     const hints = [
       'Session expired. Please log in again.',
       'Building lookup temporarily unavailable.',
-      'No Cotality/Trestle building match found.',
+      'No Cotality building match found.',
     ];
     expect(new Set(hints).size).toBe(3);
   });

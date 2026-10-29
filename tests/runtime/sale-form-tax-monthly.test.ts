@@ -3,7 +3,7 @@
  * Sale-form RE tax: two-way monthly<->annual + zero-clobber guard (2026-06-23).
  *
  * Cotality exposes only an ANNUAL unit tax field (TaxAnnualAmount on Property; verified
- * artifacts/metadata.xml). Monthly is a DERIVED display (annual/12) and is NEVER stored.
+ * data/cotality-enums.live.json). Monthly is a DERIVED display (annual/12) and is NEVER stored.
  * Fixes the reported "tax won't save / needs monthly":
  *   - typing MONTHLY back-fills the canonical ANNUAL field (saleRETaxes -> TaxAnnualAmount) x12,
  *   - typing ANNUAL derives monthly /12,
@@ -22,11 +22,11 @@ describe('sale form — two-way monthly <-> annual RE tax', () => {
     expect(FORM).toMatch(/id="saleRETaxes"[^>]*oninput="autoCalcTaxMonthly\(\)"/);
   });
 
-  it('monthly input is wired to back-fill annual (oninput=syncSaleAnnualFromMonthly) and stays unstored', () => {
+  it('monthly input is wired to back-fill annual (oninput=syncSaleAnnualFromMonthly) and is sent as the live TaxMonthlyAmount', () => {
     const tag = FORM.slice(FORM.indexOf('id="saleTaxMonthly"') - 30, FORM.indexOf('id="saleTaxMonthly"') + 220);
     expect(tag).toContain('oninput="syncSaleAnnualFromMonthly()"');
-    expect(tag).toContain('data-rls-ignore="true"');        // monthly is NOT a stored Cotality field
-    expect(tag).toContain('data-removed-field="TaxMonthlyAmount"');
+    expect(tag).toContain('data-concept="TaxMonthlyAmount"');                   // a live CustomFields key (populated on most listings): the monthly amount is sent as it
+    expect(tag).not.toContain('data-removed-field');
   });
 
   it('autoCalcTaxMonthly derives monthly = annual / 12', () => {

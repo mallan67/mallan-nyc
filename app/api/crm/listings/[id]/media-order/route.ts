@@ -70,15 +70,15 @@ export async function PATCH(
   // actually reads (replaces the old raw_data.media_order, which the resolver
   // ignored). Scoped to THIS listing so a stray key can't reorder another
   // listing's media.
-  // P1C2: CRM ordering applies ONLY to the `crm:` namespace. Trestle feed rows'
+  // P1C2: CRM ordering applies ONLY to the `crm:` namespace. Cotality feed rows'
   // `order` is owned by media-sync (rewritten from the feed on every complete
   // set), so writing it here just ping-pongs and silently reverts the agent's
   // edit. Skipped feed keys are REPORTED, never silently dropped.
   const crmOrdered: Array<{ key: string; index: number }> = [];
-  const skippedTrestleKeys: string[] = [];
+  const skippedFeedKeys: string[] = [];
   ordered_media_ids.forEach((mediaKey, index) => {
     if (isCrmMediaKey(mediaKey)) crmOrdered.push({ key: mediaKey, index });
-    else skippedTrestleKeys.push(mediaKey);
+    else skippedFeedKeys.push(mediaKey);
   });
 
   // Codex #383: if EVERY submitted key is feed-owned, nothing was persisted —
@@ -89,8 +89,8 @@ export async function PATCH(
     return NextResponse.json(
       {
         error:
-          "No order saved: all submitted keys are Trestle feed photos, whose order is feed-owned (synced from Cotality). Only CRM-uploaded media can be reordered.",
-        skipped_trestle_keys: skippedTrestleKeys,
+          "No order saved: all submitted keys are feed photos, whose order is feed-owned (synced from Cotality). Only CRM-uploaded media can be reordered.",
+        skipped_trestle_keys: skippedFeedKeys,
         rows_updated: 0,
       },
       { status: 422 }
@@ -106,7 +106,7 @@ export async function PATCH(
   const results = await prisma.$transaction(updates);
   const updatedCount = results.reduce((n, r) => n + r.count, 0);
 
-  // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);
+  // P1C4: never bump MT on Cotality-synced rows (idx-sync cursor reads it);
   // CRM-only exclusives keep the touch. See crmListingTouchData.
   const touch = crmListingTouchData(listing.last_synced_from_trestle);
   if (touch) {
@@ -122,7 +122,7 @@ export async function PATCH(
       field: "media_order",
       media_count: ordered_media_ids.length,
       rows_updated: updatedCount,
-      trestle_keys_skipped: skippedTrestleKeys.length,
+      trestle_keys_skipped: skippedFeedKeys.length,
     },
     ipAddress
   );
@@ -131,6 +131,6 @@ export async function PATCH(
     listing_id: id,
     media_order: ordered_media_ids,
     rows_updated: updatedCount,
-    skipped_trestle_keys: skippedTrestleKeys,
+    skipped_trestle_keys: skippedFeedKeys,
   });
 }

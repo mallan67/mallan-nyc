@@ -332,7 +332,7 @@ export function assertRetryPolicy(budgets: AuditBudgets, identity: RunIdentity):
 // Disclosure, Map, Survey, Other, AgentPhoto, OfficePhoto, etc., and
 // MediaType includes Pdf/Docx/Xlsx/... — none of which are LISTING photos.
 // So the audit uses its OWN explicit allowlists (transcribed from the
-// committed local artifacts/metadata.xml — a read-only file, not a live
+// committed contract data/cotality-enums.live.json — a read-only file, not a live
 // network $metadata request) and NEVER defaults to Photo.
 
 export type AuditMediaClass = 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour' | 'Document' | 'Other' | 'unknown';

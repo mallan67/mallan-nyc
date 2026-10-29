@@ -31,6 +31,10 @@ const listingFindManyMock = jest.fn<Promise<unknown[]>, unknown[]>(async () => [
 const agentFindManyMock = jest.fn<Promise<unknown[]>, unknown[]>(async () => []);
 const auditEventCreateMock = jest.fn<Promise<unknown>, unknown[]>(async () => ({ id: 1n }));
 const notificationCreateMock = jest.fn<Promise<unknown>, unknown[]>(async () => ({}));
+// Lease workflow correction (2026-10-27): lease triggers read the tenancy and create checkpoints
+const activeLeaseFindManyMock = jest.fn<Promise<unknown[]>, unknown[]>(async () => []);
+const followUpTaskFindFirstMock = jest.fn<Promise<unknown>, unknown[]>(async () => null);
+const followUpTaskCreateMock = jest.fn<Promise<unknown>, unknown[]>(async () => ({ id: 900n }));
 
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
@@ -47,6 +51,8 @@ jest.mock('@/lib/prisma', () => ({
       findUnique: leadFindUniqueMock,
       findMany: leadFindManyMock,
     },
+    activeLease: { findMany: activeLeaseFindManyMock },
+    followUpTask: { findFirst: followUpTaskFindFirstMock, create: followUpTaskCreateMock },
     convictionScore: { findMany: convictionScoreFindManyMock },
     listing: { findMany: listingFindManyMock },
     agent: { findMany: agentFindManyMock },
@@ -104,9 +110,19 @@ beforeEach(() => {
   agentFindManyMock.mockResolvedValue([]);
   auditEventCreateMock.mockClear();
   notificationCreateMock.mockClear();
+  activeLeaseFindManyMock.mockReset();
+  activeLeaseFindManyMock.mockResolvedValue([]);
+  followUpTaskFindFirstMock.mockReset();
+  followUpTaskFindFirstMock.mockResolvedValue(null);
+  followUpTaskCreateMock.mockClear();
   sendEmailMock.mockReset();
   sendEmailMock.mockResolvedValue({ success: true, messageId: 'm-1' });
 });
+
+/** A nurture candidate as findQuarterlyNurtureTargets reads it. */
+function nurtureCandidate(id: bigint) {
+  return { id, pipeline_stage: 'nurturing', roles: ['buyer'], last_contacted_at: null, agent_id: 42n, preferences: { neighborhoods: ['Tribeca'] } };
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // 1. Lifecycle engine — action_type='email' sends real email to lead
@@ -114,33 +130,24 @@ beforeEach(() => {
 
 describe("lifecycle engine — action_type='email' sends email to lead", () => {
   it('sends one email when target lead has an email + writes lifecycle_email_sent audit', async () => {
-    // Trigger configured to fire on lease_expiring_30d → email
+    // Trigger configured to fire on quarterly_nurture → email. (Lease triggers no longer email —
+    // see "lease triggers never email" below and tests/runtime/lease-workflow-correction.test.ts.)
     lifecycleTriggerFindManyMock.mockResolvedValue([
       {
         id: 1n,
-        trigger_type: 'lease_expiring_30d',
+        trigger_type: 'quarterly_nurture',
         conditions: {},
         action_type: 'email',
-        action_config: { urgency: true },
-        cooldown_hours: 720,
+        action_config: {},
+        cooldown_hours: 2016,
         last_executed_at: null,
         execution_count: 0,
         enabled: true,
       },
     ]);
 
-    // Target finder for lease_expiring_30d returns one lead candidate
-    const leaseEnd = new Date();
-    leaseEnd.setDate(leaseEnd.getDate() + 28);
-    leadFindManyMock.mockResolvedValue([
-      {
-        id: 100n,
-        lease_end_date: leaseEnd,
-        annual_income: 95000,
-        credit_score_range: 'good',
-        pre_approved: false,
-      },
-    ]);
+    // Target finder for quarterly_nurture returns one lead candidate
+    leadFindManyMock.mockResolvedValue([nurtureCandidate(100n)]);
 
     // Lead lookup for the email recipient
     leadFindUniqueMock.mockResolvedValue({
@@ -160,7 +167,7 @@ describe("lifecycle engine — action_type='email' sends email to lead", () => {
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
     const call = sendEmailMock.mock.calls[0] as unknown[];
     expect(call[0]).toBe('lead@example.com');
-    expect(call[1]).toMatch(/30 days/i);
+    expect(call[1]).toMatch(/quarterly market update/i);
     expect(typeof call[2]).toBe('string');
     expect(call[2]).toEqual(expect.stringContaining('Sam Renter'));
     // channel: 'company' (commercial — respects last_unsubscribe_at)
@@ -181,28 +188,18 @@ describe("lifecycle engine — action_type='email' sends email to lead", () => {
     lifecycleTriggerFindManyMock.mockResolvedValue([
       {
         id: 2n,
-        trigger_type: 'lease_expiring_90d',
+        trigger_type: 'quarterly_nurture',
         conditions: {},
         action_type: 'email',
         action_config: {},
-        cooldown_hours: 720,
+        cooldown_hours: 2016,
         last_executed_at: null,
         execution_count: 0,
         enabled: true,
       },
     ]);
 
-    const leaseEnd = new Date();
-    leaseEnd.setDate(leaseEnd.getDate() + 88);
-    leadFindManyMock.mockResolvedValue([
-      {
-        id: 200n,
-        lease_end_date: leaseEnd,
-        annual_income: null,
-        credit_score_range: null,
-        pre_approved: false,
-      },
-    ]);
+    leadFindManyMock.mockResolvedValue([nurtureCandidate(200n)]);
 
     // Lead exists but has NO email
     leadFindUniqueMock.mockResolvedValue({
@@ -237,15 +234,10 @@ describe("lifecycle engine — action_type='email' sends email to lead", () => {
     expect(sent).toBeUndefined();
   });
 
-  it('lease-expiring finder requires consent_captured_at — no-consent lead is excluded from targets and gets no email', async () => {
-    // The trigger fires for lease_expiring_30d. The finder must include
-    // `consent_captured_at: { not: null }` in the prisma where-clause so
-    // a manually-added lead without consent never enters the target set.
-    // We verify both:
-    //   1. The where-clause passed to prisma.lead.findMany has the
-    //      consent filter (proves the gate exists at the SQL boundary)
-    //   2. With Prisma honoring that filter (we simulate by returning []
-    //      — Prisma in production would do the same), no email is sent
+  it('lease triggers never email — a lease_expiring_30d trigger stored with action_type=email creates an agent checkpoint from the tenancy instead', async () => {
+    // Lease workflow correction (2026-10-27): the lease milestones read the canonical tenancy
+    // (ActiveLease), not Lead.lease_end_date, and are executed as crm_task whatever the stored
+    // action_type says. The agent previews and confirms any outreach from the Lease Tracker.
     lifecycleTriggerFindManyMock.mockResolvedValue([
       {
         id: 4n,
@@ -260,36 +252,47 @@ describe("lifecycle engine — action_type='email' sends email to lead", () => {
       },
     ]);
 
-    // Capture the where-clause to assert the consent filter is present.
-    let capturedWhere: unknown = null;
-    leadFindManyMock.mockImplementation((async (args: { where?: unknown }) => {
-      capturedWhere = args?.where;
-      // Production Prisma would filter by consent_captured_at: { not: null }
-      // → a no-consent lead is NOT returned. Simulate that.
-      return [];
-    }) as never);
+    const leaseEnd = new Date();
+    leaseEnd.setDate(leaseEnd.getDate() + 28);
+    activeLeaseFindManyMock.mockResolvedValue([
+      {
+        id: 5n, address: '425 Park Avenue South', unit: '4D', lease_end_date: leaseEnd, monthly_rent: 4200,
+        landlord_lead_id: 10n, tenant_lead_id: null, tenant_name: 'Sam Renter', tenant_email: 'sam@example.com', agent_id: 42n,
+        landlord: { id: 10n, first_name: 'Lena', last_name: 'Landlord', agent_id: 42n, nurture_paused: false, last_unsubscribe_at: null },
+        tenant: null,
+      },
+    ]);
+    leadFindUniqueMock.mockResolvedValue({ agent_id: 42n, first_name: 'Lena', last_name: 'Landlord' });
 
     const { evaluateAllTriggers } = await import('@/lib/lifecycle/engine');
     const result = await evaluateAllTriggers();
 
-    // 1. The consent filter is present in the prisma query
-    expect(capturedWhere).toEqual(
-      expect.objectContaining({
-        consent_captured_at: { not: null },
-      }),
-    );
+    // 1. The tenancy, not the Lead row, is the source
+    expect(leadFindManyMock).not.toHaveBeenCalled();
+    expect(activeLeaseFindManyMock).toHaveBeenCalledTimes(1);
 
-    // 2. No targets returned → no fires → no email
-    expect(result.fired).toBe(0);
+    // 2. No client email, ever
     expect(sendEmailMock).not.toHaveBeenCalled();
-
-    // 3. No `lifecycle_email_*` audit (no execution happened)
     const auditCalls = auditEventCreateMock.mock.calls;
     const anyLifecycleEmail = auditCalls.find((c) => {
       const arg = c[0] as { data?: { action?: string } } | undefined;
       return typeof arg?.data?.action === 'string' && arg.data.action.startsWith('lifecycle_email');
     });
     expect(anyLifecycleEmail).toBeUndefined();
+
+    // 3. The landlord checkpoint: FollowUpTask (renewal_check) + agent Notification; the tenant
+    //    is only a name on the tenancy → no task for them, the landlord task names them.
+    expect(result.fired).toBe(1);
+    expect(followUpTaskCreateMock).toHaveBeenCalledTimes(1);
+    const task = (followUpTaskCreateMock.mock.calls[0][0] as { data: Record<string, unknown> }).data;
+    expect(task.task_type).toBe('renewal_check');
+    expect(task.agent_id).toBe(42n);
+    expect(task.lead_id).toBe(10n);
+    expect(String(task.description)).toContain('Tenant: Sam Renter');
+    expect(String(task.description)).toContain('Nothing has been sent');
+    expect(notificationCreateMock).toHaveBeenCalledTimes(1);
+    const checkpoint = auditCalls.find((c) => (c[0] as { data?: { action?: string } })?.data?.action === 'lifecycle_checkpoint_created');
+    expect(checkpoint).toBeDefined();
   });
 
   it('writes lifecycle_email_suppressed_unsubscribed when sendEmail returns _suppressed', async () => {
@@ -421,17 +424,17 @@ describe('feed-reconcile cron — ghost-cap abort alert', () => {
   }
 
   it('sends broker alert email + writes audit + returns 503 + makes NO listing transitions when ghosts > cap', async () => {
-    // Mock global fetch — return a SMALL set of Trestle Active IDs
+    // Mock global fetch — return a SMALL set of Cotality Active IDs
     // (3 IDs) so most of our DB rows look like ghosts.
-    const trestleSmallSet = ['RLS_KEEP_1', 'RLS_KEEP_2', 'RLS_KEEP_3'];
+    const cotalitySmallSet = ['RLS_KEEP_1', 'RLS_KEEP_2', 'RLS_KEEP_3'];
     const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => {
       return new Response(
-        JSON.stringify({ value: trestleSmallSet.map((id) => ({ ListingId: id })) }),
+        JSON.stringify({ value: cotalitySmallSet.map((id) => ({ ListingId: id })) }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       );
     });
 
-    // Mock getAccessToken (Trestle auth)
+    // Mock getAccessToken (Cotality auth)
     jest.doMock('@/lib/idx/auth', () => ({
       __esModule: true,
       getAccessToken: jest.fn(async () => 'fake-token'),
@@ -443,7 +446,7 @@ describe('feed-reconcile cron — ghost-cap abort alert', () => {
     for (let i = 0; i < 2500; i++) {
       ourActive.push({ id: BigInt(i + 1), listing_id: `RLS_OUR_${i}`, status: 'Active' });
     }
-    const ourAll = [...ourActive.map((r) => ({ listing_id: r.listing_id })), ...trestleSmallSet.map((id) => ({ listing_id: id }))];
+    const ourAll = [...ourActive.map((r) => ({ listing_id: r.listing_id })), ...cotalitySmallSet.map((id) => ({ listing_id: id }))];
     listingFindManyMock.mockImplementation((async (args: { where?: { status?: string } }) => {
       if (args?.where?.status === 'Active') return ourActive;
       return ourAll;
@@ -464,7 +467,7 @@ describe('feed-reconcile cron — ghost-cap abort alert', () => {
     const body = await res.json();
     expect(body.aborted).toBe(true);
     expect(body.reason).toBe('ghost_count_exceeds_safety_cap');
-    // ourActive has 2500 rows (RLS_OUR_*); trestleIds has 3 disjoint
+    // ourActive has 2500 rows (RLS_OUR_*); cotalitySmallSet has 3 disjoint
     // IDs (RLS_KEEP_*) so all 2500 rows are ghosts (no overlap).
     expect(body.ghosts_detected).toBe(2500);
     expect(body.cap).toBe(2000);
@@ -509,7 +512,7 @@ describe('feed-reconcile cron — ghost-cap abort alert', () => {
   });
 
   it('skips broker alert send (gracefully) when no brokers have email', async () => {
-    const trestleSmallSet: string[] = [];
+    const cotalitySmallSet: string[] = [];
     const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => {
       return new Response(JSON.stringify({ value: [] }), {
         status: 200,
@@ -554,7 +557,7 @@ describe('feed-reconcile cron — ghost-cap abort alert', () => {
     });
     expect(abortAudit).toBeDefined();
 
-    void trestleSmallSet;
+    void cotalitySmallSet;
     fetchSpy.mockRestore();
   });
 

@@ -22,7 +22,8 @@
 //   * Flag ON ages off `terminal_since` (the stable Archive Clock PR-1 column); flag OFF uses the
 //     legacy `status_changed_at`. NEVER `updated_at` (bumped by unrelated rewrites → mis-ages backlog).
 
-// Mirror of app/api/cron/data-retention/route.ts:22 TERMINAL_STATUSES (kept in sync by test).
+// Mirror of app/api/cron/data-retention/route.ts TERMINAL_STATUSES (kept in sync by test): every spelling a terminal status is stored under,
+// 'Canceled' being Cotality's (lib/compliance/terminal-status.ts, #449).
 const ARCHIVE_TERMINAL_STATUSES = [
   'Closed',
   'Sold',
@@ -31,6 +32,7 @@ const ARCHIVE_TERMINAL_STATUSES = [
   'Withdrawn',
   'Expired',
   'Cancelled',
+  'Canceled',
 ];
 
 const ARCHIVE_CUTOFF_DAYS = 180;

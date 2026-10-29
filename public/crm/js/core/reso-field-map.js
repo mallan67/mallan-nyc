@@ -1,132 +1,112 @@
         // ═══════════════════════════════════════════════════════════════════════════
-        // RESO FIELD MAPPING — Maps mock field names to RESO Data Dictionary fields
-        // Used for data-reso-field attributes on rendered HTML elements
-        // Reference: Trestle/CoreLogic Property entity (REBNY RLS)
+        // RESO FIELD MAPPING — CRM listing keys → live Cotality Property field names
+        // Used only for data-reso-field attributes on rendered HTML elements (labels for
+        // compliance self-checks). Search criteria are mapped server-side in
+        // lib/search/crm-idx-filter.ts against data/cotality-enums.live.json.
         //
-        // VERIFIED 2026-02-19 against:
-        //   data/rebny-rls-property-fields.csv (902 REBNY IDX Plus fields across 7 resources)
-        //   data/trestle-dictionary/property-fields.csv (744 Trestle fields)
-        //   data/trestle-excel/02_PROPERTY.csv
-        //
-        // KEY NOTES:
-        //   - RLS "ListingKey" attr → Trestle "SourceSystemKey" (LMP's listing ID)
-        //   - Trestle "ListingKey" = OData primary key (Trestle-generated)
-        //   - Trestle "ListingId" = RLS listing number (Matrix-generated)
-        //   - RLS "StandardStatus" attr → Trestle "MlsStatus" (detailed)
-        //     Trestle also has "StandardStatus" (RESO normalized) — we use MlsStatus (RLS name)
-        //   - RLS uses "SubdivisionName" for neighborhood, Trestle also has "MLSAreaMinor"
-        //   - "WalkScore" exists in Trestle schema but NOT in RLS (Trestle-only)
-        //   - Coming Soon: RLS uses "ActivationDate" (not FirstShowingDate)
-        //     and "ComingSoonTimestamp" (not ComingSoonOnMarketDate/ExpirationDate)
-        //   - BuyerBrokerageCompensation: REMOVED from RLS feed Aug 2025 (NAR settlement)
+        // Every entry is a Property field live Cotality carries (npm run cotality:pull,
+        // 2026-10-23). Suppressed by Cotality and therefore absent here: MlsStatus,
+        // SourceSystemKey, DaysOnMarket, CumulativeDaysOnMarket, Latitude, Longitude,
+        // InternetAddressDisplayYN, PropertyCondition. Empty on every record: PetsAllowedYN,
+        // AssociationAmenities, WalkScore, SyndicateTo. Status is StandardStatus; the
+        // Cotality record key is ListingKey; DOM is derived by Mallan from OnMarketDate.
         // ═══════════════════════════════════════════════════════════════════════════
         var RESO_FIELD_MAP = {
             // ── Address & Location ──
-            address:        'UnparsedAddress',           // RLS: UnparsedAddress → UnParsedAddress (Matrix). Trestle OData: UnparsedAddress
-            unit:           'UnitNumber',                // RLS: UnitNumber. Conditional required by PropertySubType
-            zip:            'PostalCode',                // RLS: PostalCode
-            neighborhood:   'SubdivisionName',           // RLS: SubdivisionName (REBNY attr). Trestle also has MLSAreaMinor (system-generated)
-            latitude:       'Latitude',                  // RLS: Latitude (not searchable)
-            longitude:      'Longitude',                 // RLS: Longitude (not searchable)
-            crossStreet:    'CrossStreet',               // RLS: CrossStreet
+            address:        'UnparsedAddress',
+            unit:           'UnitNumber',
+            zip:            'PostalCode',
+            neighborhood:   'SubdivisionName',           // the provider's neighborhood values
+            borough:        'CityRegion',
+            crossStreet:    'CrossStreet',
 
-            // ── Pricing ──
-            price:          'ListPrice',                 // RLS: ListPrice
-            totalMonthly:   'AssociationFee+TaxAnnualAmount',  // computed (not a real field)
-            maintCC:        'AssociationFee',            // RLS: AssociationFee (monthly maint/CC)
-            reTaxes:        'TaxAnnualAmount',           // RLS: TaxAnnualAmount (annual, for townhouses/lots)
-            originalPrice:  'OriginalListPrice',         // RLS: OriginalListPrice (read-only)
-            previousPrice:  'PreviousListPrice',         // RLS: PreviousListPrice (auto-updated)
-            priceChangeTs:  'PriceChangeTimestamp',      // RLS: PriceChangeTimestamp (system)
-            closePrice:     'ClosePrice',                // RLS: ClosePrice. Required when MLSStatus=Closed
-            closeDate:      'CloseDate',                 // RLS: CloseDate. Must >= PurchaseContractDate
-            closedDate:     'CloseDate',                 // alias — cached data uses closedDate, RESO uses CloseDate
+            // ── Pricing — ListPrice is the asking price on sales and the monthly rent on rentals ──
+            price:          'ListPrice',
+            totalMonthly:   'AssociationFee+TaxAnnualAmount',  // computed by Mallan (not a field)
+            maintCC:        'AssociationFee',
+            reTaxes:        'TaxAnnualAmount',
+            originalPrice:  'OriginalListPrice',
+            previousPrice:  'PreviousListPrice',
+            priceChangeTs:  'PriceChangeTimestamp',
+            closePrice:     'ClosePrice',                // sale price (sale) / leased rent (rental)
+            closeDate:      'CloseDate',
+            closedDate:     'CloseDate',
+            contractDate:   'PurchaseContractDate',      // contract signed (sale) / lease signed (rental)
+            availabilityDate: 'AvailabilityDate',        // rentals
 
             // ── Unit Details ──
-            rooms:          'RoomsTotal',                // RLS: RoomsTotal
-            beds:           'BedroomsTotal',             // RLS: BedroomsTotal
-            baths:          'BathroomsTotalInteger',     // RLS: BathroomsTotalInteger (read-only, sum)
-            fullBaths:      'BathroomsFull',             // RLS: BathroomsFull (not in RLS CSV — Trestle-only)
-            halfBaths:      'BathroomsHalf',             // RLS: BathroomsHalf
-            intSqft:        'LivingArea',                // RLS: LivingArea. Cond required for Condo
-            extSqft:        'BuildingAreaTotal',         // RLS: BuildingAreaTotal. For TH/multi-family
-            floor:          'EntryLevel',                // RLS: EntryLevel (building level, not unit floor)
-            stories:        'StoriesTotal',              // RLS: StoriesTotal (entire building)
-            exposures:      'Exposures',                 // RLS: Exposures
-            view:           'View',                      // RLS: View. Conditional: ViewYN=true
+            rooms:          'RoomsTotal',
+            beds:           'BedroomsTotal',
+            baths:          'BathroomsTotalInteger',
+            fullBaths:      'BathroomsFull',
+            halfBaths:      'BathroomsHalf',
+            intSqft:        'LivingArea',
+            extSqft:        'BuildingAreaTotal',
+            floor:          'EntryLevel',                // the floor the unit is on
+            stories:        'StoriesTotal',
+            exposures:      'Exposures',
+            view:           'View',
 
             // ── Classification ──
-            status:         'MlsStatus',                 // RLS: MlsStatus (REBNY detailed status). RESO "StandardStatus" renamed to "MlsStatus" by RLS
-            ownership:      'CommonInterest',            // RLS: CommonInterest
-            propertyType:   'PropertyType',              // RLS: PropertyType (Residential | ResidentialLease)
-            propertySubType:'PropertySubType',           // RLS: PropertySubType
-            buildingName:   'BuildingName',              // RLS: BuildingName
-            listingType:    'ListingAgreement',          // RLS: ListingAgreement
+            status:         'StandardStatus',
+            ownership:      'CommonInterest',
+            propertyType:   'PropertyType',              // Residential (sale) | ResidentialLease (rental)
+            propertySubType:'PropertySubType',
+            buildingName:   'BuildingName',
+            listingType:    'ListingAgreement',
             era:            'YearBuilt',                 // derived from YearBuilt
-            yearBuilt:      'YearBuilt',                 // RLS: YearBuilt (not in property CSV — in Building resource)
-            condition:      'PropertyCondition',         // Trestle-only (not in RLS CSV)
+            yearBuilt:      'YearBuilt',
 
             // ── IDs ──
-            lid:            'ListingId',                 // Trestle: ListingId (Matrix-generated RLS number). Read-only
-            wid:            'SourceSystemKey',            // RLS: SourceSystemKey (LMP's listing ID). RESO "ListingKey" renamed to "SourceSystemKey" by RLS
+            lid:            'ListingId',                 // RLS listing number
+            wid:            'ListingKey',                // Cotality record key (joins Media by ResourceRecordKey)
+            listingKey:     'ListingKey',
 
             // ── Dates & DOM ──
-            dom:            'DaysOnMarket',              // RLS: DaysOnMarket (system). Reset after 30 days W/C (UCBA 2026)
-            cdom:           'CumulativeDaysOnMarket',    // RLS: CumulativeDaysOnMarket (system)
-            listedDate:     'OnMarketDate',              // RLS: OnMarketDate. Required if MLSStatus=Active
-            updatedDate:    'SourceSystemModificationTimestamp', // RLS: SourceSystemModificationTimestamp. RESO "ModificationTimestamp" renamed by RLS
+            dom:            'OnMarketDate',              // DOM derived by Mallan from OnMarketDate
+            listedDate:     'ListingContractDate',
+            updatedDate:    'ModificationTimestamp',
 
             // ── Agent & Office ──
-            company:        'ListOfficeName',            // RLS: ListOfficeName
-            agentName:      'ListAgentFullName',         // RLS: ListAgentFullName (read-only)
-            agentEmail:     'ListAgentEmail',            // RLS: ListAgentEmail (read-only)
-            agentPhone:     'ListAgentDirectPhone',      // RLS: ListAgentDirectPhone (read-only)
+            company:        'ListOfficeName',
+            agentName:      'ListAgentFullName',
+            agentEmail:     'ListAgentEmail',
+            agentPhone:     'ListAgentDirectPhone',
 
             // ── Media & Description ──
-            photoCount:     'PhotosCount',               // RLS: PhotosCount (read-only)
-            description:    'PublicRemarks',              // RLS: PublicRemarks. Subject to UCBA content rules
-            privateRemarks: 'PrivateRemarks',            // RLS: PrivateRemarks. AGENT-ONLY — never display on IDX/VOW
-            virtualTourUrl: 'VirtualTourURLBranded',     // RLS: VirtualTourURLBranded
+            photoCount:     'PhotosCount',
+            videosCount:    'VideosCount',
+            description:    'PublicRemarks',             // subject to UCBA content rules
+            virtualTourUrl: 'VirtualTourURLUnbranded',   // 3D tour; video and 3D links come from the VirtualTourURL* fields
 
             // ── Unit Features ──
-            flooring:       'Flooring',                  // RLS: Flooring
-            cooling:        'Cooling',                   // RLS: Cooling. Conditional: CoolingYN=true
-            heating:        'Heating',                   // RLS: Heating. Conditional: HeatingYN=true
-            laundry:        'LaundryFeatures',           // RLS: LaundryFeatures (unit-level)
-            parking:        'ParkingFeatures',           // RLS: ParkingFeatures
-            parkingTotal:   'ParkingTotal',              // RLS: ParkingTotal
-            pets:           'PetsAllowed',               // RLS: PetsAllowed (unit-level policy)
-            petsYN:         'PetsAllowedYN',             // Trestle-only (not in RLS CSV)
-            fireplace:      'FireplaceYN',               // RLS: FireplaceYN
-            fireplaces:     'FireplacesTotal',           // RLS: FireplacesTotal
-            amenities:      'AssociationAmenities',      // Trestle-only (not in RLS CSV — RLS uses AssociationFeeIncludes)
-            interiorFeatures:'InteriorFeatures',         // RLS: InteriorFeatures
-            security:       'SecurityFeatures',          // RLS: SecurityFeatures
-            walkScore:      'WalkScore',                 // Trestle-only (not in RLS CSV)
+            flooring:       'Flooring',
+            cooling:        'Cooling',
+            heating:        'Heating',
+            laundry:        'LaundryFeatures',
+            parking:        'ParkingFeatures',
+            parkingTotal:   'ParkingTotal',
+            pets:           'PetsAllowed',
+            fireplace:      'FireplaceYN',
+            fireplaces:     'FireplacesTotal',
+            security:       'SecurityFeatures',
 
-            // ── Display Control Flags ──
-            idxDisplayYN:           'IDXEntireListingDisplayYN',       // RLS: IDXEntireListingDisplayYN (IDX-specific gate, requires office participation)
-            internetDisplayYN:      'InternetEntireListingDisplayYN',  // RLS: InternetEntireListingDisplayYN (master gate — cascades to addr/AVM/comment)
-            addressDisplayYN:       'InternetAddressDisplayYN',       // RLS: InternetAddressDisplayYN
-            syndicateTo:            'SyndicateTo',                    // Trestle: SyndicateTo (multi-enum)
+            // ── Display Control Flag ──
+            internetDisplayYN: 'InternetEntireListingDisplayYN',
 
-            // ── Coming Soon (REBNY-specific) ──
-            comingSoonDate:       'ActivationDate',                   // RLS: ActivationDate (date Coming Soon becomes Active). Required if MLSStatus=ComingSoon
-            comingSoonTimestamp:   'ComingSoonTimestamp',              // RLS: ComingSoonTimestamp (system — when listing first entered Coming Soon)
-
-            // ── REMOVED from RLS (NAR Settlement Aug 2025) — kept for reference only ──
-            // buyerComp:      'BuyerBrokerageCompensation',          // REMOVED from feed Aug 2025
-            // buyerCompType:  'BuyerBrokerageCompensationType',      // REMOVED from feed Aug 2025
+            // ── Coming Soon ──
+            comingSoonDate: 'ActivationDate',            // date a Coming Soon listing becomes Active
         };
 
-        // ── MEDIA ENTITY FIELD MAP (Trestle Media resource) ──
-        // Photos, videos, documents, floor plans are stored as separate Media records
-        // linked to the listing via ResourceRecordKey → ListingKey.
+        // ── MEDIA (Cotality Media resource) ──
+        // Live 2026-10-23: Media rows carry only MediaCategory Photo and FloorPlan, joined to
+        // the listing by ResourceRecordKey = ListingKey; many rows have no MediaURL. Video and
+        // 3D tours are NOT Media rows — they are the Property VirtualTourURL* links and
+        // VideosCount, classified by lib/search/crm-idx-mapper.ts (listing.tours).
         //
-        // Trestle Media fields (from media-fields.csv):
-        //   MediaKey (PK), MediaURL, MediaType (Jpeg/Png/etc),
-        //   MediaCategory (Photo/Video/FloorPlan/Document),
-        //   MediaClassification (Photo/Document/Video),
+        // Media fields used:
+        //   MediaKey (PK), MediaURL, MediaType (Jpeg/Png/Pdf/Gif),
+        //   MediaCategory (Photo / FloorPlan),
         //   ImageOf (91 RESO enum values — LivingRoom, Kitchen, Bedroom, etc),
         //   ImageHeight, ImageWidth, ImageSizeDescription,
         //   Order (sort order — MANDATORY per REBNY Exhibit A "Photos - Sort Order"),

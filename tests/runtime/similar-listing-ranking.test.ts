@@ -132,7 +132,7 @@ describe('GET /api/listings/similar wires the ranking helper', () => {
     expect(src).toMatch(/searchParams\.get\('beds'\)/);
     expect(src).toMatch(/const target: SimilarityTarget/);
   });
-  it('orders both the DB and Trestle candidate sets via rankSimilarListings', () => {
+  it('orders both the DB and Cotality candidate sets via rankSimilarListings', () => {
     const uses = src.match(/rankSimilarListings\(/g) || [];
     expect(uses.length).toBeGreaterThanOrEqual(2);
   });
@@ -229,7 +229,7 @@ describe('regression — deterministic, stable ordering on score ties', () => {
 });
 
 describe('property-class matching — condo / co-op / condop / townhouse / apartment', () => {
-  it('normalizePropertyClass collapses RESO enums AND display strings, and round-trips its own output', () => {
+  it('normalizePropertyClass collapses Cotality enums AND display strings, and round-trips its own output', () => {
     expect(normalizePropertyClass('Condominium')).toBe('condo');
     expect(normalizePropertyClass('Condo')).toBe('condo');
     expect(normalizePropertyClass('StockCooperative')).toBe('coop');

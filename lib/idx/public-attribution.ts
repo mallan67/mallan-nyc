@@ -29,6 +29,8 @@
  * module is that single policy owner.
  */
 
+import { isMallanLocalListing, type MallanSourceIdentityRow } from '@/lib/listings/mallan-source-identity';
+
 /**
  * The neutral attribution used when the listing office is unknown.
  *
@@ -64,4 +66,28 @@ export function publicAttributionText(
   officeName?: string | null,
 ): string {
   return `Listing courtesy of ${publicListOfficeName(officeName)}`;
+}
+
+/**
+ * The attribution line of a listing Mallan AUTHORED: an `SL-`/`RL-` row, or a website-only row (`rls_eligible === false`). Mallan is the listing broker there, so naming Mallan is the truth.
+ * The wording is the one `buildSourceAndCompliance` (db-to-public-dto.ts) gives the same listing; tests/runtime/listing-attribution-policy.test.ts holds the two together.
+ */
+export const MALLAN_EXCLUSIVE_ATTRIBUTION = 'Exclusive listing by Mallan Real Estate Inc.';
+
+/**
+ * What a listing's attribution line says, and whether the REBNY data-provider sentence goes with it, decided from WHERE THE LISTING COMES FROM.
+ *
+ *   a listing Mallan authored (lib/listings/mallan-source-identity.ts isMallanLocalListing) -> MALLAN_EXCLUSIVE_ATTRIBUTION, no data-provider sentence (it is not RLS content);
+ *   anything else is third-party RLS content                                              -> "Listing courtesy of <its office>" and the sentence.
+ *
+ * It never reads `agent_id` or `owner_client_id`. `syncAgentHistory` writes `agent_id` onto Cotality rows that match the agent on the LIST side or the BUYER side, so a third-party listing can carry
+ * one; reading it as ownership would put "Exclusive listing by Mallan Real Estate Inc." on another firm's listing (UCBA Art. III §2(C), NY DOS 19 NYCRR §175.25) and drop the data-provider sentence.
+ * The canonical identity is the listing id and `rls_eligible` alone (mallan-source-identity.ts: "IDENTITY IS SOURCE-FIELD ONLY").
+ */
+export function listingAttribution(
+  row: MallanSourceIdentityRow,
+  officeName?: string | null,
+): { attributionText: string; disclaimerRequired: boolean } {
+  if (isMallanLocalListing(row)) return { attributionText: MALLAN_EXCLUSIVE_ATTRIBUTION, disclaimerRequired: false };
+  return { attributionText: publicAttributionText(officeName), disclaimerRequired: true };
 }

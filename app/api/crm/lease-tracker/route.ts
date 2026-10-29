@@ -18,9 +18,10 @@ import { ACTIVE_DISPLAY_VALUES } from "@/lib/compliance/status";
 
 // ── Urgency helpers ───────────────────────────────────────────────────────────
 
-type UrgencyLevel = "30d" | "60d" | "90d" | "6mo" | "ok";
+type UrgencyLevel = "expired" | "30d" | "60d" | "90d" | "6mo" | "ok";
 
 function getUrgency(daysUntil: number): UrgencyLevel {
+  if (daysUntil < 0) return "expired"; // term ended, outcome not recorded (row still active / pending)
   if (daysUntil <= 30) return "30d";
   if (daysUntil <= 60) return "60d";
   if (daysUntil <= 90) return "90d";
@@ -412,6 +413,8 @@ export async function GET(req: NextRequest) {
           entity_type: true,
           annual_income: true,
           seller_potential: true,
+          nurture_paused: true,
+          last_unsubscribe_at: true,
         },
       },
       tenant: {
@@ -421,6 +424,8 @@ export async function GET(req: NextRequest) {
           last_name: true,
           email: true,
           phone: true,
+          nurture_paused: true,
+          last_unsubscribe_at: true,
           annual_income: true,
           bonuses: true,
           credit_score_range: true,
@@ -445,6 +450,7 @@ export async function GET(req: NextRequest) {
           expiring_6mo: 0,
           expiring_90d: 0,
           expiring_30d: 0,
+          ended_unrecorded: 0,
           dual_listed: 0,
           opportunities: 0,
           high_priority: 0,
@@ -546,6 +552,8 @@ export async function GET(req: NextRequest) {
           name: `${lease.tenant.first_name} ${lease.tenant.last_name}`.trim(),
           email: lease.tenant.email,
           phone: lease.tenant.phone,
+          declined_outreach: lease.tenant.nurture_paused === true,
+          unsubscribed: lease.tenant.last_unsubscribe_at != null,
           annual_income: lease.tenant.annual_income,
           bonuses: lease.tenant.bonuses ?? null,
           credit_score_range: lease.tenant.credit_score_range ?? null,
@@ -561,6 +569,8 @@ export async function GET(req: NextRequest) {
           name: lease.tenant_name,
           email: lease.tenant_email ?? null,
           phone: lease.tenant_phone ?? null,
+          declined_outreach: false,
+          unsubscribed: false,
           annual_income: null,
           bonuses: null,
           credit_score_range: null,
@@ -622,6 +632,7 @@ export async function GET(req: NextRequest) {
       (lease.lease_end_date.getTime() - now) / 86400000
     );
     const urgency = getUrgency(daysUntilExpiry);
+    const endedButOpen = daysUntilExpiry < 0; // every row here is active / pending
 
     // Opportunity flags
     const flags: string[] = [];
@@ -631,7 +642,8 @@ export async function GET(req: NextRequest) {
     if (annualIncome !== null && annualIncome > 150000) {
       flags.push("high_income_tenant");
     }
-    if (daysUntilExpiry <= 90) flags.push("expiring_soon");
+    if (endedButOpen) flags.push("ended_unrecorded");
+    else if (daysUntilExpiry <= 90) flags.push("expiring_soon");
     if (!tenantData) flags.push("vacant");
     if (status === "dual_listed") flags.push("dual_listed");
 
@@ -716,12 +728,15 @@ export async function GET(req: NextRequest) {
         entity_name: lease.landlord.entity_name ?? null,
         entity_type: lease.landlord.entity_type ?? null,
         seller_potential: lease.landlord.seller_potential ?? null,
+        declined_outreach: lease.landlord.nurture_paused === true,
+        unsubscribed: lease.landlord.last_unsubscribe_at != null,
       },
 
       tenant: tenantData,
 
       lease: {
         id: lease.id,
+        status: lease.status,
         start_date: lease.lease_start_date,
         end_date: lease.lease_end_date,
         monthly_rent: lease.monthly_rent,
@@ -729,6 +744,7 @@ export async function GET(req: NextRequest) {
         renewal_status: lease.renewal_status,
         days_until_expiry: daysUntilExpiry,
         urgency,
+        ended_but_open: endedButOpen,
       },
 
       listings: propertyListings,
@@ -789,6 +805,7 @@ export async function GET(req: NextRequest) {
   // Urgency filter (applied after view filter)
   if (urgencyFilter) {
     const urgencyOrder: Record<UrgencyLevel, number> = {
+      expired: 0,
       "30d": 1,
       "60d": 2,
       "90d": 3,
@@ -815,6 +832,7 @@ export async function GET(req: NextRequest) {
         p.lease.urgency !== "ok" && p.lease.urgency !== "6mo"
     ).length,
     expiring_30d: properties.filter((p) => p.lease.urgency === "30d").length,
+    ended_unrecorded: properties.filter((p) => p.lease.ended_but_open).length,
     dual_listed: properties.filter((p) => p.status === "dual_listed").length,
     opportunities: properties.filter((p) => p.flags.length > 0).length,
     high_priority: properties.filter((p) => p.priority_score >= 70).length,

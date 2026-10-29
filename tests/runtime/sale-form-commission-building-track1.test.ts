@@ -10,7 +10,7 @@
  *
  * Building: enforce "matches live Cotality $metadata, no phantom marked as a
  * Cotality field" + auto-fill the AssociationFee/Frequency the lookup returns.
- * Verified against artifacts/metadata.xml (refreshed 2026-05-30):
+ * Verified against the typed fields in data/cotality-enums.live.json (live $metadata):
  *   - ElevatorsTotal  → NOT in Cotality (phantom) → internal-only.
  *   - NewDevelopmentYN → NOT in Cotality (phantom) → internal-only.
  *   - NewConstructionYN, AssociationFee, AssociationFeeFrequency → REAL → kept.
@@ -19,9 +19,9 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 const FORM_PATH = resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html');
-const META_PATH = resolve(__dirname, '../../artifacts/metadata.xml');
+const LIVE_PATH = resolve(__dirname, '../../data/cotality-enums.live.json');
 const formHtml = readFileSync(FORM_PATH, 'utf8');
-const metadata = readFileSync(META_PATH, 'utf8');
+const live: { entities: Record<string, Record<string, string>> } = JSON.parse(readFileSync(LIVE_PATH, 'utf8'));
 
 function extractFn(src: string, name: string): string {
   const sig = `function ${name}(`;
@@ -36,7 +36,8 @@ function extractFn(src: string, name: string): string {
   }
   throw new Error(`unbalanced braces for ${name}`);
 }
-const hasCotalityField = (f: string) => new RegExp(`Property Name="${f}"`).test(metadata);
+const hasCotalityField = (f: string) =>
+  Object.values(live.entities).some((e) => Object.prototype.hasOwnProperty.call(e, f));
 
 describe('Cotality authority — phantom vs real (no guessing)', () => {
   it('phantom commission/building fields are NOT in live $metadata', () => {
@@ -73,26 +74,38 @@ describe('Commission collision fix', () => {
   });
 });
 
-describe('Building — phantom fields reclassified internal (match Cotality)', () => {
-  it('saleBldgNumElevators is no longer tagged as Cotality ElevatorsTotal', () => {
-    expect(formHtml).toMatch(/id="saleBldgNumElevators"[^>]*data-rls-ignore="true"[^>]*data-removed-field="ElevatorsTotal"/);
-    expect(formHtml).not.toMatch(/id="saleBldgNumElevators"[^>]*data-rls-field="ElevatorsTotal"/);
+describe('Building — fields reclassified to match live Cotality', () => {
+  it('saleBldgNumElevators is tagged as the live Cotality CustomFields key ElevatorsTotal', () => {
+    // ElevatorsTotal is a real key inside CustomProperty.CustomFields (13,094 of 14,000 sale listings, verified live 2026-10-23).
+    expect(formHtml).toMatch(/id="saleBldgNumElevators"[^>]*data-concept="ElevatorsTotal"/);
+    expect(formHtml).not.toMatch(/id="saleBldgNumElevators"[^>]*data-removed-field="ElevatorsTotal"/);
   });
-  it('saleBldgNewDevelopment is no longer tagged as Cotality (was duplicating NewConstructionYN)', () => {
-    expect(formHtml).toMatch(/id="saleBldgNewDevelopment"[^>]*data-rls-ignore="true"[^>]*data-removed-field="NewDevelopmentYN"/);
-    expect(formHtml).not.toMatch(/id="saleBldgNewDevelopment"[^>]*data-rls-field="NewConstructionYN"/);
+  it('the phantom "New Development" building box is gone: New Development IS new construction (NewConstructionYN)', () => {
+    // Owner rule 2026-10-26: new development = new construction. Building Status (Essentials) carries
+    // it as the live field; the building-tab "New Construction" box mirrors it.
+    expect(formHtml).not.toMatch(/id="saleBldgNewDevelopment"/);
+    expect(formHtml).toMatch(/name="saleBuildingStatus" value="NewDevelopment"[^>]*data-concept="NewConstructionYN"/);
+    expect(formHtml).not.toMatch(/name="saleBuildingStatus" value="SponsorUnit"/);
   });
-  it('collect no longer emits the phantom canonical keys; NewConstructionYN (real) still emitted', () => {
+  it('Sponsor Unit is its own Yes/No (REBNY SponsorUnitYN), independent of Building Status, not a building box', () => {
+    expect(formHtml).toMatch(/name="saleSponsorUnit" value="No"[^>]*data-concept="SponsorUnitYN"/);
+    expect(formHtml).toMatch(/name="saleSponsorUnit" value="Yes"/);
+    expect(formHtml).not.toMatch(/id="saleBldgSponsorUnits"/);
+  });
+  it('collect emits NewConstructionYN from Building Status and SponsorUnitYN from the Yes/No; never the phantom keys', () => {
     const collect = extractFn(formHtml, 'collectSaleFormData');
-    expect(collect).not.toMatch(/data\.NewDevelopmentYN\s*=/);
-    expect(collect).not.toMatch(/data\.ElevatorsTotal\s*=/);
-    expect(collect).toMatch(/data\.NewConstructionYN\s*=/);
+    // ElevatorsTotal is a live REBNY CustomFields key (2026-10-28): the Building panel sends it
+    expect(collect).toMatch(/data\.NewConstructionYN\s*=\s*data\.saleBuildingStatus === 'NewDevelopment'/);
+    expect(collect).toMatch(/data\.SponsorUnitYN\s*=\s*data\.saleSponsorUnit === 'Yes'/);
   });
   it('restore keeps the values internal with legacy fallback', () => {
     expect(formHtml).toMatch(/rls:\s*'saleBldgNumElevators',\s*form:\s*'saleBldgNumElevators'[^}]*fallbackRls:\s*'ElevatorsTotal'/);
-    expect(formHtml).toMatch(/rls:\s*'saleBldgNewDevelopment',\s*form:\s*'saleBldgNewDevelopment'[^}]*fallbackRls:\s*'NewDevelopmentYN'/);
-    // saleBldgNewConstruction stays mapped to the REAL NewConstructionYN
+    expect(formHtml).not.toMatch(/form:\s*'saleBldgNewDevelopment'/);
+    // saleBldgNewConstruction stays mapped to the REAL NewConstructionYN; the sponsor Yes/No restores
+    // from SponsorUnitYN and the legacy exclusive 'SponsorUnit' Building Status choice
     expect(formHtml).toMatch(/rls:\s*'NewConstructionYN',\s*form:\s*'saleBldgNewConstruction'/);
+    expect(formHtml).toMatch(/rls:\s*'SponsorUnitYN',\s*name:\s*'saleSponsorUnit'[^}]*fallback:\s*'SponsorUnitYN'/);
+    expect(formHtml).toMatch(/raw\.saleBuildingStatus === 'SponsorUnit'\)\s*setRadio\('saleSponsorUnit', 'Yes'\)/);
   });
 });
 
@@ -114,15 +127,14 @@ describe('Building auto-fill — AssociationFee/Frequency from the Cotality look
     return els;
   }
 
-  it('fills fee AND overrides the Monthly default with the building frequency (Codex #296)', () => {
-    // #saleMaintCCFreq starts at its real HTML default "Monthly"; a Quarterly
-    // building must override it (the only-when-empty guard used to skip it).
+  it('leaves Maintenance blank for the agent: the building lookup no longer prefills the fee or its frequency', () => {
+    // Maintenance / common charges / operating expenses are entered by the agent for the unit (owner rule 2026-10-16); the building association fee is not the unit's.
     const els = runPopulate(
       { association_fee: 1500, association_fee_frequency: 'Quarterly' },
       { saleMaintCC: { value: '' }, saleMaintCCFreq: { value: 'Monthly' } },
     );
-    expect(els.saleMaintCC.value).toBe(1500);
-    expect(els.saleMaintCCFreq.value).toBe('Quarterly');
+    expect(els.saleMaintCC.value).toBe('');
+    expect(els.saleMaintCCFreq.value).toBe('Monthly');
   });
 
   it('does NOT clobber an agent-entered maintenance value (fee+freq left untouched)', () => {

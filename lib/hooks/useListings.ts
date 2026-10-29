@@ -38,7 +38,9 @@ export interface UseListingsParams {
    * Restrict to Mallan-authored exclusive listings only. Sourced from the
    * `/exclusives` redirect (vercel.json) → `/buy?exclusive=mallan`.
    *
-   * Backend filters by `agent_id != null` (CRM-created listings) and skips
+   * Backend filters to Mallan-AUTHORED listings (an SL-/RL- listing id or
+   * rls_eligible=false: `mallanAuthoredWhere` in lib/search/public-listing-db.ts,
+   * never `agent_id`, which the sync also stamps on other firms' rows) and skips
    * the Trestle IDX merge so the page does not surface other brokers' rows
    * — UCBA Art. III §2(A) (no unauthorized advertising) and 19 NYCRR §175.25
    * (no misleading advertising) require the surface to truthfully reflect

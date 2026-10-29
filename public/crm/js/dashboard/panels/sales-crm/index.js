@@ -544,7 +544,7 @@ var SalesCRM = (function () {
         _renderCompsTab(el, data, listingId);
       })
       .catch(function () {
-        el.innerHTML = '<div class="p-6 text-center text-red-500"><i class="fas fa-exclamation-triangle mr-1"></i>Failed to load comps. Check that Trestle credentials are configured.</div>';
+        el.innerHTML = '<div class="p-6 text-center text-red-500"><i class="fas fa-exclamation-triangle mr-1"></i>Failed to load comps. Check that Cotality credentials are configured.</div>';
       });
   }
 
@@ -1339,12 +1339,11 @@ var SalesCRM = (function () {
     } else if (action === 'schedule_open_house') {
       _scheduleShowing();
     } else if (action === 'send_weekly_report') {
-      CRM.toast('Sending weekly report...', 'info');
+      // Reviewed draft in the compose (attach the listings there) — this used to send three canned
+      // lines to the client immediately, with no update attached and no preview.
       var rptSubject = 'Weekly Listing Update — ' + (cl.name || 'Your Properties');
-      var rptBody = 'Hi ' + (cl.first_name || cl.name || '') + ',\n\nHere is your weekly listing update from Mallan Real Estate.\n\nPlease reach out if you have any questions.\n\nBest regards,\nMallan Real Estate Inc.';
-      MallanAPI._fetch('/api/crm/email', { method: 'POST', body: JSON.stringify({ type: 'weekly_report', client_ids: [String(cl.id)], subject: rptSubject, body: rptBody }) })
-        .then(function () { CRM.toast('Weekly report sent!', 'success'); })
-        .catch(function () { CRM.toast('Send failed', 'error'); });
+      var rptBody = 'Hi ' + (cl.first_name || cl.name || '') + ',\n\nHere is your weekly listing update from Mallan Real Estate.\n\nPlease reach out if you have any questions.\n\nBest regards,';
+      Panels._composeTo(cl.id, rptSubject, rptBody);
     }
   }
 
@@ -1367,7 +1366,7 @@ var SalesCRM = (function () {
 
   function _findNeighborSales() {
     CRM.toast('Searching for neighbor sales...', 'info');
-    // This would query Trestle for recent sales in the same building
+    // Looks up recent closed sales in the same building via /api/idx/search
     var cl = _s.ws.client;
     MallanAPI._fetch('/api/idx/search?address=' + encodeURIComponent(cl.property_address || '') + '&status=Closed&limit=10')
       .then(function (data) {

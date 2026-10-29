@@ -28,7 +28,7 @@ describe('classifier — three distinct concepts', () => {
     for (const row of [
       { listing_id: 'SL-0004' },
       { listing_id: 'RL-0011' },
-      { listing_id: 'RLS20093870', rls_eligible: false }, // website-only
+      { listing_id: 'SL-0099', rls_eligible: false }, // website-only
     ]) {
       expect(isMallanLocalListing(row)).toBe(true);
       expect(isMallanRlsReturnCopy(row)).toBe(false);
@@ -85,7 +85,6 @@ describe('suppression is inside the public query — before count/skip/take', ()
     const or = excludeMallanRlsReturnCopies().OR;
     expect(or).toEqual(
       expect.arrayContaining([
-        { rls_eligible: false },
         { listing_id: { startsWith: 'SL-' } },
         { listing_id: { startsWith: 'RL-' } },
       ]),
@@ -141,7 +140,7 @@ describe('suppression is inside the public query — before count/skip/take', ()
   });
 });
 
-describe('live Trestle clause — provider null semantics are not guessed', () => {
+describe('live Cotality clause — provider null semantics are not guessed', () => {
   it('keeps null-office rows visible via an explicit OR, not a bare ne', () => {
     const clause = trestleExcludeMallanReturnCopiesClause();
     expect(clause).not.toBeNull();

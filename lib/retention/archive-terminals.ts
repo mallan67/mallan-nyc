@@ -12,7 +12,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { resolveListingAgentInfo, AGENT_TYPED_SELECT, ResolvableListingAgent } from "@/lib/listings/agent-info-resolver";
 
-/** Mirror of the cron route's TERMINAL_STATUSES (kept in sync by tests). */
+/** Mirror of the cron route's TERMINAL_STATUSES (kept in sync by tests): every spelling a terminal status is stored under, "Canceled" being Cotality's (lib/compliance/terminal-status.ts, #449). */
 export const ARCHIVE_TERMINAL_STATUSES = [
   "Closed",
   "Sold",
@@ -21,6 +21,7 @@ export const ARCHIVE_TERMINAL_STATUSES = [
   "Withdrawn",
   "Expired",
   "Cancelled",
+  "Canceled",
 ] as const;
 
 export const ARCHIVE_CUTOFF_DAYS = 180;

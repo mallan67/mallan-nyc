@@ -126,7 +126,7 @@ var TransitSearch = (function() {
     return false;
   }
 
-  // Build OData filter for Trestle (bounding box approach)
+  // Build OData filter for the Cotality API (bounding box approach)
   function toODataFilter() {
     var bounds = getBounds();
     if (!bounds) return [];

@@ -1,8 +1,8 @@
 /// <reference types="jest" />
 /**
- * Trestle/Cotality open houses also carry a normalized `addressKey` (twin-safe matching), computed
+ * Cotality open houses also carry a normalized `addressKey` (twin-safe matching), computed
  * from the same normalizeAddressKey used by the local path + banner resolver. Mocks the Cotality
- * OData feed so the /api/open-houses Trestle path returns one Public open house for RLS20099289.
+ * OData feed so the /api/open-houses Cotality path returns one Public open house for RLS20099289.
  */
 const getAccessTokenMock = jest.fn(async (..._a: unknown[]) => 'tok');
 jest.mock('@/lib/idx/auth', () => ({ __esModule: true, getAccessToken: (...a: unknown[]) => getAccessTokenMock(...a) }));
@@ -34,8 +34,8 @@ beforeEach(() => {
   }) as unknown as typeof fetch;
 });
 
-describe('/api/open-houses — Trestle open houses include addressKey', () => {
-  it('a Cotality/Trestle open house carries a non-empty normalized addressKey', async () => {
+describe('/api/open-houses — Cotality open houses include addressKey', () => {
+  it('a Cotality open house carries a non-empty normalized addressKey', async () => {
     const res = await GET();
     const json = (await res.json()) as { openHouses: Array<Record<string, unknown>> };
     const t = json.openHouses.find((o) => o.source === 'trestle');

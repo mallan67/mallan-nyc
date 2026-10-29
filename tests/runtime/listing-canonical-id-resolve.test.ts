@@ -4,7 +4,7 @@
  *
  * The canonical listing URL is `/listing/{address-slug}/{listing-id-LOWERCASED}`.
  * `resolveLookupKey` turns the catch-all segments back into a single lookup key
- * that the detail route + /api/listings/[id] feed to Trestle (`ListingId eq …`,
+ * that the detail route + /api/listings/[id] feed to Cotality (`ListingId eq …`,
  * case-SENSITIVE) and Prisma (findUnique, case-sensitive). REBNY/CRM ids are
  * stored UPPERCASE (RLS20059088, RBNY12345678, SL-0004), so a lowercased
  * trailing segment must be normalized back to uppercase before lookup or every
@@ -48,7 +48,7 @@ describe('normalizeListingIdCase — restore stored uppercase for case-sensitive
     expect(normalizeListingIdCase('listing-rls20061539')).toBe('listing-rls20061539');
   });
 
-  it('LEAVES a numeric Trestle ListingKey (mlsId) untouched', () => {
+  it('LEAVES a numeric Cotality ListingKey (mlsId) untouched', () => {
     expect(normalizeListingIdCase('1146011469')).toBe('1146011469');
   });
 });

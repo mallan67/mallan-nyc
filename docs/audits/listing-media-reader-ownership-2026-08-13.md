@@ -73,11 +73,11 @@ true data-refresh time, not the render clock. That is the surface this defect br
 
 ## 1. Cotality field truth (Class B — verified live, not inferred)
 
-Verified against live Trestle `$metadata` via the trestle-fields MCP (cache age 0m).
+Verified against live Cotality `$metadata` via the optional local `$metadata` helper (cache age 0m).
 
 ### 1.1 `Media.MediaCategory` has 18 live values — the in-repo registry is stale
 
-`data/RLS-FIELD-REGISTRY.md:147` claims 6 values
+The former in-repo provider field registry (since deleted) claimed 6 values
 (`FloorPlan, Photo, Video, AgentPhoto, OfficePhoto, GroundPhoto`).
 
 Live Cotality returns **18**, does **not** contain `GroundPhoto`, and adds:
@@ -349,8 +349,8 @@ becomes strict again, so there is no perpetual replay.
 
 Chosen over "verify completeness against live Cotality at the DB max": a
 replay-safe boundary is correct WITHOUT that verification, and this environment
-cannot run a live Cotality data query anyway (see
-`docs/audits/cotality-live-metadata-evidence-2026-08-13.md` §4).
+cannot run a live Cotality data query anyway (see the 2026-08-13 live `$metadata`
+evidence record §4, retired to git history).
 
 ### 8.3 The manual route dropped the ListingKey
 
@@ -404,8 +404,8 @@ UPDATE payload's keys.
   which can carry the Upstash URL/token).
 - The 13 source-TEXT preflight assertions were replaced with behavioral tests
   that import and call the functions (23 + 9 route-level), mutation-verified.
-- Raw Cotality `$metadata` captures preserved verbatim in
-  `docs/audits/cotality-live-metadata-evidence-2026-08-13.md` so the
+- Raw Cotality `$metadata` captures preserved verbatim in the
+  2026-08-13 evidence record (retired to git history) so the
   18-value `MediaCategory` claim is auditable rather than prose.
 
 ---
@@ -1003,7 +1003,7 @@ Their PhotosChangeTimestamps (2026-04-07) sit far below the live media cursor
 cannot reach them, which is why they are residual in the first place.
 
 The lookup MUST be batched with an OR-ed `ListingId eq` filter chunked at **15
-IDs**, matching the documented Trestle URL-length limit (`lib/idx/sync.ts:1231`
+IDs**, matching the documented Cotality URL-length limit (`lib/idx/sync.ts:1231`
 caps the media batch at 15 for exactly this reason). Resolution order stays
 fail-closed: `raw_data.ListingKey` -> `mls_id` (only when `<> listing_id`) ->
 Property lookup -> skip untouched.
@@ -1163,7 +1163,7 @@ The directive required confirming this before keeping the local value:
 |---|---|
 | 1 | `mapTrestleToPrisma` never emits `rls_eligible` |
 | 2 | **0 occurrences** in `LISTING_SYNC_COMPARE_SELECT` — sync never compares or updates it |
-| 3 | The Trestle path hard-codes the constant `true` (`lib/idx/sync.ts:1085`, projection input) |
+| 3 | The Cotality-feed path hard-codes the constant `true` (`lib/idx/sync.ts:1085`, projection input) |
 | 4 | Its only real writers are CRM routes computing it from `classifyListingSource` / `isInHouse` / `explicitOptOut` |
 
 No Cotality field maps to it. The provider cannot answer it, so the local value

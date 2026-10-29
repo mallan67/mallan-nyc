@@ -18,7 +18,7 @@
  *       String(r.media_type).toLowerCase() === 'photo'
  *
  *   The canonical public resolver additionally considers media_category,
- *   media_classification and the Trestle DOCUMENT-* URL shape.
+ *   media_classification and the Cotality DOCUMENT-* URL shape.
  *
  * So a row stored as media_type='Photo' can be canonically a FloorPlan. These
  * tests establish, per fixture, whether the two agree.

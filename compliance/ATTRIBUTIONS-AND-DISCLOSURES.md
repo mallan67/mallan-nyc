@@ -6,9 +6,9 @@
 
 ---
 
-> ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> ### AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+> 1. **NY law/DOS, Fair Housing and REBNY rules (UCBA 2026, REBNY Listing Service)** govern use, display and conduct. 2. **The live Cotality API** is the only authority for provider fields, values and picklists (`data/cotality-enums.live.json` is its committed copy).
+> 3. **Mallan business rules** govern how verified facts are used; Mallan-created fields (mostly commercial and private-listing fields) are Mallan facts, never presented as provider data, and can restrict but never override a law/REBNY/provider display restriction (Master §0.2, §4, §21.1). 4. **Fail closed = NON-DISPLAY.** Plan: `MALLAN-PLATFORM-MASTER-PLAN.md`; state: `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`.
 
 ---
 
@@ -29,7 +29,7 @@ Listing Courtesy of [ListOfficeName]
 | Font size | Art. III, Sec. 2(C) | Not smaller than the median typeface on the page |
 | Placement | Art. III, Sec. 2(C) | Reasonably prominent location |
 | Every listing | Art. III, Sec. 2(C) | On every listing card, detail view, and report |
-| Data source | RLS Field | Use `ListOfficeName` from RLS data |
+| Data source | Cotality field `ListOfficeName` (live `$metadata`) | Use `ListOfficeName` from the RLS data the live feed returns |
 
 ### Where Attribution Must Appear
 
@@ -167,7 +167,7 @@ Coming Soon. No Showings or Open House until [START SHOWING DATE].
 | Rule | Source |
 |------|--------|
 | Must be prominently displayed | Art. I, Sec. 16(C) |
-| Date must match First Showing Date | RLS: ActivationDate |
+| Date must match First Showing Date | Cotality field `ActivationDate` |
 | Sales only | D1 |
 | Frontend + CRM display | Both |
 
@@ -183,8 +183,8 @@ Listing data last updated: [TIMESTAMP]
 
 | Rule | Source |
 |------|--------|
-| Must show data freshness | RESO IDX Rules |
-| Format: date + time | Per RESO convention |
+| Must show data freshness | IDX display practice — source not yet verified (no UCBA 2026 citation) |
+| Format: date + time | Mallan display format |
 
 ---
 

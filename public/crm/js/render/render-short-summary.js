@@ -5,7 +5,7 @@
                 var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
                 return `
-                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
+                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || listing.id)}" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                     ${comingSoonBadge(listing)}
                     <div class="flex">
                     <!-- Photo (full height left) -->
@@ -52,8 +52,8 @@
                             </div>
                             <!-- Col 2: Financials -->
                             <div>
-                                <div class="flex justify-between"><span class="text-gray-500">${listing.listingCategory === 'rental' ? 'Rent:' : 'Common Charges:'}</span><span>$${listing.maintCC.toLocaleString()}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">RE Taxes:</span><span>$${listing.reTaxes.toLocaleString()}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">${listing.listingCategory === 'rental' ? 'Rent:' : 'Common Charges:'}</span><span>${listing.maintCC ? "$" + Math.round(listing.maintCC).toLocaleString() : "--"}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">RE Taxes:</span><span>${listing.reTaxes ? '$' + Math.round(listing.reTaxes).toLocaleString() : '--'}</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">Cooling:</span><span>--</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">Washer/Dryer:</span><span>--</span></div>
                             </div>
