@@ -45,6 +45,7 @@ const lifecycleTriggerUpdateMock = jest.fn<Promise<unknown>, unknown[]>(async ()
 const triggerExecutionFindFirstMock = jest.fn<Promise<unknown>, unknown[]>(async () => null);
 const triggerExecutionCreateMock = jest.fn<Promise<unknown>, unknown[]>(async () => ({}));
 
+const executeRawMock = jest.fn<Promise<number>, unknown[]>(async () => 0);
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
@@ -63,9 +64,16 @@ jest.mock('@/lib/prisma', () => ({
     notification: { create: notificationCreateMock },
     lifecycleTrigger: { findMany: lifecycleTriggerFindManyMock, update: lifecycleTriggerUpdateMock },
     triggerExecution: { findFirst: triggerExecutionFindFirstMock, create: triggerExecutionCreateMock },
-    $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
+    // the array form (a batch) and the function form (an interactive transaction: the renewal's lock + check + insert)
+    $transaction: async (arg: Promise<unknown>[] | ((tx: unknown) => Promise<unknown>)) => Array.isArray(arg) ? Promise.all(arg) : arg(prismaTxMock()),
   },
 }));
+function prismaTxMock() {
+  return {
+    activeLease: { findMany: activeLeaseFindManyMock, findFirst: activeLeaseFindFirstMock, findUnique: activeLeaseFindUniqueMock, create: activeLeaseCreateMock, update: activeLeaseUpdateMock },
+    $executeRaw: executeRawMock,
+  };
+}
 
 // ─── Auth / guards / email mocks ───────────────────────────────────────────
 const AUTH = { userId: 1n, role: 'BROKER', email: 'maya@mallan.nyc' };
@@ -268,7 +276,7 @@ describe('B. Idempotency — the same landlord, unit and term is one tenancy', (
   });
 
   it('POST /api/crm/active-leases/[id]/renew twice records one new term', async () => {
-    const prior = leaseRow();
+    const prior = leaseRow({ lease_end_date: new Date('2026-12-31T00:00:00Z') });   // the prior term ends the day before the renewal starts
     activeLeaseFindFirstMock.mockResolvedValue(prior);
     const { POST } = await import('@/app/api/crm/active-leases/[id]/renew/route');
     const body = { lease_start_date: '2027-01-01', lease_end_date: '2027-12-31', monthly_rent: 4400 };
@@ -338,7 +346,7 @@ describe('C. The recorded term is history — renewals are new terms, correction
   });
 
   it('the renewal keeps the prior row (historical, renewing) and creates the new term with original_rent and the increase', async () => {
-    activeLeaseFindFirstMock.mockResolvedValue(leaseRow());
+    activeLeaseFindFirstMock.mockResolvedValue(leaseRow({ lease_end_date: new Date('2026-12-31T00:00:00Z') }));   // consecutive: the renewal starts 2027-01-01
     const { POST } = await import('@/app/api/crm/active-leases/[id]/renew/route');
     const res = await POST(makeRequest({ url: 'http://localhost/api/crm/active-leases/5/renew', body: { lease_start_date: '2027-01-01', lease_end_date: '2027-12-31', monthly_rent: 4410 } }), params());
     expect(res.status).toBe(201);

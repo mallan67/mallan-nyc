@@ -13,9 +13,13 @@
  * The natural key of a tenancy is the landlord, the unit (normalised address + unit) and the
  * term (start day, end day). No schema change: the key is resolved here before an insert.
  */
-import { createHmac } from "crypto";
+import { createHash, createHmac } from "crypto";
+import type { Prisma, PrismaClient } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { serializeBigInts } from "@/lib/api/serialize";
+
+/** A Prisma client or the client of an interactive transaction. */
+export type TenancyDb = PrismaClient | Prisma.TransactionClient;
 
 /** Returned (409, code lease_term_locked) when a date change is sent for an open tenancy without correction: true. */
 export const LEASE_TERM_LOCKED_MESSAGE =
@@ -103,12 +107,35 @@ function dayBounds(d: Date): { gte: Date; lt: Date } {
 }
 
 /**
+ * Advisory-lock class of tenancy writes: `pg_advisory_xact_lock(TENANCY_LOCK_CLASS, tenancyLockKey(key))`
+ * (the same pg xact-lock pattern as lib/idx/machine-claim.ts and lib/demand-index/collector.ts; a
+ * distinct class so it never meets theirs). The lock is held until the transaction commits, so two
+ * overlapping writes for one unit of one landlord run one after the other and the second sees the
+ * first's row. No schema change.
+ */
+export const TENANCY_LOCK_CLASS = 20261028;
+
+/** int4 key of a tenancy's unit under its landlord (landlord id + normalised address + unit), stable across processes. */
+export function tenancyLockKey(key: Pick<TenancyKey, "landlord_lead_id" | "address" | "unit">): number {
+  const digest = createHash("sha1")
+    .update([String(key.landlord_lead_id), normalizeAddress(key.address), normalizeUnit(key.unit) ?? ""].join("\u0001"))
+    .digest();
+  return digest.readInt32BE(0);
+}
+
+/** Take the tenancy's advisory lock inside an interactive transaction; waits for a holder, released at commit / rollback. */
+export async function lockTenancy(tx: Prisma.TransactionClient, key: Pick<TenancyKey, "landlord_lead_id" | "address" | "unit">): Promise<void> {
+  const lockKey = tenancyLockKey(key);
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${TENANCY_LOCK_CLASS}::int4, ${lockKey}::int4)`;
+}
+
+/**
  * The tenancy that already exists for this landlord, unit and term, whatever its status.
  * Prisma cannot normalise text, so candidates are read by landlord and term and the
- * address / unit are compared here.
+ * address / unit are compared here. Pass the transaction's client to read inside a lock.
  */
-export async function findExistingTenancy(key: TenancyKey): Promise<{ id: bigint; status: string } | null> {
-  const candidates = await prisma.activeLease.findMany({
+export async function findExistingTenancy(key: TenancyKey, db: TenancyDb = prisma): Promise<{ id: bigint; status: string } | null> {
+  const candidates = await db.activeLease.findMany({
     where: {
       landlord_lead_id: key.landlord_lead_id,
       lease_start_date: dayBounds(key.lease_start_date),

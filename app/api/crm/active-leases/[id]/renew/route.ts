@@ -8,6 +8,14 @@
  * term and the rent-increase fields. Idempotent on the natural key: submitting the same renewal
  * twice returns the row the first call created.
  *
+ * The new term starts after the prior term ends: the prior term's last day is the prior term's, so
+ * the earliest start is the next day (a consecutive renewal, 2026-07-01 after 2026-06-30); a start
+ * inside the prior term is refused (400) with the prior term's end date.
+ *
+ * The duplicate check and the insert run in ONE interactive transaction under the tenancy's
+ * advisory lock (lib/crm/leases.ts lockTenancy): two overlapping identical requests — a timeout
+ * retry, two tabs — serialise on the lock, and the second finds the first's row and deduplicates.
+ *
  * Body: { lease_start_date, lease_end_date, monthly_rent?, lease_type?, security_deposit?, notes? }
  */
 
@@ -16,7 +24,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
-import { findExistingTenancy, parseLeaseDate, serializeLease } from "@/lib/crm/leases";
+import { dayKey, findExistingTenancy, lockTenancy, parseLeaseDate, serializeLease } from "@/lib/crm/leases";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -48,6 +56,14 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   if (start.getTime() < prior.lease_start_date.getTime()) {
     return NextResponse.json({ error: "A renewal starts after the prior term began" }, { status: 400 });
   }
+  // The prior term's last day belongs to the prior term: the renewal starts the day after at the earliest.
+  const priorEndDay = dayKey(prior.lease_end_date);
+  if (dayKey(start) <= priorEndDay) {
+    return NextResponse.json(
+      { error: `A renewal starts after the prior term ends (${priorEndDay}); the earliest start is the next day`, prior_lease_end_date: priorEndDay },
+      { status: 400 },
+    );
+  }
   const rentGiven = body.monthly_rent !== undefined && body.monthly_rent !== null && body.monthly_rent !== "";
   // A renewal rent that was not supplied is carried over from the prior term and recorded as such —
   // a confirmed rent and a carried-over rent are different facts (Maya, 2026-10-28).
@@ -59,23 +75,23 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 
   const key = { landlord_lead_id: prior.landlord_lead_id, address: prior.address, unit: prior.unit, lease_start_date: start, lease_end_date: end };
-  const existing = await findExistingTenancy(key);
-  if (existing) {
-    // Already recorded (a retry): make sure the prior term is closed and return the term that exists.
-    if (existing.id !== prior.id && (prior.status === "active" || prior.status === "pending")) {
-      await prisma.activeLease.update({ where: { id: prior.id }, data: { status: "historical", renewal_status: "renewing" } });
-    }
-    const row = await prisma.activeLease.findUnique({ where: { id: existing.id } });
-    await logAuditEvent("lease_renew_deduplicated", "active_lease", existing.id.toString(), auth,
-      { prior_lease_id: prior.id.toString() }, req.headers.get("x-forwarded-for") ?? undefined);
-    return NextResponse.json({ lease: row ? serializeLease(row) : { id: existing.id.toString() }, prior_lease_id: prior.id.toString(), deduplicated: true }, { status: 200 });
-  }
-
   const priorRent = Number(prior.monthly_rent);
   const increasePct = priorRent > 0 && rent !== priorRent ? Math.round(((rent - priorRent) / priorRent) * 10000) / 100 : null;
 
-  const [created, closed] = await prisma.$transaction([
-    prisma.activeLease.create({
+  // One transaction: the tenancy's advisory lock, then the duplicate check, then the insert and the close of the prior
+  // term. A second identical request waits on the lock, reads after the first committed, and returns the first's row.
+  const outcome = await prisma.$transaction(async (tx) => {
+    await lockTenancy(tx, key);
+    const existing = await findExistingTenancy(key, tx);
+    if (existing) {
+      // Already recorded (a retry): make sure the prior term is closed and return the term that exists.
+      if (existing.id !== prior.id && (prior.status === "active" || prior.status === "pending")) {
+        await tx.activeLease.update({ where: { id: prior.id }, data: { status: "historical", renewal_status: "renewing" } });
+      }
+      const row = await tx.activeLease.findUnique({ where: { id: existing.id } });
+      return { deduplicated: true as const, existing, row };
+    }
+    const created = await tx.activeLease.create({
       data: {
         status: "active",
         address: prior.address,
@@ -105,12 +121,23 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         notes: body.notes ? String(body.notes) : null,
         custom_fields: { renewed_from_lease_id: prior.id.toString(), rent_carried_over: !rentGiven },
       },
-    }),
-    prisma.activeLease.update({
+    });
+    const closed = await tx.activeLease.update({
       where: { id: prior.id },
       data: { status: "historical", renewal_status: "renewing", renewal_rent: rent, renewal_notice_date: new Date() },
-    }),
-  ]);
+    });
+    return { deduplicated: false as const, created, closed };
+  });
+
+  if (outcome.deduplicated) {
+    await logAuditEvent("lease_renew_deduplicated", "active_lease", outcome.existing.id.toString(), auth,
+      { prior_lease_id: prior.id.toString() }, req.headers.get("x-forwarded-for") ?? undefined);
+    return NextResponse.json(
+      { lease: outcome.row ? serializeLease(outcome.row) : { id: outcome.existing.id.toString() }, prior_lease_id: prior.id.toString(), deduplicated: true },
+      { status: 200 },
+    );
+  }
+  const { created, closed } = outcome;
 
   await logAuditEvent("lease_renewed", "active_lease", created.id.toString(), auth,
     { prior_lease_id: prior.id.toString(), term: { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) }, monthly_rent: rent, rent_carried_over: !rentGiven, increase_pct: increasePct },

@@ -17,20 +17,24 @@
  * own listing record (owner_client) when one exists, otherwise the agent picks the client.
  *
  * ?months=N limits to leases closed in the last N months (default: all).
+ *
+ * Every page is read: the provider-fetch foundation (lib/idx/fetch.ts fetchFromTrestle) follows
+ * @odata.nextLink; an agent's own REBNY member id is part of the query so the agent's leases are found
+ * however many the office has. No owner, tenant or client information is ever sent to Cotality.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { getAccessToken } from "@/lib/idx/auth";
+import { fetchFromTrestle } from "@/lib/idx/fetch";
 import { serializeBigInts } from "@/lib/api/serialize";
 import { MALLAN_LIST_OFFICE_MLS_IDS } from "@/lib/listings/mallan-source-identity";
 import { addressKey, dayKey, normalizeUnit } from "@/lib/crm/leases";
 
-const TRESTLE_API =
-  process.env.TRESTLE_API_URL ||
-  process.env.IDX_ENDPOINT ||
-  "https://api.cotality.com/trestle";
+/** Rows a page (the provider's page), and the most the route reads in one answer (25 pages). */
+const PAGE_SIZE = 200;
+const MAX_ROWS = 5000;
 
 export const RLS_LEASE_SELECT = [
   "ListingId", "ListingKey", "StandardStatus", "MlsStatus",
@@ -117,29 +121,39 @@ export async function GET(req: NextRequest) {
     since.setUTCMonth(since.getUTCMonth() - months);
     filter += ` and CloseDate ge ${since.toISOString().slice(0, 10)}`;
   }
-  const params = new URLSearchParams();
-  params.set("$filter", filter);
-  params.set("$select", RLS_LEASE_SELECT);
-  params.set("$orderby", "CloseDate desc");
-  params.set("$top", "200");
-  params.set("$count", "true");
-
-  const res = await fetch(`${TRESTLE_API}/odata/Property?${params.toString()}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-  });
-  if (!res.ok) {
-    const detail = (await res.text()).slice(0, 300);
-    return NextResponse.json({ error: `Cotality answered ${res.status}`, detail }, { status: 502 });
-  }
-  const body = (await res.json()) as { value?: RlsRow[]; "@odata.count"?: number };
-  let rows: RlsRow[] = Array.isArray(body.value) ? body.value : [];
-
-  // An agent sees the leases they listed (REBNY member id on the Agent record); the broker sees the office's.
+  // An agent sees the leases they listed: the agent's own REBNY member id (ListAgentMlsId — the public professional
+  // identifier the RLS feed itself carries on every row) is part of the query, so the agent's rows are found however
+  // many the office has. The broker sees the office's. Nothing about owners, tenants or clients is ever sent to Cotality:
+  // the filter carries the office ids, the property type, the status, a close-date floor and the agent's member id.
+  let mine: string | null = null;
   if (auth.role !== "BROKER") {
     const me = await prisma.agent.findUnique({ where: { id: auth.userId }, select: { trestle_mls_id: true } });
-    const mine = me?.trestle_mls_id ? String(me.trestle_mls_id) : null;
-    rows = mine ? rows.filter((r) => String(r.ListAgentMlsId ?? "") === mine) : [];
+    mine = me?.trestle_mls_id ? String(me.trestle_mls_id) : null;
+    if (!mine) {
+      return NextResponse.json({
+        source: "cotality_rls_live", office_mls_ids: officeIds, filter, total: 0, count: 0, untracked: 0, has_more: false,
+        fetched_at: new Date().toISOString(), leases: [], note: "No REBNY member id on this agent record: nothing can be attributed.",
+      });
+    }
+    filter += ` and ListAgentMlsId eq '${mine.replace(/'/g, "''")}'`;
   }
+
+  // Every page: the provider-fetch foundation (lib/idx/fetch.ts) follows @odata.nextLink until the answer is exhausted
+  // (PAGE_SIZE rows a page, MAX_ROWS in all — has_more says when the office has more than that).
+  let fetched: Awaited<ReturnType<typeof fetchFromTrestle>>;
+  try {
+    fetched = await fetchFromTrestle({
+      filter, select: RLS_LEASE_SELECT.split(","), orderby: "CloseDate desc", top: PAGE_SIZE, maxTotal: MAX_ROWS, count: true, timeoutMs: 20_000,
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    const m = detail.match(/\((\d{3})\)/);
+    return NextResponse.json({ error: m ? `Cotality answered ${m[1]}` : "Cotality did not answer", detail: detail.slice(0, 300) }, { status: 502 });
+  }
+  let rows = fetched.records as unknown as RlsRow[];
+  // The answer is checked, not trusted: only the agent's own rows are shown to the agent.
+  if (mine) rows = rows.filter((r) => String(r.ListAgentMlsId ?? "") === mine);
+  void token;
 
   // Tenancies already recorded, keyed by building + unit
   const leases = await prisma.activeLease.findMany({
@@ -232,9 +246,10 @@ export async function GET(req: NextRequest) {
     source: "cotality_rls_live",
     office_mls_ids: officeIds,
     filter,
-    total: body["@odata.count"] ?? rows.length,
+    total: fetched.odataCount ?? rows.length,
     count: out.length,
     untracked: out.filter((r) => r.tracking.status === "untracked").length,
+    has_more: fetched.hasMore,
     fetched_at: new Date().toISOString(),
     leases: out,
   }));
