@@ -184,10 +184,17 @@ if (compViolations.length === 0) {
 // ── 7. escapeHtml used in all email-sending endpoints ──
 const SEND_EMAIL_PATTERN = /sendEmail|sendgrid/;
 const ESCAPE_HTML_PATTERN = /escapeHtml/;
+// An endpoint that composes no HTML of its own but relays HTML the signed-in agent composed in the CRM (a Search report, built by
+// public/crm/js/output/reports.js, which escapes every listing text): it must strip active content (lib/email/relay-html.ts) instead.
+const RELAY_HTML_PATTERN = /stripActiveContent\(/;
+const RELAY_EMAIL_ENDPOINTS = new Set(['app/api/crm/reports/email/route.ts']);
 const emailEndpoints = apiFiles.filter(f => fileContains(f, SEND_EMAIL_PATTERN));
 for (const ep of emailEndpoints) {
   const rel = path.relative(ROOT, ep);
-  if (fileContains(ep, ESCAPE_HTML_PATTERN) || !rel.startsWith('app')) {
+  if (RELAY_EMAIL_ENDPOINTS.has(rel.split(path.sep).join('/'))) {
+    if (fileContains(ep, RELAY_HTML_PATTERN)) pass(`relayed HTML stripped of active content in ${rel}`);
+    else fail(`stripActiveContent missing in relay email endpoint ${rel}`);
+  } else if (fileContains(ep, ESCAPE_HTML_PATTERN) || !rel.startsWith('app')) {
     pass(`escapeHtml used in ${rel}`);
   } else {
     fail(`escapeHtml missing in email endpoint ${rel}`);

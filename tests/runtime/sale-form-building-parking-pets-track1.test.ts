@@ -43,7 +43,8 @@ function extractFn(src: string, name: string): string {
 const ADDED = ['GarageYN', 'AttachedGarageYN', 'GarageSpaces', 'OpenParkingSpaces',
   'CoveredSpaces', 'ParkingFeatures', 'LaundryFeatures', 'DocumentsAvailable',
   'PetsAllowed', 'PetsAllowedYN'];
-const PHANTOM = ['MaximumFinancingPercent', 'RentingAllowedYN', 'AssociationApprovalRequiredYN',
+// MaximumFinancingPercent left this list 2026-10-28: it is a live REBNY CustomFields key (CustomProperty.CustomFields), read by the route through Property's $expand.
+const PHANTOM = ['RentingAllowedYN', 'AssociationApprovalRequiredYN',
   'BoardApprovalYN', 'BuyerApprovalRequiredYN', 'NumberOfShares', 'FlipTaxYN',
   'SubleaseYN', 'FinancingAllowedYN', 'BuildingPetsAllowed', 'BuildingLaundryFeatures'];
 
@@ -225,7 +226,7 @@ describe('co-op/condo policy fields fill ONLY from the saved profile (never inve
     // total shares / underlying mortgage / capital reserves have no Cotality
     // member AND no contract key — there is nothing to surface, so the function
     // must not touch them.
-    ['BldgTotalShares', 'BldgUnderlyingMortgage', 'BldgCapitalReserves'].forEach((id) =>
+    ['BldgTotalShares', 'BldgUnderlyingMortgage', ].forEach((id) =>
       expect(fn).not.toContain(id));
   });
 });

@@ -6,6 +6,11 @@
  * (area, address atoms, building facts), sets the property type from the building's Cotality CommonInterest and locks it until the agent presses Override, and offers a
  * list when the address fits several buildings. The Sale form already did most of this; the Rental form's lookup never reached the index and its building fill wrote
  * to ids that do not exist. These tests drive the REAL pages with the building index stubbed.
+ *
+ * 2026-10-28: the Sale form is Maya's fixed form (the stash@{0} lineage, same name), whose building lookup is its own code — no property-type lock, Override or undo, and
+ * no building-lookup.js — so the module-based page cases run on the Rental form alone and the module's own cases stay. The fixed Sale form's lookup keeps, in its own
+ * code, the rules a lookup must keep whatever its architecture: an index answer is read as data, the candidate rows are built as elements, a select of the Building panel
+ * is written only with an option it has (building-autofill-mapping.test.ts, crm-sale-form-roundtrip.test.ts).
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -35,7 +40,6 @@ type Page = {
 };
 const PAGES: Page[] = [
   { form: 'RENTAL-FORM-REDESIGN', prefix: 'rental', bld: 'bldg', modalSearch: 'searchBuildingModal', modalResults: 'bldgSearchResults', modalSearchInput: 'bldgAddressSearch', modalSearchFn: (f, q) => f.w.searchBuildingModal(q), collector: 'collectRentalFormData' },
-  { form: 'SALE-FORM-REDESIGN', prefix: 'sale', bld: 'saleBldg', modalSearch: 'searchBuildingByAddress', modalResults: 'saleBldgSearchResults', modalSearchInput: 'saleBldgAddressSearch', modalSearchFn: (f, q) => f.w.searchBuildingByAddress(q, 'sale'), collector: 'collectSaleFormData' },
 ];
 
 const val = (f: BootedForm, id: string) => ((f.d.getElementById(id) as HTMLInputElement | null)?.value) ?? '';
@@ -413,60 +417,6 @@ describe.each(PAGES)('$form: the address finds the building', (p) => {
   });
 });
 
-describe('Sale: an In-House listing keeps the address the agent typed and still gets, and holds, the building\'s type', () => {
-  it('applies the building\'s property type without replacing the typed address', async () => {
-    const f = await bootAddForm('SALE-FORM-REDESIGN', { buildings: [COOP], settle: 600 });
-    try {
-      (f.d.querySelector('input[name="saleListingType"][value="InHouseWebOnly"]') as HTMLInputElement).checked = true;
-      (f.w as any).confirm = () => false;                                                       // keep what I typed
-      typeAddress(f, PAGES[1], '200 East 66th Street');
-      await leaveAddress(f, PAGES[1]);
-      expect(val(f, 'saleStreetAddress')).toBe('200 East 66th Street');
-      expect(chosenType(f, PAGES[1])).toBe('Coop');
-      expect(radios(f, PAGES[1]).every((r) => r.disabled)).toBe(true);
-    } finally { f.close(); }
-  });
-
-  it('an Override stays here too: picking the building again does not set its type over the one the agent chose', async () => {
-    const p = PAGES[1];
-    const f = await bootAddForm('SALE-FORM-REDESIGN', { buildings: [COOP], settle: 600 });
-    try {
-      (f.d.querySelector('input[name="saleListingType"][value="InHouseWebOnly"]') as HTMLInputElement).checked = true;
-      (f.w as any).confirm = () => false;                                                       // keep what I typed
-      typeAddress(f, p, '200 East 66th Street');
-      await leaveAddress(f, p);
-      expect(radios(f, p).every((r) => r.disabled)).toBe(true);
-      (f.w as any).confirm = () => true;
-      (notice(f, p)!.querySelector('[data-building-override]') as HTMLButtonElement).click();
-      radios(f, p).find((r) => r.value === 'Condop')!.checked = true;
-      (f.w as any).confirm = () => false;
-      f.w.searchBuildingForListing('200 east', p.prefix);
-      await sleep(500);
-      rowsOf(f, `${p.prefix}BuildingSearchResults`)[0].click();                                  // a deliberate pick, the typed address kept again
-      expect(val(f, 'saleStreetAddress')).toBe('200 East 66th Street');
-      expect(chosenType(f, p)).toBe('Condop');
-      expect(radios(f, p).some((r) => r.disabled)).toBe(false);
-    } finally { f.close(); }
-  });
-});
-
-describe('Sale: choosing an In-House listing type clears the building match, and with it the property type the building held', () => {
-  it('releases the lock and hides the match banner, leaving the type as it was', async () => {
-    const f = await bootAddForm('SALE-FORM-REDESIGN', { buildings: [COOP], settle: 600 });
-    try {
-      await resolveAddress(f, PAGES[1], '200 East 66th Street');
-      expect(radios(f, PAGES[1]).every((r) => r.disabled)).toBe(true);
-      expect(hidden(f, 'saleIdxMatchBanner')).toBe(false);
-      f.w.handleSaleListingTypeChange('InHouseInternal');
-      expect(hidden(f, 'saleIdxMatchBanner')).toBe(true);
-      expect(radios(f, PAGES[1]).some((r) => r.disabled)).toBe(false);                        // no disabled radios with nothing on screen to explain them
-      expect(notice(f, PAGES[1])!.classList.contains('hidden')).toBe(true);
-      expect((f.w as any).MallanBuildingLookup.isLocked('sale')).toBe(false);
-      expect(chosenType(f, PAGES[1])).toBe('Coop');
-    } finally { f.close(); }
-  });
-});
-
 describe('Rental: the Building tab offers the neighborhoods Cotality has', () => {
   it('adds a neighborhood the page did not list', async () => {
     const f = await bootAddForm('RENTAL-FORM-REDESIGN', { neighborhoods: { Manhattan: ['Testville Heights'] }, settle: 800 });
@@ -769,25 +719,6 @@ describe.each(PAGES)('$form: an answer with missing or odd fields', (p) => {
       await resolveAddress(f, p, '200 East 66th Street');
       expect(chosenType(f, p)).toBe('Coop');                                                         // the building itself was applied
       expect([val(f, `${p.prefix}Borough`), val(f, `${p.prefix}ZipCode`), val(f, `${p.prefix}NeighborhoodFromAddress`)]).toEqual(['Queens', '11101', 'Astoria']);
-    } finally { f.close(); }
-  });
-});
-
-describe('Sale: opening the Commercial section does not change a property type a building holds', () => {
-  it('the type stays while the building holds it, and the section selects Commercial once the agent has overridden the building', async () => {
-    const p = PAGES[1];
-    const f = await bootAddForm(p.form, { buildings: [COOP], settle: 600 });
-    try {
-      await resolveAddress(f, p, '200 East 66th Street');
-      const header = f.d.querySelector('[onclick*="selectSaleCommercial"]') as HTMLElement;
-      (header.nextElementSibling as HTMLElement).style.display = 'block';
-      f.w.selectSaleCommercial(header);
-      expect(chosenType(f, p)).toBe('Coop');
-      expect(radios(f, p).every((r) => r.disabled)).toBe(true);
-      (f.w as any).confirm = () => true;
-      (notice(f, p)!.querySelector('[data-building-override]') as HTMLButtonElement).click();
-      f.w.selectSaleCommercial(header);
-      expect(chosenType(f, p)).toBe('Commercial');
     } finally { f.close(); }
   });
 });
@@ -1808,20 +1739,6 @@ describe.each(PAGES)('$form: the match banner and the results list name the form
       await sleep(500);
       const row = rowsOf(f, `${p.prefix}BuildingSearchResults`)[0];
       expect(row.querySelector('span')).toBeNull();
-    } finally { f.close(); }
-  });
-});
-
-describe('Sale: an In-House listing that keeps the typed address names no classification the form does not have either', () => {
-  it('the match banner says "--" for a building whose CommonInterest the form has no classification for', async () => {
-    const f = await bootAddForm('SALE-FORM-REDESIGN', { buildings: [{ ...COOP, common_interest: 'Unknown' }], settle: 600 });
-    try {
-      (f.d.querySelector('input[name="saleListingType"][value="InHouseWebOnly"]') as HTMLInputElement).checked = true;
-      (f.w as any).confirm = () => false;                                                            // keep what I typed
-      await resolveAddress(f, PAGES[1], '200 East 66th Street');
-      expect(val(f, 'saleStreetAddress')).toBe('200 East 66th Street');
-      expect(hidden(f, 'saleIdxMatchBanner')).toBe(false);
-      expect(f.d.getElementById('saleIdxDetectedType')!.textContent).toBe('--');
     } finally { f.close(); }
   });
 });

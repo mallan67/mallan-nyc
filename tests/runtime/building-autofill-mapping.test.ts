@@ -38,9 +38,9 @@ describe('_commonInterestToFormType mapper', () => {
     expect(body).toContain("'Condop': 'Condop'");
   });
 
-  it('does not treat the Mallan display label Co-op as a raw provider value', () => {
+  it('also reads the labels an older building profile may hold (the index answers CommonInterest, else the saved OwnershipType)', () => {
     const body = formHtml.slice(fnStart, fnStart + 500);
-    expect(body).not.toContain("'Co-op': 'Coop'");
+    expect(body).toContain("'Co-op': 'Coop'");
   });
 });
 
@@ -84,7 +84,7 @@ describe('salePropertyType radio values match mapper output', () => {
 // ── 4. selectBuildingFromIDX calls address derivation ──
 
 describe('selectBuildingFromIDX triggers address derivation', () => {
-  const fnStart = formHtml.indexOf('function selectBuildingFromIDX(prefix, picked, auto)');
+  const fnStart = formHtml.indexOf('function selectBuildingFromIDX(prefix, picked)');   // the row the agent clicked, or the address of a cached building
   const fnBody = formHtml.slice(fnStart, fnStart + 4500);
 
   it('calls parseSaleAddress after setting street address', () => {
@@ -111,7 +111,8 @@ describe('populateBuildingFromIDX fills all building fields', () => {
   // sets them — the slice was just truncating. If this function grows again,
   // bump the window; do NOT weaken the assertions.
   // 12000 -> 24000 (A1b): the doorman / concierge fill (the Building Attendance Type group) sits with the other groups, after the amenity checks.
-  const fnBody = formHtml.slice(fnStart, fnStart + 24000);
+  // 24000 -> 32000 (2026-10-28): the select-safe writer at the top of the function, and the CustomFields fills (attendance, rules, staff, financing) after the groups.
+  const fnBody = formHtml.slice(fnStart, fnStart + 32000);
 
   it('sets BldgStreetAddress', () => {
     expect(fnBody).toContain("prefix + 'BldgStreetAddress'");
@@ -167,13 +168,14 @@ describe('Backend Cotality query includes borough fields', () => {
 // ── 7. Candidate display shows building facts ──
 
 describe('Candidate display shows building facts', () => {
-  // The candidates are written by public/crm/js/forms/building-lookup.js (with DOM calls); the form's search hands it the matches.
+  // The Rental form's candidates are written by public/crm/js/forms/building-lookup.js (with DOM calls); the fixed Sale form builds its rows as elements in its own code.
   const lookupSource = readFileSync(resolve(__dirname, '../../public/crm/js/forms/building-lookup.js'), 'utf8');
   const fnStart = formHtml.indexOf('function searchBuildingForListing');
   const fnBody = formHtml.slice(fnStart, fnStart + 2000);
 
-  it('the form renders its candidates through the shared list', () => {
-    expect(fnBody).toContain('bl.renderResults(results, matches');
+  it('the form builds its candidate rows as elements (a building name is never markup)', () => {
+    expect(fnBody).toContain('_saleBuildingCandidateRow(b, subtitle');
+    expect(fnBody).not.toMatch(/innerHTML = matches/);
   });
 
   it('shows stories count in candidate', () => {

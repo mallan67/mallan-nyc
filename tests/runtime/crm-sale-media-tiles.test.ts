@@ -117,7 +117,7 @@ describe('the saved photos of a listing, as the media manager draws them (the ro
     const f = await openEdit({}, ROWS);
     try {
       const [, second, third] = tiles(f, 'salePhotoPreview');
-      button(second, 'Set cover').click();
+      button(second, 'Set as cover').click();
       await sleep(50);
       expect(f.requests.filter((r) => r.method === 'PATCH' && r.url === '/api/crm/listings/L-1/media/k2').map((r) => JSON.parse(r.body))).toEqual([{ preferred_photo_yn: true }]);
       button(third, 'Move earlier').click();

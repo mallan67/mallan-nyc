@@ -36,6 +36,21 @@ function functionBody(haystack: string, signature: string, lengthChars: number):
   return haystack.slice(start, start + lengthChars);
 }
 
+// Helper — slice from a function signature up to an explicit end marker (the next
+// top-level declaration). Use it where the body keeps growing: no calibration, and
+// no dependence on the checkout's line endings.
+function functionBodyUntil(haystack: string, signature: string, endMarker: string): string {
+  const start = haystack.indexOf(signature);
+  if (start === -1) {
+    throw new Error(`function signature not found: ${signature}`);
+  }
+  const end = haystack.indexOf(endMarker, start + signature.length);
+  if (end === -1) {
+    throw new Error(`end marker not found after ${signature}: ${JSON.stringify(endMarker)}`);
+  }
+  return haystack.slice(start, end);
+}
+
 describe('Sale form save/load retention — PR-A/F backend address persistence', () => {
   // ── Test 8: PATCH stores alias keys in structured address bucket ──
   const patchBody = functionBody(routeTs, 'export async function PATCH', 25000);
@@ -115,7 +130,7 @@ describe('Sale form save/load retention — PR-B saleStatus overwrite removed', 
 
 describe('Sale form save/load retention — PR-C _crmWorkflowStatus persisted from every save path', () => {
   // ── Test 5 + 6: draft + autosave both persist _crmWorkflowStatus ──
-  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 24000);
+  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 48000);
 
   it('collectSaleFormData assigns _crmWorkflowStatus from saleStatus (PR-C C5)', () => {
     expect(collectBody).toMatch(/data\._crmWorkflowStatus\s*=\s*data\.saleStatus/);
@@ -134,7 +149,7 @@ describe('Sale form save/load retention — PR-C _crmWorkflowStatus persisted fr
 
 describe('Sale form save/load retention — PR-D checkbox-array collector', () => {
   // ── Tests 1-4: Heating, Cooling, SyndicateTo, saleCommSubtype as arrays ──
-  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 24000);
+  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 48000);
 
   it('Test 1 — Heating is derived as an array from name="saleHeating":checked (PR-D C1)', () => {
     expect(collectBody).toMatch(/data\.Heating\s*=\s*\[\]/);
@@ -174,11 +189,17 @@ describe('Sale form save/load retention — PR-D checkbox-array collector', () =
 
 describe('Sale form save/load retention — PR-E populate/autosave race hardening', () => {
   // ── Test 10: populate setters do not dispatch change events during populate ──
-  // The populate function has grown as verified Cotality fields were restored.
-  // At #647 head cbe1c4a5 the single guarded applySalesFieldRules() call is at
-  // +24685 chars and the next top-level function begins at +26300. Keep the
-  // window large enough to include the real call but smaller than the next function.
-  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 25500);
+  // The slice runs from the populate signature to the next top-level function
+  // (_offerDraftRestore) instead of a fixed character window: the window had to be
+  // re-calibrated every time populate grew (23000 → 24000 in 2026-06, and again when
+  // the 2026-10-26 Building Status / Sponsor Unit restore lines moved the single
+  // guarded applySalesFieldRules() call past 24000), and a CRLF checkout shifts every
+  // offset by one char per line. The end marker is immune to both.
+  const populateBody = functionBodyUntil(
+    formHtml,
+    'function _populateSaleFormFromApi(listing)',
+    '\nfunction _offerDraftRestore',
+  );
 
   it('setVal inside populate gates the change-event dispatch on !_salePopulateInProgress (PR-E C9)', () => {
     // Helper is local to _populateSaleFormFromApi; assert it is gated.
@@ -200,14 +221,14 @@ describe('Sale form save/load retention — PR-E populate/autosave race hardenin
   });
 
   it('_checkSaleEditMode still sets _salePopulateInProgress=true before populate and false after (lock window intact)', () => {
-    const checkEditBody = functionBody(formHtml, 'function _checkSaleEditMode()', 3000);
+    const checkEditBody = functionBody(formHtml, 'function _checkSaleEditMode()', 4500);
     expect(checkEditBody).toMatch(/window\._salePopulateInProgress\s*=\s*true/);
     expect(checkEditBody).toMatch(/_populateSaleFormFromApi\(listing\)/);
     expect(checkEditBody).toMatch(/window\._salePopulateInProgress\s*=\s*false/);
   });
 
   it('_checkSaleEditMode clears any queued autosave timer before enabling autosave (PR-E)', () => {
-    const checkEditBody = functionBody(formHtml, 'function _checkSaleEditMode()', 3000);
+    const checkEditBody = functionBody(formHtml, 'function _checkSaleEditMode()', 4500);
     expect(checkEditBody).toMatch(/clearTimeout\(autoSaveTimer\)[\s\S]*?window\._saleAutoSaveReady\s*=\s*true/);
   });
 
@@ -234,7 +255,7 @@ describe('Sale form save/load retention — PR-E populate/autosave race hardenin
 describe('Sale form save/load retention — collect/populate shape parity (cross-cutting)', () => {
   // Round-trip-shape sanity. If anyone ever changes collect to emit a key the
   // populate side cannot read (or vice-versa), this catches it.
-  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 24000);
+  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 48000);
   const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 20000);
 
   it('every checkbox-array group collect emits has a populate-side restorer in SALE_CHECKBOX_ARRAY_MAP', () => {

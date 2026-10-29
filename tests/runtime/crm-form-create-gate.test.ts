@@ -31,7 +31,7 @@ function createGate(body: Record<string, any>, listingType: 'sale' | 'rent') {
   const eligibility = classifyRlsEligibility(body, { explicitOptOut: body.rls_eligible === false || isInHouse, commercialSubType: body.commercial_sub_type, commercialOwnership: body.commercial_ownership });
   if (!eligibility.rlsEligible) return { eligible: false as const, problems: [] as string[] };
   const validation = validateListing(body);
-  const enforcement = assertRlsCompliantPayload(body, { listingType, isNewDevelopment: body.NewDevelopmentYN === true, currentStatus: body.MlsStatus, rlsEligible: true, mixedUseSmallBuilding: eligibility.mixedUseSmallBuilding });
+  const enforcement = assertRlsCompliantPayload(body, { listingType, isNewDevelopment: body.NewConstructionYN === true || body.NewDevelopmentYN === true, currentStatus: body.MlsStatus, rlsEligible: true, mixedUseSmallBuilding: eligibility.mixedUseSmallBuilding });
   return { eligible: true as const, problems: [...validation.errors.map((e) => `validator: ${e}`), ...enforcement.blockers.map((b: any) => `gate ${b.code}: ${b.field} — ${b.message}`)] };
 }
 
@@ -126,10 +126,15 @@ describe('the lists the Add forms offer are the live Cotality lists', () => {
     expect([condition('Fair'), condition(''), condition(null), condition(undefined), condition('Mint')]).toEqual(['', '', '', '', '']);
   });
 
-  it.each([['Sale form', sale], ['Sale Tools viewer', saleTools]] as const)('the %s offers exactly the members of SpecialListingConditions', (_name, doc) => {
-    const values = [...doc.querySelectorAll('input[name="saleSpecialListingConditions"]')].map((e) => (e as HTMLInputElement).value);
-    expect(sorted(values)).toEqual(sorted(liveEnums.SpecialListingConditions));
-    expect(new Set(values).size).toBe(values.length);
+  it('the Sale form answers SpecialListingConditions for a condo / co-op / condop with live members: Standard, or BoardApprovalRequired from the Board Approval box (no card — owner decision 2026-10-28)', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 400 });
+    try {
+      (f.d.querySelector('input[name="salePropertyType"][value="Coop"]') as HTMLInputElement).checked = true;
+      expect(f.w.collectSaleFormData().SpecialListingConditions).toEqual(['Standard']);
+      (f.d.getElementById('saleBldgBoardApproval') as HTMLInputElement).checked = true;
+      expect(f.w.collectSaleFormData().SpecialListingConditions).toEqual(['BoardApprovalRequired']);
+      for (const v of ['Standard', 'BoardApprovalRequired']) expect(liveEnums.SpecialListingConditions).toContain(v);
+    } finally { f.close(); }
   });
 
   it('every area unit and lot unit a form offers is a member of Cotality\'s list for it, and none is offered twice', () => {
@@ -190,18 +195,16 @@ describe.each([
 });
 
 describe('SALE-FORM-REDESIGN: a condo whose agent left out a required answer is told which', () => {
-  it('names SpecialListingConditions and PropertyCondition, and nothing else, when neither was given', async () => {
+  it('names PropertyCondition, and nothing else, when it was not given (a condo always answers SpecialListingConditions: Standard unless Board Approval Required is ticked)', async () => {
     const f = await fillRealistically('SALE-FORM-REDESIGN', 'sale', KINDS[0], BOROUGHS[0]);
     try {
-      f.d.querySelectorAll('input[name="saleSpecialListingConditions"]').forEach((el: any) => { el.checked = false; });
       change(f, 'saleCondition', '');
       const body = f.w.collectSaleFormData();
       const verdict = createGate(body, 'sale');
       expect(verdict.eligible).toBe(true);
-      expect('SpecialListingConditions' in body).toBe(false);                      // nothing ticked is no answer (an empty list would pass the gate as one)
+      expect(body.SpecialListingConditions).toEqual([expect.stringMatching(/^(Standard|BoardApprovalRequired)$/)]);
       expect('PropertyCondition' in body).toBe(false);
-      expect(verdict.problems.filter((p) => !/SpecialListingConditions|PropertyCondition/.test(p))).toEqual([]);
-      expect(verdict.problems.some((p) => /SpecialListingConditions/.test(p))).toBe(true);
+      expect(verdict.problems.filter((p) => !/PropertyCondition/.test(p))).toEqual([]);
       expect(verdict.problems.some((p) => /PropertyCondition/.test(p))).toBe(true);
     } finally { f.close(); }
   });
@@ -252,20 +255,21 @@ describe.each([
 });
 
 describe('SALE-FORM-REDESIGN: the special listing conditions are saved as a list and come back', () => {
-  it('saves the ticked boxes as a list under the Cotality name, and shows them on edit', async () => {
+  it('saves the Board Approval answer as the list under the Cotality name, and shows it on edit (no card: owner decision 2026-10-28)', async () => {
     const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 300 });
     let stored: Record<string, any>;
     try {
-      f.d.querySelectorAll('input[name="saleSpecialListingConditions"]').forEach((el: any) => { el.checked = ['Standard', 'Estate'].includes(el.value); });
+      (f.d.querySelector('input[name="salePropertyType"][value="Coop"]') as HTMLInputElement).checked = true;
+      (f.d.getElementById('saleBldgBoardApproval') as HTMLInputElement).checked = true;
       const body = f.w.collectSaleFormData();
-      expect(body.SpecialListingConditions).toEqual(['Estate', 'Standard']);       // the order of the boxes
+      expect(body.SpecialListingConditions).toEqual(['BoardApprovalRequired']);
       expect('saleSpecialListingConditions' in body).toBe(false);
       stored = storedListing(body, 'sale') as Record<string, any>;
     } finally { f.close(); }
     const g = await bootAddForm('SALE-FORM-REDESIGN', { search: '?id=1', listing: stored, settle: 1500 });
     try {
-      const ticked = [...g.d.querySelectorAll('input[name="saleSpecialListingConditions"]:checked')].map((e: any) => e.value);
-      expect(ticked).toEqual(['Estate', 'Standard']);
+      expect((g.d.getElementById('saleBldgBoardApproval') as HTMLInputElement).checked).toBe(true);
+      expect(g.w.collectSaleFormData().SpecialListingConditions).toEqual(['BoardApprovalRequired']);
     } finally { g.close(); }
   });
 });
@@ -319,8 +323,8 @@ describe('the create gate is told what the agent chose', () => {
   const comingSoon = async (mark: (f: BootedForm) => void) => {
     const f = await fillRealistically('SALE-FORM-REDESIGN', 'sale', KINDS[0], BOROUGHS[0]);
     try {
-      // the filler ticks every box; an agent listing a resale leaves the building profile's "New Development" box unticked
-      (f.d.getElementById('saleBldgNewDevelopment') as HTMLInputElement).checked = false;
+      // the filler ticks every box; an agent listing a resale leaves the building tab's New Construction box unticked (it mirrors Building Status, owner rule 2026-10-26)
+      const nc = f.d.getElementById('saleBldgNewConstruction') as HTMLInputElement; nc.checked = false; nc.dispatchEvent(new (f.w as any).Event('change', { bubbles: true }));
       mark(f);
       change(f, 'saleStatus', 'ComingSoon');
       await sleep(200);
@@ -337,24 +341,30 @@ describe('the create gate is told what the agent chose', () => {
 
   it('Sale: Building Status "New Development" and Coming Soon is refused with CS-002, and the form sends the flag the route reads', async () => {
     const { body, verdict } = await comingSoon((f) => radio(f, 'saleBuildingStatus', 'NewDevelopment'));
-    expect(body.NewDevelopmentYN).toBe(true);
+    expect(body.NewConstructionYN).toBe(true);
+    expect(body).not.toHaveProperty('NewDevelopmentYN');                 // not a Cotality field; new development IS new construction
     expect(verdict.problems.filter((p) => p.includes('CS-002'))).toHaveLength(1);
   });
 
-  it('Sale: the building profile\'s own "New Development" box and Coming Soon is refused with CS-002 too', async () => {
-    const { body, verdict } = await comingSoon((f) => { const box = f.d.getElementById('saleBldgNewDevelopment') as HTMLInputElement; box.checked = true; box.dispatchEvent(new (f.w as any).Event('change', { bubbles: true })); });
-    expect(body.NewDevelopmentYN).toBe(true);
+  it('Sale: the building tab\'s New Construction box and Coming Soon is refused with CS-002 too (the box and Building Status are one fact)', async () => {
+    const { body, verdict } = await comingSoon((f) => { const box = f.d.getElementById('saleBldgNewConstruction') as HTMLInputElement; box.checked = true; box.dispatchEvent(new (f.w as any).Event('change', { bubbles: true })); });
+    expect((f => f)(body).saleBuildingStatus).toBe('NewDevelopment');
+    expect(body.NewConstructionYN).toBe(true);
+    expect(body).not.toHaveProperty('NewDevelopmentYN');                 // not a Cotality field; new development IS new construction
     expect(verdict.problems.some((p) => p.includes('CS-002'))).toBe(true);
   });
 
   it('Sale: a resale and Coming Soon is accepted, and says it is not a new development; the other building statuses are not new developments either', async () => {
     const resale = await comingSoon(() => undefined);
-    expect(resale.body.NewDevelopmentYN).toBe(false);
+    expect(resale.body.NewConstructionYN).toBe(false);
     expect(resale.verdict.problems).toEqual([]);
-    for (const status of ['SponsorUnit', 'NewConversion']) {
+    for (const status of ['NewConversion']) {
       const other = await comingSoon((f) => radio(f, 'saleBuildingStatus', status));
-      expect({ status, flag: other.body.NewDevelopmentYN, refused: other.verdict.problems.some((p) => p.includes('CS-002')) }).toEqual({ status, flag: false, refused: false });
+      expect({ status, flag: other.body.NewConstructionYN, refused: other.verdict.problems.some((p) => p.includes('CS-002')) }).toEqual({ status, flag: false, refused: false });
     }
+    // a sponsor unit is its own Yes/No (REBNY SponsorUnitYN), not a building status: a resale sponsor unit is no new development
+    const sponsor = await comingSoon((f) => radio(f, 'saleSponsorUnit', 'Yes'));
+    expect({ flag: sponsor.body.NewConstructionYN, sponsor: sponsor.body.SponsorUnitYN, refused: sponsor.verdict.problems.some((p) => p.includes('CS-002')) }).toEqual({ flag: false, sponsor: true, refused: false });
   });
 
   it('Sale: a new development that is not Coming Soon is accepted, and SPONSOR-001 is answered by the sponsor-unit answer the form always sends', async () => {
@@ -362,7 +372,8 @@ describe('the create gate is told what the agent chose', () => {
     try {
       radio(f, 'saleBuildingStatus', 'NewDevelopment');
       const body = f.w.collectSaleFormData();
-      expect(body.NewDevelopmentYN).toBe(true);
+      expect(body.NewConstructionYN).toBe(true);
+    expect(body).not.toHaveProperty('NewDevelopmentYN');                 // not a Cotality field; new development IS new construction
       expect(typeof body.SponsorUnitYN).toBe('boolean');
       expect(createGate(body, 'sale').problems).toEqual([]);
     } finally { f.close(); }

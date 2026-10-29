@@ -18,7 +18,7 @@ import { bootAddForm, sleep, type AddForm, type BootedForm } from './add-form-ha
 jest.setTimeout(120000);
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const read = (p: string) => readFileSync(resolve(__dirname, '../..', p), 'utf8');
+const read = (p: string) => readFileSync(resolve(__dirname, '../..', p), 'utf8').replace(/\r/g, '');   // the checkout may hold CRLF
 const MODULE_SOURCE = read('public/crm/js/forms/fair-housing.js');
 
 type Blocked = { group: string; law: string; text: string; index: number; length: number };
@@ -276,7 +276,7 @@ describe.each(PAGES)('$form: the wording check in the page', (p) => {
     } finally { f.close(); }
   });
 
-  it('shows wording the server refuses in red, with where it is and a Show button, and says it must be fixed before saving', async () => {
+  it('shows wording the server refuses in red, with where it is and a Show button, and says it must be fixed before publishing', async () => {
     const f = await bootAddForm(p.form, { settle: 600 });
     try {
       await typeInto(f, p.description, 'Sunny two bedroom. No children, near church.', p.wait);
@@ -285,7 +285,7 @@ describe.each(PAGES)('$form: the wording check in the page', (p) => {
       expect(has(flags, '.bg-red-50')).toBe(true);
       expect(flags.textContent).toContain('“No children”');
       expect(flags.textContent).toContain('“near church”');
-      expect(flags.textContent).toMatch(/blocked — fix before saving/);
+      expect(flags.textContent).toMatch(/blocked — fix before publishing/);     // a Draft keeps the findings (the server reports them); a publish or a displayed listing's edit is refused
       expect(flags.querySelectorAll('[data-fh-show]').length).toBeGreaterThanOrEqual(2);
       expect((f.d.getElementById(p.description) as HTMLElement).classList.contains('border-red-400')).toBe(true);
     } finally { f.close(); }
@@ -382,12 +382,12 @@ describe.each(PAGES)('$form: the wording check in the page', (p) => {
     } finally { f.close(); }
   });
 
-  it('says "fix before saving" for the Layout box: the server refuses wording in it (create and edit) since 2026-10-09; it used to be a box the server did not scan, and said "fix before publishing"', async () => {
+  it('says "fix before publishing" for the Layout box too: the server scans it (since 2026-10-09) and refuses the wording when the listing is published or displayed', async () => {
     const f = await bootAddForm(p.form, { settle: 600 });
     try {
       await typeInto(f, p.layout, 'No children please', p.wait);
-      expect(flagsOf(f, p.layoutFlags).textContent).toMatch(/blocked \u2014 fix before saving/);
-      expect(flagsOf(f, p.layoutFlags).textContent).not.toMatch(/fix before publishing/);
+      expect(flagsOf(f, p.layoutFlags).textContent).toMatch(/blocked \u2014 fix before publishing/);
+      expect(flagsOf(f, p.layoutFlags).textContent).toMatch(/refused when the listing is published or displayed/);
       expect(has(flagsOf(f, p.layoutFlags), '.bg-red-50')).toBe(true);
       expect((f.w as any).MallanFairHousing.blockedFields().map((x: any) => [x.id, x.saves])).toEqual([[p.layout, true]]);
     } finally { f.close(); }
@@ -486,33 +486,48 @@ describe('Sale: restoring a draft shows what its boxes hold', () => {
 });
 
 // ── Submit stops on what the server refuses ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Owner rule (Master 0.15, STANDALONE-FORMS-AS-BUILT): Fair Housing wording is flagged and highlighted but never blocks SAVING. A Draft is not an advertisement:
+// it is saved, and the toast names the box to fix before publishing. A listing to be DISPLAYED (Active, Coming Soon, Active Under Contract) is advertising:
+// the page does not send it while a blocker remains, and the server refuses the publication (PATCH /status) and an edit of a displayed listing anyway.
 describe('Rental: Submit', () => {
-  const ready = async (description: string) => {
+  const ready = async (description: string, status = 'Draft') => {
     const f = await bootAddForm('RENTAL-FORM-REDESIGN', { settle: 600 });
     (f.w as any).validateRentalTab = () => true;                                           // the required-field check is not what is under test
     (f.d.getElementById('rentalDescription') as HTMLTextAreaElement).value = description;
+    (f.d.getElementById('rentalStatus') as HTMLSelectElement).value = status;
     return f;
   };
   const toasts = (f: BootedForm) => [...f.d.querySelectorAll('.toast-notification')].map((t) => t.textContent ?? '');
 
-  it('stops, names the box, and sends nothing when a text box holds wording the server refuses', async () => {
+  it('a Draft is saved with the flagged wording, and the toast names the box to fix before publishing', async () => {
     const f = await ready('No children, near church.');
+    try {
+      (f.w as any).submitRentalListing();
+      await sleep(200);
+      expect(f.saved.length).toBe(1);
+      expect(toasts(f).some((t) => /Saved as Draft with flagged wording in Listing Description/.test(t))).toBe(true);
+      expect(toasts(f).some((t) => /Cannot (submit|publish)/.test(t))).toBe(false);
+    } finally { f.close(); }
+  });
+
+  it('publishing stops, names the box, and sends nothing when a text box holds wording the server refuses', async () => {
+    const f = await ready('No children, near church.', 'Active');
     try {
       (f.w as any).submitRentalListing();
       await sleep(150);
       expect(f.saved).toEqual([]);
-      expect(toasts(f).some((t) => /Cannot submit: Listing Description hold wording the server refuses/.test(t))).toBe(true);
+      expect(toasts(f).some((t) => /Cannot publish: Listing Description hold wording the server refuses/.test(t))).toBe(true);
     } finally { f.close(); }
   });
 
-  it('stops for a box that is not the description (internal notes)', async () => {
-    const f = await ready('A lovely home.');
+  it('publishing stops for a box that is not the description (internal notes)', async () => {
+    const f = await ready('A lovely home.', 'Active');
     try {
       (f.d.getElementById('rentalTHNotes') as HTMLTextAreaElement).value = 'no section 8';
       (f.w as any).submitRentalListing();
       await sleep(150);
       expect(f.saved).toEqual([]);
-      expect(toasts(f).some((t) => /Internal Notes/.test(t))).toBe(true);
+      expect(toasts(f).some((t) => /Cannot publish: Internal Notes/.test(t))).toBe(true);
     } finally { f.close(); }
   });
 
@@ -523,66 +538,82 @@ describe('Rental: Submit', () => {
       (f.w as any).submitRentalListing();
       await sleep(200);
       expect(f.saved.length).toBe(1);
+      expect(toasts(f).some((t) => /flagged wording|hold wording/.test(t))).toBe(false);
     } finally { f.close(); }
   });
 
-  it('stops for the Layout box too: the server refuses wording in it (create and edit) since 2026-10-09, and used to save it unread', async () => {
-    const f = await ready('A lovely home.');
+  it('publishing stops for the Layout box too: the server refuses wording in it (create and edit) since 2026-10-09, and used to save it unread', async () => {
+    const f = await ready('A lovely home.', 'Active');
     try {
       (f.d.getElementById('rentalTHLayout') as HTMLTextAreaElement).value = 'No children please';
       (f.w as any).submitRentalListing();
       await sleep(150);
       expect(f.saved).toEqual([]);
-      expect(toasts(f).some((t) => /Layout/.test(t))).toBe(true);
+      expect(toasts(f).some((t) => /Cannot publish: Layout/.test(t))).toBe(true);
     } finally { f.close(); }
   });
 });
 
 describe('Sale: Submit', () => {
-  const ready = async (description: string) => {
+  const ready = async (description: string, status = 'Draft') => {
     const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
     (f.w as any).validateREBNYRequired = () => [];                                         // the required-field check is not what is under test
     (f.d.getElementById('saleDescription') as HTMLTextAreaElement).value = description;
+    (f.d.getElementById('saleStatus') as HTMLSelectElement).value = status;
     const alerts: string[] = [];
     (f.w as any).alert = (m: string) => alerts.push(String(m));
     return { f, alerts };
   };
+  const toasts = (f: BootedForm) => [...f.d.querySelectorAll('.mallan-toast')].map((t) => t.textContent ?? '');
 
-  it('stops, names the box, and sends nothing when a text box holds wording the server refuses', async () => {
+  it('a Draft is saved with the flagged wording, and the toast names the box to fix before publishing', async () => {
     const { f, alerts } = await ready('No children, near church.');
+    try {
+      try { (f.w as any).submitSalesListing(); } catch { /* what happens after the wording check is not what is under test */ }
+      for (let i = 0; i < 25 && !f.calls.includes('create'); i++) await sleep(200);        // the Sale submit saves asynchronously
+      expect(alerts.some((a) => /hold wording the server refuses/.test(a))).toBe(false);
+      expect(toasts(f).some((t) => /Saved as Draft with flagged wording in Listing Description/.test(t))).toBe(true);
+      expect(f.calls.filter((c) => c === 'create').length).toBe(1);                          // one listing created (the workflow-status update that follows is not a second save)
+    } finally { f.close(); }
+  });
+
+  it('publishing stops, names the box, and sends nothing when a text box holds wording the server refuses', async () => {
+    const { f, alerts } = await ready('No children, near church.', 'Active');
     try {
       (f.w as any).submitSalesListing();
       await sleep(150);
       expect(f.saved).toEqual([]);
-      expect(alerts.some((a) => /Cannot submit: Listing Description hold wording the server refuses/.test(a))).toBe(true);
+      expect(alerts.some((a) => /Cannot publish: Listing Description hold wording the server refuses/.test(a))).toBe(true);
     } finally { f.close(); }
   });
 
-  it('stops for Broker Comments too, and does not stop for advice or a phone number in Showing Instructions', async () => {
-    const stopped = await ready('A lovely home.');
+  it('publishing stops for Broker Comments too, and does not stop for advice or a phone number in Showing Instructions', async () => {
+    const stopped = await ready('A lovely home.', 'Active');
     try {
       (stopped.f.d.getElementById('saleBrokerComments') as HTMLTextAreaElement).value = 'no vouchers';
       (stopped.f.w as any).submitSalesListing();
       await sleep(150);
-      expect(stopped.alerts.some((a) => /Broker Comments/.test(a))).toBe(true);
+      expect(stopped.f.saved).toEqual([]);
+      expect(stopped.alerts.some((a) => /Cannot publish: Broker Comments/.test(a))).toBe(true);
     } finally { stopped.f.close(); }
-    const sent = await ready('Perfect for a growing family, close to the Chinese community.');
+    const sent = await ready('Perfect for a growing family, close to the Chinese community.', 'Active');
     try {
       (sent.f.d.getElementById('saleShowingInstructions') as HTMLTextAreaElement).value = '(BROK) Sam Agent 212-555-1234';
       try { (sent.f.w as any).submitSalesListing(); } catch { /* what happens after the wording check is not what is under test */ }
       await sleep(300);
       expect(sent.alerts.some((a) => /hold wording the server refuses/.test(a))).toBe(false);
+      expect(toasts(sent.f).some((t) => /flagged wording/.test(t))).toBe(false);
     } finally { sent.f.close(); }
   });
 
-  it.each([['saleTHLayout', 'Layout', 'No children please'], ['saleTHFinancing', 'Financing', 'No vouchers accepted']])('stops for the %s box too: the server refuses wording in it (create and edit) since 2026-10-09, and used to save it unread', async (id, label, text) => {
-    const { f, alerts } = await ready('A lovely home.');
+  it.each([['saleTHLayout', 'Layout', 'No children please'], ['saleTHFinancing', 'Financing', 'No vouchers accepted']])('publishing stops for the %s box too: the server refuses wording in it (create and edit) since 2026-10-09, and used to save it unread', async (id, label, text) => {
+    const { f, alerts } = await ready('A lovely home.', 'Active');
     try {
       (f.d.getElementById(id) as HTMLTextAreaElement).value = text;
       (f.w as any).submitSalesListing();
       await sleep(150);
       expect(f.saved).toEqual([]);
-      expect(alerts.some((a) => new RegExp(label).test(a))).toBe(true);
+      expect(alerts.some((a) => new RegExp('Cannot publish: ' + label).test(a))).toBe(true);
     } finally { f.close(); }
   });
 });

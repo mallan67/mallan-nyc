@@ -138,7 +138,8 @@ describe('route wiring', () => {
     expect(hasField('BuildingLaundryFeatures')).toBe(false);
     expect(hasField('BuildingPetsAllowed')).toBe(false);
     expect(hasField('AttendanceType')).toBe(false);
-    expect(ROUTE).not.toMatch(/'BuildingLaundryFeatures'|'BuildingPetsAllowed'|'AttendanceType'/); // not in $select
+    expect(ROUTE).not.toMatch(/'BuildingLaundryFeatures'|'BuildingPetsAllowed'/); // not in $select
+    expect(ROUTE).toMatch(/custom\('AttendanceType'\)/);                              // AttendanceType is a live REBNY CustomFields key, read through CustomProperty (never in Property's $select)
   });
   it('fetches ALL SIX amenity feature fields it unions — incl. AssociationAmenities (Codex #301)', () => {
     ['BuildingFeatures', 'ExteriorFeatures', 'CommunityFeatures', 'AssociationAmenities', 'AccessibilityFeatures', 'ParkingFeatures']

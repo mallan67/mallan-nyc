@@ -73,7 +73,7 @@ describe(`${FORM}: create -> save -> reload -> edit -> save -> reload`, () => {
     expect(entered.length).toBeGreaterThan(330);
   });
 
-  it('saves the values of every checkbox group, YearBuilt, NewDevelopmentYN, Furnished and Agreement on File', () => {
+  it('saves the values of every checkbox group, YearBuilt, NewConstructionYN, Furnished and Agreement on File', () => {
     const p = payload1;
     for (const group of ['Heating', 'Cooling', 'rentalCommSubtype', 'rentalBusinessType', 'rentalTHDocsAvailable', 'bldgHeating', 'bldgCooling', 'bldgDocsAvailable', 'PetsAllowed', 'BuildingPetsAllowed', 'AttendanceType', 'BuildingLaundryFeatures']) {
       expect(Array.isArray(p[group])).toBe(true);
@@ -81,7 +81,7 @@ describe(`${FORM}: create -> save -> reload -> edit -> save -> reload`, () => {
     }
     expect(p.Heating).toContain('Steam');
     expect(p.YearBuilt).toBeGreaterThan(0);                        // read after the building modal is swept
-    expect(p.NewDevelopmentYN).toBe(true);
+    expect(p.NewConstructionYN).toBe(true);                   // New Development IS new construction (owner rule 2026-10-26); NewDevelopmentYN is not sent
     expect(p.rentalFurnished).toBeTruthy();
     expect(p.Furnished).toBe(p.rentalFurnished);                   // the live Cotality enum
     expect(p.rentalAgreementOnFile).toBe(true);

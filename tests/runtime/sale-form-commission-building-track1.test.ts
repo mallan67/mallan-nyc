@@ -74,28 +74,38 @@ describe('Commission collision fix', () => {
   });
 });
 
-describe('Building — phantom fields reclassified internal (match Cotality)', () => {
-  it('saleBldgNumElevators is Cotality ElevatorsTotal (a live CustomFields key, served on every listing) and is sent as that', () => {
+describe('Building — fields reclassified to match live Cotality', () => {
+  it('saleBldgNumElevators is tagged as the live Cotality CustomFields key ElevatorsTotal', () => {
+    // ElevatorsTotal is a real key inside CustomProperty.CustomFields (13,094 of 14,000 sale listings, verified live 2026-10-23).
     expect(formHtml).toMatch(/id="saleBldgNumElevators"[^>]*data-concept="ElevatorsTotal"/);
-    expect(formHtml).not.toMatch(/id="saleBldgNumElevators"[^>]*data-removed-field/);
+    expect(formHtml).not.toMatch(/id="saleBldgNumElevators"[^>]*data-removed-field="ElevatorsTotal"/);
   });
-  it('saleBldgNewDevelopment is no longer tagged as Cotality (was duplicating NewConstructionYN)', () => {
-    expect(formHtml).toMatch(/id="saleBldgNewDevelopment"[^>]*data-concept-disposition="mallan-internal"[^>]*data-removed-field="NewDevelopmentYN"/);
-    expect(formHtml).not.toMatch(/id="saleBldgNewDevelopment"[^>]*data-concept="NewConstructionYN"/);
+  it('the phantom "New Development" building box is gone: New Development IS new construction (NewConstructionYN)', () => {
+    // Owner rule 2026-10-26: new development = new construction. Building Status (Essentials) carries
+    // it as the live field; the building-tab "New Construction" box mirrors it.
+    expect(formHtml).not.toMatch(/id="saleBldgNewDevelopment"/);
+    expect(formHtml).toMatch(/name="saleBuildingStatus" value="NewDevelopment"[^>]*data-concept="NewConstructionYN"/);
+    expect(formHtml).not.toMatch(/name="saleBuildingStatus" value="SponsorUnit"/);
   });
-  it('collect no longer emits ElevatorsTotal; NewConstructionYN (real) still emitted; NewDevelopmentYN is sent only as the agent\'s building answer (2026-10-09: the create gate reads it for Coming Soon)', () => {
+  it('Sponsor Unit is its own Yes/No (REBNY SponsorUnitYN), independent of Building Status, not a building box', () => {
+    expect(formHtml).toMatch(/name="saleSponsorUnit" value="No"[^>]*data-concept="SponsorUnitYN"/);
+    expect(formHtml).toMatch(/name="saleSponsorUnit" value="Yes"/);
+    expect(formHtml).not.toMatch(/id="saleBldgSponsorUnits"/);
+  });
+  it('collect emits NewConstructionYN from Building Status and SponsorUnitYN from the Yes/No; never the phantom keys', () => {
     const collect = extractFn(formHtml, 'collectSaleFormData');
-    expect(collect).not.toMatch(/data\.ElevatorsTotal\s*=/);
-    expect(collect).toMatch(/data\.NewConstructionYN\s*=/);
-    // it is not a top-level Cotality field (the control stays untagged, above), but the create gate refuses "Coming Soon" for a new development from body.NewDevelopmentYN (CS-002), and the Sale form
-    // never sent it, so a listing marked New Development could be saved as Coming Soon. It is derived from the two answers the agent gives, and from nothing else.
-    expect(collect).toMatch(/data\.NewDevelopmentYN\s*=\s*data\.saleBuildingStatus === 'NewDevelopment' \|\| data\.saleBldgNewDevelopment === true \|\| data\.saleBldgNewDevelopment === 'true';/);
+    // ElevatorsTotal is a live REBNY CustomFields key (2026-10-28): the Building panel sends it
+    expect(collect).toMatch(/data\.NewConstructionYN\s*=\s*data\.saleBuildingStatus === 'NewDevelopment'/);
+    expect(collect).toMatch(/data\.SponsorUnitYN\s*=\s*data\.saleSponsorUnit === 'Yes'/);
   });
   it('restore keeps the values internal with legacy fallback', () => {
     expect(formHtml).toMatch(/rls:\s*'saleBldgNumElevators',\s*form:\s*'saleBldgNumElevators'[^}]*fallbackRls:\s*'ElevatorsTotal'/);
-    expect(formHtml).toMatch(/rls:\s*'saleBldgNewDevelopment',\s*form:\s*'saleBldgNewDevelopment'[^}]*fallbackRls:\s*'NewDevelopmentYN'/);
-    // saleBldgNewConstruction stays mapped to the REAL NewConstructionYN
+    expect(formHtml).not.toMatch(/form:\s*'saleBldgNewDevelopment'/);
+    // saleBldgNewConstruction stays mapped to the REAL NewConstructionYN; the sponsor Yes/No restores
+    // from SponsorUnitYN and the legacy exclusive 'SponsorUnit' Building Status choice
     expect(formHtml).toMatch(/rls:\s*'NewConstructionYN',\s*form:\s*'saleBldgNewConstruction'/);
+    expect(formHtml).toMatch(/rls:\s*'SponsorUnitYN',\s*name:\s*'saleSponsorUnit'[^}]*fallback:\s*'SponsorUnitYN'/);
+    expect(formHtml).toMatch(/raw\.saleBuildingStatus === 'SponsorUnit'\)\s*setRadio\('saleSponsorUnit', 'Yes'\)/);
   });
 });
 

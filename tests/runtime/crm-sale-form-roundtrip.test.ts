@@ -15,7 +15,7 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { bootAddForm, controlState, fillForm, PAGE_MODULES, sleep, storedListing, type BootedForm, type Entered } from './add-form-harness';
+import { bootAddForm, controlState, fillForm, sleep, storedListing, type BootedForm, type Entered } from './add-form-harness';
 
 jest.setTimeout(240000);
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -30,7 +30,19 @@ const NUMERIC = new Set<string>(win.MallanListingHydration.tables.sale.FIELD_MAP
 const VOLATILE = /^(_savedAt|_formVersion)$/;
 const without = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(o).filter(([k]) => !VOLATILE.test(k)));
 // The form derives these on its own: from the annual tax, the listing id and the address. A new listing has no listing id, so its public URL cannot be the saved one.
-const DERIVED_ON_LOAD = new Set(['saleListingUrl']);
+const DERIVED_ON_LOAD = new Set(['saleListingUrl', 'ListingURL']);   // and the Cotality key the box claims (sent once the form has derived it)
+
+// Building Status and the building tab's New Construction box are one fact (owner rule 2026-10-26: New Development IS new construction).
+// The filler ticks every box and picks the last radio, which would disagree; the radio is set to agree with the ticked box, and both are expected back.
+function alignNewConstruction(f: BootedForm, entered: Entered[]) {
+  const nd = f.d.querySelector('input[name="saleBuildingStatus"][value="NewDevelopment"]') as HTMLInputElement;
+  nd.checked = true;
+  nd.dispatchEvent(new (f.w as any).Event('change', { bubbles: true }));
+  for (const e of entered) {
+    if (e.key === 'saleBuildingStatus') e.expected = 'NewDevelopment';
+    if (e.key === 'saleBldgNewConstruction') e.expected = true;
+  }
+}
 
 /** What the agent does in a new form: a street address the form can read, then every other control, then the form's own derivations (what typing triggers). */
 async function fillNewListing(): Promise<{ entered: Entered[]; payload: Record<string, any> }> {
@@ -41,6 +53,7 @@ async function fillNewListing(): Promise<{ entered: Entered[]; payload: Record<s
     f.w.parseSaleAddress();                                  // the form reads the street, number, direction, suffix (and derives the area)
     const entered = fillForm(f.d, 'sale', NUMERIC);          // overwrites whatever the street read derived, like an agent typing over it
     entered.push({ key: 'saleStreetAddress', kind: 'value', expected: '333 E 46th St' });
+    alignNewConstruction(f, entered);
     // what the form derives from what was typed (its own input / change handlers): the monthly tax from the annual one, the monthly total, the building's mirror of the address
     f.w.autoCalcTaxMonthly();
     f.w.calculateSaleTotalMonthly();
@@ -136,8 +149,8 @@ describe(`${FORM}: create -> save -> reload -> edit -> save -> reload`, () => {
       expect(differ).toEqual({});
       expect(b.saleListingUrl).toMatch(/\/listing\/.*\/sl-0001$/);       // the form fills the public URL in on load, from the address and the listing id
       const stored2 = storedListing(payload2, 'sale') as Record<string, any>;
-      const { saleListingUrl: _u1, ...raw1 } = stored1.raw_data;
-      const { saleListingUrl: _u2, ...raw2 } = stored2.raw_data;
+      const { saleListingUrl: _u1, ListingURL: _l1, ...raw1 } = stored1.raw_data;   // the public URL exists once the listing has an id (derived on load, DERIVED_ON_LOAD)
+      const { saleListingUrl: _u2, ListingURL: _l2, ...raw2 } = stored2.raw_data;
       expect(raw2).toEqual(raw1);
       for (const col of ['status', 'list_price', 'bedrooms_total', 'bathrooms_full', 'bathrooms_half', 'living_area', 'list_agent_mls_id', 'list_office_mls_id']) {
         expect(stored2[col]).toEqual(stored1[col]);
@@ -230,6 +243,7 @@ describe(`${FORM}: the browser draft`, () => {
       f.w.parseSaleAddress();
       const entered = fillForm(f.d, 'sale', NUMERIC);
       entered.push({ key: 'saleStreetAddress', kind: 'value', expected: '333 E 46th St' });
+      alignNewConstruction(f, entered);
       f.w.autoCalcTaxMonthly();
       f.w.calculateSaleTotalMonthly();
       f.w._syncSaleBuildingAddressFields();
@@ -283,24 +297,5 @@ describe(`${FORM}: the browser draft`, () => {
   });
 });
 
-describe(`${FORM}: a page that could not put the listing back is not "loaded"`, () => {
-  it('refuses to save over it, and says the listing did not load, when listing-hydration.js did not run', async () => {
-    const stored = storedListing({ saleDescription: 'Kept', ListPrice: 1250000 }, 'sale');
-    const f = await bootAddForm(FORM, { search: '?id=1', listing: stored, modules: PAGE_MODULES.filter((m) => m !== 'listing-hydration'), settle: 900 });
-    try {
-      const toasts = () => [...f.d.querySelectorAll('body > div[style*="99999"]')].map((t) => t.textContent ?? '');
-      expect(toasts().some((t) => /Failed to load listing: js\/forms\/listing-hydration\.js did not load/.test(t))).toBe(true);
-      for (const saver of ['manualSaveDraft', 'submitSalesListing']) {
-        const before = toasts().filter((t) => /This listing did not load/.test(t)).length;
-        await f.w[saver]();
-        await sleep(150);
-        expect(toasts().filter((t) => /This listing did not load/.test(t)).length).toBe(before + 1);
-      }
-      expect(f.saved).toEqual([]);                                          // nothing was written: a half-restored form would have replaced the stored listing
-    } finally { f.close(); }
-  });
-
-  it('loads the module on the page', () => {
-    expect(page).toContain('<script src="js/forms/listing-hydration.js"></script>');
-  });
-});
+// The fixed Sale form restores a listing in its own code (no listing-hydration.js on the page) and refuses a save while the listing is loading or after it failed to load
+// (crm-agent-defaults.test.ts: "saving is refused while the listing named by ?id= has not loaded"); the two module-pinned cases that stood here left 2026-10-28.

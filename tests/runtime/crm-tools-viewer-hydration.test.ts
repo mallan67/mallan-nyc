@@ -69,7 +69,7 @@ const has = (doc: Document, key: string) => !!doc.getElementById(key) || doc.get
 // (tested below), and this list shrinks as the cards are brought over.
 const SALE_NOT_ON_VIEWER = [
   'saleStreetNumber', 'saleStreetName', 'saleStreetSuffix', 'saleStreetDirPrefix', 'saleCity', 'saleStateOrProvince', 'salePostalCity', 'saleCountyOrParish',
-  'saleUnparsedAddress', 'saleUpdatingAgentMlsId', 'saleUpdatingAgentKey', 'saleUpdatingAgentOfficeKey', 'saleUpdatingAgentOfficeMlsId', 'saleStructureType', 'saleExclusiveCommissionType', 'saleAuctionType', 'saleAuctionTermsUrl',
+  'saleUnparsedAddress', 'saleUpdatingAgentMlsId', 'saleStructureType', 'saleExclusiveCommissionType', 'saleAuctionType', 'saleAuctionTermsUrl',
   'saleAlsoAvailableForRent', 'saleSendToRls', 'saleSendToWebsite', 'saleBuyerAgentPays',
 ];
 const RENTAL_NOT_ON_VIEWER: string[] = ['rentalFirstShowingDate'];
@@ -465,7 +465,7 @@ const MIRRORS = /^rental(Zip|State)$/;
 // Entered on the Add form, with no control of the same key on the viewer (the same Add-form-only controls as above, plus the Rental city display).
 const ABSENT_ON_VIEWER: Record<'sale' | 'rental', string[]> = {
   sale: [
-    'value:salePostalCity', 'value:saleTaxMonthly', 'check:saleAlsoAvailableForRent', 'check:saleAuctionYn', 'value:saleAuctionType', 'value:saleAuctionStartDate',
+    'value:salePostalCity', 'check:saleAlsoAvailableForRent', 'check:saleAuctionYn', 'value:saleAuctionType', 'value:saleAuctionStartDate',
     'value:saleAuctionEndDate', 'value:saleAuctionTermsUrl', 'value:saleStructureType', 'check:saleSendToRls', 'check:saleSendToWebsite', 'value:saleExclusiveCommissionType',
     'radio:saleBuyerAgentPays',
   ],

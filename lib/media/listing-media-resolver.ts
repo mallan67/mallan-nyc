@@ -524,7 +524,8 @@ export interface ListingMediaTableRow {
  */
 export function resolveListingMediaFromRows(rows: ListingMediaTableRow[]): ResolvedMedia[] {
   if (!Array.isArray(rows) || rows.length === 0) return [];
-  const active = rows.filter((r) => r && r.status === 'active');
+  // a CRM document (a PDF / DOC / DOCX the agent attached: media_type AND media_category Document) is never gallery media; a Trestle floor plan delivered as MediaType Document keeps its Floor Plan category and stays
+  const active = rows.filter((r) => r && r.status === 'active' && !(r.media_type === 'Document' && r.media_category === 'Document'));
   if (active.length === 0) return [];
 
   // De-duplicate by VISUAL identity (not just media_key): the same underlying

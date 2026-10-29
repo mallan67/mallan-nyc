@@ -42,9 +42,9 @@ describe('Form — InHouse permits Cotality building lookup', () => {
     const fnStart = formHtml.indexOf('function saleAddressBlurLookup()');
     expect(fnStart).toBeGreaterThan(-1);
     const body = formHtml.slice(fnStart, fnStart + 3500);
-    expect(body).toContain('exactMatch(buildingDatabase, addr)');
+    expect(body).toContain('buildingDatabase.find(');
     expect(body).toContain('fetchBuildingsFromAPI(addr)');
-    const cacheIdx = body.indexOf('exactMatch(buildingDatabase, addr)');
+    const cacheIdx = body.indexOf('buildingDatabase.find(');
     const apiIdx = body.indexOf('fetchBuildingsFromAPI(addr)');
     expect(cacheIdx).toBeLessThan(apiIdx);
   });
@@ -136,8 +136,8 @@ describe('filterDisplayableDbListings — website-only bypass', () => {
 // ─── 5. Ambiguous Cotality match requires confirmation for InHouse ───────────
 
 describe('Form — InHouse address mismatch confirmation', () => {
-  it('_applyBuilding (which selectBuildingFromIDX applies a building through) checks _isInHouseListingType before address overwrite', () => {
-    const fnMatch = formHtml.match(/function _applyBuilding\(prefix, building\)\s*\{([\s\S]{0,6000}?)\n\}/);
+  it('selectBuildingFromIDX (the fixed form applies a building in it) checks _isInHouseListingType before address overwrite', () => {
+    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, picked\)\s*\{([\s\S]{0,9000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
     const body = fnMatch![1];
     expect(body).toContain('_isInHouseListingType(prefix)');
@@ -155,22 +155,22 @@ describe('Form — InHouse address mismatch confirmation', () => {
   });
 
   it('Cancel preserves typed address but still populates building fields', () => {
-    const fnMatch = formHtml.match(/function _applyBuilding\(prefix, building\)\s*\{([\s\S]{0,6000}?)\n\}/);
+    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, picked\)\s*\{([\s\S]{0,9000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
     const body = fnMatch![1];
     expect(body).toContain('if (!useCanonical)');
-    expect(body).toContain('_applyBuildingFacts(prefix, building)');
+    expect(body).toContain('populateBuildingFromIDX(prefix, building)');
   });
 });
 
 // ─── 6. Non-InHouse preserves existing lookup behavior ──────────────────────
 
 describe('Form — Non-InHouse lookup behavior preserved', () => {
-  it('_applyBuilding still overwrites address for non-InHouse (no confirm gate)', () => {
-    const fnMatch = formHtml.match(/function _applyBuilding\(prefix, building\)\s*\{([\s\S]{0,6000}?)\n\}/);
+  it('selectBuildingFromIDX still overwrites address for non-InHouse (no confirm gate)', () => {
+    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, picked\)\s*\{([\s\S]{0,9000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
     const body = fnMatch![1];
-    const afterGuard = body.split('_applyBuildingFacts(prefix, building)')[1] || '';
+    const afterGuard = body.split('populateBuildingFromIDX(prefix, building)')[1] || '';
     expect(afterGuard || body).toContain("setVal(prefix + 'StreetAddress', building.address)");
   });
 });

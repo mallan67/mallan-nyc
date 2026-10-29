@@ -428,8 +428,8 @@ describe('sale form hardening (source-pin) — Maya audit follow-ups', () => {
     // handler does not call performAutoSave() at all: while the save is out that only queues an autosave, which
     // would send the failed form again two seconds later. crm-sale-save-feedback.test.ts drives the page and
     // checks that nothing is sent.
-    const at = FORM.indexOf("showToast('Save failed: '");
-    const end = FORM.indexOf('} finally {', at);
+    const at = FORM.indexOf('// Do NOT call performAutoSave() in edit mode after a failed save');   // the catch of manualSaveDraft (the fixed form's wording: Draft NOT saved / Changes NOT saved)
+    const end = FORM.indexOf('} else {', at);
     expect(at).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(at);
     const handler = FORM.slice(at, end).replace(/\/\/.*$/gm, '');          // the code, not the comments

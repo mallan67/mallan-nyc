@@ -45,7 +45,8 @@ describe.each(['SALE-FORM-REDESIGN', 'SALE-FORM-WITH-TOOLS'])('%s', (name) => {
   });
 
   it('carries no rental-only question', () => {
-    for (const concept of ['RentIncludes', 'LastMonthRentReqYN', 'RentControlYN', 'MaximumPetWeight', 'MaximumNumberOfPets', 'PetDeposit', 'ApplicationFee', 'SecurityDeposit']) {
+    // (MaximumPetWeight is a live Property field a co-op / condo pet policy carries — a weight limit — so the Sale form asks it)
+    for (const concept of ['RentIncludes', 'LastMonthRentReqYN', 'RentControlYN', 'MaximumNumberOfPets', 'PetDeposit', 'ApplicationFee', 'SecurityDeposit']) {
       expect({ concept, bound: !!doc.querySelector(`[data-concept="${concept}"]`) }).toEqual({ concept, bound: false });
     }
   });

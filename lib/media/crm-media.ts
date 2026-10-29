@@ -29,7 +29,7 @@ export interface LegacyMediaItem {
 }
 
 /** Canonical Cotality media types we use for CRM media. */
-export type CrmMediaType = "Photo" | "FloorPlan" | "Video";
+export type CrmMediaType = "Photo" | "FloorPlan" | "Video" | "Document";
 
 /** True for a CRM-owned media_key. */
 export function isCrmMediaKey(key: string | null | undefined): boolean {
@@ -93,6 +93,7 @@ export function crmMediaType(rawType?: string | null, caption?: string | null): 
     return "FloorPlan";
   }
   if (t === "video") return "Video";
+  if (t === "document") return "Document"; // a PDF / DOC / DOCX the agent attached (offering plan, financials): CRM-only, never a gallery item
   return "Photo";
 }
 
@@ -118,7 +119,7 @@ export function crmMediaCategory(mediaType: CrmMediaType): string {
  * from the hero. Photos/videos leave it null.
  */
 export function crmMediaClassification(mediaType: CrmMediaType): string | null {
-  return mediaType === "FloorPlan" ? "Document" : null;
+  return mediaType === "FloorPlan" || mediaType === "Document" ? "Document" : null;
 }
 
 /** The display URL for a legacy item (prefers the hero/card variant). */

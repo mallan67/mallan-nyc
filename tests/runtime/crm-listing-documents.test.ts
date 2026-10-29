@@ -38,7 +38,7 @@ function expectOptOutUploadOff(d: Document, prefix: string) {
   expect(text(box)).not.toMatch(/Upload signed Opt-Out form/);
 }
 
-describe.each([['SALE-FORM-REDESIGN', 'sale'], ['RENTAL-FORM-REDESIGN', 'rental']] as const)('%s', (form, prefix) => {
+describe.each([['RENTAL-FORM-REDESIGN', 'rental']] as const)('%s', (form, prefix) => {
   it('the Documents box is switched off and says documents cannot be attached to a listing from this form yet', async () => {
     const f = await bootAddForm(form, { settle: 800 });
     try { expectDocumentsBoxOff(f.d, prefix); } finally { await closeAfter(f); }
@@ -67,9 +67,65 @@ describe.each([['SALE-FORM-REDESIGN', 'sale'], ['RENTAL-FORM-REDESIGN', 'rental'
   it('is saved like the rest of the form: the boxes add nothing to what is collected', async () => {
     const f = await bootAddForm(form, { settle: 800 });
     try {
-      const data = (prefix === 'sale' ? f.w.collectSaleFormData() : f.w.collectRentalFormData()) as Record<string, unknown>;
+      const data = f.w.collectRentalFormData() as Record<string, unknown>;
       expect(data[`${prefix}DocInput`] ?? '').toBe('');
       expect(data[`${prefix}OptOutFormUpload`] ?? '').toBe('');
+    } finally { await closeAfter(f); }
+  });
+});
+
+// The fixed Sale form (Maya's, 2026-10-28) stores documents with the listing: the Documents box takes PDF / DOC / DOCX (media_type Document, 20 MB; never public), and the signed Owner
+// Opt-Out form goes the same way. Before the listing exists the files wait in the Media window as pending rows; nothing is sent.
+describe('SALE-FORM-REDESIGN', () => {
+  it('the Documents box takes PDF / DOC / DOCX files and says they stay in the CRM', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 800 });
+    try {
+      const input = f.d.getElementById('saleDocInput') as HTMLInputElement;
+      expect(input.disabled).toBe(false);
+      expect(input.getAttribute('accept')).toBe('.pdf,.doc,.docx');
+      const box = input.parentElement as HTMLElement;
+      expect(box.getAttribute('onclick')).toContain('saleDocInput');
+      expect(text(box)).toContain('Upload Documents');
+      expect(text(box)).toContain('never shown on the website or sent to the RLS');
+    } finally { await closeAfter(f); }
+  });
+
+  it('the Owner Opt-Out upload takes the signed form (due within 48 hours) and stores it with the listing\'s documents', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 800 });
+    try {
+      const input = f.d.getElementById('saleOptOutFormUpload') as HTMLInputElement;
+      expect(input.disabled).toBe(false);
+      expect(input.getAttribute('accept')).toBe('.pdf,.doc,.docx');
+      expect(text(input.parentElement)).toContain('required within 48 hours');
+      expect(input.getAttribute('title')).toContain("Stored with the listing's documents");
+    } finally { await closeAfter(f); }
+  });
+
+  it('a PDF given to either box waits in the Media window as a document row, and nothing is sent before the listing exists', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 800 });
+    try {
+      f.w.URL.createObjectURL = () => 'blob:doc';
+      for (const [id, name] of [['saleDocInput', 'offering-plan.pdf'], ['saleOptOutFormUpload', 'optout.pdf']]) {
+        const input = f.d.getElementById(id) as HTMLInputElement;
+        const file = new f.w.File(['x'], name, { type: 'application/pdf' });
+        Object.defineProperty(input, 'files', { value: [file], configurable: true });
+        input.dispatchEvent(new f.w.Event('change', { bubbles: true }));
+      }
+      await sleep(200);
+      const rows = [...f.d.querySelectorAll('#saleDocPreview > *')].map((r) => text(r));
+      expect(rows.some((r) => r.includes('offering-plan.pdf'))).toBe(true);
+      expect(rows.some((r) => r.includes('optout.pdf'))).toBe(true);
+      expect(f.requests.filter((r) => /document|upload/i.test(r.url))).toEqual([]);
+      expect(f.errors).toEqual([]);
+    } finally { await closeAfter(f); }
+  });
+
+  it('is saved like the rest of the form: the boxes add nothing to what is collected', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 800 });
+    try {
+      const data = f.w.collectSaleFormData() as Record<string, unknown>;
+      expect(data.saleDocInput ?? '').toBe('');
+      expect(data.saleOptOutFormUpload ?? '').toBe('');
     } finally { await closeAfter(f); }
   });
 });

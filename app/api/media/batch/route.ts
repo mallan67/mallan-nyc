@@ -16,8 +16,9 @@ const COTALITY_API =
   process.env.IDX_ENDPOINT ||
   "https://api.cotality.com/trestle";
 
-// Cotality Media has only 2 categories: Photo and FloorPlan.
-// Videos/VirtualTours/3D come from Property fields (VirtualTourURLUnbranded), not Media resource.
+// Live Cotality MediaCategory (data/cotality-enums.live.json, 2026-10-24): Photo, FloorPlan, Video, UnbrandedVirtualTour, BrandedVirtualTour, Document,
+// Disclosure, Addendum, AerialView, Map, Survey, ... REBNY listings carry their tours and videos in the Property VirtualTourURL* fields, which is where
+// the forms and the public page read them (lib/media/listing-media-resolver.ts splits video hosts from 3D tours).
 // Classification + photo-first ordering is centralised in
 // lib/media/listing-media-resolver.ts (used by both `detail` and default modes).
 
@@ -56,18 +57,47 @@ export async function GET(req: NextRequest) {
   const photoResult: Record<string, string | null> = {};
   const mediaResult: Record<string, MediaEntry[]> = {};
 
-  // Cotality guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
-  // NOT ResourceRecordID (can duplicate). Resolve mls_id (= ListingKey = ResourceRecordKey) from DB.
-  const dbListings = await prisma.listing.findMany({
-    where: { listing_id: { in: ids } },
-    select: { listing_id: true, mls_id: true },
-  });
+  // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+  // NOT ResourceRecordID (can duplicate). ResourceRecordKey = the listing's ListingKey.
+  // RLS ids (Agent Search results) resolve ListingId → ListingKey from live Cotality — most
+  // of them are not in Mallan's database. Mallan's own ids (SL-/RL-) resolve from Mallan's
+  // listing record (mls_id).
   const idToKey = new Map<string, string>();
   const keyToId = new Map<string, string>();
-  for (const l of dbListings) {
-    const key = l.mls_id || l.listing_id;
-    idToKey.set(l.listing_id, key);
-    keyToId.set(key, l.listing_id);
+  const rlsIds = ids.filter((id) => /^RLS/i.test(id));
+  const mallanIds = ids.filter((id) => !/^RLS/i.test(id));
+  if (rlsIds.length > 0) {
+    try {
+      const token = await getAccessToken();
+      const keyParams = new URLSearchParams();
+      keyParams.set("$filter", rlsIds.map((id) => `ListingId eq '${id.replace(/'/g, "''")}'`).join(" or "));
+      keyParams.set("$select", "ListingId,ListingKey");
+      keyParams.set("$top", String(rlsIds.length));
+      const keyRes = await fetch(`${COTALITY_API}/odata/Property?${keyParams.toString()}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
+      if (keyRes.ok) {
+        for (const p of ((await keyRes.json()).value || []) as Array<{ ListingId?: string; ListingKey?: string }>) {
+          if (p.ListingId && p.ListingKey) {
+            idToKey.set(p.ListingId, p.ListingKey);
+            keyToId.set(p.ListingKey, p.ListingId);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[Media Batch] ListingKey lookup failed:", err instanceof Error ? err.message : err);
+    }
+  }
+  if (mallanIds.length > 0) {
+    const dbListings = await prisma.listing.findMany({
+      where: { listing_id: { in: mallanIds } },
+      select: { listing_id: true, mls_id: true },
+    });
+    for (const l of dbListings) {
+      const key = l.mls_id || l.listing_id;
+      idToKey.set(l.listing_id, key);
+      keyToId.set(key, l.listing_id);
+    }
   }
   // For IDs not in DB, use the ID itself as fallback
   for (const id of ids) {

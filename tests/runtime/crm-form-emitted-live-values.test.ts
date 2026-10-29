@@ -69,10 +69,10 @@ const NYC_FACT = 'an NYC fact the rule table classifies (rebny-field-tables.ts h
 /** form -> key -> why the collector still sends it */
 const KNOWN_NON_PROPERTY_KEYS: Record<string, Record<string, string>> = {
   'SALE-FORM-REDESIGN': {
-    BathroomsTotal: BUILDING_PROFILE, BuildingLaundryFeatures: BUILDING_PROFILE, BuildingPetsAllowed: BUILDING_PROFILE, CoBrokeAgreement: MALLAN_OWN, NewDevelopmentYN: NYC_FACT,
+    BathroomsTotal: BUILDING_PROFILE, BuildingLaundryFeatures: BUILDING_PROFILE, BuildingPetsAllowed: BUILDING_PROFILE, CoBrokeAgreement: MALLAN_OWN,
   },
   'RENTAL-FORM-REDESIGN': {
-    BathroomsTotal: BUILDING_PROFILE, BuildingLaundryFeatures: BUILDING_PROFILE, BuildingPetsAllowed: BUILDING_PROFILE, NewDevelopmentYN: BUILDING_PROFILE, CoBrokeAgreement: MALLAN_OWN,
+    BathroomsTotal: BUILDING_PROFILE, BuildingLaundryFeatures: BUILDING_PROFILE, BuildingPetsAllowed: BUILDING_PROFILE, CoBrokeAgreement: MALLAN_OWN,
     FeeFrequency: FARE_LEGACY,
     IDXEntireListingDisplayYN: ALIASED, Permissions: ALIASED,
     RentingAllowedYN: PHANTOM_RENTAL, SyndicateYN: PHANTOM_RENTAL, YearRenovated: PHANTOM_RENTAL, FirstShowingDate: MALLAN_OWN, NetMonthlyRent: MALLAN_OWN,

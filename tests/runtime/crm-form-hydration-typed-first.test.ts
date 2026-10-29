@@ -36,8 +36,7 @@ describe("Phase C — both forms hydrate the saved listing agent typed-first (Ma
     expect(defaults).toContain("(typed && str(listing[typed])) || str(info[key]) || str(raw[key])");
   });
 
-  it("both forms hand the saved listing to the module", () => {
-    expect(sale).toContain("MallanAgentDefaults.hydrate('sale', listing");
+  it("the Rental form hands the saved listing to the module (the Sale form Maya validated hydrates the agent in its own SALE_FIELD_MAP rows, typed-first — below)", () => {
     expect(rental).toContain("MallanAgentDefaults.hydrate('rental', listing");
   });
 });
@@ -67,8 +66,9 @@ describe("Phase C — SALE form hydrates the hidden agent fields typed-first", (
   // `saleUpdatingAgent` (else a no-op edit re-sends the editor's session MLS id). (Codex #420.)
   it("ListAgentMlsId hydrates saleUpdatingAgentMlsId (the submitted field), not saleUpdatingAgent", () => {
     expect(sale).toContain("{ rls: 'ListAgentMlsId', form: 'saleUpdatingAgentMlsId', type: 'text', src: 'agentInfo', agentKey: 'ListAgentMlsId', typedKey: 'list_agent_mls_id' }");
-    // and the save submits ListAgentMlsId from that same field, through the module that reads the hidden inputs by id (they sit outside the swept area)
-    expect(sale).toContain("MallanAgentDefaults.identity('sale')");
+    // and the save submits ListAgentMlsId from that same field: the fixed Sale form reads the hidden inputs by id in its own collector (_agentVal), not through the module
+    expect(sale).toContain("data.saleUpdatingAgentMlsId = _agentVal('saleUpdatingAgentMlsId');");
+    expect(sale).toContain('data.ListAgentMlsId = data.saleUpdatingAgentMlsId;');
     expect(defaults).toContain("ListAgentMlsId: read(prefix, 'mlsId')");
   });
 });

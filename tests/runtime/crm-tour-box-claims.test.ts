@@ -37,8 +37,23 @@ const boxUrls = (p: string): Array<[string, string]> => [
   [`${p}VirtualTourUnbranded`, URL_OF.Unbranded], [`${p}VirtualTourUnbranded2`, URL_OF.Unbranded2], [`${p}VirtualTourUnbranded3`, URL_OF.Unbranded3],
 ];
 
+/** The Sale pages (2026-10-28): Cotality has no video field, so the Video URL and Video Tour URL boxes are the second and third unbranded slots and the branded box is the branded slot; the two
+ * "Unbranded Tour URL 2 / 3" boxes are own-id boxes sent in those slots only when the video boxes are empty. The Rental pages keep the earlier contract (one box sent). */
+const SALE_CLAIMS = (p: string): Record<string, string> => ({ [`${p}VirtualTourUnbranded`]: 'VirtualTourURLUnbranded', [`${p}VideoUrl`]: 'VirtualTourURLUnbranded2', [`${p}VideoTourUrl`]: 'VirtualTourURLUnbranded3', [`${p}MatterportUrl`]: 'VirtualTourURLBranded' });
+
 describe('the markup: only the box that is sent claims a tour field', () => {
-  it.each(PAGES)('%s', (file, p) => {
+  it.each(PAGES.filter(([, p]) => p === 'sale'))('%s (the four slots)', (file, p) => {
+    const doc: Document = new JSDOM(read(file)).window.document;
+    const claims = [...doc.querySelectorAll('[data-concept]')].filter((e) => /^VirtualTour/.test(String(e.getAttribute('data-concept')))).map((e) => `${e.id}=${e.getAttribute('data-concept')}`).sort();
+    expect(claims).toEqual(Object.entries(SALE_CLAIMS(p)).map(([id, f]) => `${id}=${f}`).sort());
+    for (const id of [`${p}VirtualTourUnbranded2`, `${p}VirtualTourUnbranded3`]) {
+      const box = doc.getElementById(id)!;
+      expect(box.hasAttribute('data-concept')).toBe(false);
+      expect(String(box.parentElement!.querySelector('p')?.textContent ?? '')).toMatch(/sent in the (second|third) unbranded slot .* when the Video (Tour )?URL box is empty/);
+    }
+    expect(String(doc.getElementById(`${p}VirtualTourUnbranded`)!.parentElement!.querySelector('p')?.textContent)).toMatch(/Sent with the listing as the unbranded tour link/);
+  });
+  it.each(PAGES.filter(([, p]) => p !== 'sale'))('%s', (file, p) => {
     const doc: Document = new JSDOM(read(file)).window.document;
     // the Unbranded Tour URL box is the one that is sent as VirtualTourURLUnbranded, and the one input of the page that claims any tour field
     expect(doc.getElementById(`${p}VirtualTourUnbranded`)!.getAttribute('data-concept')).toBe('VirtualTourURLUnbranded');
@@ -61,13 +76,17 @@ describe('the markup: only the box that is sent claims a tour field', () => {
 describe.each([['SALE-FORM-REDESIGN', 'sale', 'collectSaleFormData'], ['RENTAL-FORM-REDESIGN', 'rental', 'collectRentalFormData']] as const)('%s: what is sent today', (form, p, collector) => {
   const set = (f: any, id: string, value: string) => { (f.d.getElementById(id) as HTMLInputElement).value = value; };
 
-  it('only the Unbranded Tour URL is sent as a Cotality field; the five other boxes are saved under their own ids (a decision of Maya\'s, not made here)', async () => {
+  it(p === 'sale' ? 'the four slots are sent (the video boxes fill the second and third unbranded slots; the spare unbranded boxes are kept under their own ids)' : 'only the Unbranded Tour URL is sent as a Cotality field; the five other boxes are saved under their own ids (a decision of Maya\'s, not made here)', async () => {
     const f = await bootAddForm(form as AddForm, { settle: 300 });
     try {
       for (const [id, url] of boxUrls(p)) set(f, id, url);
       const data = f.w[collector]();
       expect(data.VirtualTourURLUnbranded).toBe(URL_OF.Unbranded);
-      for (const field of ['VirtualTourURLBranded', 'VirtualTourURLUnbranded2', 'VirtualTourURLUnbranded3']) expect(data[field]).toBeUndefined();
+      if (p === 'sale') {
+        expect([data.VirtualTourURLUnbranded2, data.VirtualTourURLUnbranded3, data.VirtualTourURLBranded, data.VideosCount]).toEqual([URL_OF.Video, URL_OF.VideoTour, URL_OF.Matterport, 2]);
+      } else {
+        for (const field of ['VirtualTourURLBranded', 'VirtualTourURLUnbranded2', 'VirtualTourURLUnbranded3']) expect(data[field]).toBeUndefined();
+      }
       for (const [id, url] of boxUrls(p)) expect({ id, saved: data[id] }).toEqual({ id, saved: url });
     } finally { f.close(); }
   });

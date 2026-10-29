@@ -9,6 +9,9 @@
  * offices (CoListOffice, CoListOffice2), separate from the primary ListAgent and ListOffice fields, independent of the listing agreement. The cases
  * below all occur in the feed: two agents of one office, two offices of one firm (Corcoran Group's 334 and 40076 share main office 334),
  * and agents of different firms.
+ *
+ * 2026-10-28: the Sale form is Maya's fixed form, whose co-listing section is its own (one agent per row from the Mallan agents list, no colist-section.js / directory picker, no
+ * CoListAgent2 / 3 or office slots): the module cases run on the Rental form. The fixed form's co-list contacts table is text (escapeHtml).
  */
 import { buildPrismaMock } from './helpers';
 
@@ -143,7 +146,6 @@ const BLANK = {
 };
 
 describe.each([
-  ['SALE-FORM-REDESIGN', 'collectSaleFormData', '_populateSaleFormFromApi', 'addSaleCoListAgent', 'saleCoListAgentsContainer', 'saleAgentContactsTable'],
   ['RENTAL-FORM-REDESIGN', 'collectRentalFormData', '_populateRentalFormFromApi', 'addRentalCoListAgent', 'rentalCoListAgents', 'rentalAgentContactsTable'],
 ] as const)('%s: co-listing agents', (form, collectFn, populateFn, addFn, containerId, tableId) => {
   let page: Booted;

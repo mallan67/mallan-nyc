@@ -76,6 +76,7 @@ export async function GET(
       media_url_cached: true,
       media_url_original: true,
       media_type: true,
+      r2_key: true,
       media_category: true,
       order: true,
       preferred_photo_yn: true,
@@ -107,6 +108,7 @@ export async function GET(
       media_category: r.media_category,
       order: r.order,
       preferred_photo_yn: r.preferred_photo_yn,
+      caption: r.media_type === "Document" ? (r.r2_key ? r.r2_key.split("/").pop() : "Document") : undefined,
       // PROVENANCE, reported explicitly rather than inferred by the client.
       // Editability follows the KEY NAMESPACE — the same rule the write routes
       // enforce (`isCrmMediaKey` in the delete/set-main/reorder handlers) — so

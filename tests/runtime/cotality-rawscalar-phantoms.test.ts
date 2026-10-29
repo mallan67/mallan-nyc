@@ -10,7 +10,7 @@ import { resolve } from 'path';
 const formHtml = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
 
 describe('Group 3 — raw-only phantom scalars no longer emitted as Cotality canonical', () => {
-  it.each(['TaxDeductionPercent', 'YearRenovated', 'RentingAllowedYN', 'BuildingHeating', 'BuildingCooling'])(
+  it.each(['YearRenovated', 'RentingAllowedYN', 'BuildingHeating', 'BuildingCooling'])(   // TaxDeductionPercent is a live REBNY CustomFields key (search.custom_fields.keys, 2026-10-28): the form sends it
     'collect no longer emits phantom data.%s',
     (f) => {
       expect(formHtml).not.toMatch(new RegExp('data\\.' + f + '\\s*='));

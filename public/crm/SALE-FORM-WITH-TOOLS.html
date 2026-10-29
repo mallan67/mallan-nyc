@@ -135,11 +135,13 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 <script src="js/core/api-client.js"></script>
 <script src="js/forms/listing-hydration.js"></script>
 <script src="js/forms/listing-open-houses.js"></script>
+<script src="js/core/listing-viewer-live.js"></script>
 <script>
 // The page is served by the application it calls, so API requests go to the same origin (whatever host that is: localhost, a preview, production).
 // Pointing a page at another origin is an explicit choice: set window.MALLAN_API_BASE before this script.
 (function() {
     if (typeof MallanAPI !== 'undefined' && window.MALLAN_API_BASE) MallanAPI.configure({ baseUrl: String(window.MALLAN_API_BASE) });
+    else if (typeof MallanAPI !== 'undefined') MallanAPI.configure({ baseUrl: location.origin }); /* the origin the page is served from: mallan.nyc in production, a preview or a local run otherwise (2026-10-27) */
 })();
 </script>
 </head>
@@ -659,6 +661,10 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <label class="field-label">RE Taxes (Annual)</label>
                     <input type="number" id="saleRETaxes" placeholder="$0.00" step="0.01" class="field-input" data-concept="TaxAnnualAmount">
                 </div>
+                <div>
+                    <label class="field-label">RE Taxes (Monthly)</label>
+                    <input type="number" id="saleTaxMonthly" placeholder="$0.00" step="0.01" class="field-input" data-concept="TaxMonthlyAmount" title="REBNY CustomFields key TaxMonthlyAmount">
+                </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div id="saleTotalMonthlyField">
@@ -758,10 +764,17 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <div>
                             <label class="field-label mb-2">Building Status <span class="text-red-500">*</span></label>
                             <div class="space-y-2">
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuildingStatus" value="Resale" class="w-4 h-4" checked data-concept-disposition="mallan-internal"> Resale</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuildingStatus" value="NewDevelopment" class="w-4 h-4"> New Development</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuildingStatus" value="SponsorUnit" class="w-4 h-4"> Sponsor Unit</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuildingStatus" value="NewConversion" class="w-4 h-4"> New Conversion</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuildingStatus" value="Resale" class="w-4 h-4" data-concept-disposition="mallan-internal"> Resale</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm" title="New construction — Cotality NewConstructionYN"><input type="radio" name="saleBuildingStatus" value="NewDevelopment" class="w-4 h-4" data-concept="NewConstructionYN"> New Development (new construction)</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm" title="Mallan-only: Cotality has no conversion field"><input type="radio" name="saleBuildingStatus" value="NewConversion" class="w-4 h-4" data-concept-disposition="mallan-internal"> New Conversion</label>
+                            </div>
+                            <!-- Sponsor Unit is independent of Building Status (REBNY SponsorUnitYN): new construction or an older building -->
+                            <div class="mt-3 pt-3 border-t">
+                                <label class="block text-xs font-medium text-gray-600 mb-2">Sponsor Unit <span class="font-normal text-gray-400">— sold by the sponsor or the holder of unsold shares; any ownership, new or older building</span></label>
+                                <div class="flex gap-4">
+                                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleSponsorUnit" value="No" class="w-4 h-4" data-concept="SponsorUnitYN"> No</label>
+                                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleSponsorUnit" value="Yes" class="w-4 h-4"> Yes</label>
+                                </div>
                             </div>
                             <div class="mt-3 pt-3 border-t">
                                 <label class="block text-xs font-medium text-gray-600 mb-2">Land Lease Building</label>
@@ -785,47 +798,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             </select>
                         </div>
                         <!-- Cotality SpecialListingConditions (Multi enumeration; REBNY requires it for a Condo, Co-op or Condop) -->
-                        <div class="col-span-full mt-2" id="saleSpecialListingConditionsBlock">
-                            <label class="field-label mb-2">Special Listing Conditions <span class="text-red-500">*</span></label>
-                            <p class="text-[10px] text-gray-500 mb-2">Required for a Condo, Co-op or Condop.</p>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="AffordableHousingSubsidy" class="w-4 h-4" data-concept="SpecialListingConditions"> Affordable Housing Subsidy</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="AllowanceFlooring" class="w-4 h-4" data-concept="SpecialListingConditions"> Allowance (Flooring)</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="AllowanceRoofing" class="w-4 h-4" data-concept="SpecialListingConditions"> Allowance (Roofing)</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Auction" class="w-4 h-4" data-concept="SpecialListingConditions"> Auction</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BankruptcyProperty" class="w-4 h-4" data-concept="SpecialListingConditions"> Bankruptcy Property</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BoardApprovalNotRequired" class="w-4 h-4" data-concept="SpecialListingConditions"> Board Approval Not Required</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BoardApprovalRequired" class="w-4 h-4" data-concept="SpecialListingConditions"> Board Approval Required</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BuildToSuit" class="w-4 h-4" data-concept="SpecialListingConditions"> Build To Suit</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BuilderOwned" class="w-4 h-4" data-concept="SpecialListingConditions"> Builder Owned</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Conservatorship" class="w-4 h-4" data-concept="SpecialListingConditions"> Conservatorship</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="CorporateListing" class="w-4 h-4" data-concept="SpecialListingConditions"> Corporate Listing</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Estate" class="w-4 h-4" data-concept="SpecialListingConditions"> Estate</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="GovernmentOwned" class="w-4 h-4" data-concept="SpecialListingConditions"> Government Owned</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="GseOwned" class="w-4 h-4" data-concept="SpecialListingConditions"> GSE Owned</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="HudOwned" class="w-4 h-4" data-concept="SpecialListingConditions"> HUD Owned</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="InForeclosure" class="w-4 h-4" data-concept="SpecialListingConditions"> In Foreclosure</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="ListedAsIs" class="w-4 h-4" data-concept="SpecialListingConditions"> Listed As-Is</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Model" class="w-4 h-4" data-concept="SpecialListingConditions"> Model</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="None" class="w-4 h-4" data-concept="SpecialListingConditions"> None</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="NoSmoking" class="w-4 h-4" data-concept="SpecialListingConditions"> No Smoking</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="NoticeOfDefault" class="w-4 h-4" data-concept="SpecialListingConditions"> Notice of Default</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Other" class="w-4 h-4" data-concept="SpecialListingConditions"> Other</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="PetRestrictions" class="w-4 h-4" data-concept="SpecialListingConditions"> Pet Restrictions</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="PreForeclosure" class="w-4 h-4" data-concept="SpecialListingConditions"> Pre-Foreclosure</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="ProbateListing" class="w-4 h-4" data-concept="SpecialListingConditions"> Probate Listing</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="RealEstateOwned" class="w-4 h-4" data-concept="SpecialListingConditions"> Real Estate Owned (REO)</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Relocation" class="w-4 h-4" data-concept="SpecialListingConditions"> Relocation</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Section8Accepted" class="w-4 h-4" data-concept="SpecialListingConditions"> Section 8 Accepted</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="SeeAgent" class="w-4 h-4" data-concept="SpecialListingConditions"> See Agent</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="SeeRemarks" class="w-4 h-4" data-concept="SpecialListingConditions"> See Remarks</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="ShortSale" class="w-4 h-4" data-concept="SpecialListingConditions"> Short Sale</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Standard" class="w-4 h-4" data-concept="SpecialListingConditions"> Standard</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="ThirdPartyApproval" class="w-4 h-4" data-concept="SpecialListingConditions"> Third Party Approval</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Trust" class="w-4 h-4" data-concept="SpecialListingConditions"> Trust</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="VaOwned" class="w-4 h-4" data-concept="SpecialListingConditions"> VA Owned</label>
-                            </div>
-                        </div>
+                        <!-- Special Listing Conditions: no card (owner decision 2026-10-28) — a condo / co-op / condop answers it with the Building panel's Board Approval Required box (Standard / BoardApprovalRequired, the values REBNY sales carry live) -->
                     </div>
                 </div>
             </div>
@@ -1464,6 +1437,15 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Owner (Seller) — the CRM client this listing belongs to: Listing.owner_client_id → Lead (relation ListingOwner). Mallan-internal, never sent to Cotality. -->
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-user-tag"></i> Owner (Seller)</div>
+            <p class="text-xs text-gray-500 mb-2">The CRM client who owns this property. Their workspace lists it under Owned Listings; add the client in the CRM first if they are not in the list.</p>
+            <select id="saleOwnerClientId" class="field-input max-w-md" data-concept-disposition="mallan-internal" data-rls-ignore="true" title="Mallan-internal: the owner (seller) relationship — a CRM client, not a Cotality field">
+                <option value="">— No owner linked —</option>
+            </select>
         </div>
 
         <!-- Co-Listing Agent Section -->
@@ -3823,17 +3805,17 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 
             <!-- Videos -->
             <div class="mb-8">
-                <h4 class="font-semibold text-gray-900 mb-3">Videos</h4>
+                <h4 class="font-semibold text-gray-900 mb-3">Videos <span class="text-xs text-gray-500 font-normal">(unbranded links from RLS · <span id="saleVideosCount">0</span> on file)</span></h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Video URL</label>
-                        <input type="url" id="saleVideoUrl" placeholder="https://youtube.com/watch?v=..." class="field-input">
-                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
+                        <input type="url" id="saleVideoUrl" placeholder="https://youtube.com/watch?v=..." class="field-input" data-concept="VirtualTourURLUnbranded2">
+                        <p class="text-[10px] text-gray-400 mt-1">Sent in the second unbranded tour slot (VirtualTourURLUnbranded2). Cotality has no video field: videos and 3D tours share the three unbranded slots, and the public page tells them apart by the host (YouTube / Vimeo = video).</p>
                     </div>
                     <div>
                         <label class="field-label">Video Tour URL</label>
-                        <input type="url" id="saleVideoTourUrl" placeholder="https://vimeo.com/..." class="field-input">
-                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
+                        <input type="url" id="saleVideoTourUrl" placeholder="https://vimeo.com/..." class="field-input" data-concept="VirtualTourURLUnbranded3">
+                        <p class="text-[10px] text-gray-400 mt-1">Sent in the third unbranded tour slot (VirtualTourURLUnbranded3).</p>
                     </div>
                 </div>
                 <p class="text-[10px] text-amber-600 mt-2"><i class="fas fa-ban mr-1"></i> No agent name, contact, or on-screen appearance in videos (UCBA Art. I Sec. 5(C))</p>
@@ -3845,29 +3827,29 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div id="saleFloorPlanList" class="space-y-1 text-sm"><p class="text-sm text-gray-500 italic">Loading floor plans...</p></div>
             </div>
 
-            <!-- 3D Virtual Tours (the Unbranded Tour URL is sent as RLS/RESO/IDX VirtualTourURLUnbranded; the others are saved under their own ids) -->
+            <!-- 3D Virtual Tours — the same six boxes as the Add form: the Unbranded Tour URL is the one sent (Cotality VirtualTourURLUnbranded); the others are saved under their own ids -->
             <div class="mb-8">
                 <h4 class="font-semibold text-gray-900 mb-3">3D Virtual Tours</h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Branded Tour URL <span class="text-[10px] text-gray-400 font-normal">(with broker branding)</span></label>
-                        <input type="url" id="saleMatterportUrl" placeholder="https://my.matterport.com/show/?m=..." class="field-input">
-                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
+                        <input type="url" id="saleMatterportUrl" placeholder="https://my.matterport.com/show/?m=..." class="field-input" data-concept="VirtualTourURLBranded">
+                        <p class="text-[10px] text-gray-400 mt-1">Sent with the listing as the branded tour link (VirtualTourURLBranded); the public page prefers the unbranded tour (UCBA Art. I Sec. 5(C)).</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL <span class="text-[10px] text-gray-400 font-normal">(no watermark)</span></label>
                         <input type="url" id="saleVirtualTourUnbranded" placeholder="https://my.matterport.com/show/?m=..." class="field-input" data-concept="VirtualTourURLUnbranded">
-                        <p class="text-[10px] text-gray-400 mt-1">Sent with the listing as the unbranded tour link.</p>
+                        <p class="text-[10px] text-gray-400 mt-1">Sent with the listing as the unbranded tour link (VirtualTourURLUnbranded) — the one the public page shows first.</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 2</label>
                         <input type="url" id="saleVirtualTourUnbranded2" placeholder="https://..." class="field-input">
-                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing; sent in the second unbranded slot (VirtualTourURLUnbranded2) when the Video URL box is empty.</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 3</label>
                         <input type="url" id="saleVirtualTourUnbranded3" placeholder="https://..." class="field-input">
-                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing; sent in the third unbranded slot (VirtualTourURLUnbranded3) when the Video Tour URL box is empty.</p>
                     </div>
                 </div>
             </div>
@@ -4147,7 +4129,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             </div>
                             <div>
                                 <label class="field-label">Year Renovated</label>
-                                <input type="number" id="saleBldgYearRenovated" placeholder="2020" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="YearRenovated">
+                                <input type="number" id="saleBldgYearRenovated" placeholder="2020" class="field-input" data-concept="YearBuiltEffective" title="Cotality YearBuiltEffective (the year of the last major renovation)">
                             </div>
                             <div>
                                 <label class="field-label">Total Floors <span class="text-red-500">*</span></label>
@@ -4169,6 +4151,37 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                 <label class="field-label">Total Parking Spaces</label>
                                 <input type="number" id="saleBldgParkingSpaces" placeholder="50" class="field-input" data-concept="OpenParkingSpaces">
                             </div>
+                            <div>
+                                <label class="field-label">Professional Units</label>
+                                <input type="number" id="saleBldgProfessionalUnits" placeholder="0" class="field-input" title="REBNY CustomFields key NumberOfProfessionalUnitsTotal (sent when the Townhouse tab's box is empty)">
+                            </div>
+                            <div>
+                                <label class="field-label">Lot Size (sq ft)</label>
+                                <input type="number" id="saleBldgLotSizeSqFt" placeholder="2500" class="field-input" title="Cotality LotSizeArea + LotSizeUnits SquareFeet (sent when the Townhouse tab's lot size is empty)">
+                            </div>
+                            <div>
+                                <label class="field-label">Lot Dimensions</label>
+                                <input type="text" id="saleBldgLotDimensions" placeholder="25 x 100" class="field-input" title="Cotality LotSizeDimensions (width x depth)">
+                            </div>
+                            <div>
+                                <label class="field-label">Zoning</label>
+                                <input type="text" id="saleBldgZoning" placeholder="C1-9" class="field-input" title="Cotality ZoningDescription (sent when the Townhouse tab's zoning is empty)">
+                            </div>
+                            <div>
+                                <label class="field-label">Architect</label>
+                                <input type="text" id="saleBldgArchitect" placeholder="Emery Roth" class="field-input" data-concept="ArchitectName" title="REBNY CustomFields key ArchitectName">
+                            </div>
+                            <div>
+                                <label class="field-label">Building Ownership <span class="text-[10px] font-normal text-gray-400">(from the address pull)</span></label>
+                                <select id="saleBldgOwnership" class="field-input" data-rls-ignore="true" title="What Cotality says the building is (CommonInterest); the unit's own ownership is the Property Type in Essentials">
+                                    <option value="">— Not pulled —</option>
+                                    <option value="StockCooperative">Co-op (StockCooperative)</option>
+                                    <option value="Condominium">Condominium</option>
+                                    <option value="Condop">Condop</option>
+                                    <option value="RentalBuilding">Rental Building</option>
+                                    <option value="None">None (townhouse / house)</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
@@ -4184,18 +4197,66 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
                                 <input type="checkbox" id="saleBldgLEED" class="w-4 h-4" data-concept-disposition="mallan-internal"> LEED Certified
                             </label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgNewConstruction" class="w-4 h-4" data-concept="NewConstructionYN"> New Construction
-                            </label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgNewDevelopment" class="w-4 h-4" data-concept="NewConstructionYN"> New Development
+                            <label class="flex items-center gap-2 cursor-pointer text-sm" title="Mirrors Building Status = New Development (Essentials) — Cotality NewConstructionYN">
+                                <input type="checkbox" id="saleBldgNewConstruction" class="w-4 h-4" data-concept="NewConstructionYN"> New Construction (new development)
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
                                 <input type="checkbox" id="saleBldgConversion" class="w-4 h-4" data-concept-disposition="mallan-internal"> Conversion
                             </label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgSponsorUnits" class="w-4 h-4" data-concept="SponsorUnitYN"> This unit is a sponsor unit
-                            </label>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">Sponsor Unit is a fact about this listing, not the building — shown under Building Status in Essentials (REBNY SponsorUnitYN).</p>
+                    </div>
+
+                    <!-- Building style, era and facade — live Cotality ArchitecturalStyle (Multi; "Prewar" is its only era member, so Building Class Pre-War is sent as it) and ConstructionMaterials (Multi) -->
+                    <div class="form-card">
+                        <div class="form-card-header"><i class="fas fa-landmark"></i> Building Style &amp; Facade</div>
+                        <label class="field-label mb-2">Architectural Style <span class="text-[10px] font-normal text-gray-400">(Cotality ArchitecturalStyle — select all that apply; Pre-War in Building Class is sent as Prewar)</span></label>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-4">
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="Prewar" class="w-4 h-4"> Prewar</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="WalkUp" class="w-4 h-4"> Walk Up</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="Loft" class="w-4 h-4"> Loft</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="HighRise" class="w-4 h-4"> High Rise</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="MidRise" class="w-4 h-4"> Mid Rise</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="LowRise" class="w-4 h-4"> Low Rise</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="ArtDeco" class="w-4 h-4"> Art Deco</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="BeauxArts" class="w-4 h-4"> Beaux Arts</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="Brutalist" class="w-4 h-4"> Brutalist</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="CastIron" class="w-4 h-4"> Cast Iron</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="Colonial" class="w-4 h-4"> Colonial</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="ContemporaryModern" class="w-4 h-4"> Contemporary Modern</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="Federal" class="w-4 h-4"> Federal</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="Georgian" class="w-4 h-4"> Georgian</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="GothicRevival" class="w-4 h-4"> Gothic Revival</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="GreekRevival" class="w-4 h-4"> Greek Revival</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="International" class="w-4 h-4"> International</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="Italianate" class="w-4 h-4"> Italianate</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="MidCenturyModern" class="w-4 h-4"> Mid-Century Modern</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="Modern" class="w-4 h-4"> Modern</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="Neoclassical" class="w-4 h-4"> Neoclassical</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="QueenAnne" class="w-4 h-4"> Queen Anne</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="Romanesque" class="w-4 h-4"> Romanesque</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="RowHouse" class="w-4 h-4"> Row House</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="SecondEmpire" class="w-4 h-4"> Second Empire</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="Tudor" class="w-4 h-4"> Tudor</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="Victorian" class="w-4 h-4"> Victorian</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgArchStyle" value="Other" class="w-4 h-4"> Other</label>
+                        </div>
+                        <label class="field-label mb-2">Facade / Construction <span class="text-[10px] font-normal text-gray-400">(Cotality ConstructionMaterials — select all that apply)</span></label>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgFacade" value="Brick" class="w-4 h-4"> Brick</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgFacade" value="BrickVeneer" class="w-4 h-4"> Brick Veneer</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgFacade" value="Stone" class="w-4 h-4"> Stone</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgFacade" value="StoneVeneer" class="w-4 h-4"> Stone Veneer</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgFacade" value="Glass" class="w-4 h-4"> Glass</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgFacade" value="Steel" class="w-4 h-4"> Steel</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgFacade" value="Concrete" class="w-4 h-4"> Concrete</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgFacade" value="PreCastConcrete" class="w-4 h-4"> Pre-Cast Concrete</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgFacade" value="Masonry" class="w-4 h-4"> Masonry</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgFacade" value="Stucco" class="w-4 h-4"> Stucco</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgFacade" value="Block" class="w-4 h-4"> Block</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgFacade" value="Frame" class="w-4 h-4"> Frame</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgFacade" value="Mixed" class="w-4 h-4"> Mixed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgFacade" value="Other" class="w-4 h-4"> Other</label>
                         </div>
                     </div>
 
@@ -4255,6 +4316,32 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgSpa" class="w-4 h-4" data-concept="BuildingFeatures"> Spa</label>
                         </div>
                     </div>
+                    <!-- Security — live Cotality SecurityFeatures (Multi; the Building* members are the building-level ones) -->
+                    <div class="form-card">
+                        <div class="form-card-header"><i class="fas fa-shield-alt"></i> Security Features</div>
+                        <p class="text-[10px] text-gray-500 mb-2">Cotality SecurityFeatures — select all that apply. Doorman / concierge staffing itself is the Building Attendance Type above.</p>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="DoorMan" class="w-4 h-4"> Doorman (secured lobby)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="LobbySecured" class="w-4 h-4"> Lobby Secured</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="TwentyFourHourSecurity" class="w-4 h-4"> 24-Hour Security</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="SecurityGuard" class="w-4 h-4"> Security Guard</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="SecuritySystem" class="w-4 h-4"> Security System</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="SecurityGate" class="w-4 h-4"> Security Gate</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="ElevatorSecured" class="w-4 h-4"> Elevator Secured</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="KeyCardEntry" class="w-4 h-4"> Key Card Entry</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="BuildingKeyFobEntry" class="w-4 h-4"> Building Key Fob Entry</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="Intercom" class="w-4 h-4"> Intercom</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="BuildingIntercom" class="w-4 h-4"> Building Intercom</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="ControlledAccess" class="w-4 h-4"> Controlled Access</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="BuildingClosedCircuitCameras" class="w-4 h-4"> Building Closed Circuit Cameras</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="BuildingSurveillanceSystem" class="w-4 h-4"> Building Surveillance System</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="BuildingSmartLocks" class="w-4 h-4"> Building Smart Locks</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="FireSprinklerSystem" class="w-4 h-4"> Fire Sprinkler System</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="BuildingFireAlarm" class="w-4 h-4"> Building Fire Alarm</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="Other" class="w-4 h-4"> Other</label>
+                        </div>
+                    </div>
+
 
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-tshirt"></i> Building Laundry Features <span class="text-red-500">*</span></div>
@@ -4418,6 +4505,52 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         </div>
                     </div>
 
+                    <!-- Land lease — a building fact (live Cotality Property fields LandLeaseYN / LandLeaseAmount / LandLeaseAmountFrequency / LandLeaseExpirationDate); the Essentials "Land Lease Building" Yes/No mirrors this answer -->
+                    <div class="form-card">
+                        <div class="form-card-header"><i class="fas fa-file-contract"></i> Land Lease</div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div>
+                                <label class="field-label">Land Lease?</label>
+                                <select id="saleBldgLandLeaseYN" class="field-input" data-concept="LandLeaseYN">
+                                    <option value="">— Not answered —</option>
+                                    <option value="No">No</option>
+                                    <option value="Yes">Yes</option>
+                                </select>
+                            </div>
+                            <div id="saleBldgLandLeaseAmountWrap" style="display:none;">
+                                <label class="field-label">Land Lease Amount</label>
+                                <input type="number" id="saleBldgLandLeaseAmount" placeholder="0.00" step="0.01" class="field-input" data-concept="LandLeaseAmount">
+                            </div>
+                            <div id="saleBldgLandLeaseFreqWrap" style="display:none;">
+                                <label class="field-label">Amount Frequency</label>
+                                <select id="saleBldgLandLeaseFreq" class="field-input" data-concept="LandLeaseAmountFrequency">
+                                    <option value="">— Select —</option>
+                                    <option value="Annually">Annually</option>
+                                    <option value="BiMonthly">Bi Monthly</option>
+                                    <option value="BiWeekly">Bi Weekly</option>
+                                    <option value="Daily">Daily</option>
+                                    <option value="FullTerm">Full Term</option>
+                                    <option value="Monthly">Monthly</option>
+                                    <option value="NotApplicable">Not Applicable</option>
+                                    <option value="OneTime">One Time</option>
+                                    <option value="Other">Other</option>
+                                    <option value="Quarterly">Quarterly</option>
+                                    <option value="Seasonal">Seasonal</option>
+                                    <option value="SeeAgent">See Agent</option>
+                                    <option value="SeeRemarks">See Remarks</option>
+                                    <option value="SemiAnnually">Semi Annually</option>
+                                    <option value="SemiMonthly">Semi Monthly</option>
+                                    <option value="Weekly">Weekly</option>
+                                </select>
+                            </div>
+                            <div id="saleBldgLandLeaseExpWrap" style="display:none;">
+                                <label class="field-label">Land Lease Expiration</label>
+                                <input type="date" id="saleBldgLandLeaseExp" class="field-input" data-concept="LandLeaseExpirationDate">
+                            </div>
+                        </div>
+                    </div>
+
+
                     <!-- REBNY I13: TaxBlock / TaxLot -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-file-invoice-dollar"></i> Tax Information</div>
@@ -4552,6 +4685,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgCoBuyersAllowed" class="w-4 h-4" data-concept-disposition="mallan-internal"> Co-Buyers Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgCorpOwnAllowed" class="w-4 h-4" data-concept-disposition="mallan-internal"> Corp/LLC Purchase Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgGiftsAllowed" class="w-4 h-4" data-concept-disposition="mallan-internal"> Gifts Allowed for Down Payment</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm" title="REBNY CustomFields BuildingRules: LiveWorkAllowed"><input type="checkbox" id="saleBldgLiveWork" class="w-4 h-4"> Live/Work Allowed</label>
                         </div>
                     </div>
 
@@ -4599,11 +4733,19 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="field-label">Max Financing Allowed</label>
-                                <input type="text" id="saleBldgMaxFinancing" placeholder="80%" class="field-input" data-concept="MaximumFinancingAmount">
+                                <input type="text" id="saleBldgMaxFinancing" placeholder="80%" class="field-input" data-concept="MaximumFinancingPercent" title="REBNY CustomFields key MaximumFinancingPercent">
+                            </div>
+                            <div>
+                                <label class="field-label">Max Financing Amount</label>
+                                <input type="number" id="saleBldgMaxFinancingAmount" placeholder="0" step="1" class="field-input" data-concept="MaximumFinancingAmount">
                             </div>
                             <div>
                                 <label class="field-label">Min Down Payment</label>
                                 <input type="text" id="saleBldgMinDownPayment" placeholder="20%" class="field-input" data-concept-disposition="mallan-internal">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="field-label">Financing Remarks</label>
+                                <input type="text" id="saleBldgMaxFinancingRemarks" placeholder="e.g., 80% for 20 years" class="field-input" data-concept="MaximumFinancingRemarks" title="REBNY CustomFields key MaximumFinancingRemarks">
                             </div>
                             <div>
                                 <label class="field-label">DTI Ratio Requirement</label>
@@ -5010,7 +5152,15 @@ function viewerFetchListing(id) {
     if (typeof MallanAPI === 'undefined' || !MallanAPI.listings) {
         return Promise.reject(new Error('The CRM data service is unavailable.'));
     }
-    return MallanAPI.listings.get(id).then(function(apiData) {
+    // An RLS listing is read LIVE from Cotality (js/core/listing-viewer-live.js: one exact ListingId request through the agent search
+    // route, shaped as the CRM record); never a database copy of it. A Mallan-only listing (SL-/RL-) is the CRM record. A Mallan listing
+    // opened on the wrong side fails closed instead of rendering a rental as a sale: the viewer's side is a URL choice, the prefix is the fact.
+    var owned = typeof viewerMallanSide === 'function' ? viewerMallanSide(id) : null;
+    if (owned && owned !== 'sale') {
+        return Promise.reject(new Error(id + ' is a Mallan ' + owned + ' listing — open it in the Rental Tools viewer'));
+    }
+    var request = (!owned && typeof viewerLiveListing === 'function') ? viewerLiveListing(id, 'sale') : MallanAPI.listings.get(id);
+    return request.then(function(apiData) {
         if (!apiData || typeof apiData !== 'object' || Array.isArray(apiData) || (apiData.listing_id === undefined && apiData.id === undefined)) {
             throw new Error('The CRM returned no data for this listing.');
         }
@@ -5188,6 +5338,13 @@ function viewerLoadMedia(prefix, record, refresh) {
     };
     var key = record && (record.listing_id || record.id);
     if (!key || typeof fetch !== 'function') { settle('failed', [], []); return Promise.resolve(); }
+    // A live Cotality listing: its photos and floor plans come from the live media route (the CRM holds no rows for it).
+    if (record._source === 'cotality_live' && typeof viewerLiveMedia === 'function') {
+        return viewerLiveMedia(String(key)).then(function(media) { settle('loaded', media.photos, media.plans); }, function(err) {
+            console.warn('[Viewer] The live listing\'s media could not be read:', err && err.message);
+            settle('failed', [], []);
+        });
+    }
     return fetch('/api/crm/listings/' + encodeURIComponent(String(key)) + '/media', { credentials: 'include' }).then(function(response) {
         if (!response.ok) throw new Error('HTTP ' + response.status);
         return response.json();
@@ -5281,6 +5438,17 @@ function showSaleFailClosed(listingId) {
 }
 
 // ── Load listing data into form fields ──
+// The Owner (Seller): Listing.owner_client_id (a typed column), shown by the client's name when the CRM list has it, else as Client #id. Read-only here.
+function _viewerShowOwner(rec) {
+    var sel = document.getElementById('saleOwnerClientId'); if (!sel || !rec) return;
+    var id = rec.owner_client_id !== undefined && rec.owner_client_id !== null ? String(rec.owner_client_id) : ((rec.raw_data || {}).saleOwnerClientId || '');
+    sel.innerHTML = '<option value="">— No owner linked —</option>';
+    if (!id) return;
+    var opt = document.createElement('option'); opt.value = id; opt.textContent = 'Client #' + id; sel.appendChild(opt); sel.value = id;
+    if (typeof MallanAPI !== 'undefined' && MallanAPI.clients && typeof MallanAPI.clients.list === 'function') {
+        MallanAPI.clients.list({ limit: 200 }).then(function (res) { var list = (res && (res.clients || res.data || res.items)) || (Array.isArray(res) ? res : []); var c = list.find(function (x) { return String(x.id) === id; }); if (c) opt.textContent = (((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.name || c.email || ('Client #' + id)) + (Array.isArray(c.roles) && c.roles.length ? ' (' + c.roles.join(', ') + ')' : ''); }).catch(function () {});
+    }
+}
 function loadSaleListingData(listingId) {
     var d = VIEWER_LISTINGS[listingId];
     // Fix #4/#9: Fail closed — invalid ID → blank blocked view, not partial render
@@ -5289,6 +5457,7 @@ function loadSaleListingData(listingId) {
     // Entry-form defaults are not listing facts: clear them, then set only what the record carries.
     viewerClearEntryDefaults();
     MallanListingHydration.hydrate('sale', d._raw);
+    _viewerShowOwner(d._raw);
 
     // Status and tiles: the stored status verbatim (never derived or defaulted); days on market from the typed columns, else the record's own key.
     var rawData = (d._raw && d._raw.raw_data) || {};
@@ -5326,6 +5495,36 @@ function loadSaleListingData(listingId) {
         courtesyEl.style.display = '';
     }
 
+    // The same facts under the ids this form actually uses (unit, building and address panels)
+    viewerSetVal('saleStreetAddress', d.address);
+    viewerSetVal('saleUnitNumber', d.unit);
+    viewerSetVal('saleListingCompanySearch', d.listingCompany);
+    viewerSetVal('saleNeighborhoodFromAddress', d.neighborhood);
+    viewerSetVal('saleBldgNeighborhood', d.neighborhood);
+    viewerSetVal('saleBldgCity', d.city);
+    viewerSetVal('saleBldgState', d.state);
+    viewerSetVal('saleBldgCrossStreet1', d.crossStreet);
+    viewerSetVal('saleInteriorSqFt', d.sqft);
+    viewerSetVal('saleUnitSqFt', d.sqft);
+    viewerSetVal('saleFullBaths', d.bathroomsFull);
+    viewerSetVal('saleTotalRooms', d.roomsTotal);
+    viewerSetVal('saleBldgYearBuilt', d.yearBuilt);
+    viewerSetVal('saleBldgTotalUnits', d.totalUnits);
+    viewerSetVal('saleBldgTotalFloors', d.stories);
+    viewerSetVal('saleFloorInBuilding', d.floor);
+    viewerSetVal('saleOffMarketDate', d.offMarketDate);
+    viewerSetCheck('saleBldgNewConstruction', d.newConstructionYN);
+    // Building Status = New Development is live NewConstructionYN; Sponsor Unit (REBNY SponsorUnitYN) is
+    // its own Yes/No — a sponsor sells in new construction and in older buildings.
+    // A viewer states only what the record carries: a radio is set from a known answer and left unchecked (unknown) otherwise.
+    if (d.newConstructionYN === true || d.newConstructionYN === false) viewerSetRadio('saleBuildingStatus', d.newConstructionYN ? 'NewDevelopment' : 'Resale');
+    if (d.sponsorUnitYN === true || d.sponsorUnitYN === false) viewerSetRadio('saleSponsorUnit', d.sponsorUnitYN ? 'Yes' : 'No');
+    // a building that names no features leaves these flags unknown (indeterminate), never "No"
+    viewerSetCheck('saleBldgLaundry', d.laundryFeatures ? /Building|Common|InBuilding/i.test(d.laundryFeatures) : null);
+    viewerSetCheck('saleBldgElevator', d.buildingFeatures ? /Elevator/i.test(d.buildingFeatures) : null);
+    viewerSetCheck('saleBldgStorage', d.buildingFeatures ? /Storage/i.test(d.buildingFeatures) : null);
+    viewerSetCheck('saleBldgBikeRoom', d.buildingFeatures ? /Bike/i.test(d.buildingFeatures) : null);
+
     return d;
 }
 
@@ -5343,7 +5542,7 @@ function convertSaleFormToViewer() {
     }
 
     // Text/number/date inputs → readOnly
-    document.querySelectorAll('input[type="text"], input[type="number"], input[type="email"], input[type="date"], input[type="tel"], input[type="url"], input[type="time"]').forEach(function(el) {
+    document.querySelectorAll('input[type="text"], input[type="number"], input[type="email"], input[type="date"], input[type="datetime-local"], input[type="time"], input[type="month"], input[type="tel"], input[type="url"], input[type="time"]').forEach(function(el) {
         if (isInsideSkipZone(el)) return;
         el.readOnly = true;
         el.tabIndex = -1;
@@ -6155,7 +6354,7 @@ function applySalesFieldRules() {
     const commercialOwnershipEl = document.querySelector('input[name="saleCommercialOwnership"]:checked');
     const propertyType = propertyTypeEl ? propertyTypeEl.value : 'Condo';
     const commercialOwnership = commercialOwnershipEl ? commercialOwnershipEl.value : null;
-    const buildingStatus = document.querySelector('input[name="saleBuildingStatus"]:checked')?.value || 'Resale';
+    const buildingStatus = document.querySelector('input[name="saleBuildingStatus"]:checked')?.value || '';   // nothing chosen is nothing, not Resale
     // Toggle Office/Retail building type sub-selector
     toggleOfficeRetailBuildingType('sale');
     // The monthly charge is Maintenance in a co-op (its tax is included, so no RE Taxes box) and Common Charges in a condo (RE Taxes are separate)
@@ -6692,7 +6891,7 @@ function updateSalePreview() {
     setText('salePreviewDistro', distChecked.length ? distChecked.slice(0, 4).join(', ') + (distChecked.length > 4 ? ' +' + (distChecked.length - 4) + ' more' : '') : '--');
     setText('salePreviewPhotos', viewerPhotoCountText('sale'));
     setText('salePreviewVideo', val('saleVideoUrl', 'None') !== 'None' ? 'Yes' : 'None');
-    setText('salePreviewTour', val('saleMatterportUrl', 'None') !== 'None' ? 'Yes' : 'None');
+    setText('salePreviewTour', val('saleVirtualTourUnbranded', 'None') !== 'None' ? 'Yes' : 'None');
 
     // Card 5: Townhouse / Building (Tab 3 — for TH/multi-family types)
     const thCard = document.getElementById('salePreviewTHCard');

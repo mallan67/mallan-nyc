@@ -28,7 +28,8 @@ describe('every Cotality member the mapping sends is live', () => {
   });
 });
 
-describe.each(['SALE-FORM-REDESIGN', 'RENTAL-FORM-REDESIGN'])('%s', (name) => {
+// 2026-10-28: the Sale form is Maya's fixed form, which answers the unit feature groups in its own collector (crm-sale-form-roundtrip.test.ts, crm-form-field-roundtrip.test.ts); the module serves the Rental form.
+describe.each(['RENTAL-FORM-REDESIGN'])('%s', (name) => {
   const html = readFileSync(resolve(ROOT, `public/crm/${name}.html`), 'utf8');
   const prefix = name.startsWith('SALE') ? 'sale' : 'rental';
   const doc = new JSDOM(html).window.document;

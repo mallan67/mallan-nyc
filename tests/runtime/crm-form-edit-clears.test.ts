@@ -26,40 +26,40 @@ function afterEdit(stored: Record<string, any>, body: Record<string, any>): Reco
 const setSelect = (f: BootedForm, id: string, value: string) => { const el = f.d.getElementById(id) as HTMLSelectElement; el.value = value; el.dispatchEvent(new (f.w as any).Event('change', { bubbles: true })); };
 const ticked = (f: BootedForm, name: string) => [...f.d.querySelectorAll(`input[type="checkbox"][name="${name}"]`)].filter((b) => (b as HTMLInputElement).checked).map((b) => (b as HTMLInputElement).value);
 
-describe('SALE-FORM-REDESIGN: clearing the Condition and the Special Listing Conditions', () => {
-  it('a create with nothing chosen leaves both keys out (the gate must ask), and an edit that clears them sends empty lists', async () => {
+describe('SALE-FORM-REDESIGN: clearing the Condition; the Special Listing Conditions answer of a condo', () => {
+  // REBNY CONDO-COOP-001 keeps SpecialListingConditions required for a condo / co-op / condop. The live values REBNY sales carry are Standard and BoardApprovalRequired,
+  // so the Sale form answers it from the Building panel's "Board Approval Required" box (no 35-box card, by the owner's decision 2026-10-28): Standard unless the box is ticked.
+  const coopLike = (f: BootedForm) => ['Condo', 'Coop', 'Condop'].includes((f.d.querySelector('input[name="salePropertyType"]:checked') as HTMLInputElement | null)?.value ?? '');
+  it('a create with no Condition leaves PropertyCondition out (the gate must ask); a condo always answers SpecialListingConditions; an edit that clears the Condition sends the empty list', async () => {
     const created = await bootAddForm('SALE-FORM-REDESIGN', { settle: 400 });
     let stored: Record<string, any>;
     try {
       const empty = created.w.collectSaleFormData();
       expect('PropertyCondition' in empty).toBe(false);                              // a create: no answer, no key
-      expect('SpecialListingConditions' in empty).toBe(false);
+      expect(empty.SpecialListingConditions).toEqual(coopLike(created) ? ['Standard'] : undefined);
       setSelect(created, 'saleCondition', 'Turnkey');
-      (created.d.querySelector('input[name="saleSpecialListingConditions"][value="Estate"]') as HTMLInputElement).checked = true;
-      (created.d.querySelector('input[name="saleSpecialListingConditions"][value="Model"]') as HTMLInputElement).checked = true;
+      (created.d.getElementById('saleBldgBoardApproval') as HTMLInputElement).checked = true;
       const body = created.w.collectSaleFormData();
       expect(body.PropertyCondition).toEqual(['Turnkey']);
-      expect(body.SpecialListingConditions).toEqual(['Estate', 'Model']);
+      if (coopLike(created)) expect(body.SpecialListingConditions).toEqual(['BoardApprovalRequired']);
       stored = storedListing(body, 'sale') as Record<string, any>;
     } finally { created.close(); }
-
     const editing = await bootAddForm('SALE-FORM-REDESIGN', { search: '?id=1', listing: stored, settle: 1500 });
     let cleared: Record<string, any>;
     try {
       expect((editing.d.getElementById('saleCondition') as HTMLSelectElement).value).toBe('Turnkey');
-      expect(ticked(editing, 'saleSpecialListingConditions')).toEqual(['Estate', 'Model']);
+      if (coopLike(editing)) expect((editing.d.getElementById('saleBldgBoardApproval') as HTMLInputElement).checked).toBe(true);
       setSelect(editing, 'saleCondition', '');
-      editing.d.querySelectorAll('input[name="saleSpecialListingConditions"]').forEach((b) => { (b as HTMLInputElement).checked = false; });
+      (editing.d.getElementById('saleBldgBoardApproval') as HTMLInputElement).checked = false;
       const body = editing.w.collectSaleFormData();
       expect(body.PropertyCondition).toEqual([]);                                    // an edit: the empty list clears what is stored
-      expect(body.SpecialListingConditions).toEqual([]);
+      if (coopLike(editing)) expect(body.SpecialListingConditions).toEqual(['Standard']);
       cleared = afterEdit(stored, body);
     } finally { editing.close(); }
-
     const reopened = await bootAddForm('SALE-FORM-REDESIGN', { search: '?id=1', listing: cleared, settle: 1500 });
     try {
       expect((reopened.d.getElementById('saleCondition') as HTMLSelectElement).value).toBe('');              // it stays blank (it used to come back as Turnkey)
-      expect(ticked(reopened, 'saleSpecialListingConditions')).toEqual([]);                                   // and stays unticked (it used to come back as Estate, Model)
+      expect((reopened.d.getElementById('saleBldgBoardApproval') as HTMLInputElement).checked).toBe(false);
     } finally { reopened.close(); }
   });
 
@@ -68,14 +68,14 @@ describe('SALE-FORM-REDESIGN: clearing the Condition and the Special Listing Con
     let stored: Record<string, any>;
     try {
       setSelect(created, 'saleCondition', 'Excellent');
-      (created.d.querySelector('input[name="saleSpecialListingConditions"][value="Estate"]') as HTMLInputElement).checked = true;
+      (created.d.getElementById('saleBldgBoardApproval') as HTMLInputElement).checked = true;
       stored = storedListing(created.w.collectSaleFormData(), 'sale') as Record<string, any>;
     } finally { created.close(); }
     const editing = await bootAddForm('SALE-FORM-REDESIGN', { search: '?id=1', listing: stored, settle: 1500 });
     try {
       const body = editing.w.collectSaleFormData();
       expect(body.PropertyCondition).toEqual(['Excellent']);
-      expect(body.SpecialListingConditions).toEqual(['Estate']);
+      if (coopLike(editing)) expect(body.SpecialListingConditions).toEqual(['BoardApprovalRequired']);
     } finally { editing.close(); }
   });
 });
@@ -186,7 +186,8 @@ describe('an edit is known by the listing id alone as well as by the database id
       expect(f.w._saleEditDbId).toBeNull();
       f.w._saleEditListingId = 'SL-0001';
       const body = f.w.collectSaleFormData();
-      expect([body.PropertyCondition, body.SpecialListingConditions, body.View]).toEqual([[], [], []]);
+      expect([body.PropertyCondition, body.View]).toEqual([[], []]);
+      expect(body.SpecialListingConditions).toEqual(['Condo', 'Coop', 'Condop'].includes(String(body.salePropertyType)) ? ['Standard'] : []);   // a condo / co-op / condop always answers it (Standard unless Board Approval Required is ticked)
     } finally { f.close(); }
   });
 

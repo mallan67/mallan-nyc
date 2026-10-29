@@ -130,8 +130,9 @@ describe('identity capture — /api/auth/me exposes trestle_mls_id; form stamps 
   const defaults = read('public/crm/js/forms/agent-defaults.js');
   // The save used to read hidden inputs that sit outside the area it sweeps, so ListAgentMlsId was always blank. crm-agent-defaults.test.ts drives the page
   // and proves the payload; these pin the wiring it depends on.
-  it('form collect takes the agent identity from MallanAgentDefaults.identity, whose ListAgentMlsId is the Cotality mls id, NOT the internal Agent.id', () => {
-    expect(form).toMatch(/MallanAgentDefaults\.identity\('sale'\)/);
+  it('form collect takes the agent identity from the hidden session boxes (the fixed Sale form fills them in its own code), whose ListAgentMlsId is the Cotality mls id, NOT the internal Agent.id', () => {
+    expect(form).toMatch(/data\.ListAgentMlsId = data\.saleUpdatingAgentMlsId;/);
+    expect(form).toMatch(/setVal\('saleUpdatingAgentMlsId', u\.mlsId\)/);
     expect(defaults).toMatch(/ListAgentMlsId: read\(prefix, 'mlsId'\)/);
     expect(defaults).not.toMatch(/ListAgentMlsId: read\(prefix, 'id'\)/);
     expect(form).not.toMatch(/data\.ListAgentMlsId\s*=\s*data\.saleUpdatingAgent\b\s*\|\|/);

@@ -101,9 +101,9 @@ function collectBody(html: string): string {
 }
 const collectSrc = collectBody(formHtml);
 const collectArrayNames = new Set<string>();
-const collectArrayRe = /querySelectorAll\('input\[name="([^"]+)"\]:checked'\)/g;
+const collectArrayRe = /querySelectorAll\('input\[name="([^"]+)"\]:checked'\)|_saleChecked\('([^']+)'\)/g;   // (_saleChecked(name) is the collector's own "the ticked values of the group")
 let cm: RegExpExecArray | null;
-while ((cm = collectArrayRe.exec(collectSrc)) !== null) collectArrayNames.add(cm[1]);
+while ((cm = collectArrayRe.exec(collectSrc)) !== null) collectArrayNames.add(cm[1] || cm[2]);
 
 // ── Tests ─────────────────────────────────────────────────────────────
 

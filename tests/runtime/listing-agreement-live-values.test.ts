@@ -10,7 +10,11 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { REBNY_FIELD_TABLES } from '@/lib/compliance/rebny-field-tables';
-import { buildCrmIdxODataFilter } from '@/lib/search/crm-idx-filter';
+import { buildCrmIdxQuery } from '@/lib/search/crm-idx-filter';
+
+// The agent/office and listing-agreement clauses now live inside the live-contract query builder (integration 2026-10-28):
+// the whole Cotality filter string is buildCrmIdxQuery(params).filter.
+const buildCrmIdxODataFilter = (params: URLSearchParams): string => buildCrmIdxQuery(params).filter;
 
 const read = (p: string) => readFileSync(resolve(__dirname, '../..', p), 'utf8');
 const mirror = JSON.parse(read('data/cotality-enums.live.json')) as { enums: Record<string, string[]> };

@@ -92,19 +92,24 @@ describe('/api/crm/neighborhoods/cotality endpoint contract', () => {
     expect(src).toMatch(/requireAgentOrBroker/);
   });
 
-  test('groups by all 5 NYC boroughs', () => {
-    for (const borough of ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island']) {
-      expect(src).toContain(borough);
-    }
-  });
-
-  test('queries Cotality SubdivisionName + CityRegion via DB cache', () => {
+  test('reads boroughs and neighborhoods from LIVE Cotality (lib/idx/geography), never the local database or a file', () => {
+    expect(src).toMatch(/getLiveGeography/);
     expect(src).toMatch(/SubdivisionName/);
     expect(src).toMatch(/CityRegion/);
+    expect(src).not.toMatch(/prisma/);
+    expect(src).not.toMatch(/static_fallback/);
   });
 
-  test('caches at edge (1 hour s-maxage + SWR)', () => {
-    expect(src).toMatch(/s-maxage=3600/);
+  test('returns the live inventory shape the search page and forms read', () => {
+    for (const key of ['liveBoroughs', 'boroughs', 'catalog', 'aliases', 'boroughAliases', 'pulledAt']) {
+      expect(src).toContain(key);
+    }
+    expect(src).toMatch(/cotality_live/);
+  });
+
+  test('is private, short-lived agent data (no shared edge cache)', () => {
+    expect(src).toMatch(/private, max-age=600/);
+    expect(src).not.toMatch(/s-maxage/);
   });
 });
 

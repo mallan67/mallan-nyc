@@ -1,6 +1,6 @@
 // Fair Housing and UCBA wording check for the listing forms' text boxes (SALE-FORM-REDESIGN.html, RENTAL-FORM-REDESIGN.html).
 //
-// An agent writing a description, showing instructions or remarks sees, as they type, which wording the server will REFUSE (so they can fix it before saving) and which
+// An agent writing a description, showing instructions or remarks sees, as they type, which wording the server will REFUSE when the listing is published (a Draft keeps it; the server reports it) and which
 // words only deserve a second look. Two tiers, kept apart on purpose:
 //
 //   BLOCKED   the wording the server refuses. The tables in section 1 are GENERATED from the server's own sources (build-fair-housing.cjs) and
@@ -391,6 +391,9 @@
     { id: 'saleTHFinancing', flags: 'saleTHFinancingFlags', label: 'Financing', kind: 'text', saves: true },
     { id: 'saleTHNotes', flags: 'saleTHNotesFlags', label: 'Internal Notes', kind: 'internal', saves: true },
     { id: 'saleBldgDescription', flags: 'saleBldgDescriptionFlags', label: 'Building Description', kind: 'text', saves: true },
+    { id: 'saleFlipTaxRemarks', flags: 'saleFlipTaxRemarksFlags', label: 'Flip Tax Remarks', kind: 'text', saves: true },
+    { id: 'saleFeatureDescription', flags: 'saleFeatureDescriptionFlags', label: 'Feature Description', kind: 'text', saves: true },
+    { id: 'saleCommissionComments', flags: 'saleCommissionCommentsFlags', label: 'Commission Comments', kind: 'internal', saves: true },
   ];
   function boxFor(textareaId) {
     for (var i = 0; i < BOXES.length; i++) if (BOXES[i].id === textareaId) return BOXES[i];
@@ -685,7 +688,7 @@
     if (result.blocked.length) {
       var red = el('span', 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700');
       red.appendChild(el('i', 'fas fa-exclamation-circle'));
-      red.appendChild(document.createTextNode(' ' + result.blocked.length + ' blocked' + (saves ? ' — fix before saving' : ' — fix before publishing')));
+      red.appendChild(document.createTextNode(' ' + result.blocked.length + ' blocked — fix before publishing' + (saves ? ' (refused when the listing is published or displayed)' : '')));
       chips.appendChild(red);
     }
     if (review.length) {

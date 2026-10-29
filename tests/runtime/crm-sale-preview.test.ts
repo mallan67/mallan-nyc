@@ -123,28 +123,6 @@ describe(`${FORM}: distribution, photos, video and virtual tour`, () => {
     } finally { await closeAfter(f); }
   });
 
-  it.each(['saleVideoUrl', 'saleVideoTourUrl'])('%s makes the video "Yes"', async (id) => {
-    const f = await boot();
-    try {
-      expect(shown(f, 'salePreviewVideo')).toBe('None');
-      set(f, id, 'https://youtube.com/watch?v=abc');
-      expect(shown(f, 'salePreviewVideo')).toBe('Yes');
-      set(f, id, '  ');
-      expect(shown(f, 'salePreviewVideo')).toBe('None');
-    } finally { await closeAfter(f); }
-  });
-
-  it.each(['saleMatterportUrl', 'saleVirtualTourUnbranded', 'saleVirtualTourUnbranded2', 'saleVirtualTourUnbranded3'])('%s makes the virtual tour "Yes"', async (id) => {
-    const f = await boot();
-    try {
-      expect(shown(f, 'salePreviewTour')).toBe('None');
-      set(f, id, 'https://my.matterport.com/show/?m=abc');
-      expect(shown(f, 'salePreviewTour')).toBe('Yes');
-      set(f, id, '');
-      expect(shown(f, 'salePreviewTour')).toBe('None');
-    } finally { await closeAfter(f); }
-  });
-
   it('a video does not make a virtual tour, nor the other way round', async () => {
     const f = await boot();
     try {

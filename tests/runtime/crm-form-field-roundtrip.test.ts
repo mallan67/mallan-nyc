@@ -65,6 +65,10 @@ describe('CRM form save/load field parity', () => {
         // canonical (per-row opt-out, fail-CLOSED). Same for ConsumerComment.
         // Both restored via SALE_RADIO_MAP / SALE_FIELD_MAP fallbackRls keys.
         'InternetAutomatedValuationDisplayYN', 'InternetConsumerCommentYN',
+        // 2026-10-28: the Building panel's lists (restored through SALE_CHECKBOX_ARRAY_MAP) and the keys built from several boxes (restored by _saleBuildingFactsFromRecord / _saleTourSlotsToBoxes)
+        'ArchitecturalStyle', 'ConstructionMaterials', 'SecurityFeatures', 'BuildingRules', 'BuildingStaffType', 'ExteriorFeatures', 'ParkingFeatures',
+        'PetsAllowed', 'BuildingPetsAllowed', 'AttendanceType', 'BuildingLaundryFeatures', 'SponsorUnitYN', 'VideosCount', 'VirtualTourURLUnbranded2', 'VirtualTourURLUnbranded3',
+        'LaundryFeatures', 'LandmarkStatusYN', 'NumberOfUnitsTotal', 'LandLeaseYN', 'LandLeaseAmount', 'LandLeaseExpirationDate', 'Levels', 'CountyOrParish',   // built from several boxes (the laundry members, the landmark Yes / No or box, the panel's or the townhouse tab's units, the land lease on either tab, the borough's county)
       ].includes(f)
     );
     for (const field of uniqueProviderKeys) {

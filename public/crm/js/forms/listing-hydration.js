@@ -54,7 +54,7 @@
     { rls: 'CountyOrParish', form: 'saleCountyOrParish', type: 'text', src: 'addr' },
     { rls: 'SubdivisionName', form: 'saleBldgNeighborhood', type: 'text', src: 'raw' },
     { rls: 'UnparsedAddress', form: 'saleUnparsedAddress', type: 'text', src: 'addr', fallbackRls: 'UnParsedAddress' },
-
+  
     // ── Unit Details ──
     { rls: 'ListPrice', form: 'salePrice', type: 'number', src: 'listing', listingKey: 'list_price' },
     { rls: 'OriginalListPrice', form: 'saleOriginalPrice', type: 'number', src: 'raw' },
@@ -64,12 +64,12 @@
     { rls: 'LivingArea', form: 'saleUnitSqFt', type: 'number', src: 'listing', listingKey: 'living_area' },
     { rls: 'RoomsTotal', form: 'saleTotalRooms', type: 'number', src: 'raw' },
     { rls: 'EntryLevel', form: 'saleFloorInBuilding', type: 'text', src: 'raw' },
-
+  
     // ── Description ──
     { rls: 'PublicRemarks', form: 'saleDescription', type: 'text', src: 'raw' },
     { rls: 'PrivateRemarks', form: 'saleBrokerComments', type: 'text', src: 'raw' },
     { rls: 'ShowingInstructions', form: 'saleShowingInstructions', type: 'text', src: 'raw' },
-
+  
     // ── Financials ──
     // Unit annual real-estate tax. Hydrate features-first (features.TaxAnnualAmount — the
     // canonical bucket the public DTO + Trestle mapper write), raw_data fallback. NOT building
@@ -82,7 +82,7 @@
     { rls: 'AssociationFeeFrequency', form: 'saleMaintCCFreq', type: 'text', src: 'raw' },
     { rls: 'ClosePrice', form: 'saleSoldPrice', type: 'number', src: 'raw' },
     { rls: 'Concessions', form: 'saleConcessions', type: 'text', src: 'raw' },
-
+  
     // ── Dates ──
     { rls: 'OnMarketDate', form: 'saleDateListed', type: 'date', src: 'raw' },
     { rls: 'ExpirationDate', form: 'saleExclusiveExpires', type: 'date', src: 'raw' },
@@ -93,11 +93,10 @@
     { rls: 'PurchaseContractDate', form: 'saleContractSignedDate', type: 'date', src: 'raw' },
     { rls: 'CloseDate', form: 'saleSoldDate', type: 'date', src: 'raw' },
     { rls: 'Possession', form: 'saleAvailableOccupancy', type: 'date', src: 'raw', fallbackRls: 'PossessionDate' },
-
+  
     // ── Building ──
     { rls: 'BuildingName', form: 'saleBldgName', type: 'text', src: 'raw' },
     { rls: 'StructureType', form: 'saleBldgType', type: 'text', src: 'raw' },
-    { rls: 'ArchitecturalStyle', form: 'saleBldgArchitecturalStyle', type: 'text', src: 'raw' },
     { rls: 'YearBuilt', form: 'saleBldgYearBuilt', type: 'number', src: 'raw' },
     { rls: 'saleBldgYearRenovated', form: 'saleBldgYearRenovated', type: 'number', src: 'raw', fallbackRls: 'YearRenovated' }, // internal; YearRenovated not in Cotality
     { rls: 'StoriesTotal', form: 'saleBldgTotalFloors', type: 'number', src: 'raw' },
@@ -108,17 +107,16 @@
     { rls: 'TaxLot', form: 'saleBldgTaxLot', type: 'text', src: 'raw', fallbackRls: 'BuildingTaxLot' },
     { rls: 'AssociationName', form: 'saleBldgAssociationName', type: 'text', src: 'raw' },
     { rls: 'NewConstructionYN', form: 'saleBldgNewConstruction', type: 'bool', src: 'raw' },
-    { rls: 'saleBldgNewDevelopment', form: 'saleBldgNewDevelopment', type: 'bool', src: 'raw', fallbackRls: 'NewDevelopmentYN' }, // internal; NewDevelopmentYN not in Cotality
-    { rls: 'SponsorUnitYN', form: 'saleBldgSponsorUnits', type: 'bool', src: 'raw' },
+    // SponsorUnitYN restores the Essentials Sponsor Unit Yes/No (SALE_RADIO_MAP below), not a building box.
     { rls: 'TaxAbatementYN', form: 'saleBldgTaxAbatementYN', type: 'bool', src: 'raw' },
     { rls: 'TaxAbatementComments', form: 'saleBldgTaxAbatementComments', type: 'text', src: 'raw' },
     { rls: 'saleBldgSublettingAllowed', form: 'saleBldgSublettingAllowed', type: 'text', src: 'raw', fallbackRls: 'RentingAllowedYN' }, // internal select; RentingAllowedYN not in Cotality
-
+  
     // ── Distribution ──
     { rls: 'saleIdxDisplayYN', form: 'saleDist_IDX', type: 'checked', src: 'listing', listingKey: 'idx_display_yn' }, // internal IDX-display control (idx_display_yn); IDXEntireListingDisplayYN is NOT a Cotality field
     { rls: 'InternetEntireListingDisplayYN', form: 'saleInternetEntireListingDisplayYN', type: 'checked', src: 'listing', listingKey: 'internet_entire_listing_display_yn' },
     { rls: 'InternetAddressDisplayYN', form: 'saleInternetAddressDisplayYN', type: 'checked', src: 'listing', listingKey: 'internet_address_display_yn' },
-
+  
     // ── Agent (hidden fields populated by initLoggedInAgent) ──
     // Phase C: typedKey is the promoted typed column read FIRST (agent_info JSON is fallback).
     // ListAgentMlsId hydrates saleUpdatingAgentMlsId — the field collectSaleFormData() actually
@@ -131,14 +129,12 @@
     { rls: 'ListAgentEmail', form: 'saleUpdatingAgentEmail', type: 'text', src: 'agentInfo', agentKey: 'ListAgentEmail', typedKey: 'list_agent_email' },
     { rls: 'ListAgentDirectPhone', form: 'saleUpdatingAgentPhone', type: 'text', src: 'agentInfo', agentKey: 'ListAgentDirectPhone', typedKey: 'list_agent_direct_phone' },
     { rls: 'ListOfficeName', form: 'saleUpdatingAgentCompanyName', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeName', typedKey: 'list_office_name' },
-    { rls: 'ListAgentKey', form: 'saleUpdatingAgentKey', type: 'text', src: 'agentInfo', agentKey: 'ListAgentKey' },
-    { rls: 'ListOfficeKey', form: 'saleUpdatingAgentOfficeKey', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeKey' }, // the Cotality OfficeKey; the company slug lives in saleUpdatingAgentCompanyKey and is never a provider key
-    { rls: 'ListOfficeMlsId', form: 'saleUpdatingAgentOfficeMlsId', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeMlsId', typedKey: 'list_office_mls_id' },
-
+    { rls: 'ListOfficeKey', form: 'saleUpdatingAgentCompanyKey', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeKey' },
+  
     // ── Team ──
     { rls: 'ListTeamName', form: 'saleListTeamName', type: 'text', src: 'raw' },
     { rls: 'ListTeamMlsId', form: 'saleListTeamMlsId', type: 'text', src: 'raw' },
-
+  
     // ── Townhouse ──
     { rls: 'Stories', form: 'saleTHStories', type: 'number', src: 'raw' },
     { rls: 'BuildingAreaTotal', form: 'saleTHBuildingArea', type: 'number', src: 'raw' },
@@ -150,7 +146,7 @@
     { rls: 'FoundationArea', form: 'saleTHFoundationArea', type: 'number', src: 'raw' },
     { rls: 'BasementYN', form: 'saleTHBasementYN', type: 'bool', src: 'raw' },
     { rls: 'LotSizeArea', form: 'saleTHLotSize', type: 'number', src: 'raw' },
-
+  
     // ── Townhouse additional ──
     { rls: 'saleTHDescription', form: 'saleTHDescription', type: 'text', src: 'raw' },
     { rls: 'saleTHLayout', form: 'saleTHLayout', type: 'text', src: 'raw' },
@@ -160,7 +156,7 @@
     { rls: 'saleTHNumBuildings', form: 'saleTHNumBuildings', type: 'number', src: 'raw' },
     { rls: 'saleTHLotDimensions', form: 'saleTHLotDimensions', type: 'text', src: 'raw' },
     { rls: 'saleTHLotFeatures', form: 'saleTHLotFeatures', type: 'text', src: 'raw' },
-    { rls: 'LotSizeUnits', form: 'saleTHLotSizeUnits', type: 'text', src: 'raw', fallbackRls: 'saleTHLotSizeUnits' },
+    { rls: 'saleTHLotSizeUnits', form: 'saleTHLotSizeUnits', type: 'text', src: 'raw' },
     { rls: 'saleTHLotSizeSource', form: 'saleTHLotSizeSource', type: 'text', src: 'raw' },
     { rls: 'saleTHGrossSqFt', form: 'saleTHGrossSqFt', type: 'number', src: 'raw' },
     { rls: 'saleTHNetSqFt', form: 'saleTHNetSqFt', type: 'number', src: 'raw' },
@@ -175,28 +171,28 @@
     { rls: 'saleTHOpenParkingYN', form: 'saleTHOpenParkingYN', type: 'text', src: 'raw' },
     { rls: 'saleTHOpenSpaces', form: 'saleTHOpenSpaces', type: 'number', src: 'raw' },
     { rls: 'saleTHLandmark', form: 'saleTHLandmark', type: 'text', src: 'raw' },
-    { rls: 'BuildingAreaUnits', form: 'saleTHBuildingAreaUnits', type: 'text', src: 'raw', fallbackRls: 'saleTHBuildingAreaUnits' },
+    { rls: 'saleTHBuildingAreaUnits', form: 'saleTHBuildingAreaUnits', type: 'text', src: 'raw' },
     { rls: 'saleTHCommercialYN', form: 'saleTHCommercialYN', type: 'text', src: 'raw' },
     { rls: 'saleTHDevStatus', form: 'saleTHDevStatus', type: 'text', src: 'raw' },
     { rls: 'saleTHCapRate', form: 'saleTHCapRate', type: 'number', src: 'raw' },
     { rls: 'saleTHProfUnits', form: 'saleTHProfUnits', type: 'number', src: 'raw' },
     { rls: 'saleTHRetailUnits', form: 'saleTHRetailUnits', type: 'number', src: 'raw' },
     { rls: 'saleTHVacantUnits', form: 'saleTHVacantUnits', type: 'number', src: 'raw' },
-
+  
     // ── Unit additional ──
-    // PropertyCondition is a live Cotality enumeration: a record that holds it (a synced listing, or one saved since the list was the live one) shows its member; one saved before it
-    // holds the old word, shown as the member of the same name (see propertyCondition below)
-    { rls: 'PropertyCondition', form: 'saleCondition', type: 'text', src: 'raw', fallbackRls: 'saleCondition', firstOfList: true, valueMap: { Good: 'GoodCondition', Poor: 'PoorCondition', Updated: 'UpdatedRemodeled' } },
+    { rls: 'saleCondition', form: 'saleCondition', type: 'text', src: 'raw', valueMap: { Good: 'GoodCondition', Poor: 'PoorCondition', Updated: 'UpdatedRemodeled' } },
+    { rls: 'PropertyCondition', form: 'saleCondition', type: 'text', src: 'raw', firstMember: true },
     { rls: 'saleInteriorSqFt', form: 'saleInteriorSqFt', type: 'number', src: 'raw' },
     { rls: 'saleExteriorSqFt', form: 'saleExteriorSqFt', type: 'number', src: 'raw' },
     { rls: 'saleLineInBuilding', form: 'saleLineInBuilding', type: 'text', src: 'raw' },
     { rls: 'saleUnitShares', form: 'saleUnitShares', type: 'number', src: 'raw' },
     { rls: 'salePercentCommon', form: 'salePercentCommon', type: 'number', src: 'raw' },
-    { rls: 'LivingAreaUnits', form: 'saleLivingAreaUnits', type: 'text', src: 'raw', fallbackRls: 'saleLivingAreaUnits' },
-
+    { rls: 'saleLivingAreaUnits', form: 'saleLivingAreaUnits', type: 'text', src: 'raw' },
+  
     // ── Selects not yet mapped ──
     { rls: 'saleStructureType', form: 'saleStructureType', type: 'text', src: 'raw' },
-
+    { rls: 'saleCommonInterest', form: 'saleCommonInterest', type: 'text', src: 'raw', fallbackRls: 'CommonInterest' },
+  
     // ── Financial additional ──
     { rls: 'saleConcessionAmount', form: 'saleConcessionAmount', type: 'number', src: 'raw' },
     { rls: 'saleConcessionComments', form: 'saleConcessionComments', type: 'text', src: 'raw' },
@@ -206,12 +202,12 @@
     // was clobbered), so there is no usable legacy value to fall back to; new
     // rows default to Percent via the <option selected>. (Track 1 commission fix.)
     { rls: 'saleExclusiveCommissionType', form: 'saleExclusiveCommissionType', type: 'text', src: 'raw' },
-
+  
     // ── Distribution additional ──
     { rls: 'saleListingUrl', form: 'saleListingUrl', type: 'text', src: 'raw' },
     { rls: 'saleWebDisplayAddress', form: 'saleWebDisplayAddress', type: 'text', src: 'raw' },
     { rls: 'saleWebHeadline', form: 'saleWebHeadline', type: 'text', src: 'raw' },
-
+  
     // ── Building additional ──
     { rls: 'saleBldgBorough', form: 'saleBldgBorough', type: 'text', src: 'raw' },
     { rls: 'saleBldgCity', form: 'saleBldgCity', type: 'text', src: 'raw' },
@@ -231,10 +227,75 @@
     { rls: 'saleBldgMaxSubletYears', form: 'saleBldgMaxSubletYears', type: 'number', src: 'raw' },
     { rls: 'saleBldgSubletFee', form: 'saleBldgSubletFee', type: 'text', src: 'raw' },
     { rls: 'saleBldgMaxFinancing', form: 'saleBldgMaxFinancing', type: 'text', src: 'raw' },
+    { rls: 'MaximumFinancingPercent', form: 'saleBldgMaxFinancing', type: 'text', src: 'raw' },
+    { rls: 'saleBldgMaxFinancingAmount', form: 'saleBldgMaxFinancingAmount', type: 'number', src: 'raw' },
+    { rls: 'MaximumFinancingAmount', form: 'saleBldgMaxFinancingAmount', type: 'number', src: 'raw' },
+    { rls: 'saleBldgMaxFinancingRemarks', form: 'saleBldgMaxFinancingRemarks', type: 'text', src: 'raw' },
+    { rls: 'MaximumFinancingRemarks', form: 'saleBldgMaxFinancingRemarks', type: 'text', src: 'raw' },
+    { rls: 'saleBldgLandLeaseYN', form: 'saleBldgLandLeaseYN', type: 'text', src: 'raw' },
+    // Controls that had no id until 2026-10-28 (their answers were never saved)
+    { rls: 'saleAvailabilityComments', form: 'saleAvailabilityComments', type: 'text', src: 'raw' },
+    { rls: 'saleFlipTaxType', form: 'saleFlipTaxType', type: 'text', src: 'raw' },
+    { rls: 'saleFlipTaxPaidBy', form: 'saleFlipTaxPaidBy', type: 'text', src: 'raw' },
+    { rls: 'saleFlipTaxRemarks', form: 'saleFlipTaxRemarks', type: 'text', src: 'raw' },
+    { rls: 'saleCommissionComments', form: 'saleCommissionComments', type: 'text', src: 'raw' },
+    { rls: 'saleStaffBedrooms', form: 'saleStaffBedrooms', type: 'number', src: 'raw' },
+    { rls: 'saleStaffBathrooms', form: 'saleStaffBathrooms', type: 'number', src: 'raw' },
+    { rls: 'saleCeilingHeight', form: 'saleCeilingHeight', type: 'text', src: 'raw' },
+    { rls: 'saleGarageSpacesCount', form: 'saleGarageSpacesCount', type: 'text', src: 'raw' },
+    { rls: 'saleCommercialLotSize', form: 'saleCommercialLotSize', type: 'number', src: 'raw' },
+    { rls: 'saleCommercialBuildingSize', form: 'saleCommercialBuildingSize', type: 'number', src: 'raw' },
+    { rls: 'saleCommercialZoning', form: 'saleCommercialZoning', type: 'text', src: 'raw' },
+    { rls: 'saleCommercialFAR', form: 'saleCommercialFAR', type: 'number', src: 'raw' },
+    { rls: 'saleCommercialAirRights', form: 'saleCommercialAirRights', type: 'number', src: 'raw' },
+    { rls: 'saleCommercialCeilingHeightFt', form: 'saleCommercialCeilingHeightFt', type: 'number', src: 'raw' },
+    { rls: 'saleCommercialFrontageFt', form: 'saleCommercialFrontageFt', type: 'number', src: 'raw' },
+    { rls: 'saleCommercialCapRate', form: 'saleCommercialCapRate', type: 'number', src: 'raw' },
+    { rls: 'saleCommercialNOI', form: 'saleCommercialNOI', type: 'number', src: 'raw' },
+    { rls: 'saleCommercialUnitsTotal', form: 'saleCommercialUnitsTotal', type: 'number', src: 'raw' },
+    { rls: 'saleCommercialRetailUnits', form: 'saleCommercialRetailUnits', type: 'number', src: 'raw' },
+    { rls: 'saleCommercialLeaseType', form: 'saleCommercialLeaseType', type: 'text', src: 'raw' },
+    { rls: 'saleCommercialMinLeaseTerm', form: 'saleCommercialMinLeaseTerm', type: 'text', src: 'raw' },
+    { rls: 'saleCommercialCurrentTenant', form: 'saleCommercialCurrentTenant', type: 'text', src: 'raw' },
+    { rls: 'saleCommercialLeaseExpiration', form: 'saleCommercialLeaseExpiration', type: 'date', src: 'raw' },
+    { rls: 'saleDecorativeFireplaces', form: 'saleDecorativeFireplaces', type: 'number', src: 'raw' },
+    { rls: 'saleGasFireplaces', form: 'saleGasFireplaces', type: 'number', src: 'raw' },
+    { rls: 'saleWoodburningFireplaces', form: 'saleWoodburningFireplaces', type: 'number', src: 'raw' },
+    { rls: 'saleFeatureDescription', form: 'saleFeatureDescription', type: 'text', src: 'raw' },
+    { rls: 'saleTHBasementKind', form: 'saleTHBasementKind', type: 'text', src: 'raw' },
+    { rls: 'FlipTaxType', form: 'saleFlipTaxType', type: 'text', src: 'raw' },
+    { rls: 'FlipTaxRemarks', form: 'saleFlipTaxRemarks', type: 'text', src: 'raw' },
+    // The RealPlus Building items added 2026-10-28 (own key, and the Cotality name a synced listing carries)
+    { rls: 'saleBldgProfessionalUnits', form: 'saleBldgProfessionalUnits', type: 'number', src: 'raw' },
+    { rls: 'saleBldgLotSizeSqFt', form: 'saleBldgLotSizeSqFt', type: 'number', src: 'raw' },
+    { rls: 'saleBldgLotDimensions', form: 'saleBldgLotDimensions', type: 'text', src: 'raw' },
+    { rls: 'saleBldgZoning', form: 'saleBldgZoning', type: 'text', src: 'raw' },
+    { rls: 'saleBldgArchitect', form: 'saleBldgArchitect', type: 'text', src: 'raw' },
+    { rls: 'ArchitectName', form: 'saleBldgArchitect', type: 'text', src: 'raw' },
+    { rls: 'saleBldgOwnership', form: 'saleBldgOwnership', type: 'text', src: 'raw' },
+    { rls: 'saleBldgLiveWork', form: 'saleBldgLiveWork', type: 'bool', src: 'raw' },
+    { rls: 'YearBuiltEffective', form: 'saleBldgYearRenovated', type: 'number', src: 'raw' },
+    { rls: 'ElevatorsTotal', form: 'saleBldgNumElevators', type: 'number', src: 'raw' },
+    { rls: 'TaxDeductionPercent', form: 'saleTaxDeduction', type: 'number', src: 'raw' },
+    { rls: 'saleTaxMonthly', form: 'saleTaxMonthly', type: 'number', src: 'raw' },
+    { rls: 'LandLeaseYN', form: 'saleBldgLandLeaseYN', type: 'text', src: 'raw', valueMap: { true: 'Yes', false: 'No' } },
+    { rls: 'LivingAreaUnits', form: 'saleLivingAreaUnits', type: 'text', src: 'raw' },
+    { rls: 'BuildingAreaUnits', form: 'saleTHBuildingAreaUnits', type: 'text', src: 'raw' },
+    { rls: 'LotSizeUnits', form: 'saleTHLotSizeUnits', type: 'text', src: 'raw' },
+    { rls: 'LotSizeDimensions', form: 'saleBldgLotDimensions', type: 'text', src: 'raw' },
+    { rls: 'NumberOfProfessionalUnitsTotal', form: 'saleBldgProfessionalUnits', type: 'number', src: 'raw' },
+    { rls: 'VirtualTourURLBranded', form: 'saleMatterportUrl', type: 'text', src: 'raw' },
+    { rls: 'TaxMonthlyAmount', form: 'saleTaxMonthly', type: 'number', src: 'raw' },
+    { rls: 'saleBldgLandLeaseAmount', form: 'saleBldgLandLeaseAmount', type: 'number', src: 'raw' },
+    { rls: 'LandLeaseAmount', form: 'saleBldgLandLeaseAmount', type: 'number', src: 'raw' },
+    { rls: 'saleBldgLandLeaseFreq', form: 'saleBldgLandLeaseFreq', type: 'text', src: 'raw' },
+    { rls: 'LandLeaseAmountFrequency', form: 'saleBldgLandLeaseFreq', type: 'text', src: 'raw' },
+    { rls: 'saleBldgLandLeaseExp', form: 'saleBldgLandLeaseExp', type: 'date', src: 'raw' },
+    { rls: 'LandLeaseExpirationDate', form: 'saleBldgLandLeaseExp', type: 'date', src: 'raw' },
     { rls: 'saleBldgMinDownPayment', form: 'saleBldgMinDownPayment', type: 'text', src: 'raw' },
     { rls: 'saleBldgDTIRatio', form: 'saleBldgDTIRatio', type: 'text', src: 'raw' },
     { rls: 'saleBldgPostCloseLiquidity', form: 'saleBldgPostCloseLiquidity', type: 'text', src: 'raw' },
-    { rls: 'saleBldgBoardApproval', form: 'saleBldgBoardApproval', type: 'text', src: 'raw' },
+    { rls: 'saleBldgBoardApproval', form: 'saleBldgBoardApproval', type: 'bool', src: 'raw' },
     { rls: 'saleBldgPetWeightLimit', form: 'saleBldgPetWeightLimit', type: 'number', src: 'raw' },
     { rls: 'saleBldgPetNotes', form: 'saleBldgPetNotes', type: 'text', src: 'raw' },
     // ── Mallan Building Profile — internal personnel & contacts ──────────────
@@ -255,11 +316,11 @@
     { rls: 'saleBldgManagerEmail', form: 'saleBldgManagerEmail', type: 'text', src: 'raw' },
     { rls: 'saleBldgBoardPresident', form: 'saleBldgBoardPresident', type: 'text', src: 'raw' },
     { rls: 'saleBldgBoardEmail', form: 'saleBldgBoardEmail', type: 'text', src: 'raw' },
-
+  
     // ── Dates additional ──
     { rls: 'saleFirstCoBroke', form: 'saleFirstCoBroke', type: 'date', src: 'raw' },
     { rls: 'saleAvailableOccupancy', form: 'saleAvailableOccupancy', type: 'date', src: 'raw' },
-
+  
     // ── Media / Virtual Tours ──
     { rls: 'VirtualTourURLUnbranded', form: 'saleVirtualTourUnbranded', type: 'text', src: 'raw' },
     { rls: 'saleVirtualTourUnbranded2', form: 'saleVirtualTourUnbranded2', type: 'text', src: 'raw' },
@@ -267,16 +328,16 @@
     { rls: 'saleVideoUrl', form: 'saleVideoUrl', type: 'text', src: 'raw' },
     { rls: 'saleVideoTourUrl', form: 'saleVideoTourUrl', type: 'text', src: 'raw' },
     { rls: 'saleMatterportUrl', form: 'saleMatterportUrl', type: 'text', src: 'raw' },
-
+  
     // ── Commercial ──
     { rls: 'commercial_sub_type', form: 'saleCommSubtype', type: 'text', src: 'raw' },
     { rls: 'commercial_ownership', form: 'saleCommercialOwnership', type: 'text', src: 'raw' },
     { rls: 'LivingAreaSource', form: 'saleLivingAreaSource', type: 'text', src: 'raw' },
-
+  
     // ── Auction ──
     { rls: 'auction_type', form: 'saleAuctionType', type: 'text', src: 'raw' },
     { rls: 'auction_terms_url', form: 'saleAuctionTermsUrl', type: 'text', src: 'raw' },
-
+  
     // ── Class C single-id booleans (2026-05-28) ──
     // Five checkboxes that were previously unnamed are now single-id
     // booleans (one input per field, restored by setChecked on the id).
@@ -291,7 +352,7 @@
     { rls: 'saleSendToWebsite', form: 'saleSendToWebsite', type: 'bool', src: 'raw' },
     { rls: 'saleWasherDryerHookups', form: 'saleWasherDryerHookups', type: 'bool', src: 'raw' },
     { rls: 'saleWasherDryerInUnit', form: 'saleWasherDryerInUnit', type: 'bool', src: 'raw' },
-
+  
     // ── 2026-05-28 — single-id boolean checkboxes surfaced by the
     // full-coverage parametrized test that had no restore wiring before.
     // 13 building-modal policy/historic flags + 4 compliance acks +
@@ -323,22 +384,22 @@
   ];
 
   var SALE_CHECKBOX_ARRAY_MAP = [
-    { rls: 'PetsAllowed', name: 'salePetsAllowed', valueMap: { UnitYes: 'Yes', UnitCatsOK: 'CatsOk', UnitDogsOK: 'DogsOk', UnitBreedRestrictions: 'BreedRestrictions', UnitSizeLimit: 'SizeLimit', UnitNumberLimit: 'NumberLimit', UnitNo: 'No' } },
+    { rls: 'PetsAllowed', name: 'salePetsAllowed', valueMap: { UnitYes: 'Yes', UnitNo: 'No', UnitCatsOK: 'CatsOk', UnitDogsOK: 'DogsOk', UnitBreedRestrictions: 'BreedRestrictions', UnitSizeLimit: 'SizeLimit', UnitNumberLimit: 'NumberLimit' } },
+    { rls: 'ArchitecturalStyle', name: 'saleBldgArchStyle' },
+    { rls: 'ConstructionMaterials', name: 'saleBldgFacade' },
+    { rls: 'SecurityFeatures', name: 'saleBldgSecurity' },
     { rls: 'BuildingPetsAllowed', name: 'saleBuildingPetsAllowed' },
     { rls: 'AttendanceType', name: 'saleAttendanceType' },
     { rls: 'BuildingLaundryFeatures', name: 'saleBuildingLaundryFeatures' },
     { rls: 'Heating', name: 'saleHeating' },
     { rls: 'Cooling', name: 'saleCooling' },
-    { rls: 'SpecialListingConditions', name: 'saleSpecialListingConditions' },
     { rls: 'saleCommSubtype', name: 'saleCommSubtype' },
     // ── Class B (2026-05-28) ──
     // 5 named checkbox groups whose data was lost at save time (no array
     // collection in collect, no entry here). See audit §2.
     { rls: 'saleBldgHeating', name: 'saleBldgHeating', fallbackRls: 'BuildingHeating' }, // internal; BuildingHeating not in Cotality
     { rls: 'saleBldgCooling', name: 'saleBldgCooling', fallbackRls: 'BuildingCooling' }, // internal; BuildingCooling not in Cotality
-    // saved before the live Cotality names were used: the box the old word stood for is ticked
-    { rls: 'saleBldgDocsAvailable', name: 'saleBldgDocsAvailable', valueMap: { FinancialStatement: 'Financials', OwnerOptOutAuthorization: 'OwnerOptOut', ResaleBoardPackageTemplate: 'ResalePackage' } },
-    // saved before the live Cotality names were used: the box the old word stood for is ticked
+    { rls: 'saleBldgDocsAvailable', name: 'saleBldgDocsAvailable', fallbackRls: 'DocumentsAvailable', valueMap: { FinancialStatement: 'Financials', OwnerOptOutAuthorization: 'OwnerOptOut', ResaleBoardPackageTemplate: 'ResalePackage' } },
     { rls: 'saleTHDocsAvailable', name: 'saleTHDocsAvailable', valueMap: { FinancialStatement: 'Financials', OwnerOptOutAuthorization: 'OwnerOptOut', ResaleBoardPackageTemplate: 'ResalePackage' } },
     { rls: 'saleBusinessType', name: 'saleBusinessType' },
     // ── Class C (2026-05-28) ──
@@ -352,7 +413,7 @@
     { rls: 'saleCommercialFeatures', name: 'saleCommercialFeatures' },
     { rls: 'salePrivateOutdoorSpace', name: 'salePrivateOutdoorSpace' },
     { rls: 'saleExposure', name: 'saleExposure' },
-    { rls: 'saleViewList', name: 'saleViewList', valueMap: { Park: 'ParkGreenbelt', SeaOcean: 'Ocean', Streets: 'Street' }, fallbackRls: 'View' },
+    { rls: 'saleViewList', name: 'saleViewList', fallbackRls: 'View', valueMap: { Park: 'ParkGreenbelt', SeaOcean: 'Ocean', Streets: 'Street' } },
     { rls: 'saleAdditionalRooms', name: 'saleAdditionalRooms' },
     { rls: 'saleKitchenType', name: 'saleKitchenType' },
     { rls: 'saleKitchenFeatures', name: 'saleKitchenFeatures' },
@@ -366,6 +427,9 @@
     { rls: 'saleWasherDryerBrand', name: 'saleWasherDryerBrand' },
     { rls: 'saleFreshAirSystem', name: 'saleFreshAirSystem' },
     { rls: 'saleHvacSystem', name: 'saleHvacSystem' },
+    { rls: 'ArchitecturalStyle', name: 'saleBldgArchStyle' },
+    { rls: 'ConstructionMaterials', name: 'saleBldgFacade' },
+    { rls: 'SecurityFeatures', name: 'saleBldgSecurity' },
   ];
 
   var BUILDING_FEATURES_LABEL_TO_CANONICAL = {
@@ -390,6 +454,28 @@
     'saleBldgValet', 'saleBldgPackageRoom', 'saleBldgColdStorage', 'saleBldgLiveInSuper',
     'saleBldgOnSiteManager', 'saleBldgWheelchairAccess', 'saleBldgSpa',
   ];
+  var SALE_BUILDING_FEATURE_EMIT = {
+    saleBldgElevator: ['BuildingFeatures', 'Elevators'],
+    saleBldgGym: ['BuildingFeatures', 'FitnessCenter'],
+    saleBldgPool: null,                                     // BuildingFeatures has IndoorPool only: a box named Pool asserts no indoor pool (the form's own list)
+    saleBldgRoofDeck: ['ExteriorFeatures', 'BuildingRoofDeck'],
+    saleBldgCourtyard: ['ExteriorFeatures', 'BuildingCourtyard'],
+    saleBldgPlayroom: ['BuildingFeatures', 'CommonPlayroom'],
+    saleBldgLounge: ['BuildingFeatures', 'CommonLounge'],
+    saleBldgBusinessCenter: null,
+    saleBldgConferenceRoom: ['BuildingFeatures', 'ConferenceRoom'],
+    saleBldgBikeRoom: ['BuildingFeatures', 'BikeStorage'],
+    saleBldgStorage: ['BuildingFeatures', 'Storage'],
+    saleBldgParking: ['ParkingFeatures', 'Garage'],
+    saleBldgValet: ['ParkingFeatures', 'Valet'],
+    saleBldgPackageRoom: ['BuildingFeatures', 'PackageRoom'],
+    saleBldgColdStorage: ['BuildingFeatures', 'ColdStorage'],
+    saleBldgLiveInSuper: ['BuildingStaffType', 'SuperLiveIn'],
+    saleBldgOnSiteManager: ['BuildingStaffType', 'ResidentManagerFullTime'],
+    saleBldgWheelchairAccess: ['BuildingFeatures', 'HandicapAccess'],
+    saleBldgSpa: ['BuildingFeatures', 'SpaHotTub'],
+  };
+
 
   var SALE_SYNDICATION_MAP = [
     { id: 'saleDist_Listhub', target: 'Listhub', cotality: 'Listhub' },
@@ -401,7 +487,7 @@
   ];
 
   var SALE_RADIO_MAP = [
-    { rls: 'saleListingType', name: 'saleListingType', src: 'raw', rawKey: 'saleListingType', fallback: 'ListingAgreement' },
+    { rls: 'saleListingType', name: 'saleListingType', src: 'raw', rawKey: 'saleListingType', fallback: 'ListingAgreement', valueMap: { CoExclusive: 'CoExclusiveAgency' } },   // the stored legacy word loads as the live member
     // Buyer-agent payer radios (OwnerPays/BuyerPays). Renamed from saleCommissionType
     // to break the key collision with the %/$ type select. Legacy rows stored the
     // payer under the old saleCommissionType key (the radio clobbered the type), so
@@ -412,7 +498,10 @@
     // from the form's own saved salePropertyType field first, falling back to
     // CommonInterest (Condominium/StockCooperative/Condop) → CRM radio value.
     { rls: 'salePropertyType', name: 'salePropertyType', src: 'raw', rawKey: 'salePropertyType', fallback: 'CommonInterest', valueMap: { Condominium: 'Condo', StockCooperative: 'Coop', Condop: 'Condop' } },
-    { rls: 'saleBuildingStatus', name: 'saleBuildingStatus', src: 'raw' },
+    // Building Status: the former 'SponsorUnit' choice was an exclusive radio value; it now restores as
+    // Resale plus Sponsor Unit = Yes (see the post-restore step). New Development = NewConstructionYN.
+    { rls: 'saleBuildingStatus', name: 'saleBuildingStatus', src: 'raw', valueMap: { SponsorUnit: 'Resale' } },
+    { rls: 'SponsorUnitYN', name: 'saleSponsorUnit', src: 'raw', rawKey: 'saleSponsorUnit', fallback: 'SponsorUnitYN', valueMap: { true: 'Yes', false: 'No', '1': 'Yes', '0': 'No' } },
     { rls: 'saleCoolingYN', name: 'saleCoolingYN', src: 'raw' },
     { rls: 'saleWasherDryerAllowed', name: 'saleWasherDryerAllowed', src: 'raw' },
     { rls: 'saleHasViews', name: 'saleHasViews', src: 'raw' },
@@ -431,7 +520,7 @@
     { rls: 'saleBoardInterview', name: 'saleBoardInterview', src: 'raw' },
     { rls: 'saleCertOccupancy', name: 'saleCertOccupancy', src: 'raw' },
     { rls: 'saleCoPurchasing', name: 'saleCoPurchasing', src: 'raw' },
-    { rls: 'saleCurrentUse', name: 'saleCurrentUse', src: 'raw', valueMap: { Professional: 'Office', Healthcare: 'MedicalDental' } },
+    { rls: 'saleCurrentUse', name: 'saleCurrentUse', src: 'raw', rawKey: 'saleCurrentUse', fallback: 'CurrentUse', valueMap: { Healthcare: 'MedicalDental', Professional: 'Office' } },
     { rls: 'saleDirectDeal', name: 'saleDirectDeal', src: 'raw' },
     { rls: 'saleFilmLocation', name: 'saleFilmLocation', src: 'raw' },
     { rls: 'saleFirstRefusal', name: 'saleFirstRefusal', src: 'raw' },
@@ -451,7 +540,7 @@
     { rls: 'saleLight', name: 'saleLight', src: 'raw' },
     { rls: 'saleLiveWorkAllowed', name: 'saleLiveWorkAllowed', src: 'raw' },
     { rls: 'saleMeetAndGreet', name: 'saleMeetAndGreet', src: 'raw' },
-    { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw', valueMap: { Single: 'SingleLevelUnit', Duplex: 'BiLevel', Triplex: 'TriLevel', Quadruplex: 'QuadLevel' } },
+    { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw', rawKey: 'saleNumFloors', fallback: 'Levels', valueMap: { Single: 'SingleLevelUnit', Duplex: 'BiLevel', Triplex: 'TriLevel', Quadruplex: 'QuadLevel' } },
     { rls: 'saleOfficeRetailOwnership', name: 'saleOfficeRetailOwnership', src: 'raw' },
     { rls: 'saleParentsBuying', name: 'saleParentsBuying', src: 'raw' },
     { rls: 'salePiedATerre', name: 'salePiedATerre', src: 'raw' },
@@ -477,7 +566,6 @@
     { rls: 'rentalLeaseTerm', form: 'rentalLeaseTerm', type: 'text', src: 'raw', valueMap: { ShortTerm: 'ShortTermLease', Summer: 'Seasonal' } },
     { rls: 'LastMonthRentReqYN', form: 'rentalLastMonthRentReq', type: 'bool', src: 'raw' },
     { rls: 'RentControlYN', form: 'rentalRentControl', type: 'bool', src: 'raw' },
-    { rls: 'SponsorUnitYN', form: 'rentalSponsorUnit', type: 'bool', src: 'raw' },   // the listed unit, not the building
     { rls: 'MaximumPetWeight', form: 'bldgPetWeightLimit', type: 'number', src: 'raw' },
     { rls: 'MaximumNumberOfPets', form: 'bldgPetMaxCount', type: 'number', src: 'raw' },
     { rls: 'PetDeposit', form: 'bldgPetDeposit', type: 'number', src: 'raw' },
@@ -531,7 +619,6 @@
     { rls: 'TaxLot', form: 'bldgTaxLot', type: 'text', src: 'raw', fallbackRls: 'BuildingTaxLot' },   // Cotality's field is TaxLot; older rows saved BuildingTaxLot
     { rls: 'AssociationName', form: 'bldgAssociationName', type: 'text', src: 'raw' },
     { rls: 'TaxAbatementComments', form: 'bldgTaxAbatementComments', type: 'text', src: 'raw' },
-    { rls: 'NewDevelopmentYN', form: 'bldgNewDevelopment', type: 'bool', src: 'raw' },
     { rls: 'TaxAbatementYN', form: 'bldgTaxAbatementYN', type: 'bool', src: 'raw' },
     { rls: 'RentingAllowedYN', form: 'bldgSublettingAllowed', type: 'bool', src: 'raw' },
     // Media
@@ -555,6 +642,9 @@
   ];
 
   var RENTAL_RADIO_MAP = [
+    // Building Status / Sponsor Unit: the same rule as the sale form (owner rule 2026-10-26).
+    { rls: 'rentalBuildingStatus', name: 'rentalBuildingStatus', src: 'raw', rawKey: 'rentalBuildingStatus', fallback: 'NewConstructionYN', valueMap: { true: 'NewDevelopment', false: 'Existing', '1': 'NewDevelopment', '0': 'Existing' } },
+    { rls: 'SponsorUnitYN', name: 'rentalSponsorUnit', src: 'raw', rawKey: 'rentalSponsorUnit', fallback: 'SponsorUnitYN', valueMap: { true: 'Yes', false: 'No', '1': 'Yes', '0': 'No' } },
     { rls: 'rentalListingType', name: 'rentalListingType', src: 'raw', rawKey: 'rentalListingType', fallback: 'ListingAgreement' },
     { rls: 'rentalCoBrokeAgreement', name: 'rentalCoBrokeAgreement', src: 'raw', rawKey: 'rentalCoBrokeAgreement', fallback: 'CoBrokeAgreement' },
   ];
@@ -699,6 +789,11 @@
     return val;
   }
 
+  function offers(el, v) {                                                          // a select offers the value (any other control takes what it is given)
+    if (el.tagName !== 'SELECT') return true;
+    for (var i = 0; i < el.options.length; i++) if (el.options[i].value === String(v)) return true;
+    return false;
+  }
   function applyField(f, val, touched, raw) {
     var el = byId(f.form);
     if (!el) return;
@@ -713,11 +808,20 @@
     // select) is a lossy summary of what the agent chose: the control's own saved value is restored by the control-keyed pass instead.
     if (f.type === 'bool' || f.type === 'checked') return;
     if (f.type === 'date') val = dateText(val);
+    if (f.firstMember) {
+      if (!isBlank(raw[f.form])) return;                                            // the control's own saved value wins (the row before this one set it)
+      var list = listOf(val); if (list) val = list[0];
+    }
+    // a canonical row (the Cotality name) never overrides the control's own saved value (the Sale form's rule: the townhouse tab's land lease is not the building panel's)
+    // (a row that translates earlier words still applies when the control no longer offers the own value: a legacy condition word)
+    if (f.rls !== f.form && f.src === 'raw' && !f.firstMember && !isBlank(raw[f.form]) && (!f.valueMap || offers(el, raw[f.form]))) return;
     // a value the row maps (the box's earlier words) is shown as the member it stands for
     if (f.valueMap && Object.prototype.hasOwnProperty.call(f.valueMap, val)) val = f.valueMap[val];
     // The typed column holds a number ("6") where the select offers "6+": the saved control value is the more exact display of the same fact.
     var own = raw[f.form];
     if (el.tagName === 'SELECT' && typeof own === 'string' && own.replace(/\+$/, '') === String(val)) val = own;
+    // the ownership picker offers the current REBNY entry values: a provider value outside them (a record Cotality imported) is shown as a historical value, never blanked
+    if (/CommonInterest$/.test(f.form) && el.tagName === 'SELECT' && !isBlank(val) && !offers(el, val)) { var h = document.createElement('option'); h.value = String(val); h.textContent = String(val) + ' (historical provider value)'; h.dataset.historicalProviderValue = 'true'; el.appendChild(h); }
     if (setValue(el, val)) touched[f.form] = true;
   }
 
@@ -735,6 +839,9 @@
         if (mapped !== undefined) val = mapped;
       }
       if (!isPrimitive(val)) return;
+      var stored = raw[key]; if (isBlank(stored) && r.fallback) stored = raw[r.fallback];
+      var radiosOf = radiosNamed(r.name), hasBox = function (v) { var hit = false; radiosOf.forEach(function (x) { if (x.value === String(v)) hit = true; }); return hit; };
+      if (!hasBox(val) && isPrimitive(stored) && hasBox(stored)) val = stored;
       if (setRadioGroup(r.name, val, viaFallback ? r.fallback : key)) touched[r.name] = true;
     });
   }
@@ -762,7 +869,10 @@
   function applyBuildingFeatures(kind, raw, features) {
     var canonical = listOf(raw.BuildingFeatures) || listOf(features.BuildingFeatures) || [];
     var internal = Array.isArray(raw[kind + 'BuildingFeaturesInternal']) ? raw[kind + 'BuildingFeaturesInternal'] : [];
-    if (!canonical.length && !internal.length) return;
+    // the Sale boxes whose live member is in another field (ExteriorFeatures BuildingRoofDeck, ParkingFeatures Garage / Valet, the REBNY key BuildingStaffType)
+    var other = { ExteriorFeatures: listOf(raw.ExteriorFeatures) || listOf(features.ExteriorFeatures) || [], ParkingFeatures: listOf(raw.ParkingFeatures) || listOf(features.ParkingFeatures) || [], BuildingStaffType: listOf(raw.BuildingStaffType) || listOf(features.BuildingStaffType) || [] };
+    var anyOther = other.ExteriorFeatures.length || other.ParkingFeatures.length || other.BuildingStaffType.length;
+    if (!canonical.length && !internal.length && !anyOther) return;
     var canonicalSet = {}; canonical.forEach(function (v) { canonicalSet[String(v)] = true; });
     var internalSet = {}; internal.forEach(function (v) { internalSet[String(v)] = true; });
     var inverse = {};
@@ -772,8 +882,10 @@
     else document.querySelectorAll('#rentalBuildingModal input[data-concept="BuildingFeatures"]').forEach(function (el) { boxes.push(el); });
     boxes.forEach(function (el) {
       var label = el.parentElement ? el.parentElement.textContent.trim() : el.value;
-      var canon = inverse[label];
-      setChecked(el, !!((canon && canonicalSet[canon]) || internalSet[label] || canonicalSet[label] || canonicalSet[el.value]));
+      var pair = kind === 'sale' && el.id ? SALE_BUILDING_FEATURE_EMIT[el.id] : null;
+      var canon = pair && pair[0] === 'BuildingFeatures' ? pair[1] : inverse[label];
+      var elsewhere = pair && pair[0] !== 'BuildingFeatures' && other[pair[0]] && other[pair[0]].indexOf(pair[1]) >= 0;
+      setChecked(el, !!((canon && canonicalSet[canon]) || elsewhere || internalSet[label] || canonicalSet[label] || canonicalSet[el.value]));
     });
     // The Rental building window's other boxes (Historic District, LEED, Parents Buying Allowed, ...) are the form's own: they are no longer sent as BuildingFeatures, but a listing saved before still
     // holds their visible labels there. A box with no value stored under its own id shows ticked when its label is in that list, so the earlier save does not lose the answer.
@@ -894,11 +1006,11 @@
   }
 
   // ── Street line, agent panel, co-listing ───────────────────────────────────────────────────────────────────────────────────────
-  // Composed as the forms restore it: StreetNumber, StreetDirPrefix, StreetName, StreetSuffix, so "333 E 46th St" never collapses to
-  // "333 46th St". UnparsedAddress is used only when no component exists.
+  // Composed as the forms restore it: StreetNumber, StreetDirPrefix, StreetName, StreetSuffix, StreetDirSuffix, so "333 E 46th St" never
+  // collapses to "333 46th St" and "425 Park Avenue S" keeps its direction suffix (found 2026-10-28). UnparsedAddress is used only when no component exists.
   function streetLine(addr, raw) {
     var unparsed = addr.UnparsedAddress || raw.UnParsedAddress || raw.UnparsedAddress || '';
-    var parts = [addr.StreetNumber || raw.StreetNumber, addr.StreetDirPrefix || raw.StreetDirPrefix, addr.StreetName || raw.StreetName, addr.StreetSuffix || raw.StreetSuffix].filter(Boolean);
+    var parts = [addr.StreetNumber || raw.StreetNumber, addr.StreetDirPrefix || raw.StreetDirPrefix, addr.StreetName || raw.StreetName, addr.StreetSuffix || raw.StreetSuffix, addr.StreetDirSuffix || raw.StreetDirSuffix].filter(Boolean);
     return parts.length ? parts.join(' ') : unparsed;
   }
 
@@ -1049,6 +1161,10 @@
       applyField(f, val, touched, raw);
     });
     applyRadios(cfg.radios, raw, touched);
+    // Legacy rows: the exclusive 'SponsorUnit' Building Status choice and the building-tab sponsor box both meant Sponsor Unit = Yes.
+    if (raw[cfg.prefix + 'BuildingStatus'] === 'SponsorUnit' || raw.saleBldgSponsorUnits === true || raw.saleBldgSponsorUnits === 'true' || raw.bldgSponsorUnits === true || raw.bldgSponsorUnits === 'true') {
+      if (setRadioGroup(cfg.prefix + 'SponsorUnit', 'Yes', 'SponsorUnitYN')) touched[cfg.prefix + 'SponsorUnit'] = true;
+    }
     applyArrays(cfg.arrays, raw, features, touched);
     if (kind === 'sale') applySyndication(raw, touched);
     applyBuildingFeatures(kind, raw, features);

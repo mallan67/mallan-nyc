@@ -6,6 +6,7 @@ import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
 import { canonicalizeDirection, canonicalizeSuffix, canonicalizeStreetName } from '@/lib/address/nyc-address-normalizer';
+import { parseCustomFields } from '@/lib/search/crm-idx-filter';
 
 const COTALITY_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -32,7 +33,14 @@ const DIR_PREFIX_MAP: Record<string, string> = {
   northeast: 'NE', northwest: 'NW', southeast: 'SE', southwest: 'SW',
 };
 
-const STREET_SUFFIX_RE = /\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter|Alley|Aly|Mews|Row|Walk|Plaza|Plz|Parkway|Pkwy|Square|Sq|Circle|Cir|Slip|Path|Loop)\.?\s*$/i;     // Cotality keeps the suffix in StreetSuffix, apart from StreetName ("MacDougal" + "Alley")
+const STREET_SUFFIX_RE = /\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter|Alley|Aly|Mews|Row|Walk|Plaza|Plz|Parkway|Pkwy|Square|Sq|Circle|Cir|Slip|Path|Loop)\.?\s*$/i;  // every live NYC street type (convergence 10-15)
+// A direction AFTER a street-type word is a direction SUFFIX, which Cotality
+// serves as its own field: "425 Park Avenue South" → StreetName PARK, StreetSuffix
+// Avenue, StreetDirSuffix S; "116 Central Park South" → CENTRAL / Park / S;
+// "60 Sutton Place South" → SUTTON / Place / S (live Property rows, 2026-10-28;
+// StreetDirSuffix is in $metadata and set on 13,595 rows). Both words are dropped
+// from the name so contains(tolower(StreetName),…) matches the served name.
+const DIR_SUFFIX_RE = /\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter|Alley|Aly|Mews|Row|Walk|Plaza|Plz|Parkway|Pkwy|Square|Sq|Circle|Cir|Slip|Path|Loop|Park)\.?\s+(North|South|East|West|N|S|E|W)\.?\s*$/i;
 const ORDINAL_RE = /(\d+)(st|nd|rd|th)\b/gi;
 
 function stripSuffix(v: string): string { return v.replace(STREET_SUFFIX_RE, '').trim(); }
@@ -42,6 +50,7 @@ export interface ParsedAddress {
   streetNumber?: string;
   streetDirPrefix?: string;
   streetName?: string;
+  streetDirSuffix?: string;
   buildingName?: string;
 }
 
@@ -53,7 +62,15 @@ export function parseAddressQuery(q: string): ParsedAddress {
   }
 
   const streetNumber = match[1];
-  let rest = stripSuffix(match[2]);
+  let restRaw = match[2].trim();
+  let streetDirSuffix: string | undefined;
+  const dirSuffixMatch = restRaw.match(DIR_SUFFIX_RE);
+  if (dirSuffixMatch && dirSuffixMatch.index !== undefined && dirSuffixMatch.index > 0) {
+    streetDirSuffix = DIR_PREFIX_MAP[dirSuffixMatch[2].toLowerCase()];
+    restRaw = restRaw.slice(0, dirSuffixMatch.index).trim();
+  }
+  const withDirSuffix = streetDirSuffix ? { streetDirSuffix } : {};
+  const rest = stripSuffix(restRaw);
 
   const tokens = rest.split(/\s+/);
   const firstLower = tokens[0]?.toLowerCase() || '';
@@ -63,11 +80,11 @@ export function parseAddressQuery(q: string): ParsedAddress {
     tokens.shift();
     const raw = tokens.length > 0 ? tokens.join(' ') : undefined;
     const streetName = raw ? stripOrdinal(raw).toLowerCase() : undefined;
-    return { streetNumber, streetDirPrefix: dirPrefix, streetName: streetName || undefined };
+    return { streetNumber, streetDirPrefix: dirPrefix, streetName: streetName || undefined, ...withDirSuffix };
   }
 
   const streetName = rest ? stripOrdinal(rest).toLowerCase() : undefined;
-  return { streetNumber, streetName: streetName || undefined };
+  return { streetNumber, streetName: streetName || undefined, ...withDirSuffix };
 }
 
 type ErrorClass =
@@ -102,11 +119,12 @@ function formatAddress(r: Record<string, unknown>): string {
   const dir = String(r.StreetDirPrefix || '');
   const name = String(r.StreetName || '');
   const suffix = String(r.StreetSuffix || '');
+  const dirSuffix = String(r.StreetDirSuffix || '');
   // Some DB records have the direction already inside StreetName (e.g., "E 46TH")
   // Don't duplicate the direction if StreetName already starts with it
   const nameAlreadyHasDir = dir && name.toUpperCase().startsWith(dir.toUpperCase() + ' ');
   const dirPart = dir && !nameAlreadyHasDir ? dir + ' ' : '';
-  return `${num} ${dirPart}${name} ${suffix}`.replace(/\s+/g, ' ').trim();
+  return `${num} ${dirPart}${name} ${suffix} ${dirSuffix}`.replace(/\s+/g, ' ').trim();
 }
 
 interface CotalityRecord {
@@ -305,6 +323,12 @@ const SAVED_PROFILE_CONTRACT_TO_FORM: Record<string, string> = {
   building_board_president: 'saleBldgBoardPresident',
   building_board_email: 'saleBldgBoardEmail',
   building_max_financing: 'saleBldgMaxFinancing',
+  building_max_financing_amount: 'saleBldgMaxFinancingAmount',
+  building_financing_remarks: 'saleBldgMaxFinancingRemarks',
+  building_land_lease_yn: 'saleBldgLandLeaseYN',
+  building_land_lease_amount: 'saleBldgLandLeaseAmount',
+  building_land_lease_frequency: 'saleBldgLandLeaseFreq',
+  building_land_lease_expiration: 'saleBldgLandLeaseExp',
   building_min_down: 'saleBldgMinDownPayment',
   building_dti: 'saleBldgDTIRatio',
   building_post_close_liquidity: 'saleBldgPostCloseLiquidity',
@@ -417,9 +441,19 @@ function buildingLaundryPolicy(rec: Record<string, unknown>): string[] {
 
 function buildingExtras(rec: Record<string, unknown> | null | undefined) {
   const r = rec || {};
+  // REBNY CustomFields keys: inside CustomProperty.CustomFields on a Cotality record, top-level on a stored features bucket (the server's storage table keeps them there)
+  const cf = parseCustomFields(r as Record<string, unknown>);
+  const custom = (k: string) => (cf[k] !== undefined && cf[k] !== null && cf[k] !== '' ? cf[k] : r[k]);
+  const yn01 = (v: unknown) => (v === true || v === 1 || v === '1' || v === 'true' ? true : v === false || v === 0 || v === '0' || v === 'false' ? false : null);
+  const members = (v: unknown) => (Array.isArray(v) ? v.map(String).join(',') : String(v ?? ''));
   const num = (v: unknown) =>
     v === 0 || (v !== null && v !== undefined && v !== '') ? Number(v) : null;
   return {
+    // Land lease: only true / false when Cotality answered; a missing field is unknown, not "No".
+    land_lease_yn: r.LandLeaseYN === true ? true : r.LandLeaseYN === false ? false : null,
+    land_lease_amount: num(r.LandLeaseAmount),
+    land_lease_frequency: String(r.LandLeaseAmountFrequency || ''),
+    land_lease_expiration: r.LandLeaseExpirationDate ? String(r.LandLeaseExpirationDate).slice(0, 10) : '',
     garage_yn: r.GarageYN === true,
     attached_garage_yn: r.AttachedGarageYN === true,
     garage_spaces: num(r.GarageSpaces),
@@ -446,6 +480,34 @@ function buildingExtras(rec: Record<string, unknown> | null | undefined) {
     property_condition: String(r.PropertyCondition || ''),
     property_attached_yn: r.PropertyAttachedYN === true,
     building_area_total: num(r.BuildingAreaTotal),
+    // ── The RealPlus Building section items (live Property fields) ──
+    year_built_effective: num(r.YearBuiltEffective),
+    architectural_style: members(r.ArchitecturalStyle),
+    construction_materials: members(r.ConstructionMaterials),
+    security_features: members(r.SecurityFeatures),
+    lot_size_sqft: num(r.LotSizeSquareFeet) ?? (String(r.LotSizeUnits || '') === 'SquareFeet' ? num(r.LotSizeArea) : null),
+    lot_size_dimensions: String(r.LotSizeDimensions || ''),
+    // ── The REBNY CustomFields keys the Building panel reads ──
+    attendance_type: members(custom('AttendanceType')),
+    elevators_total: num(custom('ElevatorsTotal')),
+    landmark_yn: yn01(custom('LandmarkStatusYN')),
+    building_rules: members(custom('BuildingRules')),
+    building_staff_type: members(custom('BuildingStaffType')),
+    architect_name: String(custom('ArchitectName') || ''),
+    professional_units: num(custom('NumberOfProfessionalUnitsTotal')),
+    max_financing_percent: num(custom('MaximumFinancingPercent')),
+    max_financing_amount: num(custom('MaximumFinancingAmount')),
+    max_financing_remarks: String(custom('MaximumFinancingRemarks') || ''),
+    flip_tax: num(custom('FlipTax')),
+    flip_tax_type: String(custom('FlipTaxType') || ''),
+    flip_tax_remarks: String(custom('FlipTaxRemarks') || ''),
+    tax_deduction_percent: num(custom('TaxDeductionPercent')),
+    tax_abatement_yn: yn01(custom('TaxAbatementYN')),
+    tax_abatement_comments: String(custom('TaxAbatementComments') || ''),
+    tax_abatement_expiration_year: num(custom('TaxAbatementExpirationYear')),
+    capital_reserves_yn: yn01(custom('CapitalReservesYN')),
+    capital_reserves_total: num(custom('CapitalReservesTotal')),
+    building_parking_total: num(custom('BuildingParkingTotal')),
   };
 }
 
@@ -529,6 +591,11 @@ export async function GET(request: NextRequest) {
         params.push(parsed.streetDirPrefix);
         paramIdx++;
       }
+      if (parsed.streetDirSuffix) {
+        conditions.push(`address->>'StreetDirSuffix' = $${paramIdx}`);
+        params.push(parsed.streetDirSuffix);
+        paramIdx++;
+      }
       if (parsed.streetName) {
         conditions.push(`LOWER(address->>'StreetName') LIKE $${paramIdx}`);
         params.push(`%${parsed.streetName}%`);
@@ -592,6 +659,7 @@ export async function GET(request: NextRequest) {
           streetDirPrefix: String(addr.StreetDirPrefix || ''),
           streetName: String(addr.StreetName || ''),
           streetSuffix: String(addr.StreetSuffix || ''),
+          streetDirSuffix: String(addr.StreetDirSuffix || ''),
           cross_street: String(addr.CrossStreet || ''),
           crossStreet: String(addr.CrossStreet || ''),
           source: 'db',
@@ -704,6 +772,7 @@ export async function GET(request: NextRequest) {
           streetDirPrefix: String(addr.StreetDirPrefix || ''),
           streetName: String(addr.StreetName || ''),
           streetSuffix: String(addr.StreetSuffix || ''),
+          streetDirSuffix: String(addr.StreetDirSuffix || ''),
           cross_street: String(addr.CrossStreet || ''),
           crossStreet: String(addr.CrossStreet || ''),
           source: 'db',
@@ -765,7 +834,7 @@ export async function GET(request: NextRequest) {
           'ListingId', 'BuildingName', 'YearBuilt', 'StoriesTotal',
           'NumberOfUnitsInCommunity', 'NumberOfUnitsTotal', 'CommonInterest', 'OwnershipType',
           'PropertyType', 'PropertySubType', 'StructureType', 'StandardStatus',
-          'StreetNumber', 'StreetName', 'StreetSuffix', 'StreetDirPrefix',
+          'StreetNumber', 'StreetName', 'StreetSuffix', 'StreetDirPrefix', 'StreetDirSuffix',
           'PostalCode', 'UnitNumber', 'SubdivisionName',
           'City', 'StateOrProvince',
           'CityRegion', 'CountyOrParish',
@@ -787,6 +856,8 @@ export async function GET(request: NextRequest) {
           'CrossStreet',
           'YearBuiltDetails', 'YearBuiltSource',
           'NewConstructionYN',
+          // Land lease — a building fact the Sale form's Building panel shows (verified in data/cotality-enums.live.json, pulled live 2026-10-24).
+          'LandLeaseYN', 'LandLeaseAmount', 'LandLeaseAmountFrequency', 'LandLeaseExpirationDate',
           'TaxBlock', 'TaxLot', 'TaxAnnualAmount',
           'AssociationName', 'AssociationFee', 'AssociationFeeFrequency',
           'ZoningDescription',
@@ -809,6 +880,9 @@ export async function GET(request: NextRequest) {
           // AssociationAmenities was missing, so association-only amenities
           // (Concierge/IndoorPool) never filled on the Cotality path. (Codex #301)
           'ExteriorFeatures', 'CommunityFeatures', 'AccessibilityFeatures', 'AssociationAmenities',
+          // The RealPlus Building section items (2026-10-28): era / style, facade, security, renovation year, lot, zoning
+          'YearBuiltEffective', 'ArchitecturalStyle', 'ConstructionMaterials', 'SecurityFeatures',
+          'LotSizeArea', 'LotSizeUnits', 'LotSizeDimensions', 'LotSizeSquareFeet',
         ].join(',');
 
         const filterParts = [`startswith(StreetNumber,'${cleanNum}')`];
@@ -820,6 +894,9 @@ export async function GET(request: NextRequest) {
           const cleanName = sanitizeOData(parsed.streetName).toLowerCase();
           filterParts.push(`contains(tolower(StreetName),'${cleanName}')`);
         }
+        if (parsed.streetDirSuffix) {
+          filterParts.push(`StreetDirSuffix eq '${sanitizeOData(parsed.streetDirSuffix)}'`);
+        }
         const filter = filterParts.join(' and ');
         diag.cotality.odataFilter = filter;
 
@@ -829,6 +906,9 @@ export async function GET(request: NextRequest) {
           $orderby: 'ListPrice desc',
           $top: '20',
         });
+        // The REBNY CustomFields keys (AttendanceType, ElevatorsTotal, LandmarkStatusYN, BuildingRules, ArchitectName, MaximumFinancing*, FlipTax*, TaxDeductionPercent,
+        // BuildingStaffType, NumberOfProfessionalUnitsTotal, TaxAbatement*, CapitalReserves*) live in CustomProperty.CustomFields, reached through Property (live 2026-10-26: HTTP 200).
+        odataParams.set('$expand', 'CustomProperty($select=CustomFields,ListingKey)');
 
         const res = await fetch(`${COTALITY_URL}/odata/Property?${odataParams}`, {
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -901,6 +981,7 @@ export async function GET(request: NextRequest) {
               streetDirPrefix: String(r.StreetDirPrefix || ''),
               streetName: String(r.StreetName || ''),
               streetSuffix: String(r.StreetSuffix || ''),
+              streetDirSuffix: String(r.StreetDirSuffix || ''),
               cross_street: String(r.CrossStreet || ''),
               crossStreet: String(r.CrossStreet || ''),
               source: 'cotality',

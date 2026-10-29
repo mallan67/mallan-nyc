@@ -31,22 +31,8 @@ type Page = {
   worksheet: [id: string, value: string][];            // typed on the tab: saved with the listing and shown again
 };
 
+// The Sale form Maya validated (2026-10-28) keeps its Commission Request tab and status tracker (her design); the worksheet wording below is the Rental form's.
 const PAGES: Page[] = [
-  {
-    form: 'SALE-FORM-REDESIGN', tab: 'saleMainTab7', comm: 'commSale', collector: 'collectSaleFormData', calculate: 'calculateSaleCommission',
-    submit: 'submitSaleCommissionRequest', sidebarTab: 'sidebarTab7', status: ['saleStatus', 'Sold'],
-    required: [['commSaleFinalPrice', '1000000'], ['commSaleTotalPct', '6'], ['commSaleSellerName', 'Pat Seller'], ['commSaleBuyerName', 'Bo Buyer'],
-      ['commSaleBuyerEmail', 'bo@example.test'], ['commSaleBuyerPhone', '2125550100'], ['commSaleClosingDate', '2026-10-01']],
-    payMethod: 'commSalePayMethod', price: 'commSaleFinalPrice', priceValue: '1000000',
-    figures: [
-      { set: [['commSaleTotalPct', '6'], ['commSaleListingSidePct', '50'], ['commSaleAgentSplitPct', '80']], gross: 60000, listing: 30000, coop: 30000, agent: 24000, company: 6000 },
-      { set: [['commSaleTotalPct', '2.5'], ['commSaleListingSidePct', '40'], ['commSaleAgentSplitPct', '70']], gross: 25000, listing: 10000, coop: 15000, agent: 7000, company: 3000 },
-    ],
-    listingSidePct: 'commSaleListingSidePct', coopSidePct: 'commSaleCoopSidePct', splitPct: 'commSaleAgentSplitPct', grossId: 'commSaleGrossAmount',
-    listingAmtId: 'commSaleListingSideAmt', coopAmtId: 'commSaleCoopSideAmt', agentId: 'commSaleAgentPayout', companyId: 'commSaleCompanyShare',
-    baseInputs: [['commSaleFinalPrice', '1000000'], ['commSaleTotalPct', '6'], ['commSaleAgentSplitPct', '80']],
-    worksheet: [['commSaleSellerName', 'Pat Seller'], ['commSaleBuyerEmail', 'bo@example.test'], ['commSaleNotes', 'Referral fee to the buyer agent'], ['commSaleTotalPct', '6']],
-  },
   {
     form: 'RENTAL-FORM-REDESIGN', tab: 'rentalMainTab7', comm: 'commRental', collector: 'collectRentalFormData', calculate: 'calculateRentalCommission',
     submit: 'submitRentalCommissionRequest', sidebarTab: 'sidebarTab7', status: ['rentalStatus', 'Rented'],

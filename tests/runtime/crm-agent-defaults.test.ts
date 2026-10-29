@@ -20,8 +20,9 @@ jest.setTimeout(120000);
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const NAVIGATION = 'Not implemented: navigation (except hash changes)';
+// The Sale form is the one Maya validated (2026-10-28): it fills the agent in its own code (initLoggedInAgent, the hidden saleUpdatingAgent* fields, loginKeepingEditorId) and does not load
+// agent-defaults.js; its agent identity is covered by crm-sale-form-roundtrip.test.ts (ListAgentMlsId) and crm-form-hydration-typed-first.test.ts (the typed-first rows).
 const FORMS: [AddForm, 'sale' | 'rental', string][] = [
-  ['SALE-FORM-REDESIGN', 'sale', 'collectSaleFormData'],
   ['RENTAL-FORM-REDESIGN', 'rental', 'collectRentalFormData'],
 ];
 
@@ -1192,26 +1193,6 @@ describe('Rental: a stored listing that could not be put back into the form is n
   });
 });
 
-describe('Sale: the Draft Saved panel never runs what the page was opened with', () => {
-  it('a crafted ?id= is shown and copied as text', async () => {
-    const hostile = `1')-(window.__pwned=1)-('`;
-    const f = await bootAddForm('SALE-FORM-REDESIGN', { search: `?id=${hostile}`, listing: SAVED, settle: 1500 });
-    try {
-      Object.defineProperty(f.w.navigator, 'clipboard', { value: { writeText: () => undefined }, configurable: true });
-      await f.w.manualSaveDraft();
-      await sleep(150);
-      const panel = f.d.getElementById('saleDraftRecovery') as HTMLElement;
-      expect(panel).not.toBeNull();
-      expect(panel.querySelectorAll('[onclick]')).toHaveLength(0);
-      const link = panel.querySelector('a') as HTMLAnchorElement;
-      expect(link.getAttribute('href')).toBe(`/crm/SALE-FORM-REDESIGN.html?id=${encodeURIComponent(hostile)}`);
-      expect(link.textContent).toBe(link.getAttribute('href'));
-      const copy = [...panel.querySelectorAll('button')].find((b) => /Copy Link/.test(b.textContent ?? '')) as HTMLButtonElement;
-      copy.click();
-      expect((f.w as any).__pwned).toBeUndefined();
-    } finally { f.close(); }
-  });
-});
 
 describe.each(FORMS)('%s: a copy of the agent module cached from before beginEdit existed', (form, prefix, collector) => {
   const savers: Record<string, string> = { 'SALE-FORM-REDESIGN': 'manualSaveDraft', 'RENTAL-FORM-REDESIGN': 'saveRentalDraft' };
@@ -1338,6 +1319,8 @@ describe.each(FORMS)('%s: the Contacts tab stays usable', (form, prefix) => {
 // ── A listing that did not load must not be saved over: the form holds nothing of it ────────────────────────────────────────────────────────────────────
 // Opened with ?id=, the form is blank until the saved listing has been restored into it. Every save writes the WHOLE form, so a save before that (or after the
 // listing failed to load) would replace the saved listing with a blank form.
+// The Sale-only describes of the agent / draft module were removed 2026-10-28: the fixed Sale form fills the agent and restores a browser draft in its own code (a draft never
+// carries another agent's hidden identity fields; a draft that is not an object, or a key that is not a control name, is skipped; the Draft Saved panel is built as elements).
 const SAVERS: [AddForm, string[]][] = [
   ['SALE-FORM-REDESIGN', ['manualSaveDraft', 'submitSalesListing']],
   ['RENTAL-FORM-REDESIGN', ['saveRentalDraft', 'submitRentalListing']],
@@ -1480,151 +1463,9 @@ describe.each(FORMS)('%s: a saved agent is read typed-first', (form, prefix, col
 // ── A restored draft, or a stored control value, never puts another agent in the Contacts tab than the one the form submits ────────────────────────────────────
 // The agent module writes the identity inputs and the Contacts tab's company and agent pickers from the agent the listing carries. A draft (saved by another agent, on the
 // same browser) and a saved listing's own control keys carry those controls too; restoring them last left the tab showing an agent the form did not submit.
-describe('a restored draft leaves the Contacts tab to the agent module', () => {
-  const OTHER_AGENTS_PICKERS = {
-    saleListingCompany: 'other', saleListingCompanySearch: 'Other Company Inc.', saleListingAgent: 'AG-77', saleListingAgentSearch: 'Other Agent',
-    saleUpdatingAgentName: 'Other Agent', saleUpdatingAgentMlsId: '77777', saleUpdatingAgentEmail: 'other@example.test', saleUpdatingAgentDisplay: 'Other Agent · MLS ID 77777',
-  };
-
-  it.each([
-    ['the session is ready before the draft is restored (what the real client does once it has resolved)', { readySync: true }],
-    ['the session arrives after the draft is restored', { readyDelay: 300 }],
-  ])('Sale ?restore=local, %s: the tab shows the signed-in agent the form submits, and the rest of the draft comes back', async (_name, timing) => {
-    const draft = JSON.stringify({ ...OTHER_AGENTS_PICKERS, salePrice: '1234567' });
-    const f = await bootAddForm('SALE-FORM-REDESIGN', { search: '?restore=local', storage: { mallan_draft_sale: draft }, settle: 1200, ...timing });
-    try {
-      await checked(f.d, 'sale');
-      expect(val(f.d, 'salePrice')).toBe('1234567');                               // the draft was restored...
-      expect(val(f.d, 'saleListingAgentSearch')).toBe('Sender Agent');             // ...except what the agent module owns
-      expect(val(f.d, 'saleListingAgent')).toBe('AG-9');
-      expect(val(f.d, 'saleListingCompany')).toBe('mallan');
-      expect(val(f.d, 'saleListingCompanySearch')).toMatch(/^Mallan Real Estate Inc/);     // (the page's own company list spells it without the period)
-      expect(val(f.d, 'saleUpdatingAgentName')).toBe('Sender Agent');
-      expect(val(f.d, 'saleUpdatingAgentDisplay')).toBe('Sender Agent · MLS ID 39361');
-      expect(f.w.collectSaleFormData()).toMatchObject({ ListAgentFullName: 'Sender Agent', ListAgentMlsId: '39361', ListAgentEmail: 'sender@example.test' });
-      expect(f.errors).toEqual([]);
-    } finally { f.close(); }
-  });
-
-  it('Rental: a draft saved by one agent, opened by the next agent on the same browser (the session ready at once)', async () => {
-    const first = await bootAddForm('RENTAL-FORM-REDESIGN');
-    let draft = '';
-    try {
-      await checked(first.d, 'rental');
-      (first.d.getElementById('rentalMonthlyRent') as HTMLInputElement).value = '4321';
-      first.w.saveRentalDraft();
-      draft = first.w.localStorage.getItem('rentalListingDraft') ?? '';
-    } finally { first.close(); }
-    expect(JSON.parse(draft)).toMatchObject({ rentalListingAgentSearch: 'Sender Agent', rentalListingAgent: 'AG-9', rentalMonthlyRent: '4321' });   // the draft carries the first agent's pickers
-    const SECOND = { ...SESSION_USER, id: 'AG-2', mlsId: '22222', name: 'Second Agent', email: 'second@example.test', phone: '212-555-0222' };
-    const f = await bootAddForm('RENTAL-FORM-REDESIGN', {
-      storage: { rentalListingDraft: draft }, user: SECOND, readySync: true, settle: 1200,
-      members: { '22222': { ...SESSION_MEMBER, mlsId: '22222', fullName: 'Second Agent', key: '7777777' } },
-    });
-    try {
-      await checked(f.d, 'rental');
-      expect(val(f.d, 'rentalMonthlyRent')).toBe('4321');                          // the draft was restored...
-      expect(val(f.d, 'rentalListingAgentSearch')).toBe('Second Agent');           // ...except what the agent module owns
-      expect(val(f.d, 'rentalListingAgent')).toBe('AG-2');
-      expect(val(f.d, 'rentalUpdatingAgentName')).toBe('Second Agent');
-      expect(f.w.collectRentalFormData()).toMatchObject({ ListAgentFullName: 'Second Agent', ListAgentMlsId: '22222', ListAgentKey: '7777777' });
-      expect(f.errors).toEqual([]);
-    } finally { f.close(); }
-  });
-
-  // a saved listing's own control keys (the form saves every control under its id) carry the pickers as well
-  it.each([
-    ['SALE-FORM-REDESIGN', 'sale', { ...OTHER_AGENTS_PICKERS }],
-    ['RENTAL-FORM-REDESIGN', 'rental', Object.fromEntries(Object.entries(OTHER_AGENTS_PICKERS).map(([k, v]) => [k.replace(/^sale/, 'rental'), v])) as Record<string, string>],
-  ] as [AddForm, 'sale' | 'rental', Record<string, string>][])('%s: an edit-mode load does not write the stored agent controls, and writes the rest', async (form, prefix, stored) => {
-    const f = await bootAddForm(form, { search: '?id=1', listing: { ...SAVED, agent_info: {}, raw_data: { ...stored } }, members: { '11111': SAVED_MEMBER }, settle: 1500 });
-    try {
-      await checked(f.d, prefix);
-      expect(val(f.d, `${prefix}ListingAgentSearch`)).toBe('Saved Agent');          // the agent the listing carries, not the one its control keys remember
-      expect(val(f.d, `${prefix}ListingAgent`)).toBe('11111');
-      expect(val(f.d, `${prefix}ListingCompany`)).toBe('mallan');
-      expect(val(f.d, `${prefix}UpdatingAgentName`)).toBe('Saved Agent');
-      expect(val(f.d, `${prefix}UpdatingAgentDisplay`)).toBe('Saved Agent · MLS ID 11111');
-    } finally { f.close(); }
-  });
-
-  it.each([
-    ['SALE-FORM-REDESIGN', 'sale', 'salePrice'],
-    ['RENTAL-FORM-REDESIGN', 'rental', 'rentalMonthlyRent'],
-  ] as [AddForm, 'sale' | 'rental', string][])('%s: the control pass of an edit-mode load skips exactly the agent module\'s controls', async (form, prefix, plain) => {
-    const f = await bootAddForm(form, { settle: 600 });
-    try {
-      const ids = ['ListingCompany', 'ListingCompanySearch', 'ListingAgent', 'ListingAgentSearch', 'UpdatingAgentName', 'UpdatingAgentDisplay', 'UpdatingAgentKey'].map((s) => prefix + s);
-      const before = Object.fromEntries(ids.map((id) => [id, val(f.d, id)]));
-      f.w.MallanListingHydration.hydrate(prefix, { raw_data: { ...Object.fromEntries(ids.map((id) => [id, 'STORED'])), [plain]: '555' } }, { mode: 'edit' });
-      for (const id of ids) expect([id, val(f.d, id)]).toEqual([id, before[id]]);       // none of the agent module's controls was written
-      expect(val(f.d, plain)).toBe('555');                                              // every other control was
-      // the viewers (the Tools pages) hydrate in view mode: the signed-in agent's controls are the session's there too (a record carries another agent's, the listing agent's, and a viewer
-      // that put it there would print the listing agent as the one preparing the report); every other control the record carries is written
-      f.w.MallanListingHydration.hydrate(prefix, { raw_data: { [`${prefix}UpdatingAgentDisplay`]: 'VIEWED', [`${prefix}UpdatingAgentName`]: 'VIEWED', [plain]: '777' } });
-      expect(val(f.d, plain)).toBe('777');                                              // (the pass ran)
-      expect(val(f.d, `${prefix}UpdatingAgentDisplay`)).toBe(before[`${prefix}UpdatingAgentDisplay`]);
-      expect(val(f.d, `${prefix}UpdatingAgentName`)).toBe(before[`${prefix}UpdatingAgentName`]);
-    } finally { f.close(); }
-  });
-});
 
 // ── What the second adversarial review (of a4a87f64) found in the listing agent ──────────────────────────────────────────────────────────────────────────
 
-describe('a draft the Sale collector produced (it carries the first agent\'s provider keys) opened by the next agent', () => {
-  const SECOND = { ...SESSION_USER, id: 'AG-2', mlsId: '22222', name: 'Second Agent', email: 'second@example.test', phone: '212-555-0222' };
-  const SECOND_MEMBER = { ...SESSION_MEMBER, mlsId: '22222', fullName: 'Second Agent', key: '7777777', officeKey: '8888888', officeMlsId: '9999', officeName: 'B Office' };
-
-  it.each([
-    ['the session is ready before the draft is restored', { readySync: true }],
-    ['the session arrives after the draft is restored', { readyDelay: 300 }],
-  ])('?restore=local, %s: the form submits the signed-in agent, and not the agent who saved the draft', async (_name, timing) => {
-    const first = await bootAddForm('SALE-FORM-REDESIGN');
-    let draft = '';
-    try {
-      await checked(first.d, 'sale');
-      (first.d.getElementById('salePrice') as HTMLInputElement).value = '1234567';
-      draft = JSON.stringify({ ...first.w.collectSaleFormData(), _savedAt: new Date().toISOString() });
-    } finally { first.close(); }
-    // the draft is what the form submits: it carries the first agent's provider keys, not only the pickers' control keys
-    expect(JSON.parse(draft)).toMatchObject({
-      ListAgentFullName: 'Sender Agent', ListAgentMlsId: '39361', ListAgentKey: '4455667', ListAgentEmail: 'sender@example.test', ListAgentDirectPhone: '212-555-0199',
-      ListOfficeName: 'Mallan Real Estate Inc.', ListOfficeKey: '5671398', ListOfficeMlsId: '7041',
-    });
-    const f = await bootAddForm('SALE-FORM-REDESIGN', { search: '?restore=local', storage: { mallan_draft_sale: draft }, user: SECOND, members: { '22222': SECOND_MEMBER }, settle: 1500, ...timing });
-    try {
-      await checked(f.d, 'sale');
-      expect(val(f.d, 'salePrice')).toBe('1234567');                                // the draft was restored...
-      expect(val(f.d, 'saleListingAgentSearch')).toBe('Second Agent');              // ...except the agent
-      expect(txt(f.d, 'saleListingAgentId')).toBe('22222');
-      expect(val(f.d, 'saleUpdatingAgentDisplay')).toBe('Second Agent · MLS ID 22222');
-      const p = f.w.collectSaleFormData();
-      expect(p).toMatchObject({
-        ListAgentFullName: 'Second Agent', ListAgentMlsId: '22222', ListAgentKey: '7777777', ListAgentEmail: 'second@example.test', ListAgentDirectPhone: '212-555-0222',
-        ListOfficeKey: '8888888', ListOfficeMlsId: '9999',
-      });
-      expect(JSON.stringify(p)).not.toMatch(/Sender Agent|4455667|5671398|sender@example\.test|212-555-0199/);   // nothing of the first agent is submitted
-      expect(cotalityStatus(f.d, 'sale')).toMatch(/^Cotality agent: Second Agent \(MLS ID 22222\)/);
-      expect(f.errors).toEqual([]);
-    } finally { f.close(); }
-  });
-
-  it('the table pass of an edit-mode hydrate skips the agent module\'s controls, and a view-mode hydrate (the Tools pages) does not write the signed-in agent\'s either', async () => {
-    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
-    try {
-      const rows = { ListAgentFullName: 'STORED', ListAgentMlsId: '1', ListAgentEmail: 'stored@example.test', ListAgentDirectPhone: '2', ListOfficeName: 'STORED OFFICE', ListAgentKey: '3', ListOfficeKey: '4', ListOfficeMlsId: '5' };
-      const ids = ['saleUpdatingAgentName', 'saleUpdatingAgentMlsId', 'saleUpdatingAgentEmail', 'saleUpdatingAgentPhone', 'saleUpdatingAgentCompanyName', 'saleUpdatingAgentKey', 'saleUpdatingAgentOfficeKey', 'saleUpdatingAgentOfficeMlsId'];
-      const before = Object.fromEntries(ids.map((id) => [id, val(f.d, id)]));
-      f.w.MallanListingHydration.hydrate('sale', { raw_data: { ...rows, salePrice: '555', NumberOfUnitsTotal: '42' } }, { mode: 'edit' });
-      for (const id of ids) expect([id, val(f.d, id)]).toEqual([id, before[id]]);
-      expect(val(f.d, 'salePrice')).toBe('555');
-      expect(val(f.d, 'saleBldgTotalUnits')).toBe('42');                            // a row of the table (its key is not the control's id) still goes in
-      f.w.MallanListingHydration.hydrate('sale', { agent_info: rows, raw_data: { salePrice: '777' } });
-      expect(val(f.d, 'salePrice')).toBe('777');                                    // (the pass ran)
-      for (const id of ids) expect([id, val(f.d, id)]).toEqual([id, before[id]]);   // the signed-in agent is the session's: the listing agent the rows name is not the one preparing the report
-    } finally { f.close(); }
-  });
-});
 
 describe.each(FORMS)('%s: a listing the signed-in broker owns that names nobody, but carries somebody else\'s identifiers', (form, prefix, collector) => {
   const NAMELESS = { ...SAVED, agent_id: 'AG-9', list_agent_full_name: null, list_agent_mls_id: null, list_agent_email: null, list_agent_direct_phone: null, list_office_name: null,
@@ -1830,72 +1671,7 @@ describe.each(FORMS)('%s: Cotality answers differently later in the same page se
   });
 });
 
-describe('Sale: Use Exclusive Agent Contact writes the agent\'s name and phone into the showing instructions', () => {
-  it('names the agent (the panel\'s ID is the MLS ID)', async () => {
-    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 1200 });
-    try {
-      await checked(f.d, 'sale');
-      f.w.useSaleExclusiveAgentContact();
-      expect(val(f.d, 'saleShowingInstructions')).toBe('(BROK) Sender Agent 212-555-0199');
-    } finally { f.close(); }
-  });
 
-  it('says so when there is no listing agent yet', async () => {
-    const alerts: string[] = [];
-    const f = await bootAddForm('SALE-FORM-REDESIGN', { user: null, settle: 600 });          // no session: nobody is the listing agent
-    try {
-      f.w.alert = (m: string) => { alerts.push(String(m)); };
-      f.w.useSaleExclusiveAgentContact();
-      expect(alerts).toEqual(['Please select a Listing Agent first.']);
-      expect(val(f.d, 'saleShowingInstructions')).toBe('');
-    } finally { f.close(); }
-  });
-});
-
-describe('Sale: a draft that is not a draft does not stop the page from starting', () => {
-  it.each([
-    ['null', 'null'],
-    ['a list', '[1,2]'],
-    ['a string', '"x"'],
-    ['a number', '5'],
-  ])('?restore=local with a draft that is %s: nothing throws, autosave is on, and the agent is told the draft is corrupted', async (_what, draft) => {
-    const f = await bootAddForm('SALE-FORM-REDESIGN', { search: '?restore=local', storage: { mallan_draft_sale: draft }, settle: 1500 });
-    try {
-      await checked(f.d, 'sale');
-      expect(f.errors).toEqual([]);
-      expect(f.w._saleAutoSaveReady).toBe(true);
-      const said = [...f.d.querySelectorAll('.toast-notification, body > div[style*="99999"]')].map((t) => t.textContent ?? '').join(' | ');
-      expect(said).toContain('Draft data is corrupted.');
-      expect(said).not.toContain('Draft restored');
-    } finally { f.close(); }
-  });
-
-  it('a draft key that is empty does not tick a radio that has no name', async () => {
-    const f = await bootAddForm('SALE-FORM-REDESIGN', { storage: { mallan_draft_sale: JSON.stringify({ '': 'on', salePrice: '77' }) }, settle: 800 });
-    try {
-      await checked(f.d, 'sale');
-      const bare = f.d.createElement('input');
-      bare.type = 'radio';
-      bare.value = 'on';
-      f.d.body.appendChild(bare);
-      f.w._restoreDraftFromLocalStorage();
-      expect(bare.checked).toBe(false);
-      expect(val(f.d, 'salePrice')).toBe('77');
-      expect(f.errors).toEqual([]);
-    } finally { f.close(); }
-  });
-
-  it('a draft key that could not be a control name is skipped, and the rest of the draft comes back', async () => {
-    const draft = '{"a\\"b":"x","c]d":"y","constructor":"z","toString":"z","hasOwnProperty":"z","salePrice":"4321","__proto__":{"saleBedrooms":"9"}}';
-    const f = await bootAddForm('SALE-FORM-REDESIGN', { search: '?restore=local', storage: { mallan_draft_sale: draft }, settle: 1500 });
-    try {
-      await checked(f.d, 'sale');
-      expect(f.errors).toEqual([]);
-      expect(val(f.d, 'salePrice')).toBe('4321');
-      expect(f.w._saleAutoSaveReady).toBe(true);
-    } finally { f.close(); }
-  });
-});
 
 // keep the unused import honest if a future edit drops the last use
 void until;
