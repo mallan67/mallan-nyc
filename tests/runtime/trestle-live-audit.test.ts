@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process';
 import * as ts from 'typescript';
 
 const ROOT = path.resolve(__dirname, '../..');
-const read = (relative: string) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
+const read = (relative: string) => fs.readFileSync(path.join(ROOT, relative), 'utf8').replace(/\r\n/g, '\n');
 const AUDITS = [
   ['scripts/audit-form-trestle-coverage.ts', 'getMetadataXml'],
   ['scripts/audit-server-trestle-coverage.ts', 'getAllLiveFields'],

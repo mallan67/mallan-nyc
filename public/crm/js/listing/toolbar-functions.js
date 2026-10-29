@@ -32,7 +32,10 @@
 
         function setSortField(field) {
             if (searchResultsState) {
+                // Leaving the automatic Closed Date default: start the chosen column ascending, as before.
+                if (!searchResultsState.sortExplicit && searchResultsState.sortField === 'closedDate' && field !== 'closedDate') searchResultsState.sortOrder = 'asc';
                 searchResultsState.sortField = field;
+                searchResultsState.sortExplicit = true; // the agent chose it; closed-only searches no longer override
             }
             var label = document.getElementById('sortLabel');
             if (label) {
@@ -41,78 +44,44 @@
                     'address': 'Address',
                     'dom': 'Days on Market',
                     'listedDate': 'Listed Date',
+                    'closedDate': 'Closed Date',
                     'beds': 'Bedrooms',
                     'intSqft': 'Square Feet'
                 };
                 label.textContent = labels[field] || field;
             }
             toggleSortDropdown();
+            if (window.resortServerResults && window.resortServerResults()) return;
             if (typeof renderSearchResults === 'function') {
                 renderSearchResults();
             }
         }
 
-        // Toggle sort order (asc/desc) and re-fetch from Trestle if needed
+        // Toggle sort order (asc/desc): the same Cotality search re-run in the new order when more
+        // matches exist than are loaded (search-engine.js resortServerResults), else a local sort.
         function toggleSortOrder() {
             if (!searchResultsState) return;
             searchResultsState.sortOrder = searchResultsState.sortOrder === 'asc' ? 'desc' : 'asc';
-
-            // For price sort, re-fetch from server with correct ordering
-            // (local sort only covers the 500 loaded listings)
-            var field = searchResultsState.sortField;
-            var order = searchResultsState.sortOrder;
-            if ((field === 'price' || field === 'listedDate' || field === 'dom') && typeof MallanAPI !== 'undefined') {
-                var fieldMap = { 'price': 'ListPrice', 'listedDate': 'ModificationTimestamp', 'dom': 'DaysOnMarket' };
-                var trestleField = fieldMap[field] || 'ListPrice';
-                var trestleOrder = order === 'desc' ? trestleField + ' desc' : trestleField + ' asc';
-
-                var savedTab;
-                try { savedTab = sessionStorage.getItem('searchTab'); } catch(e) {}
-                var searchType = savedTab === 'rent' ? 'rental' : 'sale';
-
-                // Build search params with current criteria
-                var params = { limit: 200, type: searchType };
-                if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
-                    if (activeSearchCriteria.priceMin) params.minPrice = activeSearchCriteria.priceMin;
-                    if (activeSearchCriteria.priceMax) params.maxPrice = activeSearchCriteria.priceMax;
-                    if (activeSearchCriteria.bedsMin) params.minBeds = activeSearchCriteria.bedsMin;
-                    if (activeSearchCriteria.bathsMin) params.minBaths = activeSearchCriteria.bathsMin;
-                    if (activeSearchCriteria.neighborhoods && activeSearchCriteria.neighborhoods.length === 1) {
-                        params.neighborhood = activeSearchCriteria.neighborhoods[0];
-                    }
-                }
-                // Add sort param for the API
-                params.sort = trestleOrder;
-
-                _serverSearchActive = true;
-                MallanAPI.idx.search(params).then(function(result) {
-                    _serverSearchActive = false;
-                    if (result.listings && result.listings.length > 0) {
-                        _replaceListings(result.listings, 'IDX/Trestle (re-sort)');
-                        // Re-filter and render
-                        var criteria = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : { searchTab: searchType === 'rental' ? 'rent' : 'sale' };
-                        searchResultsState.filteredListings = typeof filterListings === 'function'
-                            ? filterListings(listings, criteria) : listings.slice();
-                        searchResultsState.currentPage = 1;
-                        if (typeof initializeSearchResults === 'function') initializeSearchResults();
-                        if (typeof updateResultsCount === 'function') updateResultsCount();
-                    }
-                }).catch(function(err) {
-                    _serverSearchActive = false;
-                    console.warn('[Sort] Server re-fetch failed, using local sort:', err.message);
-                    renderSearchResults();
-                });
-                return;
-            }
-
+            if (window.resortServerResults && window.resortServerResults()) return;
             renderSearchResults();
         }
 
         function showAllResults() {
-            // Clear selection and show all results
+            // Clear selection, the "Search in results" text and any Picked / Liked / … filter: show all results
             if (searchResultsState) {
                 searchResultsState.selectedListings = [];
+                searchResultsState.textFilter = '';
+                searchResultsState.currentPage = 1;
+                var input = document.getElementById('resultsSearchInput');
+                if (input) input.value = '';
+                if (typeof filterState !== 'undefined' && filterState.statusFilters) {
+                    Object.keys(filterState.statusFilters).forEach(function(flag) {
+                        filterState.statusFilters[flag] = false;
+                        if (typeof highlightToolbarButton === 'function') highlightToolbarButton(flag, false);
+                    });
+                }
                 updateSelectionUI();
+                if (typeof renderSearchResults === 'function') renderSearchResults();
             }
         }
 
@@ -207,7 +176,7 @@
             if (!e.target.closest('#viewModeDropdown') && !e.target.closest('[onclick*="toggleViewModeDropdown"]')) {
                 document.querySelectorAll('#viewModeDropdown').forEach(d => d.classList.add('hidden'));
             }
-            if (!e.target.closest('[id^="workWithCustomerDropdown"]') && !e.target.closest('[onclick*="toggleWorkWithCustomer"]')) {
+            if (!e.target.closest('[id^="workWithCustomerDropdown"]') && !e.target.closest('[onclick*="toggleWorkWithCustomer"]') && !e.target.closest('[onclick*="openWorkWithSelected"]')) {
                 document.querySelectorAll('[id^="workWithCustomerDropdown"]').forEach(function(d) { d.classList.add('hidden'); });
             }
             if (!e.target.closest('#savedSearchDropdown') && !e.target.closest('[onclick*="toggleSavedSearchDropdown"]')) {

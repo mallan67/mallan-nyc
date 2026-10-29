@@ -63,8 +63,10 @@ describe("Codex Risk P0 — static frontend source guards", () => {
       expect(src).toMatch(/params\.openHouseDateTo\s*=\s*criteria\.openHouseDateTo/);
     });
 
-    it("open house criteria are no longer stripped with a warning", () => {
-      expect(src).not.toMatch(/Stripped unsupported openHouseDate/i);
+    it("buildIdxSearchParams sends the open-house range as an OpenHouse criterion (live resource)", () => {
+      // No longer stripped: the server resolves it through the live Cotality OpenHouse
+      // resource (lib/search/crm-idx-filter.ts JOIN_RESOURCES).
+      expect(src).toMatch(/_ranges\['OpenHouse\/OpenHouseDate'\] = \{ min: criteria\.openHouseDateFrom/);
     });
 
     it("buildIdxSearchParams does not forward _transitBounds or _gridBounds (no Lat/Lng on REBNY feed)", () => {

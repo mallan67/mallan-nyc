@@ -3,6 +3,7 @@
 // Ownership enforced: agent can only access their own listings.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { resolveOwnerClientId } from "@/lib/crm/access";
 import {
   requireAgentOrBroker,
   isAuthError,
@@ -95,6 +96,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     ...listing,
     id: listing.id.toString(),
     agent_id: listing.agent_id?.toString() ?? null,
+    owner_client_id: listing.owner_client_id?.toString() ?? null,
     list_price: listing.list_price.toString(),
     living_area: listing.living_area?.toString() ?? null,
   });
@@ -159,13 +161,25 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: `${nonTextSlot} must be text` }, { status: 400 });
   }
 
+  // The owner (seller / landlord) relationship — owner_client_id: a client id links, null / "" clears, an absent key leaves it as it is.
+  // It is the typed column Listing.owner_client_id (relation ListingOwner), never a raw_data key, so it is taken off the body here.
+  const ownerPatch = body.owner_client_id !== undefined ? await resolveOwnerClientId(auth, body.owner_client_id) : null;
+  if (ownerPatch?.response) return ownerPatch.response;
+  delete body.owner_client_id;
+
   // Fair Housing applies to every EDIT of a listing's text, not only to its creation: POST /api/crm/listings scans the text it is given, and without the same scan here a clean
   // listing could be edited to say anything. The RLS gate below skips every CRM-created listing (the ones with no mls_id) and every draft, and the validator's verdict below is
   // recorded but never blocks; and this route manages any Mallan-authored local row (an SL-/RL- id, or rls_eligible false), whether or not it carries an mls_id. Federal FHA, NY State
   // HRL and NYC HRL Title 8 apply to all advertising whatever its RLS eligibility or status, so the text this request carries is scanned, with the create route's own scan
   // (lib/compliance/listing-fair-housing.ts), before anything is written.
+  // A Draft is not an advertisement: its edit is saved and the findings are reported (`fairHousing` in the answer) — owner rule:
+  // flagged and highlighted, never blocks saving. A listing that is displayed (Active, Coming Soon, ...) is advertising: its text
+  // may not be edited into a violation, and the move from Draft to display-ready is refused by PATCH /status while one remains.
   const fhViolations = scanListingBodyForFairHousing(body);
-  if (fhViolations.length > 0) {
+  const fhRequested = typeof body.MlsStatus === "string" ? body.MlsStatus : typeof body.status === "string" ? body.status : null;
+  // advertised = display-ready (Active, Coming Soon) or under contract, which RLS / IDX still display
+  const fhAdvertised = (st: unknown) => isDisplayReadyStatus(st) || normalizeStandardStatus(String(st ?? "")) === "ActiveUnderContract";
+  if (fhViolations.length > 0 && (fhAdvertised(listing.status) || fhAdvertised(fhRequested))) {
     return NextResponse.json(
       { error: "Update blocked by Fair Housing content gate", blockers: fhViolations },
       { status: 422 }
@@ -272,6 +286,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const update: Prisma.ListingUpdateInput = {
     modification_timestamp: new Date(),
   };
+  if (ownerPatch) update.owner_client = ownerPatch.id ? { connect: { id: ownerPatch.id } } : { disconnect: true };
 
   // Update rls_eligible if classification changed (e.g., unit count or property type updated)
   if (effectiveRlsEligible !== listing.rls_eligible) {
@@ -612,6 +627,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     id: updated.id.toString(),
     listing_id: updated.listing_id,
     status: updated.status,
+    // Fair Housing / UCBA wording found in the text of this edit: a Draft is saved and told (flagged, never blocks saving); a displayed listing was refused above.
+    fairHousing: fhViolations,
     publicUrl: urls.publicUrl,
     realPlusUrl: urls.realPlusUrl,
     validation: {

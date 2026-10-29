@@ -28,6 +28,9 @@ var MallanAPI = (function () {
   function _failure(message, status, body) {
     var err = new Error(message);
     err.status = status;
+    // The body under both names the callers use: err.data (search: refused criteria on 422) and err.details (forms: the
+    // server's named refusals). One object, two names, until the forms read err.data too.
+    err.data = body;
     err.details = body;
     return err;
   }
@@ -57,10 +60,15 @@ var MallanAPI = (function () {
         return Promise.reject(_failure('Unauthorized', 401));
       }
       if (res.status === 403) {
+        // Keep the server's reason: a consent gate ("recipient has unsubscribed", "declined
+        // outreach") is a 403 with a message and a `gate` code the panel must show verbatim.
         console.warn('[MallanAPI] 403 Forbidden');
-        return Promise.reject(_failure('Access denied', 403));
+        return res.json().then(function (data) { return data; }, function () { return null; }).then(function (data) {
+          return Promise.reject(_failure((data && typeof data.error === 'string' && data.error) || 'Access denied', 403, data));
+        });
       }
       if (!res.ok) {
+        // Keep the server's message and body (e.g. Agent Search's refused criteria on 422).
         // The server's own words reach the caller (an error answer is {"error": "..."}); an answer that holds none says the status
         return res.json().then(function (data) { return data; }, function () { return null; }).then(function (data) {
           return Promise.reject(_failure((data && typeof data.error === 'string' && data.error) || 'Request failed: ' + res.status, res.status, data));
@@ -191,6 +199,7 @@ var MallanAPI = (function () {
       var qs = [];
       if (params.type) qs.push('type=' + encodeURIComponent(params.type));
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
+      if (params.owner_client_id) qs.push('owner_client_id=' + encodeURIComponent(params.owner_client_id));   // the listings a client owns
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.offset) qs.push('offset=' + params.offset);
       var query = qs.length ? '?' + qs.join('&') : '';
@@ -621,69 +630,39 @@ var MallanAPI = (function () {
     },
   };
 
+  // ─── Reports (the Reports modal's outputs) ───────────────────────────
+
+  var reports = {
+    /**
+     * Email a rendered report through the server mail pipeline (From = the sending agent).
+     * @param {object} data - { to_email, to_name, subject, html, title, format, version, listing_ids, client_id }
+     */
+    email: function (data) {
+      return _fetch('/api/crm/reports/email', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+  };
+
   // ─── IDX / Trestle RLS (read-only) ───────────────────────────────────────
 
   var idx = {
     /**
-     * Search listings via Trestle/REBNY RLS.
-     * Returns listings in CRM flat shape (same as listings).
-     * @param {object} params - { type, minPrice, maxPrice, minBeds, minBaths, neighborhood, borough, status, limit, skip, minYear, maxYear, minFloors, maxFloors, minUnits, maxUnits, buildingName }
+     * Agent Search against live Cotality. Returns listings in CRM flat shape.
+     * Every criterion is forwarded — the server's live sale/rental mapping
+     * (lib/search/crm-idx-filter.ts) executes it, applies it in Mallan's layer,
+     * or refuses it by name with HTTP 422 (err.data.refused). Nothing is dropped here.
+     * @param {object} params - built by window.buildIdxSearchParams(criteria), plus limit/skip/sort
      */
     search: function (params) {
       params = params || {};
-      var qs = [];
-      if (params.type) qs.push('type=' + encodeURIComponent(params.type));
-      if (params.minPrice) qs.push('minPrice=' + params.minPrice);
-      if (params.maxPrice) qs.push('maxPrice=' + params.maxPrice);
-      if (params.minBeds != null) qs.push('minBeds=' + params.minBeds);
-      if (params.maxBeds != null) qs.push('maxBeds=' + params.maxBeds);
-      if (params.minBaths) qs.push('minBaths=' + params.minBaths);
-      if (params.maxBaths) qs.push('maxBaths=' + params.maxBaths);
-      if (params.neighborhood) qs.push('neighborhood=' + encodeURIComponent(params.neighborhood));
-      if (params.borough) qs.push('borough=' + encodeURIComponent(params.borough));
-      if (params.status) qs.push('status=' + encodeURIComponent(params.status));
-      if (params.propertySubType) qs.push('propertySubType=' + encodeURIComponent(params.propertySubType));
-      if (params.address) qs.push('address=' + encodeURIComponent(params.address));
-      if (params.listingId) qs.push('listingId=' + encodeURIComponent(params.listingId));
-      if (params.zip) qs.push('zip=' + encodeURIComponent(params.zip));
-      if (params.minRooms) qs.push('minRooms=' + params.minRooms);
-      if (params.maxRooms) qs.push('maxRooms=' + params.maxRooms);
-      if (params.minSqft) qs.push('minSqft=' + params.minSqft);
-      if (params.maxSqft) qs.push('maxSqft=' + params.maxSqft);
-      if (params.dateFrom) qs.push('dateFrom=' + encodeURIComponent(params.dateFrom));
-      if (params.dateTo) qs.push('dateTo=' + encodeURIComponent(params.dateTo));
-      if (params.dateType) qs.push('dateType=' + encodeURIComponent(params.dateType));
-      if (params.closeDateFrom) qs.push('closeDateFrom=' + encodeURIComponent(params.closeDateFrom));
-      if (params.closeDateTo) qs.push('closeDateTo=' + encodeURIComponent(params.closeDateTo));
-      if (params.ownership) qs.push('ownership=' + encodeURIComponent(params.ownership));
-      if (params.sponsorUnit) qs.push('sponsorUnit=' + encodeURIComponent(params.sponsorUnit));
-      // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
-      if (params.minYear) qs.push('minYear=' + params.minYear);
-      if (params.maxYear) qs.push('maxYear=' + params.maxYear);
-      if (params.minFloors) qs.push('minFloors=' + params.minFloors);
-      if (params.maxFloors) qs.push('maxFloors=' + params.maxFloors);
-      if (params.minUnits) qs.push('minUnits=' + params.minUnits);
-      if (params.maxUnits) qs.push('maxUnits=' + params.maxUnits);
-      if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
-      // Filters lib/search/crm-idx-filter.ts supports and the Search page collects. They were collected and logged but never sent, so the
-      // checkbox filters, management company, unit and contract dates only narrowed the first rows the server returned. `keyword` is
-      // deliberately NOT forwarded: live Cotality cannot evaluate contains(PublicRemarks, ...) within the request timeout (it aborts).
-      if (params.unit) qs.push('unit=' + encodeURIComponent(params.unit));
-      if (params.managementCompany) qs.push('managementCompany=' + encodeURIComponent(params.managementCompany));
-      if (params.openHouseDateFrom) qs.push('openHouseDateFrom=' + encodeURIComponent(params.openHouseDateFrom));
-      if (params.openHouseDateTo) qs.push('openHouseDateTo=' + encodeURIComponent(params.openHouseDateTo));
-      if (params.contractDateFrom) qs.push('contractDateFrom=' + encodeURIComponent(params.contractDateFrom));
-      if (params.contractDateTo) qs.push('contractDateTo=' + encodeURIComponent(params.contractDateTo));
-      if (params.checkboxFilters) qs.push('checkboxFilters=' + encodeURIComponent(params.checkboxFilters));
-      // Search on any Cotality field: a JSON list of { f, op, v } (lib/search/field-filters.ts validates it against the live contract).
-      if (params.fieldFilters) qs.push('fieldFilters=' + encodeURIComponent(params.fieldFilters));
-      // Agent / office filters (primary and co-list sides are separate): each value is a comma-separated list of MLS IDs and/or typed names.
-      ['listAgent', 'coListAgent', 'anyAgent', 'listOffice', 'coListOffice'].forEach(function (key) {
-        if (params[key]) qs.push(key + '=' + encodeURIComponent(params[key]));
+      var qs = Object.keys(params).filter(function (k) {
+        var v = params[k];
+        return v !== undefined && v !== null && v !== '';
+      }).map(function (k) {
+        return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
       });
-      if (params.sort) qs.push('sort=' + encodeURIComponent(params.sort));
-      if (params.limit) qs.push('limit=' + params.limit);
-      if (params.skip) qs.push('skip=' + params.skip);
       var query = qs.length ? '?' + qs.join('&') : '';
       return _fetch('/api/idx/search' + query);
     },
@@ -833,6 +812,7 @@ var MallanAPI = (function () {
     idx: idx,
     cma: cma,
     listingSends: listingSends,
+    reports: reports,
 
   };
 })();

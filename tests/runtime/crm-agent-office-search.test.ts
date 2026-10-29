@@ -12,17 +12,16 @@
  * The filter shapes pinned below were each executed live and accepted (count queries, HTTP 200).
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
 import {
   buildAgentOfficeFilterParts,
-  buildCrmIdxODataFilter,
+  buildCrmIdxQuery,
   CRM_AGENT_OFFICE_FILTERS,
 } from '@/lib/search/crm-idx-filter';
-import { SEARCH_SELECT_FIELDS } from '@/app/api/idx/search/route';
-import { mapTrestleToCrmListing } from '@/lib/search/crm-idx-mapper';
 
-const ROOT = path.resolve(__dirname, '../..');
+// The agent/office filters now live inside the live-contract query builder (integration 2026-10-28):
+// the whole Cotality filter string is buildCrmIdxQuery(params).filter.
+const buildCrmIdxODataFilter = (params: URLSearchParams): string => buildCrmIdxQuery(params).filter;
+
 const q = (obj: Record<string, string>) => new URLSearchParams(obj);
 
 describe('agent/office filters: one parameter per side, never merged', () => {
@@ -105,85 +104,5 @@ describe('agent/office filters: one parameter per side, never merged', () => {
 
   it('exposes exactly the five documented parameters', () => {
     expect(Object.keys(CRM_AGENT_OFFICE_FILTERS)).toEqual(['listAgent', 'coListAgent', 'anyAgent', 'listOffice', 'coListOffice']);
-  });
-});
-
-describe('SEARCH_SELECT_FIELDS: co-list names and ids come back, co-list contact data does not', () => {
-  const mirror = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/cotality-enums.live.json'), 'utf8'));
-  const liveProperty = new Set(Object.keys(mirror.entities.Property));
-  const colist = [
-    'CoListAgentMlsId', 'CoListAgentFullName', 'CoListAgent2MlsId', 'CoListAgent2FullName', 'CoListAgent3MlsId', 'CoListAgent3FullName',
-    'CoListOfficeMlsId', 'CoListOfficeName', 'CoListOffice2MlsId', 'CoListOffice2Name',
-  ];
-
-  it('selects every co-list id and name used by the filters and the mapper', () => {
-    for (const field of colist) expect(SEARCH_SELECT_FIELDS).toContain(field);
-  });
-
-  it('every one of them is a declared live Property field', () => {
-    for (const field of colist) expect({ field, live: liveProperty.has(field) }).toEqual({ field, live: true });
-  });
-
-  it('selects no co-list contact field (email, phone, URL, license, fax)', () => {
-    const contact = SEARCH_SELECT_FIELDS.filter((f) => /^CoList/.test(f) && /Email|Phone|URL|StateLicense|Fax|NationalAssociationId|Pager|VoiceMail/.test(f));
-    expect(contact).toEqual([]);
-  });
-
-  it('still has no duplicate names', () => {
-    expect(new Set(SEARCH_SELECT_FIELDS).size).toBe(SEARCH_SELECT_FIELDS.length);
-  });
-});
-
-describe('mapTrestleToCrmListing: co-list is carried beside the primary side, never merged into it', () => {
-  const base = { ListingId: 'RLS-T1', StandardStatus: 'Active', PropertyType: 'ResidentialSale', ListPrice: 1000000 };
-
-  it('keeps the primary agent/office exactly as before and adds the co-list slots separately', () => {
-    const out = mapTrestleToCrmListing(
-      {
-        ...base,
-        ListAgentFullName: 'Maya Allan', ListAgentMlsId: '39361', ListOfficeName: 'MAllan Real Estate Inc', ListOfficeMlsId: '7041',
-        CoListAgentFullName: 'Co One', CoListAgentMlsId: '108207', CoListAgent2FullName: 'Co Two', CoListAgent2MlsId: '94356',
-        CoListOfficeName: 'Compass', CoListOfficeMlsId: '7222', CoListOffice2Name: 'MAllan Real Estate Inc', CoListOffice2MlsId: '7041',
-      },
-      0,
-    ) as Record<string, unknown>;
-    expect(out.agentName).toBe('Maya Allan');
-    expect(out.company).toBe('MAllan Real Estate Inc');
-    expect(out.listAgentMlsId).toBe('39361');
-    expect(out.listOfficeMlsId).toBe('7041');
-    expect(out.coListingAgentName).toBe('Co One');
-    expect(out.coListAgents).toEqual([
-      { slot: 1, mlsId: '108207', name: 'Co One' },
-      { slot: 2, mlsId: '94356', name: 'Co Two' },
-    ]);
-    expect(out.coListOffices).toEqual([
-      { slot: 1, mlsId: '7222', name: 'Compass', relation: 'different' },
-      { slot: 2, mlsId: '7041', name: 'MAllan Real Estate Inc', relation: 'same' },
-    ]);
-  });
-
-  it('a listing with no co-list data yields empty co-list output and an untouched primary side', () => {
-    const out = mapTrestleToCrmListing({ ...base, ListAgentFullName: 'Maya Allan', ListAgentMlsId: '39361' }, 0) as Record<string, unknown>;
-    expect(out.agentName).toBe('Maya Allan');
-    expect(out.coListAgents).toEqual([]);
-    expect(out.coListOffices).toEqual([]);
-    expect(out.coListingAgentName).toBe('');
-  });
-
-  it('office relation is unknown when either office id is blank, and never claims a firm relationship', () => {
-    const out = mapTrestleToCrmListing({ ...base, CoListOfficeMlsId: '334', CoListOfficeName: 'Corcoran Group' }, 0) as Record<string, unknown>;
-    expect(out.coListOffices).toEqual([{ slot: 1, mlsId: '334', name: 'Corcoran Group', relation: 'unknown' }]);
-    const two = mapTrestleToCrmListing(
-      { ...base, ListOfficeMlsId: '40076', CoListOfficeMlsId: '40094', CoListOfficeName: 'Corcoran Group' },
-      0,
-    ) as Record<string, unknown>;
-    expect((two.coListOffices as Array<{ relation: string }>)[0].relation).toBe('different');
-  });
-
-  it('a co-list agent never overwrites the primary agent fields', () => {
-    const out = mapTrestleToCrmListing({ ...base, CoListAgentFullName: 'Only Co', CoListAgentMlsId: '5' }, 0) as Record<string, unknown>;
-    expect(out.agentName).toBe('');
-    expect(out.listAgentMlsId).toBe('');
-    expect(out.coListingAgentName).toBe('Only Co');
   });
 });

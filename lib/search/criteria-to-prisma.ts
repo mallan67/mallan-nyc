@@ -60,6 +60,9 @@ const PROJECTION_SUPPORTED_CRITERIA_KEYS = new Set([
 
 const PROJECTION_RESERVED_CRITERIA_KEYS = new Set([
   "_search_tab",
+  // Which CRM form (basic / advanced) the search was saved from. View state only — it never
+  // filters, so it must not make every saved search "unsupported" (count n/a, alerts refused).
+  "_search_mode",
 ]);
 
 function first(criteria: SearchCriteria, keys: string[]): unknown {

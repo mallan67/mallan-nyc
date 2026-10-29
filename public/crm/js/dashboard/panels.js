@@ -126,7 +126,7 @@ var Panels = (function () {
             typeLabel: 'Compliance Issue',
             typeColor: '#DC2626',
             typeIcon: 'fa-shield-alt',
-            title: E(l.address || l.UnparsedAddress || 'Listing'),
+            title: E(_resolveAddress(l)),
             subtitle: issues.join(', '),
             date: l.updated_at || l.updatedAt || '',
             age: 0,
@@ -5674,7 +5674,7 @@ var Panels = (function () {
     return listings.slice().sort(function (a, b) {
       var va, vb;
       switch (key) {
-        case 'address': va = (a.address || a.UnparsedAddress || '').toLowerCase(); vb = (b.address || b.UnparsedAddress || '').toLowerCase(); break;
+        case 'address': va = _resolveAddress(a).toLowerCase(); vb = _resolveAddress(b).toLowerCase(); break;   // a CRM record carries its address atoms as an object
         case 'type': va = a._typeBadge || ''; vb = b._typeBadge || ''; break;
         case 'price': va = a.ListPrice || a.price || 0; vb = b.ListPrice || b.price || 0; break;
         case 'status': va = (a.status || '').toLowerCase(); vb = (b.status || '').toLowerCase(); break;
@@ -5707,7 +5707,7 @@ var Panels = (function () {
 
     var rows = [['Address', 'Type', 'Price', 'Status', 'Agent', 'DOM', 'Sync Freshness', 'Compliance', 'Featured', 'Issues']];
     filtered.forEach(function (l) {
-      var addr = l.address || l.UnparsedAddress || '';
+      var addr = _resolveAddress(l);
       var price = l.ListPrice || l.price || '';
       var issueText = l._compliance.issues.map(function (i) { return i.type + ': ' + i.description; }).join('; ');
       rows.push([
@@ -6834,7 +6834,7 @@ var Panels = (function () {
 
     var templateOpts = TEMPLATES.map(function (t) { return '<option value="' + E(t) + '">' + E(t) + '</option>'; }).join('');
     var clientOpts = clients.map(function (c) { return '<option value="' + E(c.id) + '">' + E(c.name || (c.first_name + ' ' + c.last_name) || 'Client') + '</option>'; }).join('');
-    var listingOpts = listings.map(function (l) { return '<option value="' + E(l.id) + '">' + E(l.address || l.title || 'Listing') + '</option>'; }).join('');
+    var listingOpts = listings.map(function (l) { return '<option value="' + E(l.id) + '">' + E(l.address ? _resolveAddress(l) : (l.title || 'Listing')) + '</option>'; }).join('');
     var agentOpts = agents.map(function (a) { return '<option value="' + E(a.id) + '">' + E(a.name || (a.first_name + ' ' + a.last_name) || 'Agent') + '</option>'; }).join('');
     var dealOpts = deals.map(function (d) { return '<option value="' + E(d.id) + '">' + E(d.title || d.address || 'Deal #' + d.id) + '</option>'; }).join('');
 
@@ -9974,7 +9974,7 @@ var Panels = (function () {
         // Quick action buttons (stop propagation so row click still works)
         var actionsHtml = '<div class="flex gap-1">' +
           (cl.phone ? '<a href="tel:' + E(cl.phone) + '" class="p-1.5 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" onclick="event.stopPropagation()" title="Call"><i class="fas fa-phone text-xs"></i></a>' : '') +
-          (cl.email ? '<a href="mailto:' + E(cl.email) + '" class="p-1.5 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" onclick="event.stopPropagation()" title="Email"><i class="fas fa-envelope text-xs"></i></a>' : '') +
+          (cl.email ? '<button class="p-1.5 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" onclick="event.stopPropagation();Panels._composeTo(\'' + E(cl.id) + '\',\'\')" title="Email"><i class="fas fa-envelope text-xs"></i></button>' : '') +
           '<button class="p-1.5 rounded hover:bg-gold-bg text-gray-400 hover:text-gold" onclick="event.stopPropagation();CRM.quickSendToClient(\'' + E(cl.id) + '\',\'' + E(cl.name || cl.email) + '\')" title="Send Listing"><i class="fas fa-paper-plane text-xs"></i></button>' +
         '</div>';
 
@@ -11350,62 +11350,132 @@ var Panels = (function () {
     var recipientEmails = _commsSelectedRecipients.map(function (r) { return r.email || ''; }).filter(Boolean);
     var recipientNames = _commsSelectedRecipients.map(function (r) { return r.name || r.first_name || ''; }).filter(Boolean);
     var recipientIds = _commsSelectedRecipients.map(function (r) { return r.id; }).filter(Boolean);
+    var listingAddress = _commsAttachedListing ? _commsAttachedListing.address : null;
+    var listingPrice = _commsAttachedListing ? _commsAttachedListing.price : null;
+    var attachedId = _commsAttachedListing ? _commsAttachedListing.id : null;
 
-    // Unified communication record
-    var payload = {
+    // The ONE client-send pathway: /api/crm/email (consent gate, unsubscribe suppression, audit
+    // `email:sent` per recipient, agent channel). The old record-shaped POST to /api/crm/communications
+    // never resolved a recipient — the panel said "sent" while nothing left (2026-10-27).
+    var sendBtn = document.querySelector('#composeEmailForm') && document.querySelector('.modal-footer .btn-gold, #modalFooter .btn-gold');
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending…'; }
+    MallanAPI.email.send({
       type: threadId ? 'reply' : 'email',
-      direction: 'outbound',
-      channel: 'email',
-      clientId: recipientIds.length === 1 ? recipientIds[0] : null,
-      listingId: _commsAttachedListing ? _commsAttachedListing.id : null,
-      to: recipientEmails.join(', '),
+      client_ids: recipientIds.map(String),
       subject: subject,
       body: body,
-      threadId: threadId || null,
-      status: 'sent',
-      metadata: {
-        cc: cc || null,
-        recipientIds: recipientIds,
-        recipientNames: recipientNames,
-        listingAddress: _commsAttachedListing ? _commsAttachedListing.address : null,
-        listingPrice: _commsAttachedListing ? _commsAttachedListing.price : null,
-      },
-    };
-
-    MallanAPI._fetch('/api/crm/communications', {
-      method: 'POST',
-      body: JSON.stringify(payload),
+      cc: cc || undefined,
+      thread_id: threadId || undefined,
+      listing_id: attachedId || undefined,
     }).then(function (res) {
-      // Also log to Events for activity timeline
-      recipientIds.forEach(function (cid) {
-        Events.log('email_sent', 'client', cid, {
+      _commsReportSendResult(res, recipientNames, 'Email');
+      // Activity timeline only for recipients the provider accepted
+      var delivered = (res.results || []).filter(function (r) { return r.state === 'delivered_to_provider'; });
+      delivered.forEach(function (r) {
+        Events.log('email_sent', 'client', r.clientId, {
           to: recipientEmails.join(', '),
           recipientNames: recipientNames.join(', '),
           cc: cc,
           subject: subject,
           body: body,
-          listingAddress: payload.metadata.listingAddress,
-          listingPrice: payload.metadata.listingPrice,
+          state: r.state,
+          message_id: r.message_id || null,
+          listingAddress: listingAddress,
+          listingPrice: listingPrice,
         });
       });
-
-      if (_commsAttachedListing && _commsAttachedListing.id) {
-        Events.log('listing_sent', 'listing', _commsAttachedListing.id, {
+      if (attachedId && delivered.length > 0) {
+        Events.log('listing_sent', 'listing', attachedId, {
           clientName: recipientNames.join(', '),
           to: recipientEmails.join(', '),
           subject: subject,
           via: 'email',
         });
       }
-
+      if ((res.failed || 0) > 0) {
+        // A provider failure keeps the draft open so the agent can retry
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fas fa-paper-plane mr-1"></i>Send'; }
+        return;
+      }
       CRM.closeModal();
-      CRM.toast('Email sent to ' + recipientNames.join(', '), 'success');
       _commsSelectedRecipients = [];
       _commsAttachedListing = null;
       // Refresh cache and re-render
       _commsLoadAll().then(function () { communications(); });
     }).catch(function (err) {
-      CRM.toast('Failed to send email: ' + (err.message || 'Unknown error'), 'error');
+      if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="fas fa-paper-plane mr-1"></i>Send'; }
+      CRM.toast('Not sent — ' + ((err && err.data && err.data.error) || (err && err.message) || 'Unknown error'), 'error');
+    });
+  }
+
+  // What the pipeline answered, per recipient. The states are different facts and are shown as such:
+  // delivered to the provider / suppressed (unsubscribed) / blocked (no consent for bulk or SMS, no
+  // address) / logged only (no provider) / failed. "Sent" is never claimed from an audit row.
+  function _commsReportSendResult(res, recipientNames, what) {
+    var r = res || {};
+    var results = r.results || [];
+    var delivered = results.filter(function (x) { return x.state === 'delivered_to_provider'; });
+    if (delivered.length > 0) {
+      CRM.toast(what + ' delivered to the mail provider for ' + (delivered.length === recipientNames.length ? recipientNames.join(', ') : delivered.length + ' of ' + recipientNames.length + ' recipients'), 'success');
+    }
+    results.forEach(function (x) {
+      var who = x.name || ('client #' + x.clientId);
+      if (x.state === 'suppressed_unsubscribed') CRM.toast('Not sent to ' + who + ': unsubscribed — suppressed', 'error');
+      else if (x.state === 'blocked_no_consent') CRM.toast('Blocked for ' + who + ': ' + (x.reason || 'no consent on record'), 'error');
+      else if (x.state === 'blocked_no_address') CRM.toast('Not sent to ' + who + ': ' + (x.reason || 'no address on file'), 'error');
+      else if (x.state === 'logged_only') CRM.toast('Logged only for ' + who + ' — ' + (x.reason || 'no provider; not delivered'), 'info');
+      else if (x.state === 'failed') CRM.toast('Failed for ' + who + ': ' + (x.error || 'send failed'), 'error');
+    });
+    if (!results.length) CRM.toast(what + ': no recipient was resolved — nothing happened', 'error');
+  }
+
+  // Open the compose with a client pre-selected (the one pathway behind every "Email" / "Contact"
+  // button; replaces the mail-app links that carried no content, no record and no consent check).
+  function _composeTo(clientId, subject, body) {
+    _commsSelectedRecipients = [];
+    _commsAttachedListing = null;
+    MallanAPI.clients.list({ limit: 500 }).then(function (res) {
+      _commsClients = res.clients || [];
+      var cl = null;
+      for (var i = 0; i < _commsClients.length; i++) { if (String(_commsClients[i].id) === String(clientId)) { cl = _commsClients[i]; break; } }
+      if (cl) _commsSelectedRecipients = [cl];
+      _openComposeModal(null, null, subject || '');
+      if (body) { var b = document.getElementById('composeEmailBody'); if (b && !b.value) b.value = body; }
+      if (!cl) CRM.toast('Client not found in your list — pick the recipient', 'error');
+    }).catch(function (err) {
+      CRM.toast('Failed to load clients: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
+  // Same, by address (inquiries): the client record must exist — the pipeline needs it for consent.
+  function _composeToEmail(email, subject) {
+    MallanAPI.clients.list({ limit: 500 }).then(function (res) {
+      var list = res.clients || [];
+      var cl = null;
+      for (var i = 0; i < list.length; i++) { if ((list[i].email || '').toLowerCase() === String(email || '').toLowerCase()) { cl = list[i]; break; } }
+      if (!cl) { CRM.toast('No client record for ' + email + ' — use Create Client first, then Respond', 'error'); return; }
+      _composeTo(cl.id, subject, '');
+    }).catch(function (err) {
+      CRM.toast('Failed to load clients: ' + (err.message || 'Unknown error'), 'error');
+    });
+  }
+
+  // Rent vs Buy / Cost to Become an Owner (Master §8, §15, §22.7): the Lease Tracker's buy-inquiry
+  // outreach — preview, then explicit confirmation — when the tenant has a tracked tenancy;
+  // otherwise a reviewed draft in the compose. Never a bare mail-app link.
+  function _sendBuyVsRent(clientId, clientName) {
+    MallanAPI._fetch('/api/crm/lease-tracker?view=all').then(function (res) {
+      var props = (res && res.properties) || [];
+      var hit = null;
+      for (var i = 0; i < props.length; i++) { if (props[i].tenant && String(props[i].tenant.id) === String(clientId)) { hit = props[i]; break; } }
+      if (hit && typeof LeaseTracker !== 'undefined' && typeof LeaseTracker.previewFor === 'function') {
+        LeaseTracker.previewFor(hit.id, 'tenant', 'buy_inquiry');
+        return;
+      }
+      _composeTo(clientId, 'Rent vs Buy — Cost to Become an Owner',
+        'Hi ' + (clientName || '') + ',\n\nAs your lease approaches its end, I can prepare a Rent vs Buy analysis for you: what a comparable purchase would cost each month against your current rent, and what you would build in equity. There is no commitment — reply here if you would like me to put it together.\n\nBest regards,');
+    }).catch(function () {
+      _composeTo(clientId, 'Rent vs Buy — Cost to Become an Owner', '');
     });
   }
 
@@ -11466,38 +11536,28 @@ var Panels = (function () {
 
     var recipient = _commsSelectedRecipients[0];
     var phone = recipient.phone || recipient.phone_number || '';
+    var recipientName = recipient.name || recipient.first_name || '';
 
-    var payload = {
-      type: 'sms',
-      direction: 'outbound',
-      channel: 'sms',
-      clientId: recipient.id,
-      to: phone,
-      subject: null,
-      body: body,
-      status: 'sent',
-      metadata: {
-        recipientName: recipient.name || recipient.first_name || '',
-        phone: phone,
-      },
-    };
-
-    MallanAPI._fetch('/api/crm/communications', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }).then(function () {
-      Events.log('sms_sent', 'client', recipient.id, {
-        to: phone,
-        body: body,
-        recipientName: payload.metadata.recipientName,
-      });
-
+    // One pathway (/api/crm/email, type sms): Twilio when configured, otherwise the message is
+    // logged (`sms:logged`) — and the panel says so instead of "sent".
+    MallanAPI.email.send({ type: 'sms', client_ids: [String(recipient.id)], body: body }).then(function (res) {
+      // SMS is not an email: its own consent and provider; "logged only" is not "sent".
+      var r = ((res && res.results) || [])[0] || null;
+      var who = recipientName || phone;
+      if (!r) { CRM.toast('SMS: no recipient was resolved — nothing happened', 'error'); }
+      else if (r.state === 'delivered_to_provider') {
+        Events.log('sms_sent', 'client', recipient.id, { to: phone, body: body, recipientName: recipientName, message_id: r.message_id || null });
+        CRM.toast('SMS delivered to the SMS provider for ' + who, 'success');
+      }
+      else if (r.state === 'logged_only') CRM.toast('SMS logged only for ' + who + ' — no SMS provider configured; nothing was delivered', 'info');
+      else if (r.state === 'blocked_no_consent') CRM.toast('SMS blocked for ' + who + ': ' + (r.reason || 'no SMS consent on record'), 'error');
+      else if (r.state === 'blocked_no_address') CRM.toast('SMS not sent to ' + who + ': no phone number on file', 'error');
+      else CRM.toast('SMS failed for ' + who + ': ' + (r.error || 'send failed'), 'error');
       CRM.closeModal();
-      CRM.toast('SMS sent to ' + (payload.metadata.recipientName || phone), 'success');
       _commsSelectedRecipients = [];
       _commsLoadAll().then(function () { communications(); });
     }).catch(function (err) {
-      CRM.toast('Failed to send SMS: ' + (err.message || 'Unknown error'), 'error');
+      CRM.toast('Not sent — ' + ((err && err.data && err.data.error) || (err && err.message) || 'Unknown error'), 'error');
     });
   }
 
@@ -11614,35 +11674,22 @@ var Panels = (function () {
       CRM.toast('No recipients match the selected filters', 'error');
       return;
     }
+    if (filtered.length > 200) {
+      CRM.toast('An eBlast sends to at most 200 clients at a time (' + filtered.length + ' selected) — narrow the audience', 'error');
+      return;
+    }
+    if (!confirm('Send this eBlast to ' + filtered.length + ' client' + (filtered.length === 1 ? '' : 's') + ' now?\n\nClients without consent on record or who unsubscribed are skipped by the server and listed afterwards.')) return;
 
-    // Unified communication record for campaign
-    var payload = {
-      type: 'campaign',
-      direction: 'outbound',
-      channel: 'email',
-      to: null,
-      subject: subject,
-      body: body,
-      status: 'sent',
-      metadata: {
-        clientType: type,
-        audienceType: type,
-        stage: stage,
-        recipientCount: filtered.length,
-        includeListings: withListings,
-      },
-    };
-
-    MallanAPI._fetch('/api/crm/communications', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }).then(function () {
+    // One pathway (/api/crm/email, type eblast → the listings@ channel, consent-gated, audited per recipient).
+    var ids = filtered.map(function (cl) { return String(cl.id); });
+    var names = filtered.map(function (cl) { return cl.name || cl.first_name || cl.email || ''; });
+    MallanAPI.email.send({ type: 'eblast', client_ids: ids, subject: subject, body: body }).then(function (res) {
+      _commsReportSendResult(res, names, 'eBlast');
       CRM.closeModal();
-      CRM.toast('eBlast sent to ' + filtered.length + ' recipients', 'success');
       delete window._eblastClients;
       _commsLoadAll().then(function () { communications(); });
     }).catch(function (err) {
-      CRM.toast('Failed to send eBlast: ' + (err.message || 'Unknown error'), 'error');
+      CRM.toast('Not sent — ' + ((err && err.data && err.data.error) || (err && err.message) || 'Unknown error'), 'error');
     });
   }
 
@@ -12241,421 +12288,9 @@ var Panels = (function () {
 
   // ─── Lease Tracking Dashboard ────────────────────────────────────────
 
-  function leaseTracking() {
-    CRM.setPanelTitle('Lease Tracking');
-    var c = _container(); c.innerHTML = UI.loading();
-
-    MallanAPI.clients.list({ limit: 500 }).catch(function () { return { clients: [] }; }).then(function (res) {
-      var clients = _normalizeClients(res.clients || []);
-      var now = new Date();
-
-      // ── Display name helper (handles couples) ──
-      function _clientDisplayName(cl) {
-        var primary = cl.name || ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim() || cl.email;
-        if (!cl.secondary_first_name) return primary;
-        var secondary = ((cl.secondary_first_name || '') + ' ' + (cl.secondary_last_name || '')).trim();
-        if (cl.last_name && cl.secondary_last_name === cl.last_name) {
-          return (cl.first_name || '') + ' & ' + (cl.secondary_first_name || '') + ' ' + cl.last_name;
-        }
-        return primary + ' & ' + secondary;
-      }
-
-      // ── Parse notes helper ──
-      function _parseNotes(notes) {
-        var data = {};
-        if (!notes) return data;
-        var patterns = {
-          address: /(?:property|rental[\s_]?address|address)\s*[:=]\s*(.+)/i,
-          unit: /(?:unit|apt|apartment)\s*[:=#]\s*(.+)/i,
-          leaseStart: /(?:lease[\s_]?start)\s*[:=]\s*(.+)/i,
-          leaseEnd: /(?:lease[\s_]?end)\s*[:=]\s*(.+)/i,
-          annualIncome: /(?:annual[\s_]?income)\s*[:=]\s*\$?([\d,]+)/i,
-          monthlyRent: /(?:monthly[\s_]?rent|rent)\s*[:=]\s*\$?([\d,]+)/i,
-          creditScore: /(?:credit[\s_]?score|credit)\s*[:=]\s*(.+)/i,
-          legalOwner: /(?:legal[\s_]?owner|owner|llc)\s*[:=]\s*(.+)/i
-        };
-        Object.keys(patterns).forEach(function (key) {
-          var m = notes.match(patterns[key]);
-          if (m) data[key] = m[1].trim();
-        });
-        return data;
-      }
-
-      // ── Budget calculator: 28% DTI, 30yr fixed @ 6.5% ──
-      function _maxBudget(annualIncome) {
-        if (!annualIncome) return null;
-        var income = parseInt(String(annualIncome).replace(/[,$]/g, ''), 10);
-        if (!income || income <= 0) return null;
-        var monthlyPayment = (income * 0.28) / 12;
-        var r = 0.065 / 12;
-        var n = 360;
-        var principal = monthlyPayment * ((Math.pow(1 + r, n) - 1) / (r * Math.pow(1 + r, n)));
-        return Math.round(principal / 1000) * 1000;
-      }
-
-      function _formatMoney(val) {
-        if (!val) return '\u2014';
-        var num = typeof val === 'string' ? parseInt(val.replace(/[,$]/g, ''), 10) : val;
-        if (!num) return '\u2014';
-        return '$' + num.toLocaleString();
-      }
-
-      // ── Filter renters & landlords (only those with actual leases) ──
-      var renters = clients.filter(function (cl) {
-        var t = cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '';
-        if (t !== 'renter' && t !== 'tenant') return false;
-        // Only include renters who have lease dates (not just prospects/leads)
-        var hasLease = cl.lease_end_date || cl.lease_start_date;
-        if (!hasLease) {
-          // Also check notes for lease info
-          var notes = cl.notes || '';
-          hasLease = /lease[\s_]?(?:end|start|expir)/i.test(notes);
-        }
-        return hasLease;
-      });
-      var landlords = clients.filter(function (cl) {
-        var t = cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '';
-        return t === 'landlord';
-      });
-
-      // ── Enrich renters with parsed notes + real DB fields ──
-      renters.forEach(function (cl) {
-        var notes = _parseNotes(cl.notes);
-        cl._notes = notes;
-
-        // Prefer real DB fields, fall back to notes
-        var leaseEnd = cl.lease_end_date || notes.leaseEnd || null;
-        var leaseStart = cl.lease_start_date || cl.lease_start || notes.leaseStart || null;
-        cl._leaseEnd = leaseEnd;
-        cl._leaseStart = leaseStart;
-
-        if (leaseEnd) {
-          var diff = Math.floor((new Date(leaseEnd).getTime() - now.getTime()) / 86400000);
-          cl._daysLeft = diff;
-        } else {
-          cl._daysLeft = null;
-        }
-
-        var addr = cl.property_address || notes.address || cl.address || '';
-        var unit = cl.unit_number || notes.unit || '';
-        cl._fullAddress = addr + (unit ? ', ' + unit : '');
-        cl._displayName = _clientDisplayName(cl);
-
-        // Prefer real DB fields for financial data
-        cl._annualIncome = cl.annual_income ? Number(cl.annual_income) : (notes.annualIncome ? parseInt(notes.annualIncome.replace(/[,$]/g, ''), 10) : null);
-        cl._monthlyRent = cl.rent_per_month ? Number(cl.rent_per_month) : (notes.monthlyRent || null);
-        cl._creditScore = cl.credit_score_range || notes.creditScore || null;
-        cl._maxBudget = _maxBudget(cl._annualIncome || notes.annualIncome);
-      });
-
-      // Sort renters by lease end date (soonest first), nulls last
-      renters.sort(function (a, b) {
-        if (a._daysLeft === null && b._daysLeft === null) return 0;
-        if (a._daysLeft === null) return 1;
-        if (b._daysLeft === null) return -1;
-        return a._daysLeft - b._daysLeft;
-      });
-
-      // ── Enrich landlords ──
-      landlords.forEach(function (cl) {
-        var notes = _parseNotes(cl.notes);
-        cl._notes = notes;
-        var updated = cl.updated_at || cl.updatedAt || cl.created_at || null;
-        cl._lastContact = updated;
-        cl._daysSinceContact = updated ? Math.floor((now.getTime() - new Date(updated).getTime()) / 86400000) : null;
-        var nextRenewal = cl.leaseEndDate || cl.lease_end_date ||
-          (cl.preferences && (cl.preferences.leaseEndDate || cl.preferences.lease_end_date)) || null;
-        cl._nextRenewal = nextRenewal;
-        var addr = cl.property_address || notes.address || cl.address ||
-          (cl.preferences && (cl.preferences.address || cl.preferences.property_address)) || '';
-        var unit = cl.unit_number || notes.unit || '';
-        cl._fullAddress = addr + (unit ? ', ' + unit : '');
-        cl._homeAddress = cl.home_address || '';
-        cl._legalOwner = cl.legal_ownership_name || notes.legalOwner || null;
-        cl._displayName = _clientDisplayName(cl);
-      });
-
-      // ── Build conversion alerts ──
-      var alerts = [];
-      renters.forEach(function (cl) {
-        if (cl._daysLeft === null) return;
-        var name = E(cl.name || cl.full_name || cl.email || 'Unknown');
-        var addr = E(cl._fullAddress || '\u2014');
-        if (cl._annualIncome && cl._annualIncome > 100000 && cl._daysLeft > 0 && cl._daysLeft <= 183) {
-          alerts.push({ priority: 1, color: 'purple', icon: 'fa-chart-line',
-            label: 'Conversion candidate \u2014 send Buy vs Rent report',
-            name: name, addr: addr, days: cl._daysLeft, id: cl.id, clientName: cl.name || '',
-            action: 'buyvsrent' });
-        }
-        if (cl._daysLeft > 0 && cl._daysLeft <= 90 && cl._daysLeft > 60) {
-          alerts.push({ priority: 2, color: 'yellow', icon: 'fa-sync-alt',
-            label: 'Send renewal + sales options',
-            name: name, addr: addr, days: cl._daysLeft, id: cl.id, clientName: cl.name || '',
-            action: 'renewal' });
-        }
-        if (cl._daysLeft > 0 && cl._daysLeft <= 60 && cl._daysLeft > 30) {
-          alerts.push({ priority: 3, color: 'orange', icon: 'fa-envelope',
-            label: 'Follow-up \u2014 rental + sales',
-            name: name, addr: addr, days: cl._daysLeft, id: cl.id, clientName: cl.name || '',
-            action: 'followup' });
-        }
-        if (cl._daysLeft >= 0 && cl._daysLeft <= 30) {
-          alerts.push({ priority: 4, color: 'red', icon: 'fa-exclamation-circle',
-            label: 'URGENT \u2014 lease expiring, schedule meeting',
-            name: name, addr: addr, days: cl._daysLeft, id: cl.id, clientName: cl.name || '',
-            action: 'urgent' });
-        }
-      });
-      alerts.sort(function (a, b) { return b.priority - a.priority; }); // urgent first
-
-      // ── Conversion timeline helper ──
-      function _timeline(daysLeft) {
-        if (daysLeft === null) return '';
-        var milestones = [
-          { label: '6 mo', days: 183 },
-          { label: '90d', days: 90 },
-          { label: '60d', days: 60 },
-          { label: '30d', days: 30 },
-          { label: 'Exp', days: 0 }
-        ];
-        var dots = '';
-        for (var i = 0; i < milestones.length; i++) {
-          var m = milestones[i];
-          var passed = daysLeft <= m.days;
-          var isCurrent = false;
-          if (passed) {
-            if (i === 0) isCurrent = daysLeft <= m.days && (i + 1 >= milestones.length || daysLeft > milestones[i + 1].days);
-            else isCurrent = daysLeft <= m.days && (i + 1 >= milestones.length || daysLeft > milestones[i + 1].days);
-          }
-          var dotColor = passed ? (isCurrent ? 'color:#B8860B;font-weight:bold' : 'color:#22c55e') : 'color:#d1d5db';
-          var symbol = passed ? (isCurrent ? '\u25cf' : '\u2713') : '\u25cb';
-          dots += '<span style="' + dotColor + ';font-size:13px" title="' + m.label + '">' + symbol + '</span>';
-          dots += '<span class="text-[9px] text-gray-400 mx-0.5">' + m.label + '</span>';
-          if (i < milestones.length - 1) dots += '<span class="text-gray-300 mx-0.5">\u2500\u2500</span>';
-        }
-        return '<div class="flex items-center gap-0 flex-wrap mt-1">' + dots + '</div>';
-      }
-
-      // ══════════════════════════════════════════════════════════════════
-      // RENDER
-      // ══════════════════════════════════════════════════════════════════
-      var html = '<div class="space-y-6">';
-
-      // ── Summary bar ──
-      html += '<div class="flex flex-wrap items-center gap-2 text-xs">' +
-        '<span class="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full font-bold">' + renters.length + ' Tenant' + (renters.length !== 1 ? 's' : '') + '</span>' +
-        '<span class="px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full font-bold">' + landlords.length + ' Landlord' + (landlords.length !== 1 ? 's' : '') + '</span>' +
-        (alerts.length > 0 ? '<span class="px-2.5 py-1 bg-red-50 text-red-700 rounded-full font-bold">' + alerts.length + ' Alert' + (alerts.length !== 1 ? 's' : '') + '</span>' : '') +
-      '</div>';
-
-      // ═══════════════════════════════════════════════════════════════
-      // SECTION 1: Conversion Alerts
-      // ═══════════════════════════════════════════════════════════════
-      if (alerts.length > 0) {
-        html += '<div>' +
-          '<h3 class="text-sm font-bold text-gray-900 mb-3"><i class="fas fa-bell mr-2 text-red-500"></i>Conversion Alerts</h3>' +
-          '<div class="space-y-2">';
-        alerts.forEach(function (a) {
-          var bgMap = { red: 'bg-red-50 border-red-200', orange: 'bg-orange-50 border-orange-200', yellow: 'bg-yellow-50 border-yellow-200', purple: 'bg-purple-50 border-purple-200' };
-          var textMap = { red: 'text-red-700', orange: 'text-orange-700', yellow: 'text-yellow-700', purple: 'text-purple-700' };
-          var iconMap = { red: 'text-red-500', orange: 'text-orange-500', yellow: 'text-yellow-600', purple: 'text-purple-500' };
-          html += '<div class="flex flex-col sm:flex-row sm:items-center gap-2 p-3 border rounded-lg ' + (bgMap[a.color] || '') + '">' +
-            '<div class="flex items-center gap-2 flex-1 min-w-0">' +
-              '<i class="fas ' + a.icon + ' ' + (iconMap[a.color] || '') + ' flex-shrink-0"></i>' +
-              '<div class="min-w-0">' +
-                '<span class="text-sm font-bold ' + (textMap[a.color] || '') + '">' + a.name + '</span>' +
-                '<span class="text-xs text-gray-500 ml-2">' + a.addr + '</span>' +
-                '<span class="text-xs font-bold ml-2 ' + (textMap[a.color] || '') + '">' + a.days + 'd left</span>' +
-                '<p class="text-xs ' + (textMap[a.color] || '') + ' mt-0.5">' + a.label + '</p>' +
-              '</div>' +
-            '</div>' +
-            '<div class="flex gap-2 flex-shrink-0">';
-          if (a.action === 'buyvsrent') {
-            html += '<button class="px-3 py-1.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-lg" ' +
-              'onclick="window.location.href=\'mailto:' + E(a.name) + '?subject=Buy%20vs%20Rent%20Report\'">Send Buy vs Rent</button>';
-          } else if (a.action === 'renewal') {
-            html += '<button class="px-3 py-1.5 text-xs font-bold text-white bg-yellow-600 hover:bg-yellow-700 rounded-lg" ' +
-              'onclick="Panels._leaseRenew(\'' + E(a.id) + '\')">Send Renewal</button>';
-          } else if (a.action === 'followup') {
-            html += '<button class="px-3 py-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-lg" ' +
-              'onclick="Router.navigate(\'/workspace/client/' + E(a.id) + '/overview\')">Follow Up</button>';
-          } else if (a.action === 'urgent') {
-            html += '<button class="px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg" ' +
-              'onclick="Router.navigate(\'/workspace/client/' + E(a.id) + '/overview\')">Schedule Meeting</button>';
-          }
-          html += '</div></div>';
-        });
-        html += '</div></div>';
-      }
-
-      // ═══════════════════════════════════════════════════════════════
-      // SECTION 2: Tenant Cards
-      // ═══════════════════════════════════════════════════════════════
-      html += '<div>' +
-        '<h3 class="text-sm font-bold text-gray-900 mb-3"><i class="fas fa-user-friends mr-2 text-blue-500"></i>Tenants</h3>';
-      if (renters.length === 0) {
-        html += UI.emptyState('fa-users', 'No renter clients');
-      } else {
-        html += '<div class="space-y-2">';
-        renters.forEach(function (cl) {
-          var name = cl._displayName || cl.name || cl.full_name || cl.email || 'Unknown';
-          var email = cl.email || '';
-          var phone = cl.phone || cl.phone_number || '';
-          var leaseStatus = _leaseStatus(cl._daysLeft);
-          var leaseEndFmt = cl._leaseEnd ? new Date(cl._leaseEnd).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '\u2014';
-          var leaseStartFmt = cl._leaseStart ? new Date(cl._leaseStart).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '\u2014';
-
-          html += '<div class="card px-4 py-3">';
-
-          // Row 1: Name + contact + lease end + days left + status badge
-          html += '<div class="flex items-center justify-between gap-3">' +
-            '<div class="flex items-center gap-3 min-w-0 flex-1">' +
-              UI.avatar(name, 28) +
-              '<div class="min-w-0">' +
-                '<span class="font-bold text-sm text-gray-900 truncate">' + E(name) + '</span>' +
-                '<span class="text-xs text-gray-400 ml-2">' +
-                  (email ? E(email) : '') +
-                  (phone ? ' \u00b7 ' + E(phone) : '') +
-                '</span>' +
-              '</div>' +
-            '</div>' +
-            '<div class="flex items-center gap-3 flex-shrink-0 text-xs">' +
-              '<div class="text-right">' +
-                '<span class="text-gray-400">Lease:</span> ' +
-                '<span class="font-medium text-gray-700">' + leaseStartFmt + ' \u2013 ' + leaseEndFmt + '</span>' +
-                (cl._daysLeft !== null ? ' <span class="font-bold ' + leaseStatus.textClass + '">(' + cl._daysLeft + 'd)</span>' : '') +
-              '</div>' +
-              leaseStatus.badge +
-            '</div>' +
-          '</div>';
-
-          // Row 2: Property + financials + timeline + actions (single compact row)
-          html += '<div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">' +
-            '<span><i class="fas fa-map-marker-alt text-gray-400 mr-1"></i>' + E(cl._fullAddress || '\u2014') + '</span>';
-          if (cl._annualIncome) html += '<span><span class="font-semibold text-gray-700">Income:</span> ' + _formatMoney(cl._annualIncome) + '</span>';
-          if (cl._monthlyRent) html += '<span><span class="font-semibold text-gray-700">Rent:</span> ' + _formatMoney(cl._monthlyRent) + '/mo</span>';
-          if (cl._maxBudget) html += '<span><span class="font-semibold text-gray-700">Max buy:</span> ' + _formatMoney(cl._maxBudget) + '</span>';
-          if (cl._creditScore) html += '<span><span class="font-semibold text-gray-700">Credit:</span> ' + E(cl._creditScore) + '</span>';
-          html += '</div>';
-
-          // Row 3: Timeline + action buttons (compact)
-          html += '<div class="mt-2 flex items-center justify-between gap-3">';
-          if (cl._daysLeft !== null) {
-            html += '<div class="flex-1">' + _timeline(cl._daysLeft) + '</div>';
-          } else {
-            html += '<div class="flex-1"></div>';
-          }
-          html += '<div class="flex gap-1.5 flex-shrink-0">';
-          if (cl._annualIncome && cl._annualIncome > 100000) {
-            html += '<button class="px-2 py-1 text-[11px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded transition" ' +
-              'onclick="window.location.href=\'mailto:' + E(email) + '?subject=Buy%20vs%20Rent%20Analysis\'"><i class="fas fa-chart-bar mr-1"></i>Buy vs Rent</button>';
-          }
-          html += '<button class="px-2 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded transition" ' +
-            'onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/listings\')"><i class="fas fa-paper-plane mr-1"></i>Send</button>' +
-            '<button class="px-2 py-1 text-[11px] font-bold text-green-700 bg-green-50 hover:bg-green-100 rounded transition" ' +
-            'onclick="Panels._leaseConvertToBuyer(\'' + E(cl.id) + '\', \'' + E(name) + '\')"><i class="fas fa-exchange-alt mr-1"></i>Convert</button>' +
-            '<button class="px-2 py-1 text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded transition" ' +
-            'onclick="Panels._leaseRenew(\'' + E(cl.id) + '\')"><i class="fas fa-sync-alt mr-1"></i>Renew</button>' +
-            '<button class="px-2 py-1 text-[11px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition" ' +
-            'onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')"><i class="fas fa-external-link-alt"></i></button>';
-          html += '</div></div>';
-
-          html += '</div>'; // card
-        });
-        html += '</div>';
-      }
-      html += '</div>';
-
-      // ═══════════════════════════════════════════════════════════════
-      // SECTION 3: Landlord Cards
-      // ═══════════════════════════════════════════════════════════════
-      html += '<div>' +
-        '<h3 class="text-sm font-bold text-gray-900 mb-3"><i class="fas fa-building mr-2 text-purple-500"></i>Landlords</h3>';
-      if (landlords.length === 0) {
-        html += UI.emptyState('fa-building', 'No landlord clients');
-      } else {
-        html += '<div class="space-y-2">';
-        landlords.forEach(function (cl) {
-          var name = cl._displayName || cl.name || cl.full_name || cl.email || 'Unknown';
-          var email = cl.email || '';
-          var phone = cl.phone || cl.phone_number || '';
-
-          html += '<div class="card px-4 py-3">';
-
-          // Row 1: Name + contact + property
-          html += '<div class="flex items-center justify-between gap-3">' +
-            '<div class="flex items-center gap-3 min-w-0 flex-1">' +
-              UI.avatar(name, 28) +
-              '<div class="min-w-0">' +
-                '<span class="font-bold text-sm text-gray-900 truncate">' + E(name) + '</span>' +
-                '<span class="text-xs text-gray-400 ml-2">' +
-                  (email ? E(email) : '') +
-                  (phone ? ' \u00b7 ' + E(phone) : '') +
-                '</span>' +
-              '</div>' +
-            '</div>' +
-            '<div class="flex gap-1.5 flex-shrink-0">' +
-              (email ? '<a href="mailto:' + E(email) + '" class="px-2 py-1 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded transition"><i class="fas fa-envelope mr-1"></i>Contact</a>' : '') +
-              '<button class="px-2 py-1 text-[11px] font-bold text-green-700 bg-green-50 hover:bg-green-100 rounded transition" ' +
-              'onclick="Panels._leaseListForRent(\'' + E(cl.id) + '\')"><i class="fas fa-home mr-1"></i>List for Rent</button>' +
-              '<button class="px-2 py-1 text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded transition" ' +
-              'onclick="Panels._leaseListForSale()"><i class="fas fa-dollar-sign mr-1"></i>List for Sale</button>' +
-              '<button class="px-2 py-1 text-[11px] font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition" ' +
-              'onclick="Router.navigate(\'/workspace/client/' + E(cl.id) + '/overview\')"><i class="fas fa-external-link-alt"></i></button>' +
-            '</div>' +
-          '</div>';
-
-          // Row 2: Property + legal owner + last contact
-          html += '<div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">' +
-            '<span><i class="fas fa-map-marker-alt text-gray-400 mr-1"></i>' + E(cl._fullAddress || '\u2014') + '</span>';
-          if (cl._legalOwner) html += '<span><span class="font-semibold text-gray-700">Owner:</span> ' + E(cl._legalOwner) + '</span>';
-          html += '<span><span class="font-semibold text-gray-700">Last Contact:</span> ' +
-            (cl._lastContact ? Utils.formatTimeAgo(cl._lastContact) : '\u2014') + '</span>' +
-          '</div>';
-
-          html += '</div>'; // card
-        });
-        html += '</div>';
-      }
-      html += '</div>';
-
-      html += '</div>'; // space-y
-      c.innerHTML = html;
-    });
-  }
-
-  function _leaseStatus(daysLeft) {
-    if (daysLeft === null) return { badge: '<span class="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[9px] font-bold">Unknown</span>', textClass: 'text-gray-400' };
-    if (daysLeft < 0) return { badge: '<span class="px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded text-[9px] font-bold">Expired</span>', textClass: 'text-gray-500' };
-    if (daysLeft <= 30) return { badge: '<span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold">Expiring</span>', textClass: 'text-red-600' };
-    if (daysLeft <= 90) return { badge: '<span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-[9px] font-bold">Soon</span>', textClass: 'text-yellow-600' };
-    return { badge: '<span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[9px] font-bold">Active</span>', textClass: 'text-green-600' };
-  }
-
-  function _leaseConvertToBuyer(clientId, clientName) {
-    if (!confirm('Convert ' + (clientName || 'this renter') + ' to a buyer client?')) return;
-    MallanAPI.clients.update(clientId, { type: 'buyer', client_type: 'buyer' }).then(function () {
-      Events.log('lease_convert_to_buyer', 'client', clientId, { from: 'renter', to: 'buyer' });
-      CRM.toast('Client converted to buyer', 'success');
-      leaseTracking(); // refresh
-    }).catch(function (err) {
-      CRM.toast('Error converting client: ' + (err.message || 'Unknown error'), 'error');
-    });
-  }
-
-  function _leaseRenew(clientId) {
-    // Navigate to client workspace pipeline tab for renewal actions
-    Router.navigate('/workspace/client/' + clientId + '/pipeline');
-  }
-
-  function _leaseListForRent(clientId) {
-    // Navigate to client workspace then open rental form
-    window.open('RENTAL-FORM-REDESIGN.html', '_blank');
-  }
-
-  function _leaseListForSale() {
-    window.open('SALE-FORM-REDESIGN.html', '_blank');
-  }
+  // The old client-side "Lease Tracking" panel (an unreachable second lease tracker with mail-app
+  // links) was removed 2026-10-27: the Lease Tracker panel (public/crm/js/dashboard/panels/lease-tracker.js)
+  // is the one tenancy workflow (Master §13, §15, §22.7).
 
   // ═══════════════════════════════════════════════════════════════════════
   // SETTINGS
@@ -13293,7 +12928,6 @@ var Panels = (function () {
     dealsCommissions: dealsCommissions,
     personalRevenue: personalRevenue,
     marketActivity: marketActivity,
-    leaseTracking: leaseTracking,
 
     // Settings
     profile: profile,
@@ -13352,6 +12986,9 @@ var Panels = (function () {
     _filterClients: _filterClients,
     _composeEmail: _composeEmail,
     _submitEmail: _submitEmail,
+    _composeTo: _composeTo,
+    _composeToEmail: _composeToEmail,
+    _sendBuyVsRent: _sendBuyVsRent,
     _composeSMS: _composeSMS,
     _submitSMS: _submitSMS,
     _updateSMSCharCount: _updateSMSCharCount,
@@ -13478,10 +13115,6 @@ var Panels = (function () {
     _editWatchAreas: _editWatchAreas,
     _saveWatchAreas: _saveWatchAreas,
     _sendMarketItem: _sendMarketItem,
-    _leaseConvertToBuyer: _leaseConvertToBuyer,
-    _leaseRenew: _leaseRenew,
-    _leaseListForRent: _leaseListForRent,
-    _leaseListForSale: _leaseListForSale,
     systemHealth: systemHealth,
     _runValidator: _runValidator,
     _saveValidatorResults: _saveValidatorResults,

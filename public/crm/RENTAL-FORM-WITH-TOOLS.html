@@ -131,11 +131,13 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 <script src="js/core/api-client.js"></script>
 <script src="js/forms/listing-hydration.js"></script>
 <script src="js/forms/listing-open-houses.js"></script>
+<script src="js/core/listing-viewer-live.js"></script>
 <script>
 // The page is served by the application it calls, so API requests go to the same origin (whatever host that is: localhost, a preview, production).
 // Pointing a page at another origin is an explicit choice: set window.MALLAN_API_BASE before this script.
 (function() {
     if (typeof MallanAPI !== 'undefined' && window.MALLAN_API_BASE) MallanAPI.configure({ baseUrl: String(window.MALLAN_API_BASE) });
+    else if (typeof MallanAPI !== 'undefined') MallanAPI.configure({ baseUrl: location.origin }); /* the origin the page is served from: mallan.nyc in production, a preview or a local run otherwise (2026-10-27) */
 })();
 </script>
 </head>
@@ -622,9 +624,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div class="flex items-end pb-2">
                     <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalRentControl" class="w-4 h-4" data-concept="RentControlYN"> Rent controlled</label>
                 </div>
-                <div class="flex items-end pb-2">
-                    <label class="flex items-center gap-2 cursor-pointer text-sm" title="Cotality SponsorUnitYN describes the listed unit, not the building"><input type="checkbox" id="rentalSponsorUnit" class="w-4 h-4" data-concept="SponsorUnitYN"> This unit is a sponsor unit</label>
-                </div>
                 <div class="sm:col-span-2 lg:col-span-3">
                     <label class="field-label">Rent Includes</label>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="rentalRentIncludesGroup">
@@ -725,8 +724,16 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             <label class="field-label mb-2">Building Status</label>
                             <div class="space-y-2">
                                 <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalBuildingStatus" value="Existing" class="w-4 h-4" checked data-concept-disposition="mallan-internal"> Existing</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalBuildingStatus" value="NewDevelopment" class="w-4 h-4"> New Development</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalBuildingStatus" value="NewConversion" class="w-4 h-4"> New Conversion</label>
+                                <label class="radio-card flex items-center gap-2 text-sm" title="New construction — Cotality NewConstructionYN"><input type="radio" name="rentalBuildingStatus" value="NewDevelopment" class="w-4 h-4" data-concept="NewConstructionYN"> New Development (new construction)</label>
+                                <label class="radio-card flex items-center gap-2 text-sm" title="Mallan-only: Cotality has no conversion field"><input type="radio" name="rentalBuildingStatus" value="NewConversion" class="w-4 h-4" data-concept-disposition="mallan-internal"> New Conversion</label>
+                            </div>
+                            <!-- Sponsor Unit is independent of Building Status (REBNY SponsorUnitYN): no board approval, new or older building -->
+                            <div class="mt-3 pt-3 border-t">
+                                <label class="block text-xs font-medium text-gray-600 mb-2">Sponsor Unit <span class="font-normal text-gray-400">— rented by the sponsor or the holder of unsold shares, no board approval; any ownership, new or older building</span></label>
+                                <div class="flex gap-4">
+                                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalSponsorUnit" value="No" class="w-4 h-4" data-concept="SponsorUnitYN"> No</label>
+                                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalSponsorUnit" value="Yes" class="w-4 h-4"> Yes</label>
+                                </div>
                             </div>
                         </div>
                         <!-- REBNY RLS Ownership Type — raw Cotality field key: CommonInterest -->
@@ -3244,7 +3251,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 
             <!-- Videos -->
             <div class="mb-8">
-                <h4 class="font-semibold text-gray-900 mb-3">Videos</h4>
+                <h4 class="font-semibold text-gray-900 mb-3">Videos <span class="text-xs text-gray-500 font-normal">(unbranded links from RLS · <span id="rentalVideosCount">0</span> on file)</span></h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Video URL</label>
@@ -3266,7 +3273,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div id="rentalFloorPlanList" class="space-y-1 text-sm"><p class="text-sm text-gray-500 italic">Loading floor plans...</p></div>
             </div>
 
-            <!-- 3D Virtual Tours (the Unbranded Tour URL is sent as RLS/RESO/IDX VirtualTourURLUnbranded; the others are saved under their own ids) -->
+            <!-- 3D Virtual Tours — the same six boxes as the Add form: the Unbranded Tour URL is the one sent (Cotality VirtualTourURLUnbranded); the others are saved under their own ids -->
             <div class="mb-8">
                 <h4 class="font-semibold text-gray-900 mb-3">3D Virtual Tours</h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -3599,10 +3606,10 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLandmark" class="w-4 h-4" data-concept="LandmarkStatusYN"> Landmark Building</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgHistoric" class="w-4 h-4"> Historic District</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLEED" class="w-4 h-4"> LEED Certified</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewConstruction" class="w-4 h-4" data-concept="NewConstructionYN"> New Construction</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewDevelopment" class="w-4 h-4" data-concept="NewConstructionYN"> New Development</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm" title="Mirrors Building Status = New Development (Essentials) — Cotality NewConstructionYN"><input type="checkbox" id="bldgNewConstruction" class="w-4 h-4" data-concept="NewConstructionYN"> New Construction (new development)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgConversion" class="w-4 h-4"> Conversion</label>
                         </div>
+                        <p class="text-xs text-gray-500 mt-2">Sponsor Unit (no board approval) is a fact about this listing, not the building — shown under Building Status in Essentials (REBNY SponsorUnitYN).</p>
                     </div>
 
                     <div class="flex justify-between mt-4">
@@ -4310,7 +4317,15 @@ function viewerFetchListing(id) {
     if (typeof MallanAPI === 'undefined' || !MallanAPI.listings) {
         return Promise.reject(new Error('The CRM data service is unavailable.'));
     }
-    return MallanAPI.listings.get(id).then(function(apiData) {
+    // An RLS listing is read LIVE from Cotality (js/core/listing-viewer-live.js: one exact ListingId request through the agent search
+    // route, shaped as the CRM record); never a database copy of it. A Mallan-only listing (SL-/RL-) is the CRM record. A Mallan listing
+    // opened on the wrong side fails closed instead of rendering a sale as a rental: the viewer's side is a URL choice, the prefix is the fact.
+    var owned = typeof viewerMallanSide === 'function' ? viewerMallanSide(id) : null;
+    if (owned && owned !== 'rental') {
+        return Promise.reject(new Error(id + ' is a Mallan ' + owned + ' listing — open it in the Sales Tools viewer'));
+    }
+    var request = (!owned && typeof viewerLiveListing === 'function') ? viewerLiveListing(id, 'rental') : MallanAPI.listings.get(id);
+    return request.then(function(apiData) {
         if (!apiData || typeof apiData !== 'object' || Array.isArray(apiData) || (apiData.listing_id === undefined && apiData.id === undefined)) {
             throw new Error('The CRM returned no data for this listing.');
         }
@@ -4489,6 +4504,13 @@ function viewerLoadMedia(prefix, record, refresh) {
     };
     var key = record && (record.listing_id || record.id);
     if (!key || typeof fetch !== 'function') { settle('failed', [], []); return Promise.resolve(); }
+    // A live Cotality listing: its photos and floor plans come from the live media route (the CRM holds no rows for it).
+    if (record._source === 'cotality_live' && typeof viewerLiveMedia === 'function') {
+        return viewerLiveMedia(String(key)).then(function(media) { settle('loaded', media.photos, media.plans); }, function(err) {
+            console.warn('[Viewer] The live listing\'s media could not be read:', err && err.message);
+            settle('failed', [], []);
+        });
+    }
     return fetch('/api/crm/listings/' + encodeURIComponent(String(key)) + '/media', { credentials: 'include' }).then(function(response) {
         if (!response.ok) throw new Error('HTTP ' + response.status);
         return response.json();
@@ -4622,6 +4644,20 @@ function loadRentalListingData(listingId) {
         courtesyEl.style.display = '';
     }
 
+    // The same facts under the ids this form actually uses (unit, building and address panels)
+    viewerSetVal('rentalStreetAddress', d.address);
+    viewerSetVal('rentalUnitNumber', d.unit);
+    viewerSetVal('rentalListingCompanySearch', d.listingCompany);
+    viewerSetVal('rentalFullBathrooms', d.bathroomsFull);
+    viewerSetVal('rentalHalfBathrooms', d.halfBaths);
+    viewerSetVal('rentalTotalRooms', d.roomsTotal);
+    viewerSetVal('rentalOffMarketDate', d.offMarketDate);
+    // a building that names no features leaves these flags unknown (indeterminate), never "No"
+    viewerSetCheck('rentalBldgLaundry', d.laundryFeatures ? /Building|Common|InBuilding/i.test(d.laundryFeatures) : null);
+    viewerSetCheck('rentalElevator', d.buildingFeatures ? /Elevator/i.test(d.buildingFeatures) : null);
+    viewerSetCheck('rentalStorage', d.buildingFeatures ? /Storage/i.test(d.buildingFeatures) : null);
+    viewerSetCheck('rentalBikeRoom', d.buildingFeatures ? /Bike/i.test(d.buildingFeatures) : null);
+
     return d;
 }
 
@@ -4637,7 +4673,7 @@ function convertRentalFormToViewer() {
         return false;
     }
 
-    document.querySelectorAll('input[type="text"], input[type="number"], input[type="email"], input[type="date"], input[type="tel"], input[type="url"], input[type="time"]').forEach(function(el) {
+    document.querySelectorAll('input[type="text"], input[type="number"], input[type="email"], input[type="date"], input[type="datetime-local"], input[type="time"], input[type="month"], input[type="tel"], input[type="url"], input[type="time"]').forEach(function(el) {
         if (isInsideSkipZone(el)) return;
         el.readOnly = true;
         el.tabIndex = -1;
@@ -5455,6 +5491,7 @@ function initLoggedInAgent() {
         return MallanAPI.init().then(function(data) {
             if (data.authenticated && data.user) {
                 populate(data.user);
+                if ((typeof VIEWER_MODE === 'undefined' || !VIEWER_MODE) && typeof initLoggedInAgent.preselectAgentCompany === 'function') initLoggedInAgent.preselectAgentCompany(data.user);
                 var agentDisplay = document.getElementById('rentalUpdatingAgentDisplay');
                 if (agentDisplay && data.user.id && data.user.name) {
                     agentDisplay.value = data.user.id + ' | ' + data.user.name;
@@ -6857,9 +6894,9 @@ function updateRentalPreview() {
     document.querySelectorAll('#rentalMainTab4 [data-state="yes"]').forEach(badge => distroChecked.push(badge.textContent.trim().split('\n')[0].trim()));
     setText('rentalPreviewDistro', distroChecked.length ? distroChecked.join(', ') : '--');
     setText('rentalPreviewPhotos', viewerPhotoCountText('rental'));
-    const videoURL = document.getElementById('rentalVideoURL');
+    const videoURL = document.getElementById('rentalVideoUrl');
     setText('rentalPreviewCRMVideo', videoURL && videoURL.value ? 'Yes' : 'None');
-    const tourURL = document.getElementById('rentalVirtualTourURL') || document.getElementById('rentalTourURL');
+    const tourURL = document.getElementById('rentalVirtualTourUnbranded');
     setText('rentalPreviewCRMTour', tourURL && tourURL.value ? 'Yes' : 'None');
 
     // Card 5: Townhouse / Building (conditional)
@@ -7865,6 +7902,7 @@ function showTransitNote(box, message) {
 }
 
 function updateRentalTransit() {
+    if (!document.getElementById('rentalTransitResults')) return; // transit panel not present in this view
     var box = document.getElementById('rentalTransitResults');
     var zip = getRentalFormValue('rentalZipCode');
     if (!zip) { showTransitNote(box, 'This listing has no ZIP code, so no nearby transit can be worked out.'); return; }

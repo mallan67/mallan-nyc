@@ -77,19 +77,44 @@ export async function POST(request: NextRequest) {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
+    // An inquiry ON A LISTING is a working lead (owner rule, 2026-10-28): it is created ACTIVE, linked to that property
+    // (active_sale_listing_id / active_rental_listing_id) and ASSIGNED to the listing's agent — or, for a Cotality listing
+    // Mallan does not list, to the brokerage's principal broker. A lead that already exists keeps its agent; its status
+    // becomes active and the property link is set. An inquiry without a listing stays a 'new' website lead.
+    const normalizedEmail = email.toLowerCase().trim();
+    const listingRef = listingId ? String(listingId).trim() : '';
+    const linkedListing = listingRef
+      ? await prisma.listing.findFirst({
+          where: { OR: [{ listing_id: listingRef }, { mls_id: listingRef }] },
+          select: { listing_id: true, listing_type: true, agent_id: true },
+        })
+      : null;
+    let assignedAgentId: bigint | null = linkedListing?.agent_id ?? null;
+    if (listingRef && !assignedAgentId) {
+      const broker = await prisma.agent.findFirst({ where: { role: 'BROKER' }, orderBy: { id: 'asc' }, select: { id: true } });
+      assignedAgentId = broker?.id ?? null;
+    }
+    const isRentalInquiry = linkedListing?.listing_type === 'rent';
+    const propertyLink = listingRef
+      ? (isRentalInquiry ? { active_rental_listing_id: listingRef } : { active_sale_listing_id: listingRef })
+      : {};
+    const existingLead = listingRef ? await prisma.lead.findUnique({ where: { email: normalizedEmail }, select: { agent_id: true } }) : null;
+
     // Upsert lead — if email already exists, update; otherwise create new
     const consentNow = new Date();
     const lead = await prisma.lead.upsert({
-      where: { email: email.toLowerCase().trim() },
+      where: { email: normalizedEmail },
       create: {
         first_name: firstName,
         last_name: lastName,
-        email: email.toLowerCase().trim(),
+        email: normalizedEmail,
         phone: sanitizedPhone,
-        roles: ['buyer'],
-        status: 'new',
+        roles: [isRentalInquiry ? 'renter' : 'buyer'],
+        status: listingRef ? 'active' : 'new',
         source: isCalculatorLead ? 'calculator' : 'website',
         consent_captured_at: consentNow,
+        ...(assignedAgentId ? { agent_id: assignedAgentId } : {}),
+        ...propertyLink,
       },
       update: {
         // Update phone if provided (lead may have changed number)
@@ -97,6 +122,9 @@ export async function POST(request: NextRequest) {
         // Record consent timestamp if not already set
         consent_captured_at: consentNow,
         updated_at: new Date(),
+        // an inquiry on a listing makes the lead active, links the property and assigns it when nobody has it yet
+        ...(listingRef ? { status: 'active', ...propertyLink } : {}),
+        ...(listingRef && assignedAgentId && !existingLead?.agent_id ? { agent_id: assignedAgentId } : {}),
       },
     });
 

@@ -99,11 +99,14 @@ describe('MallanAPI: what a failed request tells its caller', () => {
     expect(unauthorized.status).toBe(401);
     expect(unauthorized._events).toEqual(['unauthorized']);
     expect(unauthorized.details).toBeUndefined();
-    const denied = await failure(update, { status: 403, body: { error: 'Not your listing' } });
-    expect(denied.message).toBe('Access denied');
+    // a refused access keeps the server's words and body: a consent gate is a 403 with a message and a gate code the panel shows verbatim (client communications, 2026-10-27)
+    const denied = await failure(update, { status: 403, body: { error: 'Not your listing', gate: 'owner' } });
+    expect(denied.message).toBe('Not your listing');
     expect(denied.status).toBe(403);
     expect(denied._events).toEqual([]);
-    expect(denied.details).toBeUndefined();
+    expect(denied.details).toEqual({ error: 'Not your listing', gate: 'owner' });
+    const deniedWordless = await failure(update, { status: 403, body: {} });
+    expect(deniedWordless.message).toBe('Access denied');
   });
 
   it('passes a failure that has no answer on as it is, with no status (the network is down: nothing is known)', async () => {

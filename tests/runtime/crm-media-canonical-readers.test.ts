@@ -473,7 +473,13 @@ describe('/api/crm/listings — the grid media array reads the canonical composi
     listingCount.mockResolvedValueOnce(0);
     await crmListingsGET(gridRequest());
     const where = listingFindMany.mock.calls[0][0].where as Record<string, unknown>;
-    expect(where.agent_id).toBe(BigInt(42));
+    // 2026-10-27: the agent scope is the second AND branch — assignment (agent_id) or the
+    // agent's REBNY member id on the list / co-list side — applied inside the Mallan-own set.
+    const and = where.AND as Array<{ OR: Array<Record<string, unknown>> }>;
+    expect(Array.isArray(and)).toBe(true);
+    expect(and).toHaveLength(2);
+    expect(and[1].OR).toEqual(expect.arrayContaining([{ agent_id: BigInt(42) }]));
+    expect(where.agent_id).toBeUndefined();
   });
 
   it('the widened select fetches active-only rows PLUS the all-status _count', async () => {

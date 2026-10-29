@@ -32,6 +32,9 @@
     "app/api/**/*.ts": {
       "maxDuration": 30
     },
+    "app/api/idx/search/route.ts": {
+      "maxDuration": 60
+    },
     "app/api/cron/data-retention-finalize/route.ts": {
       "maxDuration": 120
     },

@@ -10,11 +10,12 @@
  * Proof obligations (per the hotfix spec):
  *  1. absent from the UI source (search-form-and-results.html)
  *  2. absent from the served bundle (index-built.html)
- *  3. ignored server-side even if a client submits it (buildCrmIdxODataFilter)
+ *  3. refused server-side even if a client submits it (buildCrmIdxQuery) — it never
+ *     reaches the Cotality filter or the Mallan-applied criteria.
  */
 import { readFileSync } from 'fs';
 import * as path from 'path';
-import { buildCrmIdxODataFilter } from '@/lib/search/crm-idx-filter';
+import { buildCrmIdxQuery } from '@/lib/search/crm-idx-filter';
 
 const CRM = path.resolve(__dirname, '../../public/crm');
 const read = (p: string) => readFileSync(path.join(CRM, p), 'utf8');
@@ -39,21 +40,30 @@ describe('Fair Housing — no "Diplomats" CRM search filter', () => {
   });
 });
 
-describe('Fair Housing — server drops a submitted Diplomats filter', () => {
+describe('Fair Housing — server refuses a submitted Diplomats filter', () => {
   const buildWith = (checkboxFilters: Record<string, string[]>) => {
     const params = new URLSearchParams();
     params.set('checkboxFilters', JSON.stringify(checkboxFilters));
-    return buildCrmIdxODataFilter(params);
+    return buildCrmIdxQuery(params);
   };
 
   it('emits no OData clause for a {"CRM":["DiplomatsAllowed"]} submission', () => {
-    const odata = buildWith({ CRM: ['DiplomatsAllowed'] });
-    expect(odata).not.toMatch(/Diplomat/i);
-    expect(odata).not.toMatch(/\bCRM\b/);
+    const query = buildWith({ CRM: ['DiplomatsAllowed'] });
+    expect(query.filter).not.toMatch(/Diplomat/i);
+    expect(query.filter).not.toMatch(/\bCRM\b/);
+    expect(query.refused.length).toBeGreaterThan(0);
   });
 
   it('does not leak the raw value even alongside a legitimate filter', () => {
-    const odata = buildWith({ CRM: ['DiplomatsAllowed'], PetsAllowedYN: ['true'] });
-    expect(odata).not.toMatch(/Diplomat/i);
+    const query = buildWith({ CRM: ['DiplomatsAllowed'], GarageYN: ['true'] });
+    expect(query.filter).not.toMatch(/Diplomat/i);
+    expect(query.local).toEqual([]);
+  });
+
+  it('is refused inside the REBNY BuildingRules key, so Mallan never applies it either', () => {
+    const query = buildWith({ BuildingRules: ['DiplomatsAllowed'] });
+    expect(query.filter).not.toMatch(/Diplomat/i);
+    expect(query.local).toEqual([]);
+    expect(query.refused[0].reason).toMatch(/Fair Housing/);
   });
 });

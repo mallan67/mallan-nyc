@@ -169,7 +169,7 @@ var Workspace = (function () {
         actionBarExtra +
       '</div>' +
       '<div class="action-group">' +
-        (cl.email ? '<a href="mailto:' + E(cl.email) + '" class="btn btn-sm btn-outline"><i class="fas fa-envelope"></i></a>' : '') +
+        (cl.email ? '<button class="btn btn-sm btn-outline" title="Email ' + E(cl.email) + '" onclick="Panels._composeTo(\'' + E(cl.id) + '\',\'\')"><i class="fas fa-envelope"></i></button>' : '') +
         (cl.phone ? '<a href="tel:' + E(cl.phone) + '" class="btn btn-sm btn-outline"><i class="fas fa-phone"></i></a>' : '') +
       '</div>' +
     '</div>';
@@ -264,7 +264,7 @@ var Workspace = (function () {
         '<button class="w-full text-left text-sm p-2 rounded hover:bg-gray-50" onclick="Workspace._addPipelineTask()"><i class="fas fa-tasks text-xs text-gray-400 mr-2"></i>Add Task</button>' +
         '<button class="w-full text-left text-sm p-2 rounded hover:bg-gray-50" onclick="Workspace._addActivityNote()"><i class="fas fa-sticky-note text-xs text-gray-400 mr-2"></i>Add Note</button>' +
         '<button class="w-full text-left text-sm p-2 rounded hover:bg-gray-50" onclick="Workspace._scheduleShowing()"><i class="fas fa-calendar-plus text-xs text-gray-400 mr-2"></i>Schedule Showing</button>' +
-        (cl.email ? '<a class="w-full text-left text-sm p-2 rounded hover:bg-gray-50 block" href="mailto:' + E(cl.email) + '"><i class="fas fa-envelope text-xs text-gray-400 mr-2"></i>Email</a>' : '') +
+        (cl.email ? '<button class="w-full text-left text-sm p-2 rounded hover:bg-gray-50" onclick="Panels._composeTo(\'' + E(cl.id) + '\',\'\')"><i class="fas fa-envelope text-xs text-gray-400 mr-2"></i>Email</button>' : '') +
         (cl.phone ? '<a class="w-full text-left text-sm p-2 rounded hover:bg-gray-50 block" href="tel:' + E(cl.phone) + '"><i class="fas fa-phone text-xs text-gray-400 mr-2"></i>Call</a>' : '') +
         (Permissions.can('delete_client') ? '<button class="w-full text-left text-sm p-2 rounded hover:bg-red-50 text-red-600 mt-2 border-t" onclick="Workspace._deleteClient()"><i class="fas fa-trash-alt text-xs mr-2"></i>Delete Client</button>' : '') +
       '</div></div>';
@@ -1882,6 +1882,27 @@ var Workspace = (function () {
     });
   }
 
+  // The listings this client owns (seller / landlord): GET /api/crm/listings?owner_client_id=… reads the typed relationship Listing.owner_client_id.
+  function _renderClientOwnedListings() {
+    var el = document.getElementById('wsClientOwned');
+    if (!el) return;
+    MallanAPI.listings.list({ owner_client_id: _clientId, limit: 50 }).then(function (res) {
+      var listings = (res && res.listings) || [];
+      if (!listings.length) { el.innerHTML = '<p class="text-sm text-gray-500">No listings owned by this client. Link one in the Sale or Rental form (Owner picker).</p>'; return; }
+      var html = '<div class="space-y-2">';
+      listings.forEach(function (l) {
+        var price = Number(l.list_price || 0);
+        html += '<div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gold-bg transition-all cursor-pointer" onclick="Router.navigate(\'/workspace/listing/' + E(l.id) + '/overview\')">' +
+          '<div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">' + E(_resolveAddr(l.address) || l.UnparsedAddress || l.listing_id || 'Listing') + '</p>' +
+          '<p class="text-xs text-gray-500">' + E(l.listing_id || '') + ' · ' + (l.listing_type === 'rent' ? 'Rental' : 'Sale') + (price ? ' · $' + price.toLocaleString() : '') + '</p></div>' +
+          '<span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">' + E(l.status || '') + '</span></div>';
+      });
+      el.innerHTML = html + '</div>';
+    }).catch(function (err) {
+      el.innerHTML = '<p class="text-sm text-gray-500">Could not load owned listings' + (err && err.message ? ': ' + E(err.message) : '') + '</p>';
+    });
+  }
+
   function _clientListings(el) {
     var cl = _client;
     var prefs = cl.preferences || {};
@@ -1893,6 +1914,10 @@ var Workspace = (function () {
       '<h3 class="text-sm font-bold text-gray-700">Listings for ' + E(cl.name || 'Client') + '</h3>' +
       '<button class="btn btn-sm btn-gold" onclick="CRM.quickSendListing()"><i class="fas fa-paper-plane"></i> Send Listing</button>' +
     '</div>';
+
+    // Owned Listings — the exclusives this client OWNS (seller / landlord): Listing.owner_client_id → this client, set in the Sale / Rental form's Owner picker
+    html += '<div class="card"><div class="card-header"><h3>Owned Listings</h3></div>' +
+      '<div class="card-body" id="wsClientOwned">' + UI.loading() + '</div></div>';
 
     // Sent Listings
     html += '<div class="card"><div class="card-header"><h3>Sent Listings</h3></div>' +
@@ -1972,6 +1997,7 @@ var Workspace = (function () {
 
     // ── Load Sent Listings (API-first, fallback to Events) ──
     _renderClientExternalListings();
+    _renderClientOwnedListings();
 
     var sentEl = document.getElementById('wsClientSent');
     if (sentEl) {
@@ -4810,11 +4836,28 @@ var Workspace = (function () {
     });
   }
 
+  // Which side a listing belongs to, so View / Edit open the matching Tools viewer and entry form.
+  // Owner definition: SL- is a Mallan sale listing, RL- is a Mallan rental listing — the prefix is
+  // the fact. An RLS listing goes by its CRM listing_type ("rent") or live PropertyType
+  // ("Residential Lease"); the old /rent/ test on PropertyType alone missed "Residential Lease".
+  function _listingSide(id, l) {
+    if (/^RL-/i.test(id || '')) return 'rental';
+    if (/^SL-/i.test(id || '')) return 'sale';
+    var kind = [l.listing_type, l.PropertyType, l.property_type, l.PropertySubType].join(' ');
+    return /rent|lease/i.test(kind) ? 'rental' : 'sale';
+  }
+  // The entry form that edits the open listing, on its own side: Edit, Adjust Price, Fix Now,
+  // Review and Review Pricing all go through here (they used to hard-code the sale form).
+  function _listingFormUrl() {
+    return '/crm/' + _listingSide(_listingId, _listing || {}) + '-listing?id=' + E(_listingId);
+  }
+
   function _renderListingWorkspace(c) {
     var l = _listing;
     var address = _resolveAddr(l.address) || l.UnparsedAddress || 'No address';
     var price = l.ListPrice || l.price || l.list_price;
     var status = l.status || l.StandardStatus || 'Active';
+    var side = _listingSide(_listingId, l);
 
     var html = '<div class="space-y-0">';
 
@@ -4830,8 +4873,8 @@ var Workspace = (function () {
           '</div>' +
         '</div>' +
         '<div class="flex gap-2">' +
-          '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/sale-view?id=' + E(_listingId) + '\',\'_blank\')"><i class="fas fa-eye"></i> View</button>' +
-          (Permissions.canEditListing(l) ? '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')"><i class="fas fa-edit"></i> Edit</button>' : '') +
+          '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + side + '-view?id=' + E(_listingId) + '\',\'_blank\')"><i class="fas fa-eye"></i> View</button>' +
+          (Permissions.canEditListing(l) ? '<button class="btn btn-sm btn-gold" onclick="window.open(\'' + _listingFormUrl() + '\',\'_blank\')"><i class="fas fa-edit"></i> Edit</button>' : '') +
         '</div>' +
       '</div>' +
       '<div class="flex flex-wrap gap-4 mt-3 text-xs text-gray-500">' +
@@ -4844,8 +4887,8 @@ var Workspace = (function () {
     // Tabs
     html += UI.tabs(LISTING_TABS, _listingTab, 'Workspace.switchListingTab');
 
-    // Sticky action bar
-    var isRental = /rent/i.test(l.PropertyType || l.property_type || l.PropertySubType || '');
+    // Sticky action bar — same side as the header buttons
+    var isRental = side === 'rental';
     html += '<div class="workspace-action-bar">' +
       '<div class="action-group">' +
         '<button class="btn btn-sm btn-gold" onclick="CRM.quickSendListing()"><i class="fas fa-paper-plane"></i> <span class="hidden sm:inline">Send</span></button>' +
@@ -5036,7 +5079,7 @@ var Workspace = (function () {
       detail: dom > 90 ? 'Active for ' + dom + ' days — strongly consider a price adjustment or new marketing strategy' :
               dom > 60 ? 'Approaching stale territory — monitor closely and prepare contingency plan' :
               'Within normal range',
-      action: dom > 60 ? '<button class="btn btn-xs btn-outline mt-1" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Adjust Price</button>' : '',
+      action: dom > 60 ? '<button class="btn btn-xs btn-outline mt-1" onclick="window.open(\'' + _listingFormUrl() + '\',\'_blank\')">Adjust Price</button>' : '',
     });
 
     // 2. No Inquiries
@@ -5447,7 +5490,7 @@ var Workspace = (function () {
     var desc = (issue.description || '').toLowerCase();
     if (type === 'Fair Housing Risk') {
       return { hint: 'Review and edit the listing description to remove flagged language',
-        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Fix Now</button>' };
+        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'' + _listingFormUrl() + '\',\'_blank\')">Fix Now</button>' };
     }
     if (desc.indexOf('no photos') >= 0 || desc.indexOf('photo') >= 0) {
       return { hint: 'Upload property photos to meet media requirements',
@@ -5455,26 +5498,26 @@ var Workspace = (function () {
     }
     if (desc.indexOf('idx display') >= 0) {
       return { hint: 'Enable IDX display in the listing form Distribution tab',
-        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Fix Now</button>' };
+        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'' + _listingFormUrl() + '\',\'_blank\')">Fix Now</button>' };
     }
     if (desc.indexOf('price') >= 0 && desc.indexOf('missing') >= 0) {
       return { hint: 'Add a list price to the listing',
-        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Fix Now</button>' };
+        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'' + _listingFormUrl() + '\',\'_blank\')">Fix Now</button>' };
     }
     if (desc.indexOf('address') >= 0 && desc.indexOf('missing') >= 0) {
       return { hint: 'Add a valid address to the listing',
-        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Fix Now</button>' };
+        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'' + _listingFormUrl() + '\',\'_blank\')">Fix Now</button>' };
     }
     if (desc.indexOf('owner opt-out') >= 0) {
       return { hint: 'This listing has Owner Opt-Out enabled — it must not be displayed publicly per REBNY rules', button: '' };
     }
     if (desc.indexOf('hold') >= 0 || desc.indexOf('coming soon') >= 0) {
       return { hint: 'Review protected period status and update status if applicable',
-        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Review</button>' };
+        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'' + _listingFormUrl() + '\',\'_blank\')">Review</button>' };
     }
     if (desc.indexOf('stale') >= 0 || desc.indexOf('active for') >= 0) {
       return { hint: 'Consider a price adjustment or new marketing strategy',
-        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Adjust</button>' };
+        button: '<button class="btn btn-xs btn-outline flex-shrink-0" onclick="window.open(\'' + _listingFormUrl() + '\',\'_blank\')">Adjust</button>' };
     }
     return { hint: 'Review and address this issue in the listing form', button: '' };
   }
@@ -5635,7 +5678,7 @@ var Workspace = (function () {
           html += '<div class="flex gap-2 mt-3 pl-11">' +
             '<button class="btn btn-xs btn-gold" onclick="Workspace._convertInquiryToLead(\'' + E(inqId) + '\',\'' + E(name) + '\',\'' + E(email) + '\',\'' + E(phone) + '\',\'' + E(source) + '\')"><i class="fas fa-user-plus"></i> Convert to Lead</button>' +
             '<button class="btn btn-xs btn-outline" onclick="Workspace._createClientFromInquiry(\'' + E(name) + '\',\'' + E(email) + '\',\'' + E(phone) + '\')"><i class="fas fa-address-card"></i> Create Client</button>' +
-            (email ? '<a class="btn btn-xs btn-outline" href="mailto:' + E(email) + '?subject=' + encodeURIComponent('RE: ' + (_listing.address || _listing.UnparsedAddress || 'Your Inquiry')) + '"><i class="fas fa-reply"></i> Respond</a>' : '') +
+            (email ? '<button class="btn btn-xs btn-outline" onclick="Panels._composeToEmail(\'' + E(email) + '\',\'' + E('RE: ' + (_listing.address || _listing.UnparsedAddress || 'Your Inquiry')) + '\')"><i class="fas fa-reply"></i> Respond</button>' : '') +
           '</div>' +
           '</div>';
         });
@@ -6122,7 +6165,7 @@ var Workspace = (function () {
             '</div>' +
             '<p class="text-sm font-bold mt-1">' + E(label) + '</p>' +
             '<p class="text-xs text-gray-500 mt-1">' + E(detail) + '</p>' +
-            (pct > 15 ? '<button class="btn btn-xs btn-outline mt-1" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')">Review Pricing</button>' : '') +
+            (pct > 15 ? '<button class="btn btn-xs btn-outline mt-1" onclick="window.open(\'' + _listingFormUrl() + '\',\'_blank\')">Review Pricing</button>' : '') +
           '</div>' +
         '</div>';
       }).catch(function () {

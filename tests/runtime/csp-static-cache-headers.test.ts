@@ -71,6 +71,15 @@ describe('public CSP is static, present, and restrictive', () => {
 });
 
 describe('cache policy: private no-store, public GET data APIs cacheable', () => {
+  it('CRM page frames exactly the tour hosts the agent search embeds', () => {
+    const { res, headers } = fakeRes();
+    applySecurityHeaders(res, '/crm/search', 'GET');
+    const frameSrc = (/frame-src ([^;]+)/.exec(headers.get('content-security-policy') || '') || [])[1] || '';
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { TOUR_EMBED_HOSTS } = require('@/lib/search/crm-idx-mapper');
+    expect(frameSrc.split(/\s+/).sort()).toEqual((TOUR_EMBED_HOSTS as string[]).map((h) => `https://${h}`).sort());
+  });
+
   it('CRM page is no-store', () => {
     const { res, headers } = fakeRes();
     applySecurityHeaders(res, '/crm/dashboard', 'GET');

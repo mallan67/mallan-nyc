@@ -1,5 +1,154 @@
-import { resolveListingMedia, tourUrlsForDto } from "@/lib/media/listing-media-resolver";
-import { readCotalityStandardStatus, readCotalityPropertySubType, readCotalityCommonInterest } from "@/lib/cotality/property";
+import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
+import { daysOnMarket, parseCustomFields } from "@/lib/search/crm-idx-filter";
+import { boroughDisplay } from "@/lib/idx/geography";
+// CommonInterest is read through the raw-contract accessor (convergence 2026-10-02 cutover).
+import { readCotalityCommonInterest, readCotalityPropertySubType } from "@/lib/cotality/property";
+
+// Live Cotality carries video and 3D links on Property, not in Media (Media holds only Photo and
+// FloorPlan rows — verified 2026-10-23 and 2026-10-26: 0 Video / 0 UnbrandedVirtualTour rows).
+// Owner rule (2026-10-26): videos and tours use the UNBRANDED links only. The branded fields
+// (VirtualTourURLBranded/2/3) are never read — live, every on-market branded link (336) is also the
+// unbranded link and none is branded-only, so nothing is lost. Display preference order.
+const TOUR_FIELDS = ["VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3"] as const;
+
+export interface ListingTour {
+  url: string;
+  kind: "video" | "3d" | "link";
+  /** A URL safe to place in an iframe, or null when the host only works as a link. */
+  embedUrl: string | null;
+}
+
+// Tour hosts the CRM embeds in place. Each must also be in the CRM Content-Security-Policy frame-src
+// (lib/middleware/security-headers.ts CRM_CSP); every other tour opens in a new tab.
+export const TOUR_EMBED_HOSTS = ["www.youtube.com", "player.vimeo.com", "my.matterport.com", "listing3d.com", "kuula.co"] as const;
+
+export function classifyTourUrl(rawUrl: string): ListingTour {
+  // Live Cotality carries some links without a scheme ("youtube.com/watch?v=…", 7 active sales) or with
+  // text before it ("_https://youtu.be/…", 2026-10-24): use the web address inside the value.
+  const embedded = /https?:\/\/\S+/i.exec(rawUrl)?.[0];
+  const url = embedded ?? (/^[\w-]+(\.[\w-]+)+(\/|$)/.test(rawUrl) ? `https://${rawUrl}` : rawUrl);
+  let host = "";
+  let parsed: URL | null = null;
+  try { parsed = new URL(url); host = parsed.hostname.replace(/^www\./, "").toLowerCase(); } catch { /* not a URL */ }
+  if (parsed && (host === "youtube.com" || host === "m.youtube.com" || host === "youtu.be")) {
+    const id = host === "youtu.be" ? parsed.pathname.slice(1) : parsed.searchParams.get("v") || parsed.pathname.match(/\/(?:embed|shorts|live)\/([^/?#]+)/)?.[1] || "";
+    return { url, kind: "video", embedUrl: id ? `https://www.youtube.com/embed/${id}` : null };
+  }
+  if (parsed && (host === "vimeo.com" || host === "player.vimeo.com")) {
+    const id = parsed.pathname.match(/(\d{5,})/)?.[1];
+    return { url, kind: "video", embedUrl: id ? `https://player.vimeo.com/video/${id}` : null };
+  }
+  if (/(^|\.)wistia\.(com|net)$/.test(host) || /\.(mp4|mov|webm)(\?|$)/i.test(url)) {
+    return { url, kind: "video", embedUrl: null };
+  }
+  if (host === "my.matterport.com" || host === "listing3d.com" || host === "kuula.co") {
+    return { url, kind: "3d", embedUrl: url };
+  }
+  if (/(^|\.)(matterport\.com|youriguide\.com|iguide\.com|cupix\.com|ricoh360\.com|the3dapp\.com|vr-360-tour\.com|3dapartment\.com)$/.test(host)
+      || (host === "zillow.com" && /\/(view-3d-home|view-imx)\//.test(parsed?.pathname || ""))) {
+    return { url, kind: "3d", embedUrl: null };
+  }
+  return { url, kind: "link", embedUrl: null };
+}
+
+export interface AgentContact {
+  name: string;
+  mlsId: string | null;
+  email: string | null;
+  directPhone: string | null;
+  preferredPhone: string | null;
+  mobilePhone: string | null;
+  url: string | null;
+  license: string | null;
+  /** Set by the search route for Mallan's own agents (Mallan agent records); null otherwise. */
+  photo: string | null;
+  /** Co-listing agents: the office in the same slot. */
+  office?: OfficeContact | null;
+}
+export interface OfficeContact { name: string; mlsId: string | null; phone: string | null; email: string | null; url: string | null }
+
+const text = (v: unknown) => (v == null || v === "" ? null : String(v));
+const yn = (v: unknown) => (v === true || v === "true" ? true : v === false || v === "false" ? false : null);
+// Cotality carries placeholder phones such as "-" (live 2026-10-24): a phone needs at least 7 digits.
+const phone = (v: unknown) => (v != null && String(v).replace(/D/g, "").length >= 7 ? String(v).trim() : null);
+
+/**
+ * PublicRemarks is text in RESO, but live Cotality delivers most remarks as HTML: 6,561 of 10,184 Active
+ * listings on 2026-10-27 (`<br>` 51k, `<p>` 41k, `<li>` 7.5k, `<strong>` 6.5k, styled spans). Rendered raw,
+ * the tags broke the report layout and would carry any markup the listing agent typed into the CRM;
+ * escaped, the agent read a literal "<br>". Paragraphs and line breaks are kept as blank lines / newlines,
+ * list items become "• " lines, every other tag is dropped and the common entities are decoded. Plain
+ * remarks pass through untouched.
+ */
+export function remarksToText(v: unknown): string {
+  if (v == null || v === "") return "";
+  let s = String(v);
+  if (!/[<&]/.test(s)) return s.trim();
+  s = s
+    .replace(/<\s*br\s*\/?>/gi, "\n")
+    .replace(/<\s*li\b[^>]*>/gi, "\n• ")
+    .replace(/<\/\s*li\s*>/gi, "\n")
+    .replace(/<\/\s*(p|div|h[1-6]|tr|blockquote|ul|ol)\s*>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "");
+  const named: Record<string, string> = {
+    nbsp: " ", amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", rsquo: "’", lsquo: "‘",
+    rdquo: "”", ldquo: "“", mdash: "—", ndash: "–", hellip: "…", bull: "•",
+  };
+  s = s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, code: string) => {
+    const c = code.toLowerCase();
+    if (c[0] === "#") {
+      const n = c[1] === "x" ? parseInt(c.slice(2), 16) : parseInt(c.slice(1), 10);
+      return Number.isFinite(n) && n > 0 && n < 0x110000 ? String.fromCodePoint(n) : m;
+    }
+    return c in named ? named[c] : m;
+  });
+  return s
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\n\n(• )/g, "\n$1") // bullets stay single-spaced
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+/** One agent's contact from the Property fields with this prefix (ListAgent, CoListAgent, CoListAgent2…). */
+export function agentContact(raw: Record<string, unknown>, prefix: string): AgentContact {
+  return {
+    name: String(raw[`${prefix}FullName`] || ""),
+    mlsId: text(raw[`${prefix}MlsId`]),
+    email: text(raw[`${prefix}Email`]),
+    directPhone: phone(raw[`${prefix}DirectPhone`]),
+    preferredPhone: phone(raw[`${prefix}PreferredPhone`]),
+    mobilePhone: phone(raw[`${prefix}MobilePhone`]),
+    url: text(raw[`${prefix}URL`]),
+    license: text(raw[`${prefix}StateLicense`]),
+    photo: null,
+  };
+}
+
+/** One office's contact from the Property fields with this prefix (ListOffice, CoListOffice, CoListOffice2). */
+export function officeContact(raw: Record<string, unknown>, prefix: string): OfficeContact {
+  return {
+    name: String(raw[`${prefix}Name`] || ""),
+    mlsId: text(raw[`${prefix}MlsId`]),
+    phone: phone(raw[`${prefix}Phone`]),
+    email: text(raw[`${prefix}Email`]),
+    url: text(raw[`${prefix}URL`]),
+  };
+}
+
+export function listingTours(raw: Record<string, unknown>): ListingTour[] {
+  const seen = new Set<string>();
+  const tours: ListingTour[] = [];
+  for (const field of TOUR_FIELDS) {
+    const url = raw[field] ? String(raw[field]).trim() : "";
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    tours.push(classifyTourUrl(url));
+  }
+  return tours;
+}
+
 
 // REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
 // the IDX Plus feed upstream, leaving InternetEntireListingDisplayYN and
@@ -67,6 +216,7 @@ export function mapTrestleToCrmListing(
   raw: Record<string, unknown>,
   index: number,
 ): Record<string, unknown> {
+  const permission = String(raw.Permission || "").split(",").map((v) => v.trim()).filter(Boolean);
   const streetParts = [
     raw.StreetNumber,
     raw.StreetDirPrefix,
@@ -82,7 +232,6 @@ export function mapTrestleToCrmListing(
   const yearBuilt = raw.YearBuilt != null ? Number(raw.YearBuilt) : null;
 
   const taxAnnual = Number(raw.TaxAnnualAmount) || 0;
-  const monthlyTax = taxAnnual / 12;
   const maintCC = Number(raw.AssociationFee) || 0;
 
   const addressDisplayYN = isIdxPlusDisplayFlagOn(raw.InternetAddressDisplayYN);
@@ -122,28 +271,23 @@ export function mapTrestleToCrmListing(
       : customProps?.DownPaymentAssistanceCount;
   const dpaCount = dpaCountSrc != null && dpaCountSrc !== '' ? Number(dpaCountSrc) : null;
 
-  // CustomFields is a REBNY-specific JSON string on CustomProperty that
-  // carries NYC-specific flags as JSON (live CustomProperty.CustomFields). SponsorUnitYN is the
-  // canonical source-of-truth for "Is this a sponsor sale?" — the prior
-  // CRM rendering (grid-column-defs.js:63) showed a static '--' because
-  // there was no source. Now we parse the JSON once and expose
-  // sponsorUnit: true | false | null on the flat listing shape.
-  // null = unknown (CustomProperty not expanded, or field absent in JSON).
-  // Listing-detail and column renderers can read l.sponsorUnit directly.
-  let sponsorUnit: boolean | null = null;
-  const customFieldsRaw = customProps?.CustomFields;
-  if (typeof customFieldsRaw === "string" && customFieldsRaw.length > 0) {
-    try {
-      const parsed = JSON.parse(customFieldsRaw) as Record<string, unknown>;
-      const v = parsed?.SponsorUnitYN;
-      if (v === true || v === "true" || v === "Yes" || v === 1) sponsorUnit = true;
-      else if (v === false || v === "false" || v === "No" || v === 0) sponsorUnit = false;
-    } catch {
-      // Malformed JSON — leave sponsorUnit as null. No log spam: CustomFields
-      // is provider-controlled and may legitimately be empty / non-JSON
-      // for older listings or non-REBNY MLOs.
-    }
-  }
+  // REBNY CustomProperty.CustomFields (sponsor, attendance, financing, flip tax, conditions, …).
+  // Live values are strings: YN keys carry "1" / "0" (verified 2026-10-23). sponsorUnit is
+  // true | false | null (null = CustomFields absent or the key not present).
+  const rebny = parseCustomFields(raw);
+  // Monthly real-estate taxes: Property.TaxAnnualAmount / 12 when Cotality has it, otherwise the REBNY
+  // CustomFields TaxMonthlyAmount (live 2026-10-26: 2,374 of 4,413 active condos carry no
+  // TaxAnnualAmount while their custom fields hold the monthly tax, e.g. RLS20117661 → "1560.00").
+  // 0 = neither source has it; the renderers show "--" for 0.
+  const monthlyTax = taxAnnual ? taxAnnual / 12 : Number(rebny.TaxMonthlyAmount) || 0;
+  const sponsorRaw = rebny.SponsorUnitYN;
+  const sponsorUnit: boolean | null =
+    sponsorRaw === "1" || sponsorRaw === 1 || sponsorRaw === true ? true
+      : sponsorRaw === "0" || sponsorRaw === 0 || sponsorRaw === false ? false
+        : null;
+
+  const tours = listingTours(raw);
+  const firstTour = (kind: ListingTour["kind"]) => tours.find((t) => t.kind === kind) || null;
 
   const originalPrice = Number(raw.OriginalListPrice) || 0;
   let priceChange: string | null = null;
@@ -158,16 +302,12 @@ export function mapTrestleToCrmListing(
     else era = "Pre-War";
   }
 
-  // Master Plan §0.6: StandardStatus and MlsStatus are independent enums and must never
-  // substitute for one another, in either direction. canonicalStatus is the single raw
-  // Cotality value (or null if genuinely absent) that drives BOTH the mlsStatus output
-  // field below (kept under this name only because the frozen
-  // public/crm/js/search/search-engine.js reads `listing.mlsStatus` for free-text status
-  // search — traced as part of the Stage B1 cutover; it is tolerant of any reasonable
-  // status string, not a semantic read of Cotality's literal MlsStatus field) and the
-  // UCBA-safe statusMap lookup. Neither reads Cotality's actual MlsStatus field at all.
-  const canonicalStatus = readCotalityStandardStatus(raw);
-  const mlsStatus = canonicalStatus ?? "";
+  // Status comes from StandardStatus only — MlsStatus is suppressed by Cotality and is never
+  // substituted (Master §0.6). The `mlsStatus` output key is kept for existing renderers and
+  // carries the raw StandardStatus value.
+  const mlsStatus = String(raw.StandardStatus || "");
+  // The canonical status for the UCBA-safe status map below is the same raw StandardStatus (null when absent).
+  const canonicalStatus: string | null = mlsStatus || null;
   const statusMap: Record<string, string> = {
     Active: "ACTIVE",
     ComingSoon: "COMING_SOON",
@@ -221,7 +361,8 @@ export function mapTrestleToCrmListing(
   }
 
   return {
-    id: String(raw.ListingId || raw.SourceSystemKey || index + 1),
+    id: String(raw.ListingId || raw.ListingKey || index + 1),
+    listingKey: raw.ListingKey ? String(raw.ListingKey) : null,
     address: displayAddress,
     unit: String(raw.UnitNumber || ""),
     price,
@@ -237,23 +378,52 @@ export function mapTrestleToCrmListing(
     reTaxes: monthlyTax,
     maintCC,
     intSqft: raw.LivingArea != null ? Number(raw.LivingArea) : null,
+    // Sort keys matching the Cotality $orderby the agent search uses (StreetName, ListingContractDate)
+    streetName: String(raw.StreetName || ""),
+    streetNumber: String(raw.StreetNumber || ""),
+    listedDateIso: raw.ListingContractDate ? String(raw.ListingContractDate).slice(0, 10) : null,
     status,
     mlsStatus,
     ownership: readCotalityCommonInterest(raw),
     propertyType: mapDisplayPropertyType(raw),
     propertySubType: readCotalityPropertySubType(raw),
+    // Live Cotality values as delivered (free text filled by the listing broker); the borough is
+    // shown with its display spelling ("StatenIsland" → "Staten Island") and never defaulted.
     neighborhood: String(raw.SubdivisionName || ""),
-    borough: String(raw.CityRegion || raw.CountyOrParish || "Manhattan"),
+    borough: boroughDisplay(String(raw.CityRegion || "")),
+    cityRegion: String(raw.CityRegion || ""),
     zip: String(raw.PostalCode || ""),
+    city: raw.City ? String(raw.City) : "",
+    postalCity: raw.PostalCity ? String(raw.PostalCity) : "",
+    countyOrParish: raw.CountyOrParish ? String(raw.CountyOrParish) : "",
+    // Building facts and listing history as Cotality carries them (Sales / Rental Tools viewers, detail page)
+    totalUnits: raw.NumberOfUnitsTotal != null ? Number(raw.NumberOfUnitsTotal) : null,
+    stories: raw.StoriesTotal != null ? Number(raw.StoriesTotal) : null,
+    exposures: raw.Exposures ? String(raw.Exposures) : null,
+    lotSizeArea: raw.LotSizeArea != null ? Number(raw.LotSizeArea) : null,
+    associationFeeFrequency: raw.AssociationFeeFrequency ? String(raw.AssociationFeeFrequency) : null,
+    onMarketDate: raw.OnMarketDate ? String(raw.OnMarketDate) : null,
+    offMarketDate: raw.OffMarketDate ? String(raw.OffMarketDate) : null,
+    activationDate: raw.ActivationDate ? String(raw.ActivationDate) : null,
+    contractStatusChangeDate: raw.ContractStatusChangeDate ? String(raw.ContractStatusChangeDate) : null,
+    originalEntryDate: raw.OriginalEntryTimestamp ? String(raw.OriginalEntryTimestamp) : null,
+    // Rental terms and FARE Act fee transparency (Property fields; AdditionalFee* travel in REBNY CustomFields)
+    securityDeposit: raw.SecurityDeposit != null ? Number(raw.SecurityDeposit) : null,
+    MoveInCosts: raw.MoveInCosts ? String(raw.MoveInCosts) : null,
+    MoveInCostsComments: raw.MoveInCostsComments ? String(raw.MoveInCostsComments) : null,
+    OngoingFees: raw.OngoingFees ? String(raw.OngoingFees) : null,
+    TenantPays: raw.TenantPays ? String(raw.TenantPays) : null,
+    TenantPaysDescription: raw.TenantPaysDescription ? String(raw.TenantPaysDescription) : null,
     yearBuilt,
     era,
     buildingName: raw.BuildingName ? String(raw.BuildingName) : null,
     buildingKey: raw.BuildingKeyNumeric != null ? Number(raw.BuildingKeyNumeric) : null,
     listingType: "Exclusive",
     lid: String(raw.ListingId || ""),
-    wid: raw.SourceSystemKey ? String(raw.SourceSystemKey) : null,
-    dom: Number(raw.DaysOnMarket) || 0,
-    cdom: Number(raw.CumulativeDaysOnMarket) || 0,
+    // SourceSystemKey is suppressed by Cotality; the Cotality record key is ListingKey.
+    wid: raw.ListingKey ? String(raw.ListingKey) : null,
+    dom: daysOnMarket(raw),
+    cdom: null,
     listedDate: raw.ListingContractDate
       ? new Date(String(raw.ListingContractDate)).toLocaleDateString("en-US")
       : "",
@@ -263,46 +433,64 @@ export function mapTrestleToCrmListing(
     company: String(raw.ListOfficeName || ""),
     agentName: String(raw.ListAgentFullName || ""),
     agentEmail: String(raw.ListAgentEmail || ""),
-    agentPhone: String(raw.ListAgentDirectPhone || ""),
-    listAgentMlsId: String(raw.ListAgentMlsId || ""),
-    listOfficeMlsId: String(raw.ListOfficeMlsId || ""),
-    coListingAgentName: String(raw.CoListAgentFullName || ""),
-    coListAgents: coListSlots(raw, "Agent", [1, 2, 3]),
-    coListOffices: coListSlots(raw, "Office", [1, 2]).map((office) => ({
-      ...office,
-      relation: officeRelation(String(raw.ListOfficeMlsId || ""), office.mlsId),
-    })),
+    agentPhone: phone(raw.ListAgentDirectPhone) || phone(raw.ListAgentPreferredPhone) || "",
+    agentMlsId: raw.ListAgentMlsId ? String(raw.ListAgentMlsId) : null,
+    officeMlsId: raw.ListOfficeMlsId ? String(raw.ListOfficeMlsId) : null,
+    // Full contact as Cotality carries it (Property ListAgent* / ListOffice*). Agent photos are not in
+    // the feed (Media has 0 Member rows, live 2026-10-24): the route adds Mallan agents' own headshots.
+    agent: agentContact(raw, "ListAgent"),
+    office: officeContact(raw, "ListOffice"),
+    // Co-listing agents / offices as Cotality carries them (Member / Office attributions).
+    coAgents: (["CoListAgent", "CoListAgent2", "CoListAgent3"] as const)
+      .filter((p) => raw[`${p}MlsId`] || raw[`${p}FullName`])
+      // Each co-listing agent with the office in the same slot (CoListAgent2 ↔ CoListOffice2; slot 3 has none)
+      .map((p) => { const o = p.replace("Agent", "Office"); return { ...agentContact(raw, p), office: raw[`${o}Name`] || raw[`${o}MlsId`] ? officeContact(raw, o) : null }; }),
+    coOffices: (["CoListOffice", "CoListOffice2"] as const)
+      .filter((p) => raw[`${p}MlsId`] || raw[`${p}Name`])
+      .map((p) => officeContact(raw, p)),
     priceChange,
     originalPrice: originalPrice > 0 && originalPrice !== price ? originalPrice : null,
     photoCount,
     images,
-    latitude: raw.Latitude != null ? Number(raw.Latitude) : null,
-    longitude: raw.Longitude != null ? Number(raw.Longitude) : null,
+    videosCount: raw.VideosCount != null ? Number(raw.VideosCount) : null,
+    // Every unbranded tour link Cotality carries, classified as video / 3d / link (Property tour fields).
+    tours,
+    // videoTourUrl / virtualTourUrl: the first video and the first 3D tour — the names the CRM
+    // reports, report package and field dictionaries read (lib/types/listing.ts ListingInfo).
+    videoTourUrl: firstTour("video")?.url ?? null,
+    virtualTourUrl: firstTour("3d")?.url ?? null,
     crossStreet: String(raw.CrossStreet || ""),
-    floor: null,
-    description: String(raw.PublicRemarks || ""),
-    // the 3D tour the listing has, chosen the way the public DTO chooses it (tourUrlsForDto): a link on a video host is a VIDEO, not a 3D tour (the CRM frames this one as "3D Virtual Tour", and
-    // YouTube refuses to be framed), the unbranded links come before the branded ones (UCBA Art. I Sec. 5(C)), each in the order first, second, third, and a blank link is none
-    virtualTourUrl: tourUrlsForDto(
-      [raw.VirtualTourURLUnbranded, raw.VirtualTourURLUnbranded2, raw.VirtualTourURLUnbranded3],
-      [raw.VirtualTourURLBranded, raw.VirtualTourURLBranded2, raw.VirtualTourURLBranded3],
-    ).virtualTourURL ?? null,
-    idxDisplayYN: true,
+    // Floor = the floor the unit is on = Cotality EntryLevel (owner rule; live on most records)
+    floor: raw.EntryLevel != null && raw.EntryLevel !== "" ? String(raw.EntryLevel) : null,
+    description: remarksToText(raw.PublicRemarks),
+    idxDisplayYN: permission.length ? permission.includes("IDX") : true,
     internetDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
+    // Live Cotality Permission values (multi-select, e.g. "IDX", "SyndicateOptOut") and the IDX Plus display flags
+    permission,
+    consumerCommentsYN: yn(raw.InternetConsumerCommentYN),
+    avmDisplayYN: yn(raw.InternetAutomatedValuationDisplayYN),
     addressDisplayYN,
-    listingCategory: isRental ? "rental" : undefined,
+    listingCategory: isRental ? "rental" : "sale",
+    closePrice: raw.ClosePrice != null ? Number(raw.ClosePrice) : null,
     closedDate: raw.CloseDate ? String(raw.CloseDate) : null,
-    contractDate: raw.ListingContractDate ? String(raw.ListingContractDate) : null,
+    // Contract signed (sale) / lease signed (rental) is PurchaseContractDate; ListingContractDate
+    // is the listing agreement date (listedDate above).
+    contractDate: raw.PurchaseContractDate ? String(raw.PurchaseContractDate) : null,
+    availabilityDate: raw.AvailabilityDate ? String(raw.AvailabilityDate) : null,
+    taxBlock: raw.TaxBlock ? String(raw.TaxBlock) : null,
+    taxLot: raw.TaxLot ? String(raw.TaxLot) : null,
     comingSoonDate,
     downPaymentAssistanceAmount: dpaAmount,
     downPaymentAssistanceCount: dpaCount,
     sponsorUnit,
     permissions: {
+      // No Cotality source: Permission has no owner-opt-out or participant-only value. Kept false for the
+      // existing send gates; the detail view does not present them as listing facts.
       ownerOptOut: false,
       participantOnly: false,
-      idxDisplay: true,
+      idxDisplay: permission.length ? permission.includes("IDX") : true,
       internetDisplay: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
-      syndication: true,
+      syndication: !permission.includes("SyndicateOptOut"),
     },
     ListingAgreement: raw.ListingAgreement ? String(raw.ListingAgreement) : null,
     LandLeaseYN: raw.LandLeaseYN === true || raw.LandLeaseYN === "true",
@@ -322,15 +510,17 @@ export function mapTrestleToCrmListing(
     SecurityFeatures: raw.SecurityFeatures ? String(raw.SecurityFeatures) : null,
     PoolFeatures: raw.PoolFeatures ? String(raw.PoolFeatures) : null,
     PatioAndPorchFeatures: raw.PatioAndPorchFeatures ? String(raw.PatioAndPorchFeatures) : null,
-    AssociationAmenities: raw.AssociationAmenities ? String(raw.AssociationAmenities) : null,
     CurrentFinancing: raw.CurrentFinancing ? String(raw.CurrentFinancing) : null,
-    PetsAllowedYN: raw.PetsAllowedYN === true || raw.PetsAllowedYN === "true",
+    PetsAllowed: raw.PetsAllowed ? String(raw.PetsAllowed) : null,
+    Furnished: raw.Furnished ? String(raw.Furnished) : null,
     AvailableLeaseType: raw.AvailableLeaseType ? String(raw.AvailableLeaseType) : null,
     ExistingLeaseType: raw.ExistingLeaseType ? String(raw.ExistingLeaseType) : null,
     ConstructionMaterials: raw.ConstructionMaterials ? String(raw.ConstructionMaterials) : null,
     NewConstructionYN: raw.NewConstructionYN === true || raw.NewConstructionYN === "true",
     PriceChangeTimestamp: raw.PriceChangeTimestamp ? String(raw.PriceChangeTimestamp) : null,
+    // REBNY CustomFields as Cotality sends them (string values), for detail views and reports.
+    rebny,
     _source: "idx",
-    _listingKey: String(raw.ListingId || raw.SourceSystemKey || ""),
+    _listingKey: String(raw.ListingKey || raw.ListingId || ""),
   };
 }

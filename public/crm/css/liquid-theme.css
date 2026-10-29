@@ -254,6 +254,43 @@ header, .luxury-header {
   outline: none !important;
 }
 
+/* Field box (js/search/field-box.js): the box wears the input skin, the input inside is bare */
+#section-main .mfield {
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  min-height: 38px;
+  transition: all 0.3s var(--liquid);
+}
+#section-main .mfield:focus-within {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(196, 160, 82, 0.12), 0 1px 3px rgba(0,0,0,0.02);
+}
+#section-main .mfield-row > input[type="text"].mfield-input,
+#section-main .mfield-row > input[type="text"].mfield-input:focus {
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  min-height: 36px !important;
+  outline: none !important;
+}
+/* Typing box inside a "Custom" dropdown (init-ui.js): no field chrome of its own */
+#section-main .csd-btn > input[type="text"].csd-input,
+#section-main .csd-btn > input[type="text"].csd-input:focus {
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  outline: none !important;
+  font-size: inherit !important;
+  font-weight: 300 !important;
+}
+#section-main .csd-btn .csd-prefix { font-weight: 300; }
+
 /* Placeholder text — lighter */
 #section-main input::placeholder {
   color: #9ca3af !important;

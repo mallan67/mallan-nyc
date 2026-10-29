@@ -2060,7 +2060,8 @@ function submitBuyerDeal(asDraft) {
                 context: currentContext
             }));
         } catch (e) { /* sessionStorage may be unavailable in some contexts */ }
-        var label = existingId ? 'Buyer deal updated' : 'Buyer deal saved as draft';
+        // Say what the server did, not a presumed state: the create route answers with the deal's status.
+        var label = (existingId ? 'Buyer deal updated' : 'Buyer deal saved') + ' · status ' + dealStatus;
         showToast(label + (dealId ? ' (#' + dealId + ')' : ''), 'success');
         if (typeof addBuyerHistoryEntry === 'function') {
             addBuyerHistoryEntry(label, 'Deal id ' + (dealId || '?') + ' · status ' + dealStatus, 'fa-save', 'green');

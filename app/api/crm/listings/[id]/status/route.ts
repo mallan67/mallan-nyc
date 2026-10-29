@@ -11,13 +11,16 @@ import {
 } from "@/lib/auth";
 import { computeDomTransition } from "@/lib/compliance/dom-tracker";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
+import { validateListing, publishBlockingErrors } from "@/lib/compliance/rebny-validator";
+import { REBNY_FIELD_TABLES } from "@/lib/compliance/rebny-field-tables";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { addBusinessDays, addCalendarDays } from "@/lib/compliance/business-days";
 import { createNotification } from "@/lib/notifications/engine";
-import { computeGateColumns } from "@/lib/idx/trestle-mapper";
+import { computeGateColumns, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
+import { scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
 
@@ -158,11 +161,53 @@ export async function PATCH(
     }
   }
 
+  // Fair Housing / UCBA wording gate — at PUBLICATION. A Draft may hold flagged wording (it is saved and the flags are shown,
+  // owner rule); the listing becomes advertising HERE, so the saved text must be clean before it is displayed anywhere
+  // (Federal FHA, NY State HRL, NYC HRL Title 8, UCBA). Never gates a move back to Draft / Hold / Withdrawn.
+  // advertised = display-ready (Active, Coming Soon) or under contract, which RLS / IDX still display
+  if (isDisplayReadyStatus(newStatus) || normalizeStandardStatus(String(newStatus ?? "")) === "ActiveUnderContract") {
+    const fhViolations = scanListingBodyForFairHousing(existingRaw);
+    if (fhViolations.length > 0) {
+      return NextResponse.json(
+        { error: "Status change blocked by Fair Housing content gate — fix the flagged wording before publishing", blockers: fhViolations },
+        { status: 422 },
+      );
+    }
+  }
+
+  // REBNY required-field validation — the gate that used to sit on POST, where
+  // every row is created as Draft (so it only ever blocked drafts). A Mallan
+  // exclusive becomes display-ready HERE, so this is where its saved data must
+  // pass validateListing (the rules are kept, not relaxed). Trestle-synced rows
+  // are validated by the source; website-only rows (rls_eligible=false) are not
+  // RLS listings. Never gates a move back to Draft/Hold/Withdrawn.
+  const isCrmCreated = !listing.mls_id;
+  if (listing.rls_eligible && isCrmCreated && isDisplayReadyStatus(newStatus)) {
+    const publishValidation = validateListing({ ...existingRaw, MlsStatus: newStatus });
+    // Fields the backend writes itself (SourceSystemKey, OriginalEntryTimestamp,
+    // StandardStatus, …) are never demanded of the agent — same exemption as the
+    // RLS enforcement gate.
+    const blocking = publishBlockingErrors(publishValidation, REBNY_FIELD_TABLES.requiredFields.systemGenerated);
+    if (blocking.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Status change blocked by REBNY validation — the listing is missing required fields",
+          validation: {
+            valid: false,
+            errors: blocking,
+            warnings: publishValidation.warnings,
+            suggestions: publishValidation.suggestions,
+          },
+        },
+        { status: 422 },
+      );
+    }
+  }
+
   // RLS Enforcement Gate — only for Cotality-synced RLS-eligible listings.
   // CRM-created listings (mls_id=null) are Mallan exclusives published to
   // mallan.nyc only — they never go to Cotality, so skip the 48-field check.
   // InHouseWebOnly/InHouseInternal/commercial (rls_eligible=false) also skip.
-  const isCrmCreated = !listing.mls_id;
   if (listing.rls_eligible && !isCrmCreated) {
     const enforcement = assertRlsCompliantPayload(
       { ...existingRaw, MlsStatus: newStatus },

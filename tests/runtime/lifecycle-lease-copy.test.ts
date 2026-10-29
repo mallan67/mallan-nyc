@@ -15,7 +15,9 @@ const engine = fs.readFileSync(path.resolve(__dirname, '../../lib/lifecycle/engi
 describe('lease-expiring copy and rule', () => {
   it('the 90-day notification does not claim no-fee rentals were sent', () => {
     expect(engine).not.toMatch(/no-fee rentals/i);
-    expect(engine).toContain("lease expires in ~90 days. Auto-sent both sale and rental options. Monitor their engagement");
+    // a lease milestone is an agent checkpoint (crm_task): nothing is sent to the client by the engine (owner rule: no automatic client e-mail)
+    expect(engine).toContain("lease ends in ~90 days. Confirm renewal, move or sale plans; preview and send any outreach from the Lease Tracker. Nothing has been sent.");
+    expect(engine).toContain('Lease expires in ~90 days — review (nothing sent)');
   });
 
   it('no default rule carries include_no_fee', () => {
@@ -23,7 +25,7 @@ describe('lease-expiring copy and rule', () => {
   });
 
   it('the 90-day rule still asks for sale and rental listings', () => {
-    expect(engine).toMatch(/trigger_type: 'lease_expiring_90d',[\s\S]*?action_config: \{ include_sale_listings: true, include_rental_listings: true \},/);
+    expect(engine).toMatch(/trigger_type: 'lease_expiring_90d',[\s\S]*?action_type: 'crm_task',[\s\S]*?action_config: \{ suggest_sale_listings: true, suggest_rental_listings: true \},/);
   });
 });
 

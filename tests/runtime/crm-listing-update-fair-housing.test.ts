@@ -2,11 +2,15 @@
 /**
  * Fair Housing scan on every EDIT of a listing (PATCH /api/crm/listings/[id]).
  *
- * Found 2026-10-08 (an adversarial audit, then read from the route): POST /api/crm/listings scans the free text it is given and answers 422, but PATCH did not scan anything. The RLS gate PATCH runs skips
+ * Found 2026-10-08 (an adversarial audit, then read from the route): POST /api/crm/listings scans the free text it is given, but PATCH did not scan anything. The RLS gate PATCH runs skips
  * every draft and every CRM-created listing (no mls_id), and the validator's verdict there is recorded but never blocks, so a clean listing could be edited to say "adults only, no Section 8" and the text
  * was written to raw_data and the features bucket. Federal FHA, NY State HRL and NYC HRL Title 8 apply to all advertising, whatever the listing's status or RLS eligibility.
  *
- * Behavioral: the real PATCH handler with mocked prisma/auth; the real scan runs, so the 422 (and the absence of a write) is observed.
+ * What the scan does with what it finds (owner rule, Master 0.15, 2026-10-28): a Draft is not an advertisement — its edit is SAVED and the findings travel back (`fairHousing`); a listing that is
+ * DISPLAYED (Active, Coming Soon, Active Under Contract …) is advertising — its edit is refused (422) and nothing is written. The move from Draft to a display-ready status is refused by PATCH /status
+ * while a finding remains (crm-listing-draft-create-publish-gate.test.ts).
+ *
+ * Behavioral: the real PATCH handler with mocked prisma/auth; the real scan runs, so the 422 (and the absence of a write) and the 200 (and the write, with the findings) are observed.
  */
 import { buildPrismaMock } from './helpers';
 import { readFileSync } from 'fs';
@@ -29,9 +33,10 @@ jest.mock('@/lib/search/listing-search-projection', () => ({ __esModule: true, d
 jest.mock('@/lib/crm/listing-urls', () => ({ __esModule: true, buildListingUrls: () => ({ publicUrl: '/listing/x', realPlusUrl: 'https://realplus/x' }) }));
 
 // A Mallan-authored local listing (SL- prefix), the only kind PATCH manages. `mls_id: null` is a CRM-created exclusive, which the RLS gate skips.
+// It is DISPLAYED (Active) unless a test says otherwise: that is where an edit with flagged wording is refused.
 function localListing(overrides: Record<string, unknown> = {}) {
   return {
-    id: 101n, listing_id: 'SL-FH-1', mls_id: null, status: 'Draft', rls_eligible: true, listing_type: 'sale', agent_id: null,
+    id: 101n, listing_id: 'SL-FH-1', mls_id: null, status: 'Active', rls_eligible: true, listing_type: 'sale', agent_id: null,
     list_office_mls_id: null, last_synced_from_trestle: null, raw_data: {} as Record<string, unknown>, address: {}, features: {}, agent_info: {}, internet_address_display_yn: false,
     ...overrides,
   };
@@ -39,7 +44,7 @@ function localListing(overrides: Record<string, unknown> = {}) {
 const withListing = (overrides: Record<string, unknown> = {}) => {
   const listing = prismaMock as { listing: { findUnique: jest.Mock; update: jest.Mock } };
   listing.listing.findUnique = jest.fn(async () => localListing(overrides));
-  listing.listing.update = jest.fn(async () => ({ ...localListing(overrides), status: 'Draft' }));
+  listing.listing.update = jest.fn(async (args: { data: Record<string, unknown> }) => ({ ...localListing(overrides), ...args.data }));
   return listing.listing;
 };
 async function callPatch(body: unknown): Promise<Response> {
@@ -48,7 +53,9 @@ async function callPatch(body: unknown): Promise<Response> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (PATCH as any)(req, { params: Promise.resolve({ id: '101' }) });
 }
-type Refusal = { error: string; blockers: Array<{ code: string; field: string; message: string }> };
+type Finding = { code: string; field: string; message: string };
+type Refusal = { error: string; blockers: Finding[] };
+type Saved = { fairHousing?: Finding[] };
 
 beforeEach(() => {
   requireAgentOrBrokerMock.mockReset();
@@ -59,13 +66,13 @@ beforeEach(() => {
   logAuditEventMock.mockResolvedValue(undefined);
 });
 
-describe('PATCH /api/crm/listings/[id]: a Fair Housing violation in the text of an edit is refused and nothing is written', () => {
+describe('PATCH /api/crm/listings/[id]: a Fair Housing violation in the text of an edit of a DISPLAYED listing is refused and nothing is written', () => {
   it.each([
-    ['a draft', { status: 'Draft' }],
-    ['an Incomplete draft', { status: 'Incomplete' }],
     ['an Active CRM-created exclusive (no mls_id: the RLS gate skips it)', { status: 'Active' }],
     ['an Active listing that has an mls_id and is rental', { status: 'Active', mls_id: 'RLS123', listing_type: 'rent' }],
     ['a website-only listing', { status: 'Active', rls_eligible: false }],
+    ['a Coming Soon listing', { status: 'ComingSoon' }],
+    ['a listing under contract (RLS / IDX still display it)', { status: 'ActiveUnderContract' }],
   ])('%s: PublicRemarks "adults only, no Section 8" answers 422 and the row is not updated', async (_name, overrides) => {
     const row = withListing(overrides);
     const res = await callPatch({ PublicRemarks: 'Quiet building, adults only. No Section 8.' });
@@ -77,6 +84,13 @@ describe('PATCH /api/crm/listings/[id]: a Fair Housing violation in the text of 
     expect(json.blockers.map((b) => b.message).join(' ')).toMatch(/"[Aa]dults only"/);
     expect(row.update).not.toHaveBeenCalled();
     expect(logAuditEventMock).not.toHaveBeenCalled();
+  });
+
+  it('a Draft that is being PUBLISHED by the same edit (status: Active in the body) is refused too', async () => {
+    const row = withListing({ status: 'Draft' });
+    const res = await callPatch({ status: 'Active', PublicRemarks: 'Quiet building, adults only.' });
+    expect(res.status).toBe(422);
+    expect(row.update).not.toHaveBeenCalled();
   });
 
   it.each([['ShowingInstructions', 'ShowingInstructions'], ['PrivateRemarks', 'PrivateRemarks'], ['description', 'PublicRemarks'], ['privateRemarks', 'PrivateRemarks']])(
@@ -156,6 +170,38 @@ describe('PATCH /api/crm/listings/[id]: a Fair Housing violation in the text of 
   });
 });
 
+describe('PATCH /api/crm/listings/[id]: a DRAFT with flagged wording is saved, and told what was found (flagged, never blocks saving)', () => {
+  it.each([
+    ['a draft', { status: 'Draft' }],
+    ['an Incomplete draft', { status: 'Incomplete' }],
+  ])('%s: PublicRemarks "adults only, no Section 8" answers 200, the row is updated, and the findings name the box', async (_name, overrides) => {
+    const row = withListing(overrides);
+    const res = await callPatch({ PublicRemarks: 'Quiet building, adults only. No Section 8.' });
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as Saved;
+    expect(json.fairHousing?.length).toBeGreaterThan(0);
+    expect(json.fairHousing?.every((f) => f.code === 'FH-001' && f.field === 'PublicRemarks')).toBe(true);
+    expect(json.fairHousing?.map((f) => f.message).join(' ')).toMatch(/"[Aa]dults only"/);
+    expect(row.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('a Draft edit of one of the form\'s own boxes (saleTHLayout) is saved and the finding names raw:saleTHLayout', async () => {
+    const row = withListing({ status: 'Draft' });
+    const res = await callPatch({ saleTHLayout: 'Adults only' });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as Saved).fairHousing?.some((f) => f.field === 'raw:saleTHLayout')).toBe(true);
+    expect(row.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('a Draft edit with clean text reports no finding', async () => {
+    const row = withListing({ status: 'Draft' });
+    const res = await callPatch({ PublicRemarks: 'Bright, quiet and close to everything.' });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as Saved).fairHousing).toEqual([]);
+    expect(row.update).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('PATCH /api/crm/listings/[id]: clean text, structured values and the text the request does not carry are saved as before', () => {
   it('clean remarks are saved: 200, the row is updated, and the text is in raw_data', async () => {
     const row = withListing({ status: 'Active' });
@@ -189,7 +235,7 @@ describe('PATCH /api/crm/listings/[id]: clean text, structured values and the te
 });
 
 describe('PATCH /api/crm/listings/[id]: where the scan sits', () => {
-  it('is in the handler after the body is read and before the record is merged, any gate runs or anything is written', () => {
+  it('is in the handler after the body is read and before the record is merged, any gate runs or anything is written; the refusal is tied to a displayed listing', () => {
     const src = readFileSync(resolve(__dirname, '../../app/api/crm/listings/[id]/route.ts'), 'utf8');
     const patch = src.slice(src.indexOf('export async function PATCH'), src.indexOf('export async function DELETE'));
     const bodyRead = patch.indexOf('body = await req.json()');
@@ -199,6 +245,8 @@ describe('PATCH /api/crm/listings/[id]: where the scan sits', () => {
     for (const later of ['const merged =', 'classifyRlsEligibility(', 'assertRlsCompliantPayload(', 'validateListing(', 'prisma.listing.update(']) {
       expect(patch.indexOf(later)).toBeGreaterThan(scan);
     }
-    expect(patch.slice(scan, scan + 400)).toMatch(/status:\s*422/);
+    const gate = patch.slice(scan, scan + 700);
+    expect(gate).toMatch(/fhAdvertised\(listing\.status\) \|\| fhAdvertised\(fhRequested\)/);          // advertised = display-ready or under contract
+    expect(gate).toMatch(/status:\s*422/);
   });
 });

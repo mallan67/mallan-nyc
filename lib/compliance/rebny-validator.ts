@@ -261,6 +261,86 @@ export function validateListing(listing: ListingData): ValidationResult {
 }
 
 /**
+ * The validation errors that block PUBLISHING an agent-submitted listing: every
+ * error except "Required field missing" for a field the backend supplies itself
+ * (REBNY_FIELD_TABLES.requiredFields.systemGenerated — the same exemption the
+ * RLS enforcement gate applies). The rule is kept; the agent is not asked for a
+ * value the system writes.
+ */
+export function publishBlockingErrors(result: Pick<ValidationResult, 'errors'>, systemGenerated: Iterable<string>): string[] {
+  const exempt = new Set(systemGenerated);
+  return result.errors.filter((e) => {
+    const m = e.match(/^\[REBNY\] Required field missing: (\w+)/);
+    return !(m && exempt.has(m[1]));
+  });
+}
+
+/**
+ * Evaluate conditional rule expressions
+ */
+function evaluateCondition(condition: string, listing: ListingData): boolean {
+  // The rule text is prose: "Required if MLSStatus=ComingSoon", "If the
+  // MLSStatus=Active". Drop the lead-in so the expression itself is evaluated.
+  condition = condition.replace(/^(required\s+)?if\s+(the\s+)?/i, '').trim();
+
+  // Handle simple equality: "FieldName=Value" (rule text names fields as REBNY
+  // writes them — MLSStatus — while payloads carry the RESO spelling, MlsStatus).
+  const equalityMatch = condition.match(/^(\w+)\s*=\s*(.+)$/);
+  if (equalityMatch) {
+    const [, field, expectedValue] = equalityMatch;
+    const key = field in listing
+      ? field
+      : Object.keys(listing).find((k) => k.toLowerCase() === field.toLowerCase());
+    return key !== undefined && String(listing[key]) === expectedValue.trim();
+  }
+
+  // Handle IN conditions: "FieldName IN (Value1,Value2)"
+  const inMatch = condition.match(/^(\w+)\s+IN\s+\(([^)]+)\)$/);
+  if (inMatch) {
+    const [, field, valuesStr] = inMatch;
+    const values = valuesStr.split(',').map((v) => v.trim());
+    return values.includes(String(listing[field]));
+  }
+
+  // Handle AND conditions
+  if (condition.includes(' AND ')) {
+    const parts = condition.split(' AND ');
+    return parts.every((part) => evaluateCondition(part.trim(), listing));
+  }
+
+  // Handle OR conditions
+  if (condition.includes(' OR ')) {
+    const parts = condition.split(' OR ');
+    return parts.some((part) => evaluateCondition(part.trim(), listing));
+  }
+
+  // Handle existence check: just field name
+  if (condition.match(/^\w+$/)) {
+    const value = listing[condition];
+    return value !== undefined && value !== null && value !== '';
+  }
+
+  // Handle greater than: "Field>0"
+  const gtMatch = condition.match(/^(\w+)>(\d+)$/);
+  if (gtMatch) {
+    const [, field, threshold] = gtMatch;
+    const value = Number(listing[field]);
+    return !isNaN(value) && value > Number(threshold);
+  }
+
+  // Handle pipe-separated OR for field existence
+  if (condition.includes('|')) {
+    const fields = condition.split('|');
+    return fields.some((field) => {
+      const value = listing[field.trim()];
+      return value !== undefined && value !== null && value !== '';
+    });
+  }
+
+  return false;
+}
+
+/**
  * Validate individual field value
  */
 function validateFieldValue(

@@ -1,13 +1,24 @@
 /**
  * POST /api/crm/lease-tracker/[id]/outreach
  *
- * Send a contextual email to the landlord or tenant on an active lease,
- * based on lease lifecycle type (sell inquiry, buy inquiry, renewal,
- * market update, or 90d/60d/30d check-in).
+ * Email the landlord or tenant on a tenancy, by lease lifecycle type (sell inquiry, buy inquiry,
+ * renewal, market update, or 90d/60d/30d check-in).
  *
- * TCPA compliance: checks last_unsubscribe_at before sending.
- * All emails include REBNY attribution, Fair Housing, and commission
- * negotiability disclosures.
+ * 2026-10-27 — nothing leaves without an explicit preview and confirmation:
+ *   mode "preview"            → the exact recipient, subject and HTML, the gate results and a
+ *                               preview_token. No email. Audit lease_tracker_outreach_previewed.
+ *   mode "send" + confirm:true
+ *     + preview_token         → sends exactly what was previewed (the token binds lease, target,
+ *                               type, recipient, subject, body, agent and day). Audit
+ *                               lease_tracker_outreach_sent. dry_run:true goes through
+ *                               sendEmail({dryRun}) — no SMTP, audit send_dryrun — and stamps nothing.
+ *   anything else             → 400 confirmation_required.
+ * Gates (both modes, in this order): unsupported type 400 · lease historical 409 · term ended but
+ * outcome not recorded 409 · no recipient address 400 · recipient unsubscribed 403 · recipient
+ * declined buying/selling outreach (Lead.nurture_paused) 403 for sell_inquiry / buy_inquiry /
+ * market_update. Each refusal carries a `gate` code the Lease Tracker shows verbatim.
+ *
+ * All emails include REBNY attribution, Fair Housing and commission negotiability disclosures.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -17,23 +28,28 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { escapeHtml } from "@/lib/sanitize";
+import {
+  DECLINABLE_OUTREACH_TYPES,
+  LEASE_OUTREACH_TYPES,
+  type LeaseOutreachType,
+  daysToExpiry,
+  isEndedButOpen,
+  outreachPreviewToken,
+} from "@/lib/crm/leases";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type OutreachTarget = "landlord" | "tenant";
 
-type OutreachType =
-  | "sell_inquiry"
-  | "buy_inquiry"
-  | "renewal"
-  | "market_update"
-  | "90d_checkin"
-  | "60d_checkin"
-  | "30d_checkin";
+type OutreachType = LeaseOutreachType;
 
 interface OutreachBody {
   target: OutreachTarget;
   type: OutreachType;
+  mode: "preview" | "send";
+  confirm: boolean;
+  dry_run: boolean;
+  preview_token: string | null;
 }
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -51,10 +67,12 @@ function formatUSD(value: unknown): string {
 }
 
 function formatDate(date: Date): string {
+  // Lease dates are calendar days stored at UTC midnight; format the stored day, not the server's local day.
   return date.toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
+    timeZone: "UTC",
   });
 }
 
@@ -392,20 +410,42 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   let body: OutreachBody;
   try {
     const raw = await req.json();
-    if (
-      typeof raw !== "object" ||
-      !raw ||
-      !["landlord", "tenant"].includes(raw.target) ||
-      !["sell_inquiry", "buy_inquiry", "renewal", "market_update", "90d_checkin", "60d_checkin", "30d_checkin"].includes(raw.type)
-    ) {
+    if (typeof raw !== "object" || !raw || !["landlord", "tenant"].includes(raw.target)) {
       return NextResponse.json(
-        { error: "Invalid body. Required: target ('landlord'|'tenant'), type ('sell_inquiry'|'buy_inquiry'|'renewal'|'market_update'|'90d_checkin'|'60d_checkin'|'30d_checkin')" },
+        { error: "Invalid body. Required: target ('landlord'|'tenant'), type, mode ('preview'|'send')", gate: "invalid_body" },
         { status: 400 }
       );
     }
-    body = raw as OutreachBody;
+    if (!(LEASE_OUTREACH_TYPES as readonly string[]).includes(raw.type)) {
+      return NextResponse.json(
+        { error: `Unsupported outreach type '${String(raw.type)}'. Supported: ${LEASE_OUTREACH_TYPES.join(", ")}`, gate: "unsupported_type", supported: LEASE_OUTREACH_TYPES },
+        { status: 400 }
+      );
+    }
+    const mode = raw.mode === "send" ? "send" : raw.mode === "preview" ? "preview" : null;
+    if (!mode) {
+      return NextResponse.json(
+        { error: "mode is required: 'preview' returns the email without sending; 'send' with confirm: true and the preview_token sends it.", gate: "confirmation_required" },
+        { status: 400 }
+      );
+    }
+    body = {
+      target: raw.target,
+      type: raw.type,
+      mode,
+      confirm: raw.confirm === true,
+      dry_run: raw.dry_run === true,
+      preview_token: typeof raw.preview_token === "string" ? raw.preview_token : null,
+    };
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  if (body.mode === "send" && (!body.confirm || !body.preview_token)) {
+    return NextResponse.json(
+      { error: "Sending requires an explicit confirmation of the previewed email (confirm: true with the preview_token).", gate: "confirmation_required" },
+      { status: 400 }
+    );
   }
 
   // 3. Fetch ActiveLease with landlord and tenant Lead relations
@@ -415,28 +455,18 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid lease ID" }, { status: 400 });
   }
 
+  const partySelect = {
+    id: true,
+    first_name: true,
+    last_name: true,
+    email: true,
+    last_unsubscribe_at: true,
+    nurture_paused: true,
+  } as const;
+
   const lease = await prisma.activeLease.findUnique({
     where: { id: leaseId },
-    include: {
-      landlord: {
-        select: {
-          id: true,
-          first_name: true,
-          last_name: true,
-          email: true,
-          last_unsubscribe_at: true,
-        },
-      },
-      tenant: {
-        select: {
-          id: true,
-          first_name: true,
-          last_name: true,
-          email: true,
-          last_unsubscribe_at: true,
-        },
-      },
-    },
+    include: { landlord: { select: partySelect }, tenant: { select: partySelect } },
   });
 
   if (!lease) {
@@ -448,15 +478,36 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 
-  // 4. Resolve recipient
   const { target, type } = body;
+  const now = new Date();
 
+  // 4. Tenancy gates — a closed or ended term is not a basis for lifecycle outreach
+  if (lease.status === "historical") {
+    return NextResponse.json(
+      { error: "This tenancy is historical (a prior term). Open the current term to send outreach.", gate: "lease_historical" },
+      { status: 409 }
+    );
+  }
+  if (isEndedButOpen(lease, now)) {
+    return NextResponse.json(
+      {
+        error: `The term on file ended on ${formatDate(lease.lease_end_date)} and the renewal is not recorded. Record the renewal (new term), correct the dates, or mark the tenancy ended before sending outreach.`,
+        gate: "lease_ended",
+        lease_end_date: lease.lease_end_date.toISOString(),
+        days_to_expiry: daysToExpiry(lease.lease_end_date, now),
+      },
+      { status: 409 }
+    );
+  }
+
+  // 5. Resolve recipient
   let recipientLead: {
     id: bigint;
     first_name: string;
     last_name: string;
     email: string | null;
     last_unsubscribe_at: Date | null;
+    nurture_paused: boolean;
   } | null = null;
 
   // For tenant target: may fall back to raw tenant fields if no linked Lead
@@ -476,23 +527,33 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // 5. TCPA check
+  // 6. Require recipient email
+  const recipientEmail = (recipientLead?.email ?? rawTenantEmail ?? "").trim() || null;
+  if (!recipientEmail) {
+    return NextResponse.json(
+      { error: `No email address on file for the ${target}. Add one to the client record before sending outreach.`, gate: "missing_recipient" },
+      { status: 400 }
+    );
+  }
+
+  // 7. Consent gates — the client's answer governs (Master §22.7)
   if (recipientLead?.last_unsubscribe_at) {
     return NextResponse.json(
       {
         error: "Recipient has unsubscribed. Email not sent.",
+        gate: "unsubscribed",
         unsubscribed_at: recipientLead.last_unsubscribe_at.toISOString(),
       },
       { status: 403 }
     );
   }
-
-  // 6. Require recipient email
-  const recipientEmail = recipientLead?.email ?? rawTenantEmail;
-  if (!recipientEmail) {
+  if (recipientLead?.nurture_paused && DECLINABLE_OUTREACH_TYPES.has(type)) {
     return NextResponse.json(
-      { error: `No email address found for ${target}. Cannot send outreach.` },
-      { status: 400 }
+      {
+        error: `${recipientLead.first_name} ${recipientLead.last_name} declined further buying / selling outreach. Renewal and lease check-ins remain available.`.trim(),
+        gate: "declined_outreach",
+      },
+      { status: 403 }
     );
   }
 
@@ -573,8 +634,51 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 
   const html = buildEmail(bodyHtml, agentName, agentEmail, agentPhone);
+  const trackingField = getTrackingField(type);
+  const ip = req.headers.get("x-forwarded-for") ?? undefined;
+  const gates = {
+    lease: "ok",
+    recipient: "ok",
+    unsubscribed: "ok",
+    declined: recipientLead?.nurture_paused ? "declined_but_not_applicable" : "ok",
+  };
+  const tokenParts = {
+    lease_id: leaseId.toString(), target, type, recipient: recipientEmail, subject, html, agent_id: String(auth.userId ?? ""),
+  };
 
-  // 9. Send email
+  // 9. Preview — the exact email, nothing sent
+  if (body.mode === "preview") {
+    const preview_token = outreachPreviewToken(tokenParts);
+    await logAuditEvent(
+      "lease_tracker_outreach_previewed",
+      "active_lease",
+      leaseId.toString(),
+      auth,
+      { target, type, recipient_lead_id: recipientLead?.id?.toString() ?? null, recipient_email: recipientEmail, subject },
+      ip
+    );
+    return NextResponse.json({
+      mode: "preview",
+      sent: false,
+      recipient: { name: recipientName, email: recipientEmail, lead_id: recipientLead?.id?.toString() ?? null },
+      from: { name: agentName, email: agentEmail },
+      subject,
+      html,
+      gates,
+      tracking_field: trackingField ?? null,
+      days_to_expiry: daysToExpiry(lease.lease_end_date, now),
+      preview_token,
+    });
+  }
+
+  // 10. Send — only what was previewed (today, by this agent, to this recipient, with this body)
+  if (body.preview_token !== outreachPreviewToken(tokenParts)) {
+    return NextResponse.json(
+      { error: "The preview is stale or does not match this email. Preview again, then confirm.", gate: "preview_mismatch" },
+      { status: 409 }
+    );
+  }
+
   const result = await sendEmail(
     recipientEmail,
     subject,
@@ -584,51 +688,64 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       from: { email: agentEmail, name: agentName },
       channel: "agent",
       replyTo: agentEmail,
+      dryRun: body.dry_run,
     }
   );
 
   if (!result.success) {
+    await logAuditEvent(
+      "lease_tracker_outreach_send_failed",
+      "active_lease",
+      leaseId.toString(),
+      auth,
+      { target, type, recipient_email: recipientEmail, subject, error: result.error ?? null, suppressed: result._suppressed === true },
+      ip
+    );
     return NextResponse.json(
-      { error: "Failed to send email", detail: result.error },
-      { status: 500 }
+      { error: "Failed to send email", detail: result.error, gate: result._suppressed ? "unsubscribed" : "send_failed" },
+      { status: result._suppressed ? 403 : 500 }
     );
   }
 
-  // 10. Update outreach tracking on ActiveLease
-  const trackingField = getTrackingField(type);
-  if (trackingField) {
+  // 11. Update outreach tracking on ActiveLease (a dry run sent nothing — stamp nothing)
+  if (trackingField && !body.dry_run) {
     await prisma.activeLease.update({
       where: { id: leaseId },
       data: { [trackingField]: new Date() },
     });
   }
 
-  // 11. Log audit event
+  // 12. Log audit event
   // Note: OutreachEvent requires seller_lead_id (FK to SellerLead, not Lead).
   // Lease tracker clients are Lead records, not SellerLeads — skip OutreachEvent.
   // Full audit trail is captured via AuditEvent below.
   await logAuditEvent(
-    "lease_tracker_outreach_sent",
+    body.dry_run ? "lease_tracker_outreach_dryrun" : "lease_tracker_outreach_sent",
     "active_lease",
     leaseId.toString(),
     auth,
     {
       target,
       type,
+      confirmed: true,
+      dry_run: body.dry_run,
       recipient_lead_id: recipientLead?.id?.toString() ?? null,
       recipient_email: recipientEmail,
       subject,
-      message_id: result.messageId,
-      tracking_field_updated: trackingField ?? null,
+      message_id: result.messageId ?? null,
+      tracking_field_updated: body.dry_run ? null : (trackingField ?? null),
     },
-    req.headers.get("x-forwarded-for") ?? undefined
+    ip
   );
 
   return NextResponse.json({
     success: true,
-    message_id: result.messageId,
+    mode: "send",
+    sent: !body.dry_run,
+    dry_run: body.dry_run,
+    message_id: result.messageId ?? null,
     recipient: recipientEmail,
     subject,
-    tracking_updated: trackingField ?? null,
+    tracking_updated: body.dry_run ? null : (trackingField ?? null),
   });
 }

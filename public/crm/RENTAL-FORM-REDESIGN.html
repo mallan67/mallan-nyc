@@ -622,9 +622,6 @@ body { font-family: Manrope, sans-serif; }
                 <div class="flex items-end pb-2">
                     <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalRentControl" class="w-4 h-4" data-concept="RentControlYN"> Rent controlled</label>
                 </div>
-                <div class="flex items-end pb-2">
-                    <label class="flex items-center gap-2 cursor-pointer text-sm" title="Cotality SponsorUnitYN describes the listed unit, not the building"><input type="checkbox" id="rentalSponsorUnit" class="w-4 h-4" data-concept="SponsorUnitYN"> This unit is a sponsor unit</label>
-                </div>
                 <div class="sm:col-span-2 lg:col-span-3">
                     <label class="field-label">Rent Includes</label>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="rentalRentIncludesGroup">
@@ -725,8 +722,17 @@ body { font-family: Manrope, sans-serif; }
                             <label class="field-label mb-2">Building Status</label>
                             <div class="space-y-2">
                                 <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalBuildingStatus" value="Existing" class="w-4 h-4" checked data-concept-disposition="mallan-internal"> Existing</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalBuildingStatus" value="NewDevelopment" class="w-4 h-4"> New Development</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalBuildingStatus" value="NewConversion" class="w-4 h-4"> New Conversion</label>
+                                <label class="radio-card flex items-center gap-2 text-sm" title="New construction — Cotality NewConstructionYN"><input type="radio" name="rentalBuildingStatus" value="NewDevelopment" class="w-4 h-4" data-concept="NewConstructionYN"> New Development (new construction)</label>
+                                <label class="radio-card flex items-center gap-2 text-sm" title="Mallan-only: Cotality has no conversion field"><input type="radio" name="rentalBuildingStatus" value="NewConversion" class="w-4 h-4" data-concept-disposition="mallan-internal"> New Conversion</label>
+                            </div>
+                            <!-- Sponsor Unit is independent of Building Status (REBNY SponsorUnitYN): rented by the sponsor or the
+                                 holder of unsold shares, no board approval — new construction or an older building -->
+                            <div class="mt-3 pt-3 border-t">
+                                <label class="block text-xs font-medium text-gray-600 mb-2">Sponsor Unit <span class="font-normal text-gray-400">— rented by the sponsor or the holder of unsold shares, no board approval; any ownership, new or older building</span></label>
+                                <div class="flex gap-4">
+                                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalSponsorUnit" value="No" class="w-4 h-4" checked data-concept="SponsorUnitYN"> No</label>
+                                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalSponsorUnit" value="Yes" class="w-4 h-4"> Yes</label>
+                                </div>
                             </div>
                         </div>
 
@@ -1526,6 +1532,15 @@ body { font-family: Manrope, sans-serif; }
                     <div><span class="text-xs text-gray-500 block">License #</span><span class="font-medium" id="rentalListingAgentLicense">--</span></div>
                 </div>
             </div>
+        </div>
+
+        <!-- Owner (Landlord) — the CRM client this listing belongs to: Listing.owner_client_id → Lead (relation ListingOwner). Mallan-internal, never sent to Cotality. -->
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-user-tag"></i> Owner (Landlord)</div>
+            <p class="text-xs text-gray-500 mb-2">The CRM client who owns this property. Their workspace lists it under Owned Listings; add the client in the CRM first if they are not in the list.</p>
+            <select id="rentalOwnerClientId" class="field-input max-w-md" data-concept-disposition="mallan-internal" title="Mallan-internal: the owner (landlord) relationship — a CRM client, not a Cotality field">
+                <option value="">— No owner linked —</option>
+            </select>
         </div>
 
         <!-- Co-Listing Agents -->
@@ -3674,10 +3689,10 @@ body { font-family: Manrope, sans-serif; }
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLandmark" class="w-4 h-4" data-concept="LandmarkStatusYN"> Landmark Building</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgHistoric" class="w-4 h-4"> Historic District</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLEED" class="w-4 h-4"> LEED Certified</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewConstruction" class="w-4 h-4" data-concept="NewConstructionYN"> New Construction</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewDevelopment" class="w-4 h-4" data-concept-disposition="mallan-internal" data-removed-field="NewDevelopmentYN"> New Development</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm" title="Mirrors Building Status = New Development (Essentials) — Cotality NewConstructionYN"><input type="checkbox" id="bldgNewConstruction" class="w-4 h-4" data-concept="NewConstructionYN"> New Construction (new development)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgConversion" class="w-4 h-4"> Conversion</label>
                         </div>
+                        <p class="text-xs text-gray-500 mt-2">Sponsor Unit (no board approval) is a fact about this listing, not the building — set it under Building Status in Essentials (REBNY SponsorUnitYN).</p>
                     </div>
 
                     <div class="flex justify-between mt-4">
@@ -4690,7 +4705,6 @@ function populateBuildingFromIDX(prefix, building) {
         setVal('bldgType', stVal);
     }
     checkIf('bldgNewConstruction', pick('new_construction_yn', 'newConstructionYN'));
-    checkIf('bldgNewDevelopment', pick('new_development_yn', 'newDevelopmentYN'));
 
     // ── 5. Tax + association ─────────────────────────────────────────
     setIfPresent('bldgTaxBlock', pick('tax_block', 'taxBlock'));
@@ -5940,7 +5954,7 @@ function validateAndNextRentalTab(currentTab, nextTab) {
 function saveRentalDraft() {
     if (_rentalSaveBlocked() || _rentalBusy) return Promise.resolve(false);
     var data = collectRentalFormData();
-
+    data._savedAt = new Date().toISOString();
     // S-DB-008 phantom-draft guard (parity with the sales form's
     // _saleEditMode && _saleEditDbId guard): when editing an existing DB
     // listing, the browser localStorage draft must NOT be written — it would
@@ -6125,6 +6139,10 @@ function collectRentalFormData() {
     data.PublicRemarks = data.rentalDescription || '';
     data.PrivateRemarks = data.rentalAgentRemarks || '';
     data.ShowingInstructions = data.rentalShowingInstructions || '';
+    // Sponsor Unit (no board approval) is its own fact — REBNY SponsorUnitYN. (NewConstructionYN is derived below, once the building panel is swept.)
+    data.SponsorUnitYN = data.rentalSponsorUnit === 'Yes';
+    // The owner (landlord) relationship travels as its own key to the typed column Listing.owner_client_id — not a provider field, not a raw_data fact.
+    data.owner_client_id = data.rentalOwnerClientId || null;
 
     // ListingAgreement — INDEPENDENT from Permissions per RLS rules.
     // OwnerOptOut/ParticipantOnly set Permissions, NOT ListingAgreement.
@@ -6209,7 +6227,9 @@ function collectRentalFormData() {
     data.AssociationName = data.bldgAssociationName || '';
     // Read AFTER the building modal is swept above: they used to be read before it, which left YearBuilt empty and NewDevelopmentYN false on every save.
     data.YearBuilt = parseInt(data.bldgYearBuilt || '0') || null;
-    data.NewDevelopmentYN = data.bldgNewDevelopment === true || data.bldgNewDevelopment === 'true';
+    // New Development (Building Status, Essentials) IS new construction — Cotality NewConstructionYN; the building panel's "New Construction" box
+    // (swept just above) mirrors it. NewDevelopmentYN is not a Cotality field and is no longer emitted.
+    data.NewConstructionYN = data.rentalBuildingStatus === 'NewDevelopment' || data.bldgNewConstruction === true || data.bldgNewConstruction === 'true';
 
     // Collect multi-value checkbox fields as arrays
     data.PetsAllowed = [];
@@ -6277,8 +6297,6 @@ function collectRentalFormData() {
     // Map remaining RLS field names from CRM element IDs
     data.CountyOrParish = data.rentalCountyOrParish || '';
     data.PostalCity = data.rentalPostalCity || '';
-    // NewConstructionYN is the live Cotality field (the building tab's New Construction box). New Development is the form's own box (NewDevelopmentYN is not in live Cotality).
-    data.NewConstructionYN = data.bldgNewConstruction === true || data.bldgNewConstruction === 'true';
     // PropertyCondition is a live Cotality enumeration (Multi): the box lists its members and what it holds is sent as a one-member list. A value from before the list was the live one
     // is sent as the member of the same name (Good, Poor, Updated); one with no member (Fair) is not sent as one.
     var _condition = typeof MallanListingHydration !== 'undefined' ? MallanListingHydration.propertyCondition(data.rentalCondition) : '';
@@ -6504,11 +6522,17 @@ function submitRentalListing() {
         return;
     }
 
-    // The server refuses Fair Housing and UCBA wording: every text box is checked (and shows what it found) before anything is sent
+    // Fair Housing / UCBA wording: every text box is checked and shows what it found. A Draft is saved with the flags (owner rule:
+    // flagged, never blocks saving); a listing to be DISPLAYED (Active, Coming Soon) is advertising and is not sent while a blocker remains.
     var wording = typeof MallanFairHousing === 'undefined' ? [] : MallanFairHousing.blockedFields().filter(function(f) { return f.saves; });
-    if (wording.length) {
-        showToast('Cannot submit: ' + wording.map(function(f) { return f.label; }).join(', ') + ' hold wording the server refuses. Please correct all flagged language.', 'error');
+    var _chosenStatus = (document.getElementById('rentalStatus') || {}).value || 'Draft';
+    var _publishing = /^(Active|ComingSoon|ActiveUnderContract)$/.test(_chosenStatus);
+    if (wording.length && _publishing) {
+        showToast('Cannot publish: ' + wording.map(function(f) { return f.label; }).join(', ') + ' hold wording the server refuses. Save as Draft, or correct the flagged language first.', 'error');
         return;
+    }
+    if (wording.length) {
+        showToast('Saved as Draft with flagged wording in ' + wording.map(function(f) { return f.label; }).join(', ') + ' — fix it before publishing.', 'warning', 10000);
     }
 
     // Collect form data
@@ -7581,6 +7605,39 @@ var _RENTAL_STEP_FOR_FAMILY = { draft: 'Draft', active: 'Active', closed: 'Rente
 // Puts a stored listing back into the form's controls. A saved listing and a browser draft go through the same code: a draft is what collectRentalFormData()
 // produced, so it carries the same control keys and provider keys. No change event is dispatched while values go back in; the handlers that depend on a
 // control's state run once at the end, so a cascade cannot overwrite a value that has not been restored yet.
+// ── Owner (Landlord) picker — the CRM client this listing belongs to: Listing.owner_client_id → Lead (relation ListingOwner). Mallan-internal, never sent to Cotality. ──
+// The list is the CRM's clients (GET /api/crm/clients, the signed-in user's own); the stored owner is kept selected even before the list arrives, or when it is not in it.
+function _rentalLoadOwnerPicker() {
+    var sel = document.getElementById('rentalOwnerClientId');
+    if (!sel || typeof MallanAPI === 'undefined' || !MallanAPI.clients || typeof MallanAPI.clients.list !== 'function') return;
+    MallanAPI.clients.list({ limit: 200 }).then(function (res) {
+        var clients = (res && (res.clients || res.data || res.items)) || (Array.isArray(res) ? res : []);
+        var keep = sel.dataset.pending || sel.value || '';
+        sel.innerHTML = '<option value="">— No owner linked —</option>';
+        clients.forEach(function (c) {
+            var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.name || c.email || ('Client #' + c.id);
+            var roles = Array.isArray(c.roles) && c.roles.length ? ' (' + c.roles.join(', ') + ')' : '';
+            var opt = document.createElement('option'); opt.value = String(c.id); opt.textContent = name + roles; sel.appendChild(opt);
+        });
+        sel.dataset.loaded = 'true';
+        if (keep) _rentalSetOwnerClient(keep);
+    }).catch(function () { /* the list did not arrive: the picker keeps what it shows (the stored owner stays selected) */ });
+}
+function _rentalSetOwnerClient(id) {
+    var sel = document.getElementById('rentalOwnerClientId');
+    if (!sel) return;
+    var s = id === null || id === undefined ? '' : String(id);
+    if (!s) { sel.value = ''; delete sel.dataset.pending; return; }
+    sel.value = s;
+    if (sel.value !== s) {                          // not in the list (yet): the record's owner stays visible, and is re-applied once the list loads
+        if (sel.dataset.loaded !== 'true') sel.dataset.pending = s;
+        var opt = document.createElement('option'); opt.value = s; opt.textContent = 'Client #' + s; sel.appendChild(opt); sel.value = s;
+    } else { delete sel.dataset.pending; }
+}
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') MallanAPI.onReady(_rentalLoadOwnerPicker); else _rentalLoadOwnerPicker();
+});
+
 function _restoreRentalControls(listing) {
     var raw = listing.raw_data || {};
 
@@ -7647,6 +7704,9 @@ function _restoreRentalControls(listing) {
         statusEl.value = step;   // no step: pending has several workflow steps and the saved one disagrees, so the agent chooses
     }
 
+    // The owner (landlord) relationship: the record's typed column (a saved listing), else the key the form saved (a browser draft).
+    _rentalSetOwnerClient(listing.owner_client_id !== undefined ? listing.owner_client_id : (raw.owner_client_id !== undefined ? raw.owner_client_id : raw.rentalOwnerClientId));
+
     // What depends on a control's state: field visibility, status fields, listing type notice, conditional sections.
     if (typeof applyRentalFieldRules === 'function') applyRentalFieldRules();
     updateRentalStatusFields();
@@ -7675,6 +7735,35 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof MallanBuildingLookup !== 'undefined') { MallanBuildingLookup.watch('rental'); _syncStructureType(); }
     loadCotalityNeighborhoodsIntoDropdown();
 
+    // Building Status = New Development IS new construction (Cotality NewConstructionYN): the Essentials
+    // radio and the building-tab "New Construction" box are one fact, whichever is touched.
+    document.querySelectorAll('input[name="rentalBuildingStatus"]').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            var box = document.getElementById('bldgNewConstruction');
+            if (box && radio.checked) box.checked = radio.value === 'NewDevelopment';
+        });
+    });
+    var _bldgNewConstructionBox = document.getElementById('bldgNewConstruction');
+    if (_bldgNewConstructionBox) {
+        _bldgNewConstructionBox.addEventListener('change', function() {
+            var current = document.querySelector('input[name="rentalBuildingStatus"]:checked');
+            var target = _bldgNewConstructionBox.checked ? 'NewDevelopment' : (current && current.value === 'NewDevelopment' ? 'Existing' : null);
+            if (!target) return;
+            var r = document.querySelector('input[name="rentalBuildingStatus"][value="' + target + '"]');
+            if (r && !r.checked) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
+        });
+    }
+    // A sponsor rental needs no board approval (owner rule, 2026-10-26): Sponsor Unit = Yes answers an
+    // unanswered Board Approval with No. An explicit Yes is never overridden.
+    document.querySelectorAll('input[name="rentalSponsorUnit"]').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            if (!radio.checked || radio.value !== 'Yes') return;
+            if (document.querySelector('input[name="rentalBoardApproval"]:checked')) return;
+            var no = document.querySelector('input[name="rentalBoardApproval"][value="No"]');
+            if (no) { no.checked = true; no.dispatchEvent(new Event('change', { bubbles: true })); }
+        });
+    });
+
     // Set today's date
     const today = new Date().toISOString().split('T')[0];
     const createDate = document.getElementById('rentalCreateDate');
@@ -7684,6 +7773,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load saved draft if exists
     var draftLoaded = loadRentalDraft();
+    // Autosave (owner rule: the Rental form autosaves and restores its draft): a NEW listing keeps a browser copy two seconds after
+    // the last keystroke, exactly what Save Draft keeps (_rentalKeepBrowserCopy), so a reload brings it back through loadRentalDraft.
+    // A listing the server has is never copied to the browser (it would shadow the record; Save Changes sends it to the server).
+    window._rentalAutoSaveReady = true;
+    var _rentalAutoSaveTimer = null;
+    function _rentalAutoSave() {
+        if (!window._rentalAutoSaveReady || _rentalEditMode || _rentalEditDbId || _rentalEditListingId || _rentalBusy) return;
+        clearTimeout(_rentalAutoSaveTimer);
+        _rentalAutoSaveTimer = setTimeout(function() {
+            if (_rentalEditMode || _rentalEditDbId || _rentalEditListingId || _rentalBusy) return;
+            try { _rentalKeepBrowserCopy(collectRentalFormData()); } catch (e) { console.warn('[RentalForm] autosave skipped: ' + (e && e.message ? e.message : e)); }
+        }, 2000);
+    }
+    document.addEventListener('input', _rentalAutoSave);
+    document.addEventListener('change', _rentalAutoSave);
 
     // Init Tab 1
     showRentalMainTab(1);

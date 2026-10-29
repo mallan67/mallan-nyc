@@ -377,8 +377,14 @@
         var _serverSearchActive = false;
 
         function _replaceListings(newData, source) {
+            // A listing opened in its own tab (#detail/RLS…) is fetched on its own and pushed here; when the
+            // default load landed afterwards this refill dropped it, so Share / Email / the agent inquiry on
+            // that page answered "Listing not found" (found 2026-10-27). Keep the listing that is open.
+            var openId = (typeof _detailCurrentId !== 'undefined') ? _detailCurrentId : null;
+            var open = openId != null ? listings.find(function(l) { return l.id === openId; }) : null;
             listings.length = 0;
             newData.forEach(function(l) { listings.push(l); });
+            if (open && !listings.some(function(l) { return l.id === open.id; })) listings.push(open);
             // Ensure all fields used by renderers have safe defaults
             listings.forEach(function(l) {
                 if (l.price == null) l.price = 0;

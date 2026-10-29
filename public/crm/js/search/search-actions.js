@@ -55,9 +55,13 @@
             toggleClientDeliveryMenu();
         }
 
+        // Close the client-delivery dialog and the Reports dialog it hands off to. Both open and close
+        // with the "hidden" class; an inline display:none here (called on every Escape key) used to
+        // leave Reports unable to open again for the rest of the session.
         function closeDeliveryModal() {
-            var modal = document.getElementById('reportsModal');
-            if (modal) modal.style.display = 'none';
+            var delivery = document.getElementById('clientDeliveryModal');
+            if (delivery) delivery.classList.add('hidden');
+            if (typeof closeReportsModal === 'function') closeReportsModal();
         }
 
         // Select all results
@@ -113,7 +117,10 @@
                 var key = 'lastSearchCriteria_' + (typeof LOGGED_IN_AGENT !== 'undefined' ? LOGGED_IN_AGENT.id : 'default');
                 var criteria = typeof activeSearchCriteria !== 'undefined' ? activeSearchCriteria : null;
                 if (criteria) {
-                    localStorage.setItem(key, JSON.stringify({ criteria: criteria, timestamp: Date.now() }));
+                    // The exact live query (searchResultsState.lastParams) travels with the criteria so a
+                    // recall re-runs it against Cotality instead of filtering the in-memory page.
+                    var params = (typeof searchResultsState !== 'undefined' && searchResultsState.lastParams) ? searchResultsState.lastParams : null;
+                    localStorage.setItem(key, JSON.stringify({ criteria: criteria, params: params, timestamp: Date.now() }));
                 }
             } catch (e) { /* localStorage full or unavailable */ }
         }
@@ -136,7 +143,16 @@
                 if (typeof activeSearchCriteria !== 'undefined') {
                     activeSearchCriteria = parsed.criteria;
                 }
-                if (typeof searchResultsState !== 'undefined' && typeof listings !== 'undefined') {
+                if (parsed.params && typeof _runServerSearch === 'function') {
+                    // Re-run the stored live Cotality query. The in-memory `listings` array is only the
+                    // last page(s) loaded, so filtering it locally (the branch below, kept for entries
+                    // saved before 2026-10-26) showed a mix of stale pages as "the last search".
+                    var section = document.getElementById('searchResultsSection');
+                    if (section) { section.style.display = 'block'; section.classList.remove('hidden'); }
+                    if (typeof searchResultsState !== 'undefined') searchResultsState.currentPage = 1;
+                    _runServerSearch(Object.assign({}, parsed.params));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else if (typeof searchResultsState !== 'undefined' && typeof listings !== 'undefined') {
                     searchResultsState.filteredListings = filterListings(listings, parsed.criteria);
                     searchResultsState.currentPage = 1;
                     var searchResultsSection = document.getElementById('searchResultsSection');

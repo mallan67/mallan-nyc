@@ -15,8 +15,11 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { buildCrmIdxODataFilter } from '@/lib/search/crm-idx-filter';
-import { buildFieldFilters } from '@/lib/search/field-filters';
+import { buildCrmIdxQuery } from '@/lib/search/crm-idx-filter';
+
+// The agent/office and listing-agreement clauses now live inside the live-contract query builder (integration 2026-10-28):
+// the whole Cotality filter string is buildCrmIdxQuery(params).filter.
+const buildCrmIdxODataFilter = (params: URLSearchParams): string => buildCrmIdxQuery(params).filter;
 import { MALLAN_LIST_OFFICE_MLS_IDS } from '@/lib/listings/mallan-source-identity';
 import { resolveListingMedia } from '@/lib/media/listing-media-resolver';
 
@@ -28,6 +31,7 @@ jest.setTimeout(30000);
 const ROOT = resolve(__dirname, '../..');
 const SHELL = readFileSync(resolve(ROOT, 'public/crm/index-built.html'), 'utf8');
 const mirror = JSON.parse(readFileSync(resolve(ROOT, 'data/cotality-enums.live.json'), 'utf8')) as {
+  search: { property: Record<string, { kind: string; lookup?: string }> };
   enums: Record<string, string[]>;
   entities: Record<string, Record<string, string>>;
 };
@@ -69,7 +73,7 @@ beforeAll(async () => {
       win.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
       win.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
       win.fetch = async (url: string, init?: { method?: string }) => {
-        const u = String(url);
+        const u = String(url).replace(/^https?:\/\/[^/]+/, '');            // the API client sends same-origin absolute URLs (agent-context: location.origin)
         calls.push(`${(init && init.method) || 'GET'} ${u}`);
         const ok = (body: unknown) => ({ ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) });
         const kind = u.includes('/api/crm/directory/members') ? 'members' : u.includes('/api/crm/directory/offices') ? 'offices' : null;
@@ -288,7 +292,7 @@ describe('Agent Search on the real CRM Search page', () => {
     expect(w.AgentOfficeSearch.chosenCount()).toBe(0);
   });
 
-  it('only Cotality can evaluate agent/office filters, so no local pre-render is shown for them', async () => {
+  it('results come only from Cotality: local rows are never pre-rendered, with or without agent criteria', async () => {
     const row = (id: string) => ({
       id, lid: id, status: 'ACTIVE', price: 1, beds: 1, baths: 1, rooms: 1, address: 'A', unit: '', neighborhood: '', zip: '', borough: 'Manhattan', company: '',
       listingCategory: 'sale', idxDisplayYN: true, internetDisplayYN: true, addressDisplayYN: true,
@@ -296,8 +300,10 @@ describe('Agent Search on the real CRM Search page', () => {
     });
     w.listings.push(row('L1'), row('L2'));
     try {
+      calls.length = 0;
       w.performSearch();
-      expect(w.searchResultsState.filteredListings.length).toBeGreaterThan(0); // control: without agent criteria the local rows pre-render
+      expect(w.searchResultsState.filteredListings).toEqual([]);                   // the preloaded rows are not a result population
+      expect(calls.some((c) => c.includes('/api/idx/search'))).toBe(true);         // Cotality is asked
       w.clearSearchForm();
       await typeInto('searchListAgent', 'maya');
       pick('listAgent', 1);
@@ -355,7 +361,7 @@ describe('the Exclusive box and the client post-filter on the real page', () => 
 });
 
 describe('MallanAPI.idx.search forwards the filters the server supports and Cotality evaluates', () => {
-  it('sends the agent/office filters, the checkbox filters, management company, unit and contract dates; keyword stays client-side', async () => {
+  it('sends the agent/office filters, the checkbox filters, management company, unit, contract dates and the keyword (Cotality evaluates contains(PublicRemarks))', async () => {
     w.MallanAPI.idx.search({
       type: 'sale',
       checkboxFilters: '{"ListingAgreement":["Open"]}',
@@ -364,7 +370,7 @@ describe('MallanAPI.idx.search forwards the filters the server supports and Cota
       listAgent: '39361', coListAgent: '94043', anyAgent: '97052', listOffice: '7041', coListOffice: 'corcoran',
     });
     await sleep(50);
-    expect(searchUrl().searchParams.has('keyword')).toBe(false);
+    expect(searchUrl().searchParams.get('keyword')).toBe('terrace');
     expect(Object.fromEntries(searchUrl().searchParams.entries())).toMatchObject({
       type: 'sale',
       checkboxFilters: '{"ListingAgreement":["Open"]}',
@@ -393,7 +399,7 @@ describe('every enabled Search control sends only values live Cotality accepts',
   // that stands for them and enabled, see REMAPPED below. The ones left have no single live member: Brownstone and Terrace have none, "Laundry in Building" has several candidates, Flexible Space and
   // Investment are PropertySubType members, not BusinessType members.)
   const DISABLED = [
-    ['ArchitecturalStyle', 'Brownstone'], ['LaundryFeatures', 'Common'], ['BusinessType', 'FlexibleSpace'], ['BusinessType', 'Investment'],
+    ['ArchitecturalStyle', 'Brownstone'], ['BusinessType', 'FlexibleSpace'], ['BusinessType', 'Investment'],
   ];
   // [the field and the live member the control sends now, the field and the value it used to send]
   const REMAPPED: Array<[string, string, string, string]> = [
@@ -403,13 +409,15 @@ describe('every enabled Search control sends only values live Cotality accepts',
     ['ExteriorFeatures', 'BuildingRoofDeck', 'ExteriorFeatures', 'RoofDeck'],
     ['BuildingFeatures', 'FitnessCenter', 'BuildingFeatures', 'Fitness'],
     ['BuildingFeatures', 'BikeStorage', 'BuildingFeatures', 'BikeRoom'],
+    ['LaundryFeatures', 'CommonArea', 'LaundryFeatures', 'Common'],   // "Laundry in Building" is the live CommonArea,CommonOnFloor pair (2026-10-23), no longer a disabled Common
   ];
 
-  const enabledControls = (): Array<{ field: string; value: string }> => {
+  const enabledControls = (includeGenerated = false): Array<{ field: string; value: string }> => {
     const found = new Map<string, { field: string; value: string }>();
     d.querySelectorAll('#searchBasicMode input[data-field], #searchAdvancedMode input[data-field]').forEach((el) => {
       const input = el as HTMLInputElement;
       if (input.disabled || input.closest('[data-dead-container="true"]')) return;
+      if (!includeGenerated && input.closest('[data-generated-cotality]')) return;
       const field = input.getAttribute('data-field') as string;
       const value = input.getAttribute('data-value') || input.value || '';
       if (value) found.set(field + '|' + value, { field, value });
@@ -425,13 +433,16 @@ describe('every enabled Search control sends only values live Cotality accepts',
   const clauseFor = (field: string, value: string) =>
     buildCrmIdxODataFilter(new URLSearchParams({ status: '*', checkboxFilters: JSON.stringify({ [field]: [value] }) }));
 
-  it('no enabled control produces a clause with a value that is not a live enumeration member', () => {
+  it('no enabled control (the generated live-contract controls included) produces a clause with a value that is not a live enumeration member', () => {
     const problems: string[] = [];
-    for (const c of enabledControls()) {
+    const property = mirror.search.property;
+    for (const c of enabledControls(true)) {
       if (HANDLED_ELSEWHERE.has(c.field)) continue;
       const clause = clauseFor(c.field, c.value);
-      for (const m of clause.matchAll(/([A-Za-z0-9]+) eq '([^']*)'/g)) {
-        const members = mirror.enums[m[1]];
+      for (const m of clause.matchAll(/([A-Za-z0-9]+) (?:eq|has) '([^']*)'/g)) {
+        const meta = property[m[1]];
+        if (!meta || (meta.kind !== 'enum' && meta.kind !== 'multi')) continue;                       // a text or id field: no enumeration to check
+        const members = mirror.enums[meta.lookup || m[1]];
         if (!members || !members.includes(m[2])) problems.push(c.field + '=' + c.value + ' -> ' + m[1] + " eq '" + m[2] + "'");
       }
       for (const m of clause.matchAll(/([A-Za-z0-9]+) eq (true|false)/g)) {
@@ -441,42 +452,29 @@ describe('every enabled Search control sends only values live Cotality accepts',
     expect(problems).toEqual([]);
   });
 
-  it('the enabled controls the server never sends are exactly the documented backlog', () => {
-    const clientOnly = new Set<string>();
-    for (const c of enabledControls()) {
-      if (HANDLED_ELSEWHERE.has(c.field) || clauseFor(c.field, c.value) !== '') continue;
-      // a control the checkbox path does not send may still be sent as a filter on its live field (CotalityFieldFilters.bridge): then the server must accept every row
-      const bridged = w.CotalityFieldFilters.bridge({ [c.field]: [c.value] });
-      if (bridged.rows.length > 0) { expect({ control: c.field + '=' + c.value, rejected: buildFieldFilters(JSON.stringify(bridged.rows)).rejected }).toEqual({ control: c.field + '=' + c.value, rejected: [] }); continue; }
-      clientOnly.add(c.field);
-    }
-    expect([...clientOnly].sort()).toEqual([...CLIENT_ONLY_BACKLOG].sort());
-  });
-
   it('controls Cotality rejects, and the empty PetsAllowedYN pet controls, are disabled with a reason', () => {
     for (const [field, value] of DISABLED) {
       const boxes = [...d.querySelectorAll('input[data-field="' + field + '"][data-value="' + value + '"]')] as HTMLInputElement[];
-      expect({ field, value, found: boxes.length > 0, allDisabled: boxes.every((b) => b.disabled), titled: boxes.every((b) => b.title === 'Not currently supported') })
+      expect({ field, value, found: boxes.length > 0, allDisabled: boxes.every((b) => b.disabled), titled: boxes.every((b) => b.title.trim().length > 0) })
         .toEqual({ field, value, found: true, allDisabled: true, titled: true });
     }
-    // The building pet controls stand on PetsAllowed (live members BuildingYes, BuildingCatsOk, BuildingDogsOk, BuildingNo); PetsAllowedYN is empty live.
-    const pets = [...d.querySelectorAll('input[data-field="BuildingPetsAllowed"]')] as HTMLInputElement[];
+    // The building pet controls are PetsAllowed boxes on the live Building* members (BuildingYes, BuildingCatsOk, BuildingDogsOk, BuildingNo);
+    // PetsAllowedYN is empty live (0 rows, contract 2026-10-24) and no enabled control stands on it.
+    const pets = ([...d.querySelectorAll('#searchBasicMode input[data-field="PetsAllowed"], #searchBasicModeRental input[data-field="PetsAllowed"], #searchBasicModeBuilding input[data-field="PetsAllowed"]')] as HTMLInputElement[])
+      .filter((b) => (b.getAttribute('data-value') || '').split(',').every((v) => v.startsWith('Building')));
     expect(pets.length).toBeGreaterThan(0);
     expect(pets.every((b) => !b.disabled)).toBe(true);
-    for (const b of pets) {
-      const rows = w.CotalityFieldFilters.bridge({ BuildingPetsAllowed: [b.getAttribute('data-value')] }).rows;
-      expect(rows.map((r: { f: string }) => r.f)).toEqual(['PetsAllowed']);
-      for (const m of rows[0].v) expect(mirror.enums.PetsAllowed).toContain(m);
-    }
+    for (const b of pets) for (const v of (b.getAttribute('data-value') || '').split(',')) expect(mirror.enums.PetsAllowed).toContain(v);
+    expect(enabledControls().filter((c) => c.field === 'PetsAllowedYN')).toEqual([]);
   });
 
   it('the controls mapped to a live member are enabled in every panel, send that member, and the value live Cotality rejected is no longer offered', () => {
     for (const [field, value, oldField, oldValue] of REMAPPED) {
       expect(mirror.enums[field]).toContain(value);
-      const boxes = [...d.querySelectorAll('input[data-field="' + field + '"][data-value="' + value + '"]')] as HTMLInputElement[];
+      const boxes = ([...d.querySelectorAll('input[data-field="' + field + '"]')] as HTMLInputElement[]).filter((b) => (b.getAttribute('data-value') || '').split(',').includes(value));
       expect({ field, value, found: boxes.length > 0, anyDisabled: boxes.some((b) => b.disabled || b.title === 'Not currently supported') }).toEqual({ field, value, found: true, anyDisabled: false });
-      expect(enabledControls()).toContainEqual({ field, value });
-      expect(clauseFor(field, value)).toContain(field + " eq '" + value + "'");
+      expect(enabledControls().some((c) => c.field === field && c.value.split(',').includes(value))).toBe(true);
+      expect(clauseFor(field, value)).toMatch(new RegExp(field + " (eq|has) '" + value + "'"));
       expect({ oldField, oldValue, offered: d.querySelectorAll('input[data-field="' + oldField + '"][data-value="' + oldValue + '"]').length }).toEqual({ oldField, oldValue, offered: 0 });
     }
   });
@@ -491,19 +489,22 @@ describe('every enabled Search control sends only values live Cotality accepts',
   it('saved searches that hold the old DirectionFaces codes still restore (onto the Exposure boxes) and still reach Cotality as live Exposures members', () => {
     w.toggleSearchMode('advanced');
     w.clearSearchForm();
-    w._criteriaToFormFields({ listing_type: 'sale', _search_tab: 'sale', checkbox_filters: JSON.stringify({ DirectionFaces: ['N', 'SE'] }) });
+    // the record restores into the form it was saved from (_search_mode, 2026-10-26); the exposure boxes are in the advanced form
+    const unresolved = w._criteriaToFormFields({ listing_type: 'sale', _search_tab: 'sale', _search_mode: 'advanced', checkbox_filters: JSON.stringify({ DirectionFaces: ['N', 'SE'] }) });
+    expect(unresolved).toEqual([]);
     const ticked = [...d.querySelectorAll('#searchAdvancedMode input[data-field="Exposures"]:checked')].map((c) => c.getAttribute('data-value')).sort();
     expect(ticked).toEqual(['North', 'Southeast']);
-    expect(buildCrmIdxODataFilter(new URLSearchParams({ status: '*', checkboxFilters: JSON.stringify({ DirectionFaces: ['N', 'SE'] }) }))).toContain(
-      "(Exposures eq 'North' or Exposures eq 'Southeast')",
-    );
+    const filter = buildCrmIdxODataFilter(new URLSearchParams({ status: '*', checkboxFilters: JSON.stringify({ DirectionFaces: ['N', 'SE'] }) }));
+    expect(filter).toMatch(/(Exposures (?:eq|has) 'North' or Exposures (?:eq|has) 'Southeast')/);
+    expect(filter).not.toContain('DirectionFaces');
   });
 });
 
-describe('Sponsor Unit: SponsorUnitYN (a CustomFields flag on the listed unit) is searched as a filter on that field', () => {
-  // Live Cotality 2026-10-16: SponsorUnitYN is "1" / "0" text inside CustomProperty.CustomFields (249 of 1,801 active sale and rental rows are "1"). Cotality cannot filter it, so the route reads it from
-  // the expanded CustomProperty and filters the fetched page (lib/search/field-filters.ts); the page sends it as a fieldFilters entry.
-  const boxes = () => [...d.querySelectorAll('input[data-field="SponsorUnit"]')] as HTMLInputElement[];
+describe('Sponsor Unit: SponsorUnitYN (a CustomFields flag on the listed unit) is a checkbox criterion the server resolves on CustomProperty', () => {
+  // Live Cotality 2026-10-23: SponsorUnitYN is "1" / "0" text inside CustomProperty.CustomFields; Cotality cannot filter it. The page sends the
+  // box as an ordinary checkbox criterion and lib/search/crm-idx-filter.ts turns a CustomFields key into a LOCAL criterion (source customFields)
+  // that the route applies exactly to the expanded CustomProperty of each listing (Master §5.0: executed, applied by Mallan, or refused; never dropped).
+  const boxes = () => [...d.querySelectorAll('input[data-field="SponsorUnitYN"]')] as HTMLInputElement[];
   afterEach(() => boxes().forEach((b) => { b.checked = false; }));
 
   it('the Sponsor Unit checkbox is offered and enabled', () => {
@@ -511,70 +512,57 @@ describe('Sponsor Unit: SponsorUnitYN (a CustomFields flag on the listed unit) i
     expect(boxes().every((b) => !b.disabled)).toBe(true);
   });
 
-  it('ticking it sends fieldFilters SponsorUnitYN = true, no sponsorUnit parameter and no checkboxFilters', async () => {
+  it('ticking it sends checkboxFilters SponsorUnitYN = true (no fieldFilters, no sponsorUnit parameter) and the server builder keeps it as a customFields criterion', async () => {
     boxes().forEach((b) => { b.checked = true; });
     const params = w.buildIdxSearchParams(w.collectSearchCriteria());
     expect(params).not.toHaveProperty('sponsorUnit');
-    expect(params.checkboxFilters).toBeUndefined();
-    expect(JSON.parse(params.fieldFilters)).toEqual([{ f: 'SponsorUnitYN', op: 'eq', v: true }]);
-    expect(buildFieldFilters(params.fieldFilters).rejected).toEqual([]);
+    expect(params).not.toHaveProperty('fieldFilters');
+    expect(JSON.parse(params.checkboxFilters).SponsorUnitYN).toEqual(['true']);
+    const q = buildCrmIdxQuery(new URLSearchParams({ status: '*', checkboxFilters: params.checkboxFilters }));
+    expect(q.refused).toEqual([]);
+    expect(q.local.filter((l) => l.field === 'SponsorUnitYN').map((l) => l.source)).toEqual(['customFields']);
 
     calls.length = 0;
     w.performSearch();
     await sleep(300);
     const sent = searchUrl().searchParams;
-    expect(sent.has('sponsorUnit')).toBe(false);
-    expect(JSON.parse(sent.get('fieldFilters') as string)).toEqual([{ f: 'SponsorUnitYN', op: 'eq', v: true }]);
+    expect(sent.has('fieldFilters')).toBe(false);
+    expect(JSON.parse(sent.get('checkboxFilters') as string).SponsorUnitYN).toEqual(['true']);
   });
 
-  it('the other checkbox filters still go out next to it', () => {
-    boxes().forEach((b) => { b.checked = true; });
-    (d.querySelector('#agentOfficeSearch [data-field="ListingAgreement"][data-value="Open"]') as HTMLInputElement).checked = true;
-    const params = w.buildIdxSearchParams(w.collectSearchCriteria());
-    expect(params.checkboxFilters).toBe('{"ListingAgreement":["Open"]}');
-    expect(JSON.parse(params.fieldFilters)).toEqual([{ f: 'SponsorUnitYN', op: 'eq', v: true }]);
+  it('a saved search written before the cutover (sponsor_unit: true on its own) still runs as the dedicated sponsorUnit parameter', () => {
+    const params = w.buildIdxSearchParams({ searchTab: 'sale', checkboxFilters: { SponsorUnit: ['true'] } });
+    expect(params.sponsorUnit).toBe('true');
+    expect(params).not.toHaveProperty('checkboxFilters');
+    const q = buildCrmIdxQuery(new URLSearchParams({ status: '*', sponsorUnit: 'true' }));
+    expect(q.refused).toEqual([]);
+    expect(q.local.filter((l) => l.field === 'SponsorUnitYN').map((l) => l.source)).toEqual(['customFields']);
   });
 });
 
-describe('the other controls the checkbox path could not send are filters on their live field', () => {
-  const rows = (field: string, ...values: string[]) => w.CotalityFieldFilters.bridge({ [field]: values }).rows;
-  it('year built, stories and financing ranges keep their operator and number', () => {
-    expect(rows('YearBuilt', 'lte:1946')).toEqual([{ f: 'YearBuilt', op: 'le', v: 1946 }]);
-    expect(rows('YearBuilt', 'gte:1947')).toEqual([{ f: 'YearBuilt', op: 'ge', v: 1947 }]);
-    expect(rows('YearBuilt', 'lte:1946', 'gte:1947')).toEqual([]);          // Pre-War and Post-War together are every year
-    expect(rows('StoriesTotal', 'lte:6')).toEqual([{ f: 'StoriesTotal', op: 'le', v: 6 }]);
-    expect(rows('MaximumFinancingPercent', 'gt:0')).toEqual([{ f: 'MaximumFinancingPercent', op: 'gt', v: 0 }]);
-    expect(rows('MaximumFinancingPercent', 'eq:0')).toEqual([{ f: 'MaximumFinancingPercent', op: 'eq', v: 0 }]);
+describe('a Custom box with nothing typed refuses the search in every form (the bound would otherwise be dropped silently)', () => {
+  const toasts: string[] = [];
+  beforeAll(() => { w.showToast = (m: string) => { toasts.push(m); }; });
+  afterEach(() => { toasts.length = 0; w.clearSearchForm(); });
+  it.each([
+    ['basic sale', 'basic', 'sale', 'saleMaxPrice'],
+    ['basic rental', 'basic', 'rent', 'rentalMaxRent'],
+    ['advanced', 'advanced', 'sale', 'advSaleMaxPrice'],
+  ])('%s form', (_name, mode, tab, id) => {
+    w.toggleSearchMode(mode); w.toggleSearchTab(tab); w.clearSearchForm();
+    const sel = d.getElementById(id) as HTMLSelectElement;
+    expect([...sel.options].some((o) => o.value === 'custom')).toBe(true);
+    sel.value = 'custom'; sel.dispatchEvent(new w.Event('change', { bubbles: true }));
+    calls.length = 0;
+    w.performSearch();
+    expect(calls.filter((c) => c.includes('/api/idx/search'))).toEqual([]);
+    expect(toasts.join(' | ')).toMatch(/custom/i);
   });
-  it('attendance expands a general choice to the live full / part-time values, and "Any" to every attended kind', () => {
-    expect(rows('AttendanceType', 'DoormanYes')[0].v).toEqual(['DoormanYes', 'DoormanFullTime', 'DoormanPartTime']);
-    expect(rows('AttendanceType', 'None')[0].v).toEqual(['None']);
-    expect(rows('AttendanceType', 'Any')[0].v).toEqual(expect.arrayContaining(['DoormanFullTime', 'ConciergeYes', 'VideoDoormanYes', 'LobbyAttendantYes']));
-    expect(rows('AttendanceType', 'Any')[0].v).not.toContain('None');
-  });
-  it('building laundry / pool "Any" are the live Building* members except BuildingNone; security is "not empty"; furnished and concessions use live members', () => {
-    for (const [control, target] of [['BuildingLaundryFeatures', 'LaundryFeatures'], ['BuildingPoolFeatures', 'PoolFeatures']]) {
-      const r = rows(control, 'Any')[0];
-      expect(r.f).toBe(target);
-      expect(r.v.length).toBeGreaterThan(0);
-      for (const m of r.v) { expect(mirror.enums[target]).toContain(m); expect(m).toMatch(/^Building/); expect(m).not.toBe('BuildingNone'); }
-    }
-    expect(rows('BuildingSecurityFeatures', 'Any')).toEqual([{ f: 'SecurityFeatures', op: 'notnull' }]);
-    expect(rows('Furnished', 'Unfurnished')).toEqual([{ f: 'Furnished', op: 'in', v: ['Unfurnished'] }]);
-    expect(rows('Concessions', 'Yes')).toEqual([{ f: 'Concessions', op: 'in', v: ['Yes'] }]);
-    expect(rows('Concessions', 'NotAMember')).toEqual([]);                  // a value Cotality does not have is not sent as a filter
-  });
-  it('"In-House (Company)" filters on the Mallan listing office id the app already verified', () => {
-    expect(rows('ListOfficeMlsId', 'OwnOffice')).toEqual([{ f: 'ListOfficeMlsId', op: 'eq', v: MALLAN_LIST_OFFICE_MLS_IDS[0] }]);
-  });
-  it('Participant Only (REBNY members only, never public) filters on Permission = Private, a live member Cotality filters', () => {
-    expect(mirror.enums.Permission).toContain('Private');
-    expect(rows('RLSParticipantOnly', 'true')).toEqual([{ f: 'Permission', op: 'in', v: ['Private'] }]);
-    expect(buildFieldFilters(JSON.stringify(rows('RLSParticipantOnly', 'true'))).clauses).toEqual(["Permission eq 'Private'"]);
-  });
+});
+
+describe('Outdoor Space labels send the live member they name', () => {
   it('Terrace is PatioAndPorchFeatures = Terrace (the unit\'s own), and each Outdoor Space label sends the live member it names', () => {
     expect(mirror.enums.PatioAndPorchFeatures).toEqual(expect.arrayContaining(['Terrace', 'BuildingTerrace', 'Balcony']));
-    expect(rows('PatioAndPorchFeatures', 'Terrace')).toEqual([{ f: 'PatioAndPorchFeatures', op: 'in', v: ['Terrace'] }]);
     const want: Record<string, [string, string]> = { Balcony: ['ExteriorFeatures', 'Balcony'], Terrace: ['PatioAndPorchFeatures', 'Terrace'], Patio: ['ExteriorFeatures', 'Patio'], 'Roof Deck': ['ExteriorFeatures', 'BuildingRoofDeck'], Garden: ['ExteriorFeatures', 'Garden'], Yard: ['ExteriorFeatures', 'PrivateYard'] };
     const box = [...d.querySelectorAll('label')].filter((l) => (l.textContent || '').trim() in want && l.querySelector('input[data-field="PatioAndPorchFeatures"], input[data-field="ExteriorFeatures"]'));
     for (const [label, [field, value]] of Object.entries(want)) {
@@ -582,23 +570,6 @@ describe('the other controls the checkbox path could not send are filters on the
       expect({ label, field: input?.getAttribute('data-field'), value: input?.getAttribute('data-value') }).toEqual({ label, field, value });
       expect(mirror.enums[field]).toContain(value);
     }
-  });
-  it('"No ..." is searched only where Cotality has an explicit No: guarantors and smoking; a missing value is never a No', () => {
-    expect(rows('BuildingRules', 'GuarantorsAccepted')).toEqual([{ f: 'GuarantorsAcceptedYN', op: 'eq', v: true }]);
-    expect(rows('BuildingRules', 'not:GuarantorsAccepted')).toEqual([{ f: 'GuarantorsAcceptedYN', op: 'eq', v: false }]);
-    expect(rows('BuildingRules', 'BuildingSmokingAllowed')).toEqual([{ f: 'BuildingSmokeFreeYN', op: 'eq', v: false }]);
-    // no explicit No exists for these: nothing is sent (not even as the positive), and the boxes stay disabled
-    for (const rule of ['CorporateOwnerAllowed', 'PiedATerreAllowed', 'LiveWorkAllowed', 'CopurchasersAllowed']) expect(rows('BuildingRules', 'not:' + rule)).toEqual([]);
-    const noBoxes = [...d.querySelectorAll('input[data-not]')] as HTMLInputElement[];
-    for (const b of noBoxes) {
-      const verified = (b.getAttribute('data-field') === 'BuildingRules' && b.getAttribute('data-not') === 'GuarantorsAccepted') || b.getAttribute('data-value') === 'BuildingSmokingAllowed';
-      expect({ not: b.getAttribute('data-not'), disabled: b.disabled }).toEqual({ not: b.getAttribute('data-not'), disabled: !verified });
-    }
-  });
-  it('every bridged row is accepted by the server-side builder', () => {
-    const all = [['YearBuilt', 'lte:1946'], ['StoriesTotal', 'lte:6'], ['MaximumFinancingPercent', 'gt:0'], ['AttendanceType', 'Any'], ['BuildingRules', 'PiedATerreAllowed'], ['BuildingPetsAllowed', 'BuildingYes,BuildingCatsOK'],
-      ['BuildingLaundryFeatures', 'Any'], ['BuildingPoolFeatures', 'Any'], ['BuildingSecurityFeatures', 'Any'], ['Furnished', 'Furnished'], ['Concessions', 'Yes'], ['SponsorUnit', 'true']];
-    for (const [f, v] of all) expect({ f, rejected: buildFieldFilters(JSON.stringify(rows(f, v))).rejected }).toEqual({ f, rejected: [] });
   });
 });
 
@@ -736,16 +707,15 @@ describe('detail media on the real page: only a Photo is a photo (a video or a t
     expect(asked()).toBe(1);                                                          // asked once, not again: the re-render that follows the answer does not ask for the pictures a listing does not have
   });
 
-  it('a listing with no media at all is asked for once as well (the preview fetched, re-rendered and fetched again, for ever)', async () => {
+  it('a listing with no media at all is asked for once, and a second preview does not ask again (it used to be fetched, re-rendered and fetched again, for ever)', async () => {
     const bare = addListing('L-MEDIA-BARE', { status: 'Active', idxDisplayYN: true, internetDisplayYN: true });
     mediaBatch = () => ({ photos: { 'L-MEDIA-BARE': null }, media: { 'L-MEDIA-BARE': [] } });
     await runReportPreview(bare);
     await sleep(300);
     expect(calls.filter((c) => c.includes('/api/media/batch') && c.includes('L-MEDIA-BARE'))).toHaveLength(1);
     expect(bare.images).toBeUndefined();
-    // asking again is the user's doing: a second preview asks again, once
     await runReportPreview(bare);
     await sleep(300);
-    expect(calls.filter((c) => c.includes('/api/media/batch') && c.includes('L-MEDIA-BARE'))).toHaveLength(2);
+    expect(calls.filter((c) => c.includes('/api/media/batch') && c.includes('L-MEDIA-BARE'))).toHaveLength(1);
   });
 });

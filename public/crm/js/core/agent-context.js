@@ -11,7 +11,12 @@
 // Pointing a page at another origin is an explicit choice: set window.MALLAN_API_BASE before this script.
 (function() {
     if (typeof MallanAPI !== 'undefined' && window.MALLAN_API_BASE) {
+        // An explicit API base set by the host page wins (convergence 10-15).
         MallanAPI.configure({ baseUrl: String(window.MALLAN_API_BASE) });
+    } else if (typeof MallanAPI !== 'undefined') {
+        // The origin the page is served from: mallan.nyc in production, a preview or a local run otherwise (2026-10-27).
+        // No hostname test: a page never decides by name where production is (crm-api-origin, 2026-10-15).
+        MallanAPI.configure({ baseUrl: location.origin });
     }
 })();
 

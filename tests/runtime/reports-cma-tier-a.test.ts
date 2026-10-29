@@ -96,6 +96,9 @@ jest.mock('@/lib/cma/engine', () => ({
   __esModule: true,
   findComps: findCompsMock,
   estimateValue: estimateValueMock,
+  // The route also cleans the agent's adjustment rules and lines (Broker Price Opinion, 2026-10-27): real, pure helpers
+  resolveRates: jest.requireActual('@/lib/cma/engine').resolveRates,
+  cleanManual: jest.requireActual('@/lib/cma/engine').cleanManual,
 }));
 
 // Market-report generator mock — returns the new shape with ai_meta
@@ -178,7 +181,9 @@ describe('POST /api/crm/cma — empty-comps fail-loud', () => {
 
     expect(res.status).toBe(422);
     const body = await res.json();
-    expect(body.error).toMatch(/insufficient comparable data/i);
+    // Live-Cotality CMA (2026-10-26): the comp pool is read live, so the message names the
+    // source and the criteria the agent can widen.
+    expect(body.error).toMatch(/no comparable listings in live cotality/i);
     expect(body.code).toBe('INSUFFICIENT_COMPS');
     expect(body.subject).toEqual(
       expect.objectContaining({

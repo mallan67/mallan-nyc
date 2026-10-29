@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import { findComps, estimateValue } from "@/lib/cma/engine";
+import { findComps, estimateValue, resolveRates, cleanManual, type CmaRates, type ManualAdjustment } from "@/lib/cma/engine";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -51,21 +51,51 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
-  const { property_address, borough, neighborhood, listing_type, property_type, bedrooms, bathrooms, living_area, floor, notes } = body as {
-    property_address?: string; borough?: string; neighborhood?: string; listing_type?: string;
+  const { property_address, unit, borough, neighborhood, listing_type, property_type, bedrooms, bathrooms, living_area, floor, notes,
+    subject_listing_key, comp_listing_keys, months, include_active, monthly_cost, rates, manual, opinion } = body as {
+    property_address?: string; unit?: string; borough?: string; neighborhood?: string; listing_type?: string;
     property_type?: string; bedrooms?: number; bathrooms?: number; living_area?: number;
-    floor?: number; notes?: string;
+    floor?: number; notes?: string; subject_listing_key?: string; comp_listing_keys?: string[]; months?: number; include_active?: boolean;
+    /** The subject's monthlies (maintenance / CC + taxes per month), kept with the record so a reopened CMA shows it */
+    monthly_cost?: number;
+    /** The agent's adjustment rules and per-comparable lines (Broker Price Opinion), kept with the record */
+    rates?: CmaRates; manual?: Record<string, unknown[]>;
+    /** The broker's own price opinion for the report */
+    opinion?: { list_price?: number; sale_price_90?: number; comments?: string };
   };
 
   if (!property_address) {
     return NextResponse.json({ error: "property_address is required" }, { status: 400 });
   }
+  const subjectMonthly = typeof monthly_cost === "number" && monthly_cost > 0 ? Math.round(monthly_cost) : undefined;
+  const cleanRates = resolveRates(rates);
+  const cleanLines: Record<string, ManualAdjustment[]> = {};
+  if (manual && typeof manual === "object") {
+    for (const [key, lines] of Object.entries(manual).slice(0, 200)) {
+      const c = cleanManual(lines);
+      if (c.length) cleanLines[String(key)] = c;
+    }
+  }
+  const cleanOpinion = opinion && typeof opinion === "object" ? {
+    list_price: Number.isFinite(Number(opinion.list_price)) && Number(opinion.list_price) > 0 ? Math.round(Number(opinion.list_price)) : undefined,
+    sale_price_90: Number.isFinite(Number(opinion.sale_price_90)) && Number(opinion.sale_price_90) > 0 ? Math.round(Number(opinion.sale_price_90)) : undefined,
+    comments: opinion.comments ? String(opinion.comments).slice(0, 2000) : undefined,
+  } : undefined;
 
-  // Find comps
-  const comps = await findComps({
-    property_address, borough, neighborhood, listing_type: listing_type || "sale",
-    property_type, bedrooms, bathrooms, living_area, floor,
-  });
+  // Comparables from LIVE Cotality: the agent's exact picks (ListingKeys) or the automatic search
+  // in the subject's neighborhood (lib/cma/engine.ts). A criterion Cotality cannot serve is refused.
+  let comps;
+  try {
+    comps = await findComps({
+      property_address, unit, borough, neighborhood, listing_type: listing_type || "sale",
+      property_type, bedrooms, bathrooms, living_area, floor, monthly_cost: subjectMonthly,
+      rates: cleanRates, manual: cleanLines,
+      subject_listing_key, months, include_active,
+      comp_listing_keys: Array.isArray(comp_listing_keys) ? comp_listing_keys.map(String).filter(Boolean) : undefined,
+    });
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message, code: "CRITERIA_UNAVAILABLE" }, { status: 422 });
+  }
 
   // Reports/CMA Tier A P0 — empty-pool fail-loud.
   // Previously a zero-comp result silently produced a $0 CmaReport
@@ -76,9 +106,9 @@ export async function POST(req: NextRequest) {
   if (comps.length === 0) {
     return NextResponse.json(
       {
-        error: "Insufficient comparable data — broaden criteria or check Cotality availability.",
+        error: "No comparable listings in live Cotality for these criteria — widen the time window, area or bedrooms.",
         code: "INSUFFICIENT_COMPS",
-        subject: { property_address, borough, neighborhood, listing_type, property_type, bedrooms, bathrooms },
+        subject: { property_address, unit, borough, neighborhood, listing_type, property_type, bedrooms, bathrooms, months: months || 6 },
       },
       { status: 422 },
     );
@@ -92,7 +122,8 @@ export async function POST(req: NextRequest) {
       property_address,
       borough: borough || null,
       neighborhood: neighborhood || null,
-      subject_details: { listing_type, property_type, bedrooms, bathrooms, living_area, floor } as Prisma.InputJsonValue,
+      subject_details: { unit, listing_type, property_type, bedrooms, bathrooms, living_area, floor, monthly_cost: subjectMonthly, subject_listing_key, months: months || 6, include_active: !!include_active, source: "cotality_live",
+        rates: cleanRates, manual: cleanLines, opinion: cleanOpinion } as unknown as Prisma.InputJsonValue,
       comps: comps as unknown as Prisma.InputJsonValue,
       adjustments: comps.map(c => c.adjustments) as unknown as Prisma.InputJsonValue,
       estimated_value: valuation.estimated,
@@ -110,6 +141,7 @@ export async function POST(req: NextRequest) {
       price_range_low: report.price_range_low?.toString() ?? null,
       price_range_high: report.price_range_high?.toString() ?? null,
     },
+    comps,
     valuation,
   }, { status: 201 });
 }

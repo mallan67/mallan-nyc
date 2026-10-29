@@ -140,7 +140,7 @@
                     <div class="flex gap-6 items-center text-sm">
                         <div class="flex items-center gap-2">
                             <label class="font-semibold text-gray-700 text-xs">Photos:</label>
-                            <select id="fsPhotoCount" class="border rounded px-2 py-1.5 text-sm" onchange="reportState.options.factSheetPhotoCount = parseInt(this.value)">
+                            <select id="fsPhotoCount" class="border rounded px-2 py-1.5 text-sm" onchange="reportState.options.factSheetPhotoCount = parseInt(this.value); prefetchReportMedia(getReportListings(), null)">
                                 <option value="0">None</option>
                                 <option value="1">1</option>
                                 <option value="2">2</option>

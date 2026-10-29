@@ -111,10 +111,13 @@
                         if (prevBtn) prevBtn.style.display = '';
                         if (nextBtn) nextBtn.style.display = '';
                     } else {
-                        // True standalone (direct URL, no search context) — show close only
+                        // True standalone (direct URL, or the tab the gallery opened) — show close only.
+                        // history.back() had nowhere to go here (the tab's earlier entries carry the same
+                        // #detail hash), so the click did nothing at all (found 2026-10-27).
+                        // closeListingDetail() hides the listing and shows the search form.
                         if (backBtn) {
                             backBtn.innerHTML = '<i class="fas fa-arrow-left text-xs"></i> Back';
-                            backBtn.onclick = function() { history.back(); };
+                            backBtn.onclick = function() { closeListingDetail(); };
                         }
                         if (navSep) navSep.style.display = 'none';
                         if (prevBtn) prevBtn.style.display = 'none';
@@ -154,7 +157,8 @@
                         // lid-based URL — fetch this single listing directly
                         MallanAPI.onReady(function() {
                             if (_detailResolved) return;
-                            MallanAPI.idx.search({ listingId: detailId, limit: 1 }).then(function(result) {
+                            // any status: a link to a closed or expired listing (comps, history) must open too
+                            MallanAPI.idx.search({ listingId: detailId, status: '*', limit: 1 }).then(function(result) {
                                 if (_detailResolved) return;
                                 if (result.listings && result.listings.length > 0) {
                                     var fetched = result.listings[0];
@@ -239,11 +243,39 @@
                         window._suppressHashUpdate = true;
                         showListingDetail(listing.id);
                         window._suppressHashUpdate = false;
+                    } else if (/^RLS\d+$/i.test(newParam)) {
+                        // A listing link typed or pasted into this tab for a listing that is not in the
+                        // loaded results used to do nothing (2026-10-26): read it live from Cotality by
+                        // id, any status, exactly as a fresh tab does.
+                        _fetchDetailLive(newParam, function(found) {
+                            window._suppressHashUpdate = true;
+                            showListingDetail(found.id);
+                            window._suppressHashUpdate = false;
+                        });
                     }
                 }
             }
         });
     });
+
+    /**
+     * Read one listing live from Cotality by its RLS id (any status) and add it to `listings`, so
+     * showListingDetail can render it. For listing links that are not in the loaded results.
+     */
+    function _fetchDetailLive(lid, onFound) {
+        if (typeof MallanAPI === 'undefined' || typeof listings === 'undefined') return;
+        MallanAPI.onReady(function() {
+            MallanAPI.idx.search({ listingId: lid, status: '*', limit: 1 }).then(function(result) {
+                var fetched = result && result.listings && result.listings[0];
+                if (!fetched) return;
+                var known = listings.find(function(l) { return l.lid === fetched.lid; });
+                if (known) { onFound(known); return; }
+                if (!fetched.id) fetched.id = listings.length + 1;
+                listings.push(fetched);
+                onFound(fetched);
+            }).catch(function() { /* nothing to show */ });
+        });
+    }
 
     /**
      * Navigate to search form — clean transition, no blank screen
@@ -323,6 +355,8 @@
             if (typeof _restoreSearchState === 'function') {
                 restored = _restoreSearchState();
             }
+            // 'live': the saved query is re-running on Cotality and renders when it answers (2026-10-26)
+            if (restored === 'live') return;
 
             if (restored && typeof searchResultsState !== 'undefined' && searchResultsState.filteredListings && searchResultsState.filteredListings.length > 0) {
                 // We have cached results — render them immediately
@@ -336,7 +370,7 @@
                     window.removeEventListener('mallan:data:ready', onDataReady);
                     // Data loaded — restore search state now that listings is populated
                     if (typeof _restoreSearchState === 'function') {
-                        _restoreSearchState();
+                        if (_restoreSearchState() === 'live') return;
                     }
                     if (typeof searchResultsState !== 'undefined' && searchResultsState.filteredListings && searchResultsState.filteredListings.length > 0) {
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
@@ -369,6 +403,7 @@
             if (typeof _restoreSearchState === 'function') {
                 restored = _restoreSearchState();
             }
+            if (restored === 'live') return;
 
             if (restored) {
                 if (typeof initializeSearchResults === 'function') initializeSearchResults();

@@ -19,11 +19,25 @@
  *       - lifecycle_email_send_failed                 (transient SMTP)
  *       - lifecycle_email_skipped_no_address          (lead has no email)
  *       - lifecycle_email_skipped_non_lead_target     (target.type !== 'lead')
+ *
+ * Lease workflow correction (2026-10-27):
+ *   - The three lease_expiring_* triggers read the canonical tenancy (ActiveLease, status
+ *     active, term ending inside the milestone window), not Lead.lease_end_date, and yield one
+ *     target per party (landlord, and tenant when the tenancy links a client record).
+ *   - They never email a client. Whatever action_type a stored trigger row carries, a lease
+ *     target is executed as `crm_task`: an Agent-review checkpoint = Notification to the agent
+ *     + FollowUpTask (renewal_check / buyer_conversion). The agent previews and confirms any
+ *     outreach from the Lease Tracker. A client who unsubscribed or declined buying / selling
+ *     outreach (Lead.nurture_paused) is flagged in the checkpoint, never solicited.
  */
 
 import prisma from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/sendgrid';
 import { lifecycleTriggerEmail } from '@/lib/email/templates';
+import { daysToExpiry } from '@/lib/crm/leases';
+
+/** Trigger types whose targets are tenancies: agent checkpoints only, never a client email. */
+export const LEASE_TRIGGER_TYPES: ReadonlySet<string> = new Set(['lease_expiring_180d', 'lease_expiring_90d', 'lease_expiring_30d']);
 
 // ─── Trigger Types ─────────────────────────────────────────
 export type TriggerType =
@@ -34,7 +48,7 @@ export type TriggerType =
   | 'momentum_drop'           // Listing momentum score dropped significantly
   | 'inquiry_stale'           // Inquiry not followed up within hours
   | 'lease_expiring_180d'     // Tenant lease expires in ~6 months — send rent vs buy + sale listings
-  | 'lease_expiring_90d'      // Tenant lease expires in ~3 months — send sale + rental (incl no-fee)
+  | 'lease_expiring_90d'      // Tenant lease expires in ~3 months — agent checkpoint: suggest sale + rental listings; nothing is sent
   | 'lease_expiring_30d'      // Tenant lease expires in ~1 month — urgency reminder
   | 'quarterly_nurture'       // Quarterly report for nurture/future clients with matching listings
   | 'interest_drift'          // Client engagement shifted from stated preferences
@@ -147,7 +161,9 @@ async function evaluateTrigger(trigger: {
 
     // Execute the action. Only a real success records triggerExecution and
     // advances cooldown; skipped/suppressed/failed paths audit separately.
-    const actionResult = await executeAction(trigger.action_type, trigger.action_config as Record<string, unknown>, target);
+    // A lease target is always an agent checkpoint (crm_task), whatever the stored action_type says.
+    const effectiveAction = LEASE_TRIGGER_TYPES.has(trigger.trigger_type) ? 'crm_task' : trigger.action_type;
+    const actionResult = await executeAction(effectiveAction, trigger.action_config as Record<string, unknown>, target);
     if (actionResult.status !== 'success') {
       suppressed++;
       continue;
@@ -244,16 +260,19 @@ async function findMomentumDropTargets(
   }));
 }
 
-async function findStaleInquiryTargets(
+/** The clients whose inquiry nobody has followed up: new OR active (a listing inquiry creates an active, assigned lead), no contact recorded, within the window. Exported for the end-to-end proof. */
+export async function findStaleInquiryTargets(
   conditions: Record<string, unknown>
 ): Promise<{ type: string; id: string; context: Record<string, unknown> }[]> {
   const maxHours = (conditions.max_hours as number) || 48;
   const cutoff = new Date(Date.now() - maxHours * 3600_000);
 
-  // Find leads with inquiries but no agent follow-up
+  // Find leads with inquiries but no agent follow-up: a website lead ('new') or a listing inquiry ('active', assigned on arrival) that no agent
+  // has contacted yet (last_contacted_at is stamped by the CRM when the agent records the contact).
   const staleLeads = await prisma.lead.findMany({
     where: {
-      status: 'new',
+      status: { in: ['new', 'active'] },
+      last_contacted_at: null,
       created_at: { lte: cutoff, gte: new Date(Date.now() - 7 * 86400_000) }, // within last 7 days
     },
     select: { id: true, created_at: true },
@@ -279,41 +298,161 @@ async function findLeaseExpiringTargets(
   const windowEnd = new Date(targetDate);
   windowEnd.setDate(windowEnd.getDate() + 7);
 
-  // Lifecycle/Crons Tier A P0 — uniform consent gate.
-  // The 3 lease-expiring DEFAULT_TRIGGERS use action_type='email'. After
-  // wiring the email executor, target leads must have given affirmative
-  // consent (TCPA/CAN-SPAM column populated by the lead-capture forms)
-  // before they receive a lifecycle nurture email. Matches the existing
-  // `findQuarterlyNurtureTargets` pattern at line 309. Manually-added
-  // leads or family-invite leads without `consent_captured_at` are
-  // excluded — opt-out boundary at sendEmail() is a defense in depth,
-  // not the primary gate.
-  const candidates = await prisma.lead.findMany({
-    where: {
-      lease_end_date: { gte: windowStart, lte: windowEnd },
-      pipeline_stage: { in: ['new', 'contacted', 'nurturing', 'active', 'showing'] },
-      roles: { hasSome: ['renter', 'tenant'] },
-      consent_captured_at: { not: null },
+  // The canonical lease relationship is the tenancy (ActiveLease), not a date on the Lead row.
+  // A tenancy whose term already ended is never a milestone target; an ended-but-open row is
+  // surfaced by the Lease Tracker (ended_but_open) for the agent to record its outcome.
+  const now = new Date();
+  const from = windowStart.getTime() < now.getTime() ? now : windowStart;
+
+  const partySelect = {
+    id: true, first_name: true, last_name: true, agent_id: true, nurture_paused: true, last_unsubscribe_at: true,
+  } as const;
+  const leases = await prisma.activeLease.findMany({
+    where: { status: 'active', lease_end_date: { gte: from, lte: windowEnd } },
+    select: {
+      id: true, address: true, unit: true, lease_end_date: true, monthly_rent: true,
+      landlord_lead_id: true, tenant_lead_id: true, tenant_name: true, tenant_email: true, agent_id: true,
+      landlord: { select: partySelect },
+      tenant: { select: partySelect },
     },
-    select: { id: true, lease_end_date: true, annual_income: true, credit_score_range: true, pre_approved: true },
+    orderBy: { lease_end_date: 'asc' },
+    take: 500,
   });
 
-  return candidates.filter(c => c.lease_end_date).map((c) => {
-    const daysToExpiry = Math.ceil((c.lease_end_date!.getTime() - Date.now()) / 86400000);
-    const income = c.annual_income ? Number(c.annual_income) : null;
-    const isBuyerCandidate = (income != null && income >= 80000) && (c.credit_score_range === 'excellent' || c.credit_score_range === 'good');
-    return {
-      type: 'lead',
-      id: String(c.id),
-      context: {
-        trigger: `lease_expiring_${daysFromNow}d`,
-        days_to_expiry: daysToExpiry,
-        lease_end_date: c.lease_end_date!.toISOString(),
-        is_buyer_candidate: isBuyerCandidate,
-        milestone_days: daysFromNow,
-      },
+  const trigger = `lease_expiring_${daysFromNow}d`;
+  const targets: { type: string; id: string; context: Record<string, unknown> }[] = [];
+  for (const lease of leases) {
+    const base = {
+      trigger,
+      lease_id: String(lease.id),
+      address: lease.address,
+      unit: lease.unit ?? null,
+      monthly_rent: lease.monthly_rent == null ? null : Number(lease.monthly_rent),
+      lease_end_date: lease.lease_end_date.toISOString(),
+      days_to_expiry: daysToExpiry(lease.lease_end_date, now),
+      milestone_days: daysFromNow,
+      agent_id: lease.agent_id != null ? String(lease.agent_id) : null,
+      landlord_lead_id: String(lease.landlord_lead_id),
+      landlord_name: `${lease.landlord.first_name} ${lease.landlord.last_name}`.trim(),
+      tenant_lead_id: lease.tenant_lead_id != null ? String(lease.tenant_lead_id) : null,
+      tenant_name: lease.tenant ? `${lease.tenant.first_name} ${lease.tenant.last_name}`.trim() : (lease.tenant_name ?? null),
     };
+    targets.push({
+      type: 'lease_party',
+      id: `${lease.id}:landlord`,
+      context: {
+        ...base,
+        role: 'landlord',
+        party_lead_id: String(lease.landlord_lead_id),
+        declined_outreach: lease.landlord.nurture_paused === true,
+        unsubscribed: lease.landlord.last_unsubscribe_at != null,
+      },
+    });
+    targets.push({
+      type: 'lease_party',
+      id: `${lease.id}:tenant`,
+      context: {
+        ...base,
+        role: 'tenant',
+        party_lead_id: lease.tenant_lead_id != null ? String(lease.tenant_lead_id) : null,
+        declined_outreach: lease.tenant?.nurture_paused === true,
+        unsubscribed: lease.tenant?.last_unsubscribe_at != null,
+      },
+    });
+  }
+  return targets;
+}
+
+// ─── Lease checkpoint (Agent review, never a client email) ──
+
+function checkpointPlan(context: Record<string, unknown>): { task_type: string; priority: string; due: Date; title: string; description: string } {
+  const role = String(context.role);
+  const milestone = Number(context.milestone_days) || 0;
+  const days = Number(context.days_to_expiry);
+  const unit = context.unit ? ` ${String(context.unit)}` : '';
+  const where = `${String(context.address)}${unit}`;
+  const declined = context.declined_outreach === true;
+  const unsubscribed = context.unsubscribed === true;
+  const priority = milestone <= 30 ? 'high' : milestone <= 90 ? 'medium' : 'low';
+  const due = new Date(Date.now() + (milestone <= 30 ? 2 : milestone <= 90 ? 7 : 14) * 86400_000);
+  const title = `Lease at ${where} ends in ${days} days — ${role} review`;
+  const flags = [
+    unsubscribed ? 'This client has unsubscribed from email: no email outreach.' : null,
+    declined ? 'This client declined further buying / selling outreach: renewal and lease check-ins only.' : null,
+  ].filter(Boolean).join(' ');
+  if (role === 'landlord') {
+    const tenant = context.tenant_name ? ` Tenant: ${String(context.tenant_name)}.` : '';
+    const comps = declined ? '' : ' If appropriate, preview and send the 6-month property-value comps (sell inquiry) from the Lease Tracker.';
+    return {
+      task_type: 'renewal_check', priority, due, title,
+      description: `${String(context.landlord_name)}'s tenancy at ${where} ends on ${String(context.lease_end_date).slice(0, 10)} (${milestone}-day checkpoint).${tenant} Confirm renewal, re-list or sale intent, then record the outcome (renewal = new term).${comps} Nothing has been sent to the client. ${flags}`.trim(),
+    };
+  }
+  const buyer = !declined && !unsubscribed;
+  return {
+    task_type: buyer ? 'buyer_conversion' : 'renewal_check', priority, due, title,
+    description: `${String(context.tenant_name ?? 'The tenant')}'s lease at ${where} ends on ${String(context.lease_end_date).slice(0, 10)} (${milestone}-day checkpoint). Confirm renewal or move plans.${buyer ? ' If appropriate, preview and send the rent-vs-buy outreach (buy inquiry) from the Lease Tracker.' : ''} Nothing has been sent to the client. ${flags}`.trim(),
+  };
+}
+
+async function executeLeaseCheckpoint(
+  target: { type: string; id: string; context: Record<string, unknown> }
+): Promise<ActionExecutionResult> {
+  const ctx = target.context;
+  const partyLeadId = ctx.party_lead_id ? BigInt(String(ctx.party_lead_id)) : null;
+  if (!partyLeadId) {
+    // A tenant recorded only as name / email on the tenancy has no client record to attach a
+    // task to; the landlord checkpoint for the same lease names the tenant.
+    await prisma.auditEvent.create({
+      data: {
+        action: 'lifecycle_checkpoint_skipped_no_client_record',
+        entity_type: 'active_lease', entity_id: String(ctx.lease_id), user_type: 'system', user_id: null,
+        changes: { trigger: ctx.trigger as string ?? null, role: ctx.role as string ?? null },
+      },
+    }).catch(() => {});
+    return { status: 'skipped', result: 'skipped_no_client_record' };
+  }
+  const lead = await prisma.lead.findUnique({ where: { id: partyLeadId }, select: { agent_id: true, first_name: true, last_name: true } });
+  if (!lead) return { status: 'skipped', result: 'skipped_lead_not_found' };
+  const agentId = ctx.agent_id ? BigInt(String(ctx.agent_id)) : lead.agent_id;
+  if (!agentId) return { status: 'skipped', result: 'skipped_no_agent' };
+
+  const plan = checkpointPlan(ctx);
+  // Idempotent: one open checkpoint per party, milestone and tenancy
+  const existing = await prisma.followUpTask.findFirst({
+    where: { lead_id: partyLeadId, task_type: plan.task_type, status: 'pending', title: plan.title },
+    select: { id: true },
   });
+  let taskId = existing?.id ?? null;
+  if (!existing) {
+    const task = await prisma.followUpTask.create({
+      data: {
+        lead_id: partyLeadId, agent_id: agentId, title: plan.title, description: plan.description,
+        due_date: plan.due, priority: plan.priority, status: 'pending', task_type: plan.task_type,
+      },
+      select: { id: true },
+    });
+    taskId = task.id;
+    await prisma.notification.create({
+      data: {
+        recipient_type: 'agent', recipient_id: agentId, type: String(ctx.trigger ?? 'system'),
+        title: plan.title, body: plan.description,
+        data: { lease_id: String(ctx.lease_id), role: String(ctx.role), task_id: String(task.id), milestone_days: ctx.milestone_days ?? null },
+      },
+    });
+  }
+  await prisma.auditEvent.create({
+    data: {
+      action: existing ? 'lifecycle_checkpoint_exists' : 'lifecycle_checkpoint_created',
+      entity_type: 'active_lease', entity_id: String(ctx.lease_id), user_type: 'system', user_id: null,
+      changes: {
+        trigger: ctx.trigger as string ?? null, role: ctx.role as string ?? null, party_lead_id: String(partyLeadId),
+        task_id: taskId != null ? String(taskId) : null, task_type: plan.task_type,
+        declined_outreach: ctx.declined_outreach === true, unsubscribed: ctx.unsubscribed === true, email_sent: false,
+      },
+    },
+  }).catch(() => {});
+  return { status: 'success', result: existing ? 'checkpoint_exists' : 'checkpoint_created' };
 }
 
 // ─── Quarterly Nurture Targets ────────────────────────────
@@ -538,9 +677,36 @@ async function executeAction(
       }
       return { status: 'failed', result: (result as { _devMode?: boolean })._devMode === true ? 'smtp_not_configured' : 'send_failed' };
     }
-    // crm_task action type can be implemented as needed
+    case 'crm_task': {
+      // Agent-review checkpoint: a FollowUpTask for the lead's agent plus an in-app notification.
+      if (target.type === 'lease_party') return executeLeaseCheckpoint(target);
+      if (target.type !== 'lead') return { status: 'skipped', result: 'skipped_non_lead_target' };
+      const lead = await prisma.lead.findUnique({
+        where: { id: BigInt(target.id) },
+        select: { agent_id: true, first_name: true, last_name: true },
+      });
+      if (!lead?.agent_id) return { status: 'skipped', result: 'skipped_no_notification_target' };
+      const title = generateNotificationTitle(target.context);
+      const body = generateNotificationBody(target.context, `${lead.first_name} ${lead.last_name}`);
+      const existing = await prisma.followUpTask.findFirst({
+        where: { lead_id: BigInt(target.id), status: 'pending', title },
+        select: { id: true },
+      });
+      if (!existing) {
+        await prisma.followUpTask.create({
+          data: {
+            lead_id: BigInt(target.id), agent_id: lead.agent_id, title, description: body,
+            due_date: new Date(Date.now() + 7 * 86400_000), priority: 'medium', status: 'pending', task_type: 'review',
+          },
+        });
+        await prisma.notification.create({
+          data: { recipient_type: 'agent', recipient_id: lead.agent_id, type: target.context.trigger as string || 'system', title, body },
+        });
+      }
+      return { status: 'success', result: existing ? 'checkpoint_exists' : 'checkpoint_created' };
+    }
     default:
-      console.log(`[Lifecycle] Action type '${actionType}' not yet implemented for target ${target.id}`);
+      console.log(`[Lifecycle] Action type '${actionType}' not supported for target ${target.id}`);
       return { status: 'skipped', result: 'skipped_unsupported_action' };
   }
 }
@@ -564,11 +730,11 @@ function generateNotificationTitle(context: Record<string, unknown>): string {
     case 'inquiry_stale':
       return 'Inquiry needs follow-up';
     case 'lease_expiring_180d':
-      return `Lease expires in ~6 months — sent rent vs buy analysis`;
+      return `Lease expires in ~6 months — review (nothing sent)`;
     case 'lease_expiring_90d':
-      return `Lease expires in ~90 days — sent sale + rental options`;
+      return `Lease expires in ~90 days — review (nothing sent)`;
     case 'lease_expiring_30d':
-      return `Lease expires in ~30 days — urgency email sent`;
+      return `Lease expires in ~30 days — review (nothing sent)`;
     case 'quarterly_nurture':
       return `Quarterly market update sent`;
     case 'interest_drift':
@@ -590,11 +756,11 @@ function generateNotificationBody(context: Record<string, unknown>, leadName?: s
     case 'inquiry_stale':
       return `${leadName || 'A lead'} submitted an inquiry but hasn't received follow-up. Respond within 24 hours for best conversion.`;
     case 'lease_expiring_180d':
-      return `${leadName || 'A tenant'}'s lease expires in ~6 months (${context.lease_end_date}). ${context.is_buyer_candidate ? 'They are a buyer conversion candidate — ' : ''}Auto-sent rent vs buy analysis with matching sale listings.`;
+      return `${leadName || 'A client'}'s lease ends in ~6 months (${String(context.lease_end_date ?? '').slice(0, 10)}). Review the tenancy; if appropriate, preview and send the rent-vs-buy or property-value outreach from the Lease Tracker. Nothing has been sent.`;
     case 'lease_expiring_90d':
-      return `${leadName || 'A tenant'}'s lease expires in ~90 days. Auto-sent both sale and rental options. Monitor their engagement to see which direction they lean.`;
+      return `${leadName || 'A client'}'s lease ends in ~90 days. Confirm renewal, move or sale plans; preview and send any outreach from the Lease Tracker. Nothing has been sent.`;
     case 'lease_expiring_30d':
-      return `${leadName || 'A tenant'}'s lease expires in ~30 days. Urgency email sent with latest options. Consider calling to schedule showings this week.`;
+      return `${leadName || 'A client'}'s lease ends in ~30 days. Record the outcome (renewal = new term) and call to schedule next steps. Nothing has been sent.`;
     case 'quarterly_nurture':
       return `Sent quarterly market update to ${leadName || 'a client'} with matching listings in their preferred areas. Watch for engagement — if they click, consider moving them to Active.`;
     case 'interest_drift':
@@ -673,29 +839,29 @@ export const DEFAULT_TRIGGERS = [
     action_config: {},
     cooldown_hours: 24,
   },
-  // ─── Lease Expiration Triggers ──────────────────────────
+  // ─── Lease Expiration Checkpoints (agent review; the agent previews and confirms any email) ──
   {
-    name: 'Lease Expiring — 6 Month Rent vs Buy',
+    name: 'Lease Expiring — 6 Month Review',
     trigger_type: 'lease_expiring_180d',
     conditions: {},
-    action_type: 'email',
-    action_config: { include_rent_vs_buy: true, include_sale_listings: true },
-    cooldown_hours: 720, // 30 days — don't re-send for this milestone
+    action_type: 'crm_task',
+    action_config: { suggest_rent_vs_buy: true, suggest_property_value: true },
+    cooldown_hours: 720, // 30 days — one checkpoint per milestone
   },
   {
-    name: 'Lease Expiring — 90 Day Sale + Rental Options',
+    name: 'Lease Expiring — 90 Day Review',
     trigger_type: 'lease_expiring_90d',
     conditions: {},
-    action_type: 'email',
-    action_config: { include_sale_listings: true, include_rental_listings: true },
+    action_type: 'crm_task',
+    action_config: { suggest_sale_listings: true, suggest_rental_listings: true },
     cooldown_hours: 720,
   },
   {
-    name: 'Lease Expiring — 30 Day Urgency',
+    name: 'Lease Expiring — 30 Day Review',
     trigger_type: 'lease_expiring_30d',
     conditions: {},
-    action_type: 'email',
-    action_config: { include_sale_listings: true, include_rental_listings: true, urgency: true },
+    action_type: 'crm_task',
+    action_config: { urgency: true },
     cooldown_hours: 720,
   },
   // ─── Quarterly Nurture ──────────────────────────────────

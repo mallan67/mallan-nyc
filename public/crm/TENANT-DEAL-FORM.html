@@ -1607,7 +1607,8 @@ function submitTenantDeal(asDraft) {
                 context: currentContext
             }));
         } catch (e) { /* sessionStorage may be unavailable */ }
-        var label = existingId ? 'Tenant deal updated' : 'Tenant deal saved as draft';
+        // Say what the server did, not a presumed state: the create route answers with the deal's status.
+        var label = (existingId ? 'Tenant deal updated' : 'Tenant deal saved') + ' · status ' + dealStatus;
         showToast(label + (dealId ? ' (#' + dealId + ')' : ''), 'success');
         if (typeof addTenantHistoryEntry === 'function') {
             addTenantHistoryEntry(label, 'Deal id ' + (dealId || '?') + ' · status ' + dealStatus, 'fa-save', 'green');

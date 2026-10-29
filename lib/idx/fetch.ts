@@ -21,9 +21,9 @@ import {
 
 // Derive Trestle property endpoint from centralized TRESTLE_API_URL.
 // Env validation is deferred to call-time — no top-level throws (Vercel serverless safety).
-function getPropertyEndpoint(): string {
+function getPropertyEndpoint(resource = "Property"): string {
   const base = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || "https://api.cotality.com/trestle";
-  return `${base}/odata/Property`;
+  return `${base}/odata/${resource}`;
 }
 const MAX_PAGE_SIZE = 500;
 
@@ -82,8 +82,23 @@ export interface TrestleFetchOptions {
    *
    * Most callers do not need this — DPA / FARE Act / REBNY-flag access can
    * be added later via a dedicated, schema-audited fetch helper.
+   *
+   * An array selects those CustomProperty fields only. Live-verified 2026-10-23:
+   * `CustomProperty($select=CustomFields,ListingKey)` returns HTTP 200 — the old 400 came
+   * from the DownPaymentAssistance* names, which are no longer on CustomProperty. Pass only
+   * names present in the live CustomProperty $metadata.
    */
-  expandCustomProperty?: boolean;
+  expandCustomProperty?: boolean | readonly string[];
+  /**
+   * Per-request timeout. Default 10s. Agent Search passes a longer one: a live text search
+   * (`contains(PublicRemarks,…)`) takes 22–28s inside Cotality (measured 2026-10-23).
+   */
+  timeoutMs?: number;
+  /**
+   * OData resource to read (default Property). Agent Search reads OpenHouse, Member, Office,
+   * PropertyRooms and CustomProperty to resolve linked-resource criteria to Property keys.
+   */
+  resource?: string;
 }
 
 export interface TrestleFetchResult {
@@ -137,6 +152,8 @@ export async function fetchFromTrestle(
       // CustomProperty schema is audited via Trestle `$metadata`, callers
       // get whatever fields Trestle currently includes on the entity.
       expandParts.push("CustomProperty");
+    } else if (Array.isArray(options.expandCustomProperty) && options.expandCustomProperty.length > 0) {
+      expandParts.push(`CustomProperty($select=${options.expandCustomProperty.join(",")})`);
     }
     if (expandParts.length > 0) {
       params.set("$expand", expandParts.join(","));
@@ -145,11 +162,11 @@ export async function fetchFromTrestle(
     params.set("$top", String(options.top || MAX_PAGE_SIZE));
     if (options.skip) params.set("$skip", String(options.skip));
     params.set("$orderby", options.orderby || "ModificationTimestamp desc");
-    return `${getPropertyEndpoint()}?${params.toString()}`;
+    return `${getPropertyEndpoint(options.resource)}?${params.toString()}`;
   }
 
   const url = buildUrl();
-  const firstResponse = await fetchPage(url, token);
+  const firstResponse = await fetchPage(url, token, options.timeoutMs);
 
   const maxTotal = options.maxTotal || 1000;
   const allRecords: Record<string, unknown>[] = [];
@@ -165,7 +182,7 @@ export async function fetchFromTrestle(
       response = firstResponse;
       isFirstRequest = false;
     } else {
-      response = await fetchPage(currentUrl, token);
+      response = await fetchPage(currentUrl, token, options.timeoutMs);
       isFirstRequest = false;
     }
 
@@ -173,7 +190,7 @@ export async function fetchFromTrestle(
       // Token expired — invalidate and retry once
       invalidateToken();
       const newToken = await getAccessToken();
-      const retryResponse = await fetchPage(currentUrl, newToken);
+      const retryResponse = await fetchPage(currentUrl, newToken, options.timeoutMs);
       if (!retryResponse.ok) {
         throw new Error(
           `[IDX Fetch] Trestle API error after token refresh (${retryResponse.status})`
@@ -723,12 +740,13 @@ async function fetchWithRetry(
 /** Internal: make a single HTTP request to Trestle with timeout. */
 async function fetchPage(
   url: string,
-  token: string
+  token: string,
+  timeoutMs: number = 10_000,
 ): Promise<Response> {
-  // 10-second timeout prevents hanging when Trestle is slow/down.
+  // 10-second default timeout prevents hanging when Trestle is slow/down.
   // Without this, requests can hang for 60s+ and block page rendering.
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10_000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   const t0 = Date.now();
   try {
     const response = await fetch(url, {

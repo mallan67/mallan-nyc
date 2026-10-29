@@ -72,6 +72,9 @@ const limiterSpecs = {
   // minute, shared with the media sync and the media proxy): one visitor may put 60 a minute, and all visitors together 300 (the second bucket is asked with one constant key).
   media_health:        { count: 60,  window: "60 s" },
   media_health_global: { count: 300, window: "60 s" },
+  // Reports modal → /api/crm/reports/email. A working agent's whole day fits in 60/hr;
+  // its own quota so report sends never drain the inquiry buckets (and vice versa).
+  report_email: { count: 60, window: "3600 s" },
 } as const satisfies Record<string, { count: number; window: `${number} s` }>;
 
 export type RouteLimiterName = keyof typeof limiterSpecs;

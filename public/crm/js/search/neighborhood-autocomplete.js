@@ -1,57 +1,98 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// NEIGHBORHOOD AUTOCOMPLETE — multi-select search for basic search mode
-// Provides type-ahead neighborhood search with tag-based multi-select.
-// Uses the same neighborhood list as the Advanced Search tree + Map.
+// NEIGHBORHOOD AUTOCOMPLETE + TREES — live Cotality geography
+//
+// Boroughs (CityRegion) and neighborhoods (SubdivisionName) are free-text fields in
+// Cotality with no picklist. The only valid list is what Cotality returns right now, read
+// through /api/crm/neighborhoods/cotality (lib/idx/geography.ts) when the page loads.
+// Nothing is typed into this file.
+//
+// Typing is forgiving (case and punctuation ignored, shorthand such as UES / LIC / FiDi /
+// Bed-Stuy accepted); what is sent to the server is the live name, and the server's resolver
+// expands it to every exact spelling Cotality carries before the OData request is built.
+// Borough chips send the exact live CityRegion value ("StatenIsland"), shown as "Staten Island".
 // ═══════════════════════════════════════════════════════════════════════════════
 
 (function() {
-    // All NYC neighborhoods organized by borough (matches Advanced Search tree)
-    var NEIGHBORHOODS = {
-        'Bronx': [
-            'Allerton','Baychester','Bedford Park','Belmont','City Island','Co-op City',
-            'Fordham','Kingsbridge','Morris Park','Pelham Bay','Central Riverdale',
-            'Fieldston','North Riverdale','Spuyten Duyvil','Throgs Neck','Woodlawn'
-        ],
-        'Brooklyn': [
-            'Bath Beach','Bay Ridge','Fort Hamilton','Bedford - Stuyvesant','Ocean Hill',
-            'Stuyvesant Heights','Bensonhurst','Boerum Hill','Borough Park','Brighton Beach',
-            'Brooklyn Heights','Bushwick','Carroll Gardens','Cobble Hill','Coney Island',
-            'Crown Heights','Ditmas Park','Downtown Brooklyn','Dumbo','Dyker Heights',
-            'Flatbush','Fort Greene','Gowanus','Greenpoint','Park Slope','Prospect Heights',
-            'Red Hook','Sheepshead Bay','Sunset Park','Williamsburg','Windsor Terrace'
-        ],
-        'Manhattan': [
-            'Battery Park City','Carnegie Hill','Central Harlem','Chelsea','Chinatown',
-            'Civic Center','East Harlem','East Village','Financial District','Flatiron',
-            'Gramercy Park','Greenwich Village','Hamilton Heights','Hell\'s Kitchen',
-            'Hudson Square','Hudson Yards','Inwood','Kips Bay','Lenox Hill','Lincoln Square',
-            'Little Italy','Lower East Side','Manhattan Valley','Manhattanville','Marble Hill',
-            'Meatpacking District','Midtown','Midtown East','Midtown West','Morningside Heights',
-            'Murray Hill','NoHo','NoMad','Nolita','Peter Cooper Village','Roosevelt Island',
-            'SoHo','Stuyvesant Town','Sugar Hill','Sutton Place','Times Square','Tribeca',
-            'Tudor City','Turtle Bay','Two Bridges','Union Square','Upper East Side',
-            'Upper West Side','Washington Heights','West Harlem','West Village','Yorkville'
-        ],
-        'Queens': [
-            'Astoria','Bayside','Corona','Elmhurst','Flushing','Forest Hills',
-            'Hunters Point','Jackson Heights','Jamaica','Kew Gardens',
-            'Long Island City (LIC)','Rego Park','Ridgewood','Sunnyside','Whitestone','Woodside'
-        ],
-        'Staten Island': [
-            'Annadale','Arden Heights','Dongan Hills','Great Kills','New Dorp',
-            'St. George','Stapleton','Todt Hill'
-        ]
+    var GEO_PATH = '/api/crm/neighborhoods/cotality';
+    var _inventory = null;   // the live inventory as served
+    var _searchList = [];    // flat pick list: boroughs then neighborhoods
+    var _loading = null;
+
+    function geoKey(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+    function buildSearchList(inv) {
+        _searchList = [];
+        (inv.liveBoroughs || []).forEach(function(b) {
+            // Typing shorthand (bk, qns, si, bx …) matches the borough exactly
+            var keys = [geoKey(b.value), geoKey(b.display)];
+            Object.keys(inv.boroughAliases || {}).forEach(function(a) { if (inv.boroughAliases[a] === geoKey(b.value)) keys.push(a); });
+            _searchList.push({ name: b.display, value: b.value, borough: '', display: b.display, isBoroughLevel: true, keys: keys, count: 0 });
+        });
+        (inv.catalog || []).forEach(function(c) {
+            _searchList.push({ name: c.name, value: c.name, borough: c.boroughDisplay, boroughValue: c.borough,
+                display: c.name + ', ' + c.boroughDisplay, isBoroughLevel: false, keys: [c.key],
+                count: (c.onMarketSale || 0) + (c.onMarketRental || 0), sale: c.onMarketSale || 0, rental: c.onMarketRental || 0,
+                spellings: c.spellings || [c.name] });
+        });
+    }
+
+    // Load (once) the live inventory. Resolves to the inventory or null when Cotality is unavailable.
+    window.loadLiveGeography = function(force) {
+        if (_inventory && !force) return Promise.resolve(_inventory);
+        if (_loading) return _loading;
+        if (typeof MallanAPI === 'undefined' || !MallanAPI._fetch) return Promise.resolve(null);
+        _loading = MallanAPI._fetch(GEO_PATH + (force ? '?refresh=1' : '')).then(function(inv) {
+            if (!inv || !inv.catalog) throw new Error('empty geography');
+            _inventory = inv;
+            window.MALLAN_GEO = inv;
+            buildSearchList(inv);
+            renderNeighborhoodTrees();
+            try { window.dispatchEvent(new CustomEvent('mallan:geo:ready', { detail: inv })); } catch (e) {}
+            console.log('[CRM Search] live Cotality geography: ' + inv.catalog.length + ' neighborhoods, ' + (inv.liveBoroughs || []).length +
+                ' boroughs, pulled ' + inv.pulledAt + (inv.countsComplete ? '' : ' (counts incomplete)'));
+            return inv;
+        }).catch(function(err) {
+            console.error('[CRM Search] live Cotality geography unavailable:', err && err.message);
+            if (typeof showToast === 'function') showToast('Neighborhood list could not be read from Cotality. Type an exact neighborhood name, or try again.', 'warning');
+            return null;
+        }).finally(function() { _loading = null; });
+        return _loading;
     };
 
-    // Build flat search list with borough labels
-    var _searchList = [];
-    Object.keys(NEIGHBORHOODS).forEach(function(borough) {
-        // Add borough itself as selectable
-        _searchList.push({ name: borough, borough: '', display: borough, isBoroughLevel: true });
-        NEIGHBORHOODS[borough].forEach(function(n) {
-            _searchList.push({ name: n, borough: borough, display: n + ', ' + borough, isBoroughLevel: false });
+    window.liveGeography = function() { return _inventory; };
+
+    // Borough (display) a live neighborhood name is filed under, from the inventory.
+    window.geoBoroughOf = function(name) {
+        var k = geoKey(name);
+        for (var i = 0; i < _searchList.length; i++) {
+            var it = _searchList[i];
+            if (!it.isBoroughLevel && it.keys[0] === k) return it.borough;
+        }
+        return '';
+    };
+
+    // Match typed input against the live list: exact key or alias first, then prefix, then contains.
+    function matchItems(query, excludeNames) {
+        var q = geoKey(query);
+        if (!q) return [];
+        var alias = _inventory && _inventory.aliases ? _inventory.aliases[q] : null;
+        var scored = [];
+        _searchList.forEach(function(item) {
+            if (excludeNames.indexOf(item.name) !== -1) return;
+            var score = -1;
+            for (var i = 0; i < item.keys.length; i++) {
+                var k = item.keys[i];
+                if (k === q || (alias && k === alias)) { score = 3; break; }
+                if (k.indexOf(q) === 0) score = Math.max(score, 2);
+                else if (k.indexOf(q) !== -1) score = Math.max(score, 1);
+            }
+            if (score < 0 && !item.isBoroughLevel && geoKey(item.borough).indexOf(q) === 0) score = 0;
+            if (score >= 0) scored.push({ item: item, score: score });
         });
-    });
+        // Exact matches first; among equals a borough outranks a neighborhood, then the busier place
+        scored.sort(function(a, b) { return (b.score - a.score) || (Number(b.item.isBoroughLevel) - Number(a.item.isBoroughLevel)) || (b.item.count - a.item.count) || a.item.name.localeCompare(b.item.name); });
+        return scored.map(function(s) { return s.item; });
+    }
 
     // Track selected neighborhoods per input (keyed by tagsContainerId)
     var _selected = {};
@@ -75,58 +116,65 @@
         var dropdown = document.getElementById(dropdownId);
         if (!dropdown) return;
 
-        var q = query.trim().toLowerCase();
+        var q = query.trim();
         if (q.length < 1) {
             dropdown.classList.add('hidden');
             return;
         }
+        if (!_inventory) {
+            dropdown.innerHTML = '<div class="px-3 py-2 text-gray-400">Loading neighborhoods from Cotality…</div>';
+            dropdown.classList.remove('hidden');
+            window.loadLiveGeography().then(function(inv) { if (inv) window.neighborhoodAutocomplete(query, dropdownId, tagsId); });
+            return;
+        }
 
-        var selected = getSelected(tagsId);
-        var selectedNames = selected.map(function(s) { return s.name; });
-
-        // Filter matches
-        var matches = _searchList.filter(function(item) {
-            if (selectedNames.indexOf(item.name) !== -1) return false;
-            return item.name.toLowerCase().indexOf(q) !== -1 ||
-                   item.borough.toLowerCase().indexOf(q) !== -1 ||
-                   item.display.toLowerCase().indexOf(q) !== -1;
-        }).slice(0, 12);
+        var selectedNames = getSelected(tagsId).map(function(s) { return s.name; });
+        var matches = matchItems(q, selectedNames).slice(0, 12);
 
         if (matches.length === 0) {
-            dropdown.innerHTML = '<div class="px-3 py-2 text-gray-400">No neighborhoods found</div>';
+            dropdown.innerHTML = '<div class="px-3 py-2 text-gray-400">No Cotality neighborhood matches "' + escapeHtml(q) + '"</div>';
             dropdown.classList.remove('hidden');
             return;
         }
 
         dropdown.innerHTML = matches.map(function(item) {
-            var boroughBadge = item.isBoroughLevel
+            var right = item.isBoroughLevel
                 ? '<span class="ml-auto text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded font-semibold">Borough</span>'
-                : '<span class="ml-auto text-xs text-gray-600 font-medium">' + escapeHtml(item.borough) + '</span>';
-            return '<div class="px-3 py-2.5 hover:bg-blue-50 cursor-pointer flex items-center gap-2" ' +
-                   'onclick="selectNeighborhood(\'' + item.name.replace(/'/g, "\\'") + '\',\'' + item.borough + '\',' + item.isBoroughLevel + ',\'' + dropdownId + '\',\'' + tagsId + '\')">' +
+                : '<span class="ml-auto text-xs text-gray-600 font-medium">' + escapeHtml(item.borough) +
+                  (item.count ? ' <span class="text-gray-400">· ' + item.count.toLocaleString() + ' on market</span>' : '') + '</span>';
+            var spellingsNote = (!item.isBoroughLevel && item.spellings.length > 1) ? ' title="Cotality spellings: ' + escapeHtml(item.spellings.join(', ')) + '"' : '';
+            return '<div class="px-3 py-2.5 hover:bg-blue-50 cursor-pointer flex items-center gap-2" data-pick="1"' + spellingsNote +
+                   ' onclick="selectNeighborhood(\'' + item.name.replace(/'/g, "\\'") + '\',\'' + escapeHtml(item.borough) + '\',' + item.isBoroughLevel + ',\'' + dropdownId + '\',\'' + tagsId + '\')">' +
                    '<i class="fas fa-map-pin text-blue-500 text-xs"></i>' +
                    '<span class="text-sm font-medium text-gray-900">' + escapeHtml(item.name) + '</span>' +
-                   boroughBadge + '</div>';
+                   right + '</div>';
         }).join('');
 
         dropdown.classList.remove('hidden');
     };
 
-    // Select a neighborhood — add tag, clear input
+    // Select a neighborhood or borough — add tag, clear input. `name` is the live display name.
     window.selectNeighborhood = function(name, borough, isBoroughLevel, dropdownId, tagsId) {
         var selected = getSelected(tagsId);
         if (selected.some(function(s) { return s.name === name; })) return;
 
-        selected.push({ name: name, borough: borough, isBoroughLevel: isBoroughLevel });
+        var entry = { name: name, borough: borough || '', isBoroughLevel: !!isBoroughLevel, value: name };
+        if (isBoroughLevel && _inventory) {
+            // Exact live CityRegion value behind the display name
+            (_inventory.liveBoroughs || []).forEach(function(b) { if (b.display === name || b.value === name) entry.value = b.value; });
+        } else if (!borough && typeof window.geoBoroughOf === 'function') {
+            entry.borough = window.geoBoroughOf(name);
+        }
+        selected.push(entry);
         renderTags(tagsId);
 
         // Clear input + hide dropdown
         var dropdown = document.getElementById(dropdownId);
         if (dropdown) dropdown.classList.add('hidden');
 
-        // Find the input — it's the sibling before the dropdown
-        var input = dropdown ? dropdown.previousElementSibling : null;
-        if (input && input.tagName !== 'INPUT') input = dropdown.parentElement.querySelector('input[type="text"]');
+        // The input shares the dropdown's id stem (…Input / …Dropdown); the chip now sits in the same box
+        var input = dropdownId ? document.getElementById(dropdownId.replace(/Dropdown$/, 'Input')) : null;
+        if (!input && dropdown) input = dropdown.closest('.mfield, .relative') ? dropdown.closest('.mfield, .relative').querySelector('input[type="text"]') : null;
         if (input) { input.value = ''; input.focus(); }
     };
 
@@ -149,37 +197,68 @@
         }
 
         container.innerHTML = selected.map(function(item) {
-            var label = item.isBoroughLevel ? item.name : item.name;
             var boroughHint = item.borough ? ' <span class="text-[11px] text-gray-500 font-normal">(' + escapeHtml(item.borough) + ')</span>' : '';
             return '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200">' +
                    '<i class="fas fa-map-pin text-blue-500 text-[10px]"></i>' +
-                   label + boroughHint +
+                   escapeHtml(item.name) + boroughHint +
                    '<button type="button" onclick="removeNeighborhoodTag(\'' + item.name.replace(/'/g, "\\'") + '\',\'' + tagsId + '\')" class="ml-0.5 text-blue-400 hover:text-blue-700">&times;</button>' +
                    '</span>';
         }).join('');
     }
 
-    // Get selected neighborhoods (for search engine integration).
-    // Filters out borough-level entries (Manhattan, Brooklyn, Queens, Bronx,
-    // Staten Island) so they do not get serialized as `neighborhood=...` to
-    // the backend — those entries belong on `criteria.borough`. See
-    // getSelectedBoroughs below.
+    // Selected neighborhoods (live display names; the server expands each to every live spelling).
+    // Borough chips are excluded here — they are CityRegion criteria (getSelectedBoroughs).
     window.getSelectedNeighborhoods = function(tagsId) {
         return getSelected(tagsId || 'saleNeighborhoodTags')
             .filter(function(s) { return !s.isBoroughLevel; })
             .map(function(s) { return s.name; });
     };
 
-    // Get selected borough-level entries. Borough chips appear in the same
-    // autocomplete list (with a "Borough" badge), but route to a different
-    // backend OData field — `CityRegion` instead of `SubdivisionName`.
-    // collectSearchCriteria() in search-engine.js calls this to populate
-    // criteria.borough.
+    // Selected boroughs as the exact live CityRegion values ("StatenIsland").
     window.getSelectedBoroughs = function(tagsId) {
         return getSelected(tagsId || 'saleNeighborhoodTags')
             .filter(function(s) { return s.isBoroughLevel; })
-            .map(function(s) { return s.name; });
+            .map(function(s) { return s.value || s.name; });
     };
+
+    // ── Neighborhood trees (advanced search, Comparable Reports): generated from the live inventory ──
+    // Each neighborhood box carries data-neighborhood (live name); each borough summary box carries
+    // data-borough (live CityRegion value). Counts sit outside the <label> so label text stays the name.
+    function renderNeighborhoodTrees() {
+        if (!_inventory) return;
+        var byBorough = {};
+        (_inventory.liveBoroughs || []).forEach(function(b) { byBorough[b.value] = { display: b.display, items: [] }; });
+        (_inventory.catalog || []).forEach(function(c) {
+            if (!byBorough[c.borough]) byBorough[c.borough] = { display: c.boroughDisplay, items: [] };
+            byBorough[c.borough].items.push(c);
+        });
+        var html = '<details open><summary class="font-semibold cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" onclick="event.stopPropagation()"> NYC ' +
+            '<span class="text-[10px] font-normal text-gray-400">live Cotality · ' + (_inventory.catalog || []).length + ' neighborhoods</span></summary>';
+        Object.keys(byBorough).sort(function(a, b) { return byBorough[a].display.localeCompare(byBorough[b].display); }).forEach(function(value) {
+            var group = byBorough[value];
+            var onMarket = group.items.reduce(function(a, c) { return a + (c.onMarketSale || 0) + (c.onMarketRental || 0); }, 0);
+            html += '<details class="ml-3"><summary class="font-bold cursor-pointer hover:bg-gray-50 p-1"><input type="checkbox" class="w-3 h-3 mr-1" data-borough="' + escapeHtml(value) + '" onclick="event.stopPropagation()"> ' +
+                escapeHtml(group.display) + ' <span class="text-[10px] font-normal text-gray-400">' + group.items.length + (onMarket ? ' · ' + onMarket.toLocaleString() + ' on market' : '') + '</span></summary>' +
+                '<div class="ml-3 text-xs">';
+            group.items.sort(function(a, b) { return a.name.localeCompare(b.name); }).forEach(function(c) {
+                var count = (c.onMarketSale || 0) + (c.onMarketRental || 0);
+                html += '<div class="p-1 hover:bg-blue-50 flex items-center"><label class="cursor-pointer"><input type="checkbox" class="w-3 h-3 mr-1" data-neighborhood="' + escapeHtml(c.name) + '"> ' + escapeHtml(c.name) + '</label>' +
+                    (count ? '<span class="ml-auto text-[10px] text-gray-400">' + count.toLocaleString() + '</span>' : '') + '</div>';
+            });
+            html += '</div></details>';
+        });
+        html += '</details>';
+        document.querySelectorAll('.neighborhood-tree').forEach(function(tree) { tree.innerHTML = html; });
+    }
+    window.renderNeighborhoodTrees = renderNeighborhoodTrees;
+
+    // Enter in a neighborhood box picks the top match
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter' || !e.target.id || !/NeighborhoodInput$/.test(e.target.id)) return;
+        var dropdown = document.getElementById(e.target.id.replace('Input', 'Dropdown'));
+        var first = dropdown && !dropdown.classList.contains('hidden') ? dropdown.querySelector('[data-pick]') : null;
+        if (first) { e.preventDefault(); e.stopPropagation(); first.click(); }
+    });
 
     // Close dropdowns when clicking outside
     document.addEventListener('click', function(e) {
@@ -189,4 +268,8 @@
             });
         }
     });
+
+    // Load the live inventory as soon as the API is ready
+    if (typeof MallanAPI !== 'undefined' && MallanAPI.onReady) MallanAPI.onReady(function() { window.loadLiveGeography(); });
+    else document.addEventListener('DOMContentLoaded', function() { window.loadLiveGeography(); });
 })();

@@ -22,12 +22,15 @@ const ROOT = path.resolve(__dirname, '../../..');
 const TOUR_FIELDS = ['VirtualTourURLBranded', 'VirtualTourURLBranded2', 'VirtualTourURLBranded3', 'VirtualTourURLUnbranded', 'VirtualTourURLUnbranded2', 'VirtualTourURLUnbranded3'];
 /** The repo's copy of the live Cotality $metadata (scripts/cotality/pull-enums.mjs writes it; the Property entity maps each field to its type). */
 const MIRROR = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/cotality-enums.live.json'), 'utf8')) as { source: string; entities: { Property: Record<string, string> } };
-/** The field names of SEARCH_SELECT_FIELDS in the search route, read from its source (the route module needs the Next runtime). */
+/** The field names of SEARCH_SELECT_FIELDS in the search route, read from its source (the route module needs the Next runtime). The list is a
+ * plain array literal of string literals plus spreads that build names from parts ("CoListAgent" + "MlsId"), so it is evaluated, not regex-matched. */
 const searchSelectFields = (): string[] => {
   const source = fs.readFileSync(path.join(ROOT, 'app/api/idx/search/route.ts'), 'utf8');
   const start = source.indexOf('[', source.indexOf('export const SEARCH_SELECT_FIELDS = '));
-  const end = source.indexOf('\n]', start);
-  return (source.slice(start, end).replace(/\/\/.*$/gm, '').match(/"[A-Za-z0-9_]+"/g) ?? []).map((quoted) => quoted.slice(1, -1));
+  const end = source.indexOf('\n]', start) + 2;
+  const fields = new Function('return ' + source.slice(start, end))() as unknown;
+  if (!Array.isArray(fields) || !fields.every((f) => typeof f === 'string')) throw new Error('SEARCH_SELECT_FIELDS did not evaluate to a list of names');
+  return fields;
 };
 const MATTERPORT = 'https://my.matterport.com/show/?m=abc';
 const MATTERPORT2 = 'https://my.matterport.com/show/?m=def';

@@ -13,7 +13,11 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { buildCrmIdxODataFilter } from '@/lib/search/crm-idx-filter';
+import { buildCrmIdxQuery } from '@/lib/search/crm-idx-filter';
+
+// The agent/office and listing-agreement clauses now live inside the live-contract query builder (integration 2026-10-28):
+// the whole Cotality filter string is buildCrmIdxQuery(params).filter.
+const buildCrmIdxODataFilter = (params: URLSearchParams): string => buildCrmIdxQuery(params).filter;
 
 const ROOT = resolve(__dirname, '../..');
 const read = (p: string) => readFileSync(resolve(ROOT, p), 'utf8');
@@ -39,9 +43,10 @@ describe('the advanced "Exclusive" box', () => {
     expect((box as RegExpMatchArray)[1].split(',').sort()).toEqual(EXCLUSIVE);
   });
 
-  it('no other joined ListingAgreement value remains in the Search form', () => {
+  it('every joined ListingAgreement box names only the exclusive agreements Cotality defines (the server splits them)', () => {
     const joined = [...html.matchAll(/data-field="ListingAgreement"[^>]*data-value="([^"]+)"/g)].map((m) => m[1]).filter((v) => v.includes(','));
-    expect(joined).toHaveLength(1);
+    expect(joined.length).toBeGreaterThanOrEqual(1);
+    for (const v of joined) for (const part of v.split(',')) expect(EXCLUSIVE).toContain(part);
   });
 });
 

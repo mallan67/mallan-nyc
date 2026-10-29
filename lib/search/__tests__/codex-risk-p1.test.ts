@@ -8,18 +8,22 @@ function readFile(rel: string): string {
 }
 
 describe("Codex Risk Cleanup P1 static guards", () => {
-  it("CRM search collects Open House dates for the server (OpenHouse resource) but does not filter on them locally, and collects no transit or grid criteria", () => {
+  it("CRM search sends Open House as a live OpenHouse criterion and never filters transit or grid", () => {
     const src = readFile("public/crm/js/search/search-engine.js");
 
-    expect(src).toMatch(/criteria\.openHouseDateFrom\s*=/);
-    expect(src).toMatch(/criteria\.openHouseDateTo\s*=/);
+    // Open houses are searched through the live Cotality OpenHouse resource (server two-step join).
+    expect(src).toMatch(/_ranges\['OpenHouse\/OpenHouseDate'\]/);
     expect(src).not.toMatch(/criteria\._transitLines\s*=/);
     expect(src).not.toMatch(/criteria\._transitBounds\s*=/);
     expect(src).not.toMatch(/criteria\._gridBounds\s*=/);
     expect(src).not.toMatch(/TransitSearch\.isNearStation/);
     expect(src).not.toMatch(/ManhattanGrid\.isInBounds/);
     expect(src).not.toMatch(/listing\.openHouseDate/);
-    expect(src).toMatch(/_hasServerIgnoredCriteria/);
+    // performSearch renders only live Cotality results: no local pre-filter of preloaded
+    // listings at all (formerly guarded per-criterion by _hasServerIgnoredCriteria).
+    const performSearch = src.slice(src.indexOf("function performSearch()"), src.indexOf("function _setResultsCountText"));
+    expect(performSearch).not.toMatch(/filterListings\(listings/);
+    expect(performSearch).toMatch(/var localResults = \[\];/);
   });
 
   it("agent inquiry uses delegated data attributes, not inline onclick", () => {
