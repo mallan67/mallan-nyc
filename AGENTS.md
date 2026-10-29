@@ -23,15 +23,16 @@ Every agent starts from the same chain:
 
 A chat, Desktop checkout, side branch, audit, dashboard or handoff can provide evidence but cannot become the authority chain.
 
-Changes reach `main` only through a pull request that passes the required `pr-check` and that Maya reviews and merges. The protection is INTERIM (Master §27.18). Agents never merge.
+Changes reach `main` either through a short-lived pull request that passes the required `pr-check`, or through a direct update by the repository administrator (the `Protect main` ruleset's admin bypass) for a completed, tested change set that Maya has approved for release. Force-push and deletion of `main` are blocked by a separate ruleset with no bypass. Agents present completed, tested change sets to Maya and push or merge to `main` only after she approves that release; they never enable auto-merge or edit rulesets without her explicit authorization. The protection is INTERIM (Master §27.18, amended 2026-10-14). Full wording: `CLAUDE.md` §B.
 
 
 ### 0.1 GitHub-only working state + provider authority (Maya directive 2026-09-18)
 
 - **Repository work happens in GitHub.** Claude, ChatGPT and Codex read/write the current GitHub branch
-  or PR directly. Do not use Maya's Desktop, local worktrees, Desktop mirrors, scratch repos, copied
-  project folders, or a local clone as repository working state or authority. Do not create new local
-  project/worktree folders. Machine-local evidence may be inspected only when Maya explicitly asks for
+  or PR directly, or make a direct `main` update that Maya approved (see §0 above). Exactly one local working
+  copy is authorized, at `C:\Users\MayaAllan\Desktop\mallan-nyc`; it is a copy and never authority.
+  Do not create local worktrees, mirrors, scratch repos, copied project folders, or any second local clone.
+  Machine-local evidence may be inspected only when Maya explicitly asks for
   local cleanup/recovery; repo mutations still happen through GitHub.
 - **Git facts** (files, commits, branches, PRs, Actions) come from the current GitHub repository/PR, never
   from a stale checkout or old bot comment.
@@ -41,7 +42,7 @@ Changes reach `main` only through a pull request that passes the required `pr-ch
 - **Neon for mallan-nyc is the Vercel-managed resource path:** Vercel project `mallan-nyc` →
   Marketplace resource `neon-green-school` / `store_K9l79ICRUTMsiRh2` → Neon project
   `hidden-mountain-87248164`. Administrative/dashboard access starts through Vercel SSO
-  (`vercel integration open neon neon-green-school`). Live Neon reads must be reconciled to this exact
+  (`vercel integration open neon`; the CLI accepts the integration name only). Live Neon reads must be reconciled to this exact
   Vercel binding before being used as Mallan truth. Do not create an independent Neon resource to bypass it.
 - **Cotality facts** come from the authorized live Cotality contract and official provider
   documentation. Repo metadata, CSVs, generated enums, and old audits are caches/evidence only.
@@ -53,6 +54,16 @@ Changes reach `main` only through a pull request that passes the required `pr-ch
   not proven by the live contract/provider docs.
 - If a provider fact cannot be verified live, mark it **UNVERIFIED and stop**. Do not fill the gap from memory.
 - **Provider mutations are Git-controlled.** Read-only provider evidence may use the authorized connector. Environment/resource/Neon control-plane mutations require the active Git packet plus Maya's explicit authorization; do not execute direct Neon CLI/API mutation paths.
+
+### 0.2 Repository-wide cleanup authority (Maya directive 2026-10-14)
+
+- The entire Mallan repository is subject to cleanup, not only the CRM.
+- Agents may autonomously identify, correct, consolidate and remove proven obsolete code, with no individual
+  approval per file. "Proven" means the impact graph (Master §27.16) shows no live reader, writer or consumer
+  and a test or live probe confirms behavior is unchanged.
+- Present each completed, tested change set to Maya for approval before releasing unrelated product changes to `main`.
+- Do not create duplicate systems. Historical PRs and branches (including #647 and #630) are evidence only,
+  never implementation authority, and are never merged wholesale.
 
 ---
 
@@ -86,14 +97,9 @@ Changes reach `main` only through a pull request that passes the required `pr-ch
 
 Gate 6 `--execute` / any archive-drain execute / 20K–80K batches · manual cron trigger · Vercel env
 changes · Neon reclaim/downgrade · `VACUUM FULL` · production migrations
-(`prisma migrate deploy` / `db push`) · **PR 5B** (`refactor/05-listing-search-projection`, the public
-reader swap from `listings.idx_display_yn` to `listing_search_projection.idx_display_yn` —
-`memory/REFACTOR-2026-04-25.md`) · projection backfill · PageSpeed/media lane · notification dispatcher ·
-open-house v2 · admin merge bypass · force-push to main. These are examples of the Execution State §9
-boundaries, plus PR 5B, which has no Execution State entry and is recorded only here and in
-`CLAUDE.md` §C. Convergence-specific holds and mutation boundaries are recorded in
-`docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (§7, §9, §11). Do not create a dated handoff
-snapshot as the record for a hold; a hold belongs on this list or in the Execution State, not both.
+(`prisma migrate deploy` / `db push`) · PR-5B · projection backfill · PageSpeed/media lane ·
+notification dispatcher · open-house v2 · ruleset changes · force-push to main (admin bypass of `main` only for an approved release, `CLAUDE.md` §B). (Full list + why:
+`CLAUDE.md` §C and the handoff snapshot.)
 
 ## 3. Where truth lives
 

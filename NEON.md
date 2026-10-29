@@ -29,7 +29,7 @@
 >   retired paths deleted. Provider lifecycle mutation must be redesigned through
 >   the Vercel-managed resource contract and separately authorized.
 > - **Vercel is the entry path for the managed Neon resource.** Use
->   `vercel integration open neon neon-green-school` for SSO into the bound Neon project. Reconcile
+>   `vercel integration open neon` (the installed CLI takes the integration name only; a second argument is rejected) for SSO into the bound Neon project. Reconcile
 >   direct Neon reads to this exact Vercel binding before treating them as Mallan truth.
 > - **Do not create a normal child branch from Production for Development.** Any approved Development
 >   branch must use the explicitly approved schema-only/root mechanism so Production rows/auth material
@@ -314,7 +314,7 @@ Launch plan compute is **billed past 300 CU-hr/mo**, not blocked. The playbook b
 1. `npm run ops:health` — storage only. **It does not measure compute**, so it cannot confirm
    CU-hours against the Launch baseline. Compute is not readable through the authorized
    Vercel-managed path either, so treat compute as UNVERIFIED rather than assuming a number.
-2. Open the bound resource through Vercel (`vercel integration open neon <resource>`, or the Vercel
+2. Open the bound resource through Vercel (`vercel integration open neon`, or the Vercel
    project's Storage / Integrations panel) and read Usage there. Do not sign in to Neon directly;
    the Vercel-managed binding is the only authorized path (§0.12 of the Master).
 3. **Options (in order of preference):**
@@ -390,7 +390,7 @@ Vercel dashboard → profile → Settings → Notifications → enable "Deployme
 
 ### Neon usage
 
-Open the bound resource through Vercel (`vercel integration open neon <resource>`) and read Usage there. Do not sign in to the Neon console directly; the Vercel-managed binding is the only authorized path.
+Open the bound resource through Vercel (`vercel integration open neon`) and read Usage there. Do not sign in to the Neon console directly; the Vercel-managed binding is the only authorized path.
 
 ---
 
@@ -432,8 +432,14 @@ The Mallan Vercel project has one active Neon Marketplace resource:
 Administrative/dashboard access to this Vercel-managed resource starts from Vercel SSO:
 
 ```bash
-vercel integration open neon neon-green-school
+vercel integration open neon
 ```
+
+The Vercel CLI (verified on 48.9) accepts the integration name only: `vercel integration open neon neon-green-school`
+fails with "Cannot open more than one dashboard at a time". The command opens
+`https://vercel.com/api/marketplace/sso?teamId=…&integrationConfigurationId=…` in the default browser, which carries
+no token, so it only works in a browser already signed in to Vercel; it cannot be read from a terminal. The same
+route by hand: Vercel → `mallan` team → `mallan-nyc` → Storage → `neon-green-school` → **Open in Neon**.
 
 The Vercel CLI manages the Marketplace binding/environment connection. Objects *inside* the Neon project
 (branches, databases, roles) are Neon objects. Do not create a second unmanaged Neon project merely to
