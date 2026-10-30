@@ -791,7 +791,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const result = await resolveListingResult(() => fetchListing(id));
 
   if (!result) {
-    return { title: 'Listing Not Found | Mallan Real Estate' };
+    // A confirmed miss: the page answers 404 (see listing-real-http-status.test.ts). The
+    // noindex is a second signal and stops the site-wide default canonical (the home page)
+    // from being read as "this page is a copy of the home page".
+    return { title: 'Listing Not Found | Mallan Real Estate', robots: { index: false, follow: true } };
   }
 
   // NARROW BEFORE DEREFERENCING. A return-copy resolves to a redirect outcome
