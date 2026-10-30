@@ -7,6 +7,7 @@ import BackButton from '@/app/components/BackButton';
 import BuildingViolations from '@/app/components/BuildingViolations';
 import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
 import { getBuildingDataCached } from '@/lib/buildings/public-building-data';
+import { buildingCanonicalHref } from '@/lib/buildings/slug';
 
 export const revalidate = 600;
 
@@ -175,14 +176,13 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const activeCount = data?.stats?.totalActive || 0;
   const salesCount = data?.stats?.totalSales || 0;
 
-  const canonicalParams = new URLSearchParams({ sn: sp.sn, st: sp.st });
-  if (sp.z) canonicalParams.set('z', sp.z);
-  if (sp.bn) canonicalParams.set('bn', sp.bn);
+  // The building name (bn) is display-only and not part of a building's identity, so every ?bn= variant canonicalises to the one URL the sitemap lists.
+  const canonicalUrl = `https://mallan.nyc${buildingCanonicalHref({ streetNumber: sp.sn, streetName: sp.st, postalCode: sp.z })}`;
 
   return {
     title: `${label} — Units, Sales History & Amenities | Mallan Real Estate`,
     description: `Explore ${label} in New York, NY${zip}. ${activeCount} active listing${activeCount !== 1 ? 's' : ''}, ${salesCount} recent sale${salesCount !== 1 ? 's' : ''}. View building amenities, price history, and available units.`,
-    alternates: { canonical: `https://mallan.nyc/buildings/profile?${canonicalParams.toString()}` },
+    alternates: { canonical: canonicalUrl },
     openGraph: {
       title: `${label} | Building Intelligence | Mallan Real Estate`,
       description: `Building profile for ${label}. Active listings, sales history, amenities, and market data.`,
