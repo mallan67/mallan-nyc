@@ -24,8 +24,8 @@
           "answer": "The median sale price on the Upper East Side is approximately $1.1 million, with co-ops averaging around $900,000 and condos around $1.6 million. Prices vary significantly by block, with Fifth Avenue and Park Avenue commanding the highest premiums."
         },
         {
-          "question": "What parks are near the Upper East Side?",
-          "answer": "The Upper East Side offers proximity to Central Park, including its playgrounds, and a relatively quiet residential atmosphere."
+          "question": "What parks and schools are near the Upper East Side?",
+          "answer": "The Upper East Side has public and private schools. Central Park, including its playgrounds, is nearby, and the residential atmosphere is relatively quiet."
         },
         {
           "question": "What subway lines serve the Upper East Side?",
@@ -291,8 +291,8 @@
           "answer": "The median sale price on the Upper West Side is approximately $1.05 million. Pre-war co-ops average around $850,000, while newer condos average $1.4 million. Central Park West addresses command significant premiums."
         },
         {
-          "question": "What parks are near the Upper West Side?",
-          "answer": "Central Park and Riverside Park offer easy park access on both sides. The neighborhood offers a walkable, residential atmosphere with abundant green space and cultural institutions."
+          "question": "What parks and schools are near the Upper West Side?",
+          "answer": "Public schools in the UWS include PS 87 and PS 199. Central Park and Riverside Park offer easy park access on both sides. The neighborhood offers a walkable, residential atmosphere with abundant green space and cultural institutions."
         },
         {
           "question": "What are the best streets on the Upper West Side?",
@@ -555,8 +555,8 @@
           "answer": "Tribeca is known for converted warehouse lofts with soaring ceilings, exposed brick, and oversized windows. New development condos offer modern luxury. The neighborhood also has a small number of townhouses, which are among the most expensive in the city."
         },
         {
-          "question": "What parks are near Tribeca?",
-          "answer": "Tribeca offers convenient access to Hudson River Park and Washington Market Park. The low-rise character provides a village atmosphere with ample green space and recreation."
+          "question": "What parks and schools are near Tribeca?",
+          "answer": "Tribeca offers convenient access to PS 234, Hudson River Park, and Washington Market Park. The low-rise character provides a village atmosphere with ample green space and recreation."
         },
         {
           "question": "What is the average price in Tribeca?",
@@ -1304,8 +1304,8 @@
           "answer": "The median sale price in FiDi is approximately $950,000, making it one of the more affordable Manhattan neighborhoods for modern condos. Price per square foot averages around $1,250, significantly less than Tribeca or SoHo."
         },
         {
-          "question": "What parks are near FiDi?",
-          "answer": "The area features waterfront parks that provide ample outdoor space. The Fulton Center and Brookfield Place offer year-round activities and amenities."
+          "question": "What parks and schools are near FiDi?",
+          "answer": "The area has PS 89 and PS 234, along with waterfront parks that provide ample outdoor space. The Fulton Center and Brookfield Place offer year-round activities and amenities."
         },
         {
           "question": "What is the commute from the Financial District?",
@@ -4156,6 +4156,10 @@
           "answer": "The West Village features a mix of Federal and Greek Revival townhouses from the early 1800s, pre-war walk-up co-ops, and a select number of newer boutique condos. The landmarked historic district preserves much of the original 19th-century architecture and low-rise streetscape."
         },
         {
+          "question": "Which schools are located in the West Village area?",
+          "answer": "PS 41 Greenwich Village is on West 11th Street. PS 3 Charrette School is in the broader Village area. Private schools in the area include St. Luke's School and the Little Red School House."
+        },
+        {
           "question": "How walkable is the West Village?",
           "answer": "The West Village has a Walk Score of 99, making it one of the most walkable neighborhoods in Manhattan. Daily errands, dining, and entertainment are all close by. The irregular street grid creates a quieter pedestrian environment compared to the Midtown grid."
         }
@@ -4441,6 +4445,10 @@
         {
           "question": "What parks are near Nolita?",
           "answer": "DeSalvio Playground on Spring and Mulberry Streets serves as the primary green space within Nolita. Elizabeth Street Garden, a treasured community garden on Elizabeth Street between Prince and Spring, provides a unique open space. Sara D. Roosevelt Park is a short walk east."
+        },
+        {
+          "question": "Which schools are located in the Nolita area?",
+          "answer": "PS 130 Hernando De Soto is on Hester Street. PS 19 Asher Levy is on the Lower East Side. St. Patrick's Old Cathedral School is on Mott Street."
         }
       ],
       "marketStats": {
@@ -4719,6 +4727,10 @@
         {
           "question": "What parks and open spaces are near NoHo?",
           "answer": "Washington Square Park is immediately to the west, offering 9.75 acres of green space. Cooper Square and Astor Place provide public gathering areas. Tompkins Square Park in the East Village and Sara D. Roosevelt Park on the Lower East Side are a short walk away."
+        },
+        {
+          "question": "Which schools are located in the NoHo area?",
+          "answer": "PS 110 Florence Nightingale and PS 41 Greenwich Village are public elementary schools nearby. Private schools include Grace Church School on East 10th Street and Friends Seminary on East 16th Street. NYU's campus surrounds the neighborhood."
         }
       ],
       "marketStats": {
@@ -4990,8 +5002,8 @@
           "answer": "The Feast of San Gennaro is an 11-day street festival held every September on Mulberry Street, dating back to 1926. It features food vendors, live entertainment, parades, and carnival games. Properties on Mulberry Street between Canal and Houston experience increased foot traffic during the festival."
         },
         {
-          "question": "What parks are near Little Italy?",
-          "answer": "DeSalvio Playground on Spring and Mulberry Streets provides green space at the northern edge. Columbus Park on Mulberry and Bayard Streets offers athletic fields and open lawns."
+          "question": "What parks and schools are near Little Italy?",
+          "answer": "DeSalvio Playground on Spring and Mulberry Streets provides green space at the northern edge. Columbus Park on Mulberry and Bayard Streets offers athletic fields and open lawns. PS 130 Hernando De Soto is on Hester Street, and PS 1 Alfred E. Smith is also nearby."
         },
         {
           "question": "How does Little Italy compare to neighboring Nolita?",
@@ -5269,6 +5281,10 @@
         {
           "question": "What parks and open spaces are in Chinatown?",
           "answer": "Columbus Park on Mulberry and Bayard Streets is the neighborhood's main green space with sports courts and a pavilion. Sara D. Roosevelt Park runs along Chrystie Street from Canal to Houston. Seward Park and the East River waterfront are a short walk south and east."
+        },
+        {
+          "question": "Which schools are located in the Chinatown area?",
+          "answer": "PS 124 Yung Wing is on Division Street. PS 2 Meyer London and PS 42 Benjamin Altman are also nearby."
         },
         {
           "question": "How close is Chinatown to the Financial District and Brooklyn Bridge?",
@@ -5559,6 +5575,10 @@
           "answer": "The neighborhood is dominated by pre-war elevator co-ops from the 1920s and 1930s, many featuring Art Deco details, large room counts, and generous layouts. There is limited new condo development. Townhouses and walk-ups are found along the side streets, particularly in the Hudson Heights sub-neighborhood."
         },
         {
+          "question": "Which schools are located in the Washington Heights area?",
+          "answer": "Schools include Castle Bridge School (PS 513), PS 187 Hudson Cliffs, and the Equity Project Charter School. Yeshiva University is on the 185th Street corridor."
+        },
+        {
           "question": "How much is rent in Washington Heights?",
           "answer": "Median rent in Washington Heights is approximately $2,200 per month for a one-bedroom. Studios average $1,700, two-bedrooms $2,700, and three-bedrooms $3,200. The Hudson Heights sub-area near Fort Tryon Park commands a slight premium over the eastern blocks."
         }
@@ -5829,6 +5849,10 @@
         {
           "question": "What types of buildings are found in Inwood?",
           "answer": "Inwood's housing stock is predominantly pre-war co-ops from the 1920s and 1930s, many with large layouts, high ceilings, and Art Deco lobbies. The Park Terrace section features garden apartment complexes. Recent years have seen some new condo construction along the waterfront and near Dyckman Street."
+        },
+        {
+          "question": "Which schools are located in the Inwood area?",
+          "answer": "PS 98 Shorackapock is an elementary school. IS 218 is a middle school. Inwood Early College is a high school, and there are several charter schools. Columbia University's Baker Athletics Complex is at the tip of Manhattan."
         },
         {
           "question": "How much is rent in Inwood?",

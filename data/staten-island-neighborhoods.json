@@ -288,6 +288,10 @@
           "answer": "Todt Hill is car-dependent. Most residents drive to the nearby SIR stations (Grant City or Old Town) or use express bus routes (SIM1, SIM4) to Manhattan. The drive to the St. George Ferry Terminal is about 15 minutes. The Staten Island Expressway provides access to the Verrazzano-Narrows Bridge."
         },
         {
+          "question": "Which schools are located in Todt Hill?",
+          "answer": "PS 36 J.C. Drumgoole is a public school in the area. The Staten Island Academy is a private school nearby."
+        },
+        {
           "question": "What types of homes are in Todt Hill?",
           "answer": "Todt Hill is primarily single-unit detached homes, many on oversized lots with extensive landscaping. Architectural styles include Colonial, Tudor, Mediterranean, and Contemporary. Some properties feature gated entrances, pools, and multi-car garages. The neighborhood also has a small number of townhomes."
         },
@@ -532,8 +536,8 @@
           "answer": "The median sale price in Great Kills is approximately $625,000. Single-unit detached homes range from $500,000 to $900,000, while semi-attached and attached homes can start around $400,000. Per square foot pricing averages around $425."
         },
         {
-          "question": "What parks are near Great Kills?",
-          "answer": "Great Kills offers a marina for boating and Great Kills Park with 580 acres of beaches and playgrounds. The neighborhood has active civic associations."
+          "question": "What parks and schools are near Great Kills?",
+          "answer": "Great Kills has public schools, a marina for boating, and Great Kills Park with 580 acres of beaches and playgrounds. The neighborhood has active civic associations."
         },
         {
           "question": "What is Great Kills Park?",

@@ -28,8 +28,8 @@
           "answer": "The median sale price in Brooklyn Heights is approximately $1.15 million, with co-ops averaging around $850,000 and condos around $1.6 million. Brownstone townhouses command $3 million to $8 million depending on size and condition."
         },
         {
-          "question": "What parks are near Brooklyn Heights?",
-          "answer": "Brooklyn Heights offers close proximity to the Promenade and the Pier 6 playground at Brooklyn Bridge Park, and quiet residential streets with low traffic."
+          "question": "What parks and schools are near Brooklyn Heights?",
+          "answer": "Brooklyn Heights has public schools including PS 8, and is close to the Promenade and the Pier 6 playground at Brooklyn Bridge Park. Residential streets are quiet with low traffic."
         },
         {
           "question": "What subway lines serve Brooklyn Heights?",
@@ -838,8 +838,8 @@
           "answer": "The median sale price in Park Slope is approximately $1.35 million. Brownstone townhouses range from $2.5 million to $6 million depending on width, condition, and proximity to Prospect Park. One-bedroom co-ops start around $550,000 and condos around $700,000."
         },
         {
-          "question": "What parks are near Park Slope?",
-          "answer": "Prospect Park offers 526 acres of green space, including playgrounds, with the Brooklyn Botanic Garden and the Prospect Park Zoo nearby. Fifth and Seventh Avenues have extensive retail and dining options."
+          "question": "What parks and schools are near Park Slope?",
+          "answer": "Public schools in Park Slope include PS 321 and PS 107. Prospect Park offers 526 acres of green space, including playgrounds, with the Brooklyn Botanic Garden and the Prospect Park Zoo nearby. Fifth and Seventh Avenues have extensive retail and dining options."
         },
         {
           "question": "What subway lines serve Park Slope?",
@@ -1116,8 +1116,8 @@
           "answer": "The median sale price in Cobble Hill is approximately $1.25 million. Brownstone townhouses range from $2 million to $5 million. One-bedroom co-ops average $600,000 and condos around $850,000. The limited inventory in this small neighborhood keeps prices elevated."
         },
         {
-          "question": "What parks are near Cobble Hill?",
-          "answer": "Cobble Hill Park provides green space, and the neighborhood's quiet streets, low-rise character, and locally owned shops create a village atmosphere."
+          "question": "What parks and schools are near Cobble Hill?",
+          "answer": "PS 29 is a public elementary school in Cobble Hill. Cobble Hill Park provides green space, and the neighborhood's quiet streets, low-rise character, and locally owned shops create a village atmosphere."
         },
         {
           "question": "What subway lines serve Cobble Hill?",
@@ -1382,8 +1382,8 @@
           "answer": "The median sale price in Carroll Gardens is approximately $1.2 million. Brownstone townhouses with the signature deep gardens typically sell for $2.5 million to $5 million. One-bedroom co-ops average $550,000, and condos average $800,000."
         },
         {
-          "question": "What parks are near Carroll Gardens?",
-          "answer": "The deep front gardens provide informal green space unique to this neighborhood. Carroll Park has a playground and active community garden."
+          "question": "What parks and schools are near Carroll Gardens?",
+          "answer": "PS 58 is a public school in Carroll Gardens. The deep front gardens provide informal green space unique to this neighborhood. Carroll Park has a playground and active community garden."
         },
         {
           "question": "What subway lines serve Carroll Gardens?",
@@ -1645,8 +1645,8 @@
           "answer": "The median sale price in Fort Greene is approximately $1.1 million. Brownstone townhouses range from $2 million to $4.5 million. One-bedroom condos average $750,000 and co-ops around $500,000. New construction near Barclays Center tends to run higher."
         },
         {
-          "question": "What parks are near Fort Greene?",
-          "answer": "Fort Greene Park offers playgrounds and open space for the neighborhood."
+          "question": "What parks and schools are near Fort Greene?",
+          "answer": "Fort Greene has public schools, and Brooklyn Technical High School is located in the neighborhood. Fort Greene Park offers playgrounds and open space."
         },
         {
           "question": "What subway lines serve Fort Greene?",
@@ -1929,8 +1929,8 @@
           "answer": "The median sale price in Prospect Heights is approximately $950,000. One-bedroom co-ops average $500,000, condos around $750,000. Brownstone townhouses range from $1.8 million to $4 million. New construction near Barclays Center starts around $600,000 for studios."
         },
         {
-          "question": "What parks are near Prospect Heights?",
-          "answer": "Prospect Heights has direct access to Prospect Park, the Brooklyn Botanic Garden, and the Brooklyn Museum. Vanderbilt Avenue has neighborhood cafes and shops."
+          "question": "What parks and schools are near Prospect Heights?",
+          "answer": "Prospect Heights has direct access to Prospect Park, the Brooklyn Botanic Garden, and the Brooklyn Museum. PS 9 is a public school in the neighborhood. Vanderbilt Avenue has neighborhood cafes and shops."
         },
         {
           "question": "What subway lines serve Prospect Heights?",
@@ -2207,7 +2207,7 @@
         },
         {
           "question": "What is the waterfront development in Greenpoint?",
-          "answer": "The Greenpoint waterfront is undergoing a major transformation with projects like Greenpoint Landing, a 5,500-unit mixed-use development on 22 acres. The development includes market-rate and affordable housing and 3.5 acres of public parkland along the East River."
+          "answer": "The Greenpoint waterfront is undergoing a major transformation with projects like Greenpoint Landing, a 5,500-unit mixed-use development on 22 acres. The development includes market-rate and affordable housing, a new school, and 3.5 acres of public parkland along the East River."
         },
         {
           "question": "How much is rent in Greenpoint?",
