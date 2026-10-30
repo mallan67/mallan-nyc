@@ -240,7 +240,7 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
     BikeStorage: 'Bike Room',
     BicycleStorage: 'Bike Room',
     // Building Features
-    CommonPlayroom: "Children's Playroom",
+    CommonPlayroom: 'Playroom',
     Elevators: 'Elevator',
     BusinessCenter: 'Business Center',
     GameRoom: "Residents' Lounge",

@@ -49,7 +49,7 @@ const hubFaqSchema = {
       name: 'Is Brooklyn a good place to buy real estate?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Brooklyn has seen strong appreciation over the past decade and remains one of NYC\u2019s most sought-after markets. The borough offers diverse housing stock from brownstones to new construction condos, excellent transit connections, and vibrant neighborhood character. Many buyers find better value per square foot compared to Manhattan.',
+        text: 'Brooklyn has seen strong appreciation over the past decade and remains one of NYC\u2019s most sought-after markets. The borough offers varied housing stock from brownstones to new construction condos, excellent transit connections, and vibrant neighborhood character. Many buyers find better value per square foot compared to Manhattan.',
       },
     },
     {

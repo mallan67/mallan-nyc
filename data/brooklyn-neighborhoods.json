@@ -13,7 +13,6 @@
       "dominantPropertyType": "Co-op",
       "walkScore": 97,
       "transitScore": 95,
-      "topSchool": "PS 8 Robert Fulton",
       "nearestSubway": [
         "2",
         "3",
@@ -29,8 +28,8 @@
           "answer": "The median sale price in Brooklyn Heights is approximately $1.15 million, with co-ops averaging around $850,000 and condos around $1.6 million. Brownstone townhouses command $3 million to $8 million depending on size and condition."
         },
         {
-          "question": "What parks and schools are near Brooklyn Heights?",
-          "answer": "Brooklyn Heights is well-suited for residents who value parks and schools. It features excellent public schools including PS 8, close proximity to the Promenade and Pier 6 playground at Brooklyn Bridge Park, and quiet residential streets with low traffic."
+          "question": "What parks are near Brooklyn Heights?",
+          "answer": "Brooklyn Heights offers close proximity to the Promenade and the Pier 6 playground at Brooklyn Bridge Park, and quiet residential streets with low traffic."
         },
         {
           "question": "What subway lines serve Brooklyn Heights?",
@@ -122,7 +121,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring tree-lined streets, proximity to Brooklyn Bridge Park's playgrounds and green space, and well-regarded public schools.",
+          "description": "Properties featuring tree-lined streets and proximity to Brooklyn Bridge Park's playgrounds and green space.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-bedroom co-op or brownstone"
         },
@@ -134,7 +133,7 @@
         },
         {
           "type": "Flex-Space & Grand Layouts",
-          "description": "Long-time Brooklyn residents looking to transition from larger homes while staying in a walkable, historic neighborhood.",
+          "description": "Condo living in a walkable, historic neighborhood.",
           "budgetRange": "$900K - $2M",
           "propertyType": "1-2 bedroom condo"
         },
@@ -288,7 +287,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 95,
       "transitScore": 86,
-      "topSchool": "PS 84 Jose de Diego",
       "nearestSubway": [
         "L",
         "G",
@@ -302,8 +300,8 @@
           "answer": "The median sale price in Williamsburg is approximately $1.05 million, with new waterfront condos averaging $1.3 million and inland units averaging $850,000. Townhouses in the south side range from $2 million to $5 million."
         },
         {
-          "question": "What parks and schools are near Williamsburg?",
-          "answer": "Williamsburg has seen growing demand from residents seeking parks and green space, especially in the South Williamsburg area and along the waterfront. Domino Park, the new Bushwick Inlet Park, and multiple playgrounds provide excellent outdoor space for children."
+          "question": "What parks are near Williamsburg?",
+          "answer": "Williamsburg has seen growing demand from residents seeking parks and green space, especially in the South Williamsburg area and along the waterfront. Domino Park, the new Bushwick Inlet Park, and multiple playgrounds provide excellent outdoor space."
         },
         {
           "question": "What subway lines serve Williamsburg?",
@@ -315,7 +313,7 @@
         },
         {
           "question": "Is Williamsburg a good investment?",
-          "answer": "Williamsburg has shown strong appreciation over the past decade, with waterfront properties seeing 5-8% annual gains. The neighborhood benefits from continuous infrastructure investment, ferry service, and a diverse economic base of tech, creative, and hospitality industries."
+          "answer": "Williamsburg has shown strong appreciation over the past decade, with waterfront properties seeing 5-8% annual gains. The neighborhood benefits from continuous infrastructure investment, ferry service, and a varied economic base of tech, creative, and hospitality industries."
         },
         {
           "question": "How much is rent in Williamsburg?",
@@ -407,7 +405,7 @@
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "New waterfront parks, improving schools, and spacious new-construction units with modern amenities.",
+          "description": "New waterfront parks and spacious new-construction units with modern amenities.",
           "budgetRange": "$1.2M - $3M",
           "propertyType": "2-3 bedroom condo"
         },
@@ -559,7 +557,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 96,
       "transitScore": 92,
-      "topSchool": "PS 307 Daniel Hale Williams",
       "nearestSubway": [
         "A",
         "C",
@@ -573,12 +570,12 @@
           "answer": "The median sale price in DUMBO is approximately $1.65 million, making it one of Brooklyn's most expensive neighborhoods. Converted warehouse lofts average $1.8 million, while new construction condos range from $1 million for studios to $5 million+ for three-bedrooms with bridge views."
         },
         {
-          "question": "What parks and schools are near DUMBO?",
+          "question": "What parks are near DUMBO?",
           "answer": "DUMBO is well-suited for residents seeking waterfront parks and green space with Brooklyn Bridge Park offering extensive playgrounds, Jane's Carousel, and waterfront green space. The neighborhood has a growing residential community, though the limited retail and restaurant options can be a consideration."
         },
         {
           "question": "What subway lines serve DUMBO?",
-          "answer": "The F train at York Street is the most direct line. The A and C trains at High Street-Brooklyn Bridge and the 2 and 3 at Clark Street are within walking distance. The NYC Ferry also stops at DUMBO providing scenic waterway transit to Manhattan."
+          "answer": "The F train at York Street is the most direct line. The A and C trains at High Street-Brooklyn Bridge and the 2 and 3 at Clark Street are close by. The NYC Ferry also stops at DUMBO providing scenic waterway transit to Manhattan."
         },
         {
           "question": "What is the tech scene like in DUMBO?",
@@ -678,7 +675,7 @@
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring spacious loft layouts with Brooklyn Bridge Park as their backyard and easy access to Manhattan schools.",
+          "description": "Properties featuring spacious loft layouts with Brooklyn Bridge Park as their backyard.",
           "budgetRange": "$1.8M - $4.5M",
           "propertyType": "2-3 bedroom loft"
         },
@@ -819,12 +816,11 @@
       "tagline": "Brooklyn's Premier Brownstone Neighborhood",
       "heroImage": "https://images.unsplash.com/photo-1684803873503-f335c07eb95c?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1684803873503-f335c07eb95c?w=1200&q=80",
-      "summary": "Park Slope is one of Brooklyn's most desirable residential neighborhoods, renowned for its pristine brownstones, local public schools, and direct access to Prospect Park. Average price per square foot is approximately $1,100. The neighborhood consistently ranks among New York City's best for families, food, and quality of life.",
+      "summary": "Park Slope is one of Brooklyn's most desirable residential neighborhoods, renowned for its pristine brownstones and direct access to Prospect Park. Average price per square foot is approximately $1,100.",
       "avgPricePerSqft": 1100,
       "dominantPropertyType": "Townhouse",
       "walkScore": 97,
       "transitScore": 91,
-      "topSchool": "PS 321 William Penn",
       "nearestSubway": [
         "B",
         "Q",
@@ -842,8 +838,8 @@
           "answer": "The median sale price in Park Slope is approximately $1.35 million. Brownstone townhouses range from $2.5 million to $6 million depending on width, condition, and proximity to Prospect Park. One-bedroom co-ops start around $550,000 and condos around $700,000."
         },
         {
-          "question": "What parks and schools are near Park Slope?",
-          "answer": "Park Slope features well-regarded public schools including PS 321 and PS 107. Prospect Park offers 526 acres of playgrounds, the Brooklyn Botanic Garden, and the Prospect Park Zoo. Fifth and Seventh Avenues have extensive retail and dining options."
+          "question": "What parks are near Park Slope?",
+          "answer": "Prospect Park offers 526 acres of playgrounds, the Brooklyn Botanic Garden, and the Prospect Park Zoo. Fifth and Seventh Avenues have extensive retail and dining options."
         },
         {
           "question": "What subway lines serve Park Slope?",
@@ -855,7 +851,7 @@
         },
         {
           "question": "Are Park Slope brownstones good investments?",
-          "answer": "Park Slope brownstones have shown consistent long-term appreciation, typically 3-5% annually. The historic district designation protects architectural character and property values. Brownstones with rental units (2-4 family) offer both appreciation and income potential."
+          "answer": "Park Slope brownstones have shown consistent long-term appreciation, typically 3-5% annually. The historic district designation protects architectural character and property values. Brownstones with rental units (2-4 unit) offer both appreciation and income potential."
         },
         {
           "question": "How much is rent in Park Slope?",
@@ -915,7 +911,7 @@
         }
       ],
       "streetGuidance": {
-        "description": "Park Slope is organized around two commercial corridors: Fifth Avenue (trendy, diverse dining) and Seventh Avenue (upscale, residential). The blocks between the two avenues on the park-side (east of 7th Avenue) are the most coveted. Prospect Park West commands the highest brownstone prices.",
+        "description": "Park Slope is organized around two commercial corridors: Fifth Avenue (dining) and Seventh Avenue (residential). The blocks between the two avenues on the park-side (east of 7th Avenue) are the most coveted. Prospect Park West commands the highest brownstone prices.",
         "bestBlocksForParks": [
           "1st through 5th Streets between 7th and 8th Avenues",
           "Prospect Park West",
@@ -935,7 +931,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Well-regarded public schools including PS 321, Prospect Park access, and a walkable neighborhood with strong community feel.",
+          "description": "Prospect Park access and a walkable neighborhood with strong community feel.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-4 bedroom brownstone or co-op"
         },
@@ -947,9 +943,9 @@
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Properties with multi-family brownstones with both appreciation potential and rental income from garden and parlor floor units.",
+          "description": "Properties with multi-unit brownstones with both appreciation potential and rental income from garden and parlor floor units.",
           "budgetRange": "$2.5M - $5M",
-          "propertyType": "2-4 family brownstone"
+          "propertyType": "2-4 unit brownstone"
         },
         {
           "type": "Market Entry Points",
@@ -1045,7 +1041,6 @@
         "park slope real estate",
         "park slope brownstones for sale",
         "park slope apartments",
-        "park slope family homes",
         "park slope condos",
         "prospect park apartments",
         "park slope brooklyn homes"
@@ -1105,7 +1100,6 @@
       "dominantPropertyType": "Townhouse",
       "walkScore": 98,
       "transitScore": 90,
-      "topSchool": "PS 29 John M. Harrigan",
       "nearestSubway": [
         "F",
         "G",
@@ -1122,8 +1116,8 @@
           "answer": "The median sale price in Cobble Hill is approximately $1.25 million. Brownstone townhouses range from $2 million to $5 million. One-bedroom co-ops average $600,000 and condos around $850,000. The limited inventory in this small neighborhood keeps prices elevated."
         },
         {
-          "question": "What parks and schools are near Cobble Hill?",
-          "answer": "Cobble Hill is excellent for families. PS 29 is one of Brooklyn's most sought-after public elementary schools. Cobble Hill Park provides green space, and the neighborhood's quiet streets, low-rise character, and family-owned shops create a village atmosphere."
+          "question": "What parks are near Cobble Hill?",
+          "answer": "Cobble Hill Park provides green space, and the neighborhood's quiet streets, low-rise character, and locally owned shops create a village atmosphere."
         },
         {
           "question": "What subway lines serve Cobble Hill?",
@@ -1131,7 +1125,7 @@
         },
         {
           "question": "How is Cobble Hill different from Carroll Gardens?",
-          "answer": "Cobble Hill is smaller and slightly more urban, with Court Street as its commercial spine. Carroll Gardens to the south features the distinctive deep front gardens that give it its name, has a stronger Italian-American heritage, and Smith Street as its main dining corridor. Both share similar brownstone architecture."
+          "answer": "Cobble Hill is smaller and slightly more urban, with Court Street as its commercial spine. Carroll Gardens to the south features the distinctive deep front gardens that give it its name, and Smith Street as its main dining corridor. Both share similar brownstone architecture."
         },
         {
           "question": "What is the Cobble Hill Historic District?",
@@ -1215,7 +1209,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties offering PS 29, the village-scale streets, and the ability to walk to everything from playgrounds to grocery stores.",
+          "description": "Properties offering the village-scale streets and the ability to walk to everything from playgrounds to grocery stores.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-bedroom brownstone or co-op"
         },
@@ -1235,7 +1229,7 @@
           "type": "Strong Investment & Rental Potential",
           "description": "Properties with brownstone properties in a supply-constrained historic district with strong long-term appreciation and consistent rental demand.",
           "budgetRange": "$2M - $4.5M",
-          "propertyType": "2-family brownstone"
+          "propertyType": "2-unit brownstone"
         }
       ],
       "ctas": {
@@ -1373,12 +1367,11 @@
       "tagline": "Deep Gardens and Deeper Roots",
       "heroImage": "https://images.unsplash.com/photo-1684803894476-909823ca61e3?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1684803894476-909823ca61e3?w=1200&q=80",
-      "summary": "Carroll Gardens is distinguished by its unusually deep front gardens, Italian-American heritage, and one of Brooklyn's best dining scenes along Smith Street. Average price per square foot is approximately $1,100. The neighborhood combines old-world character with contemporary dining, shopping, and a strong sense of community pride.",
+      "summary": "Carroll Gardens is distinguished by its unusually deep front gardens and one of Brooklyn's best dining scenes along Smith Street. Average price per square foot is approximately $1,100. The neighborhood offers contemporary dining, shopping, and a strong sense of community pride.",
       "avgPricePerSqft": 1100,
       "dominantPropertyType": "Townhouse",
       "walkScore": 97,
       "transitScore": 88,
-      "topSchool": "PS 58 The Carroll School",
       "nearestSubway": [
         "F",
         "G"
@@ -1389,8 +1382,8 @@
           "answer": "The median sale price in Carroll Gardens is approximately $1.2 million. Brownstone townhouses with the signature deep gardens typically sell for $2.5 million to $5 million. One-bedroom co-ops average $550,000, and condos average $800,000."
         },
         {
-          "question": "What parks and schools are near Carroll Gardens?",
-          "answer": "Carroll Gardens is excellent for families. PS 58 is a popular public school, and the deep front gardens provide informal play space unique to this neighborhood. Carroll Park has a playground and active community garden. The neighborhood has a strong multi-generational community feel."
+          "question": "What parks are near Carroll Gardens?",
+          "answer": "The deep front gardens provide informal green space unique to this neighborhood. Carroll Park has a playground and active community garden."
         },
         {
           "question": "What subway lines serve Carroll Gardens?",
@@ -1402,7 +1395,7 @@
         },
         {
           "question": "What is the dining scene like in Carroll Gardens?",
-          "answer": "Smith Street, nicknamed 'Restaurant Row,' features a diverse range of acclaimed restaurants including Lucali (pizza), Buttermilk Channel, Frankies 457, and many more. Court Street offers Italian bakeries and delis reflecting the neighborhood's heritage. The dining scene is one of Brooklyn's best."
+          "answer": "Smith Street, nicknamed 'Restaurant Row,' features a varied range of acclaimed restaurants including Lucali (pizza), Buttermilk Channel, Frankies 457, and many more. Court Street offers bakeries and delis. The dining scene is one of Brooklyn's best."
         },
         {
           "question": "How much is rent in Carroll Gardens?",
@@ -1482,7 +1475,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring the signature deep-garden brownstones, strong public schools, and an active neighborhood community with a village feel.",
+          "description": "Properties featuring the signature deep-garden brownstones and an active neighborhood community with a village feel.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-bedroom brownstone"
         },
@@ -1494,15 +1487,15 @@
         },
         {
           "type": "Market Entry Points",
-          "description": "Neighborhood with strong fundamentals and diverse housing stock at multiple price points.",
+          "description": "Neighborhood with strong fundamentals and varied housing stock at multiple price points.",
           "budgetRange": "$450K - $800K",
           "propertyType": "Studio or 1-bedroom co-op"
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Properties with multi-family brownstones in a high-demand, supply-constrained neighborhood with stable long-term returns.",
+          "description": "Properties with multi-unit brownstones in a high-demand, supply-constrained neighborhood with stable long-term returns.",
           "budgetRange": "$2M - $4.5M",
-          "propertyType": "2-3 family brownstone"
+          "propertyType": "2-3 unit brownstone"
         }
       ],
       "ctas": {
@@ -1587,8 +1580,7 @@
         "carroll gardens brooklyn homes",
         "carroll gardens condos",
         "smith street brooklyn apartments",
-        "carroll gardens co-ops",
-        "carroll gardens family homes"
+        "carroll gardens co-ops"
       ],
       "bounds": {
         "north": 40.683,
@@ -1606,7 +1598,7 @@
           "Smith-9th Streets (F/G)"
         ]
       },
-      "localVibe": "Brownstone row houses with deep front gardens set back from the sidewalk, a distinguishing feature of this Italian-American-rooted neighborhood along the Gowanus Canal's western edge.",
+      "localVibe": "Brownstone row houses with deep front gardens set back from the sidewalk, a distinguishing feature of this neighborhood along the Gowanus Canal's western edge.",
       "notableStreets": [
         "Court Street",
         "Smith Street",
@@ -1634,7 +1626,6 @@
       "dominantPropertyType": "Townhouse",
       "walkScore": 96,
       "transitScore": 95,
-      "topSchool": "Brooklyn Technical High School",
       "nearestSubway": [
         "B",
         "D",
@@ -1654,8 +1645,8 @@
           "answer": "The median sale price in Fort Greene is approximately $1.1 million. Brownstone townhouses range from $2 million to $4.5 million. One-bedroom condos average $750,000 and co-ops around $500,000. New construction near Barclays Center tends to run higher."
         },
         {
-          "question": "What parks and schools are near Fort Greene?",
-          "answer": "Fort Greene is well-suited for residents who value parks and schools with local public schools, Fort Greene Park's playgrounds and open space, and a diverse, engaged community. Brooklyn Technical High School, one of NYC's elite specialized high schools, is located in the neighborhood."
+          "question": "What parks are near Fort Greene?",
+          "answer": "Fort Greene Park offers playgrounds and open space for the neighborhood."
         },
         {
           "question": "What subway lines serve Fort Greene?",
@@ -1753,13 +1744,13 @@
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties offering Fort Greene Park, local public schools, and the diverse community in one of Brooklyn's most architecturally distinguished neighborhoods.",
+          "description": "Properties offering Fort Greene Park in one of Brooklyn's most architecturally distinguished neighborhoods.",
           "budgetRange": "$1.5M - $3.5M",
           "propertyType": "3-bedroom brownstone or condo"
         },
         {
           "type": "Market Entry Points",
-          "description": "Well-connected neighborhood with diverse housing options from studios to multi-family brownstones.",
+          "description": "Well-connected neighborhood with varied housing options from studios to multi-unit brownstones.",
           "budgetRange": "$400K - $800K",
           "propertyType": "Studio or 1-bedroom co-op"
         },
@@ -1767,7 +1758,7 @@
           "type": "Strong Investment & Rental Potential",
           "description": "Properties with brownstones with rental income potential in a neighborhood with strong cultural anchors and continuous transit improvements.",
           "budgetRange": "$2M - $4M",
-          "propertyType": "2-3 family brownstone"
+          "propertyType": "2-3 unit brownstone"
         }
       ],
       "ctas": {
@@ -1921,7 +1912,6 @@
       "dominantPropertyType": "Co-op",
       "walkScore": 96,
       "transitScore": 93,
-      "topSchool": "PS 9 Teunis G. Bergen",
       "nearestSubway": [
         "2",
         "3",
@@ -1939,8 +1929,8 @@
           "answer": "The median sale price in Prospect Heights is approximately $950,000. One-bedroom co-ops average $500,000, condos around $750,000. Brownstone townhouses range from $1.8 million to $4 million. New construction near Barclays Center starts around $600,000 for studios."
         },
         {
-          "question": "What parks and schools are near Prospect Heights?",
-          "answer": "Prospect Heights is well-suited for residents who value parks and schools with direct access to Prospect Park, the Brooklyn Botanic Garden, the Brooklyn Children's Museum (nearby), and the Brooklyn Museum. PS 9 is a sought-after local school. Vanderbilt Avenue has neighborhood cafes and shops."
+          "question": "What parks are near Prospect Heights?",
+          "answer": "Prospect Heights has direct access to Prospect Park, the Brooklyn Botanic Garden, and the Brooklyn Museum. Vanderbilt Avenue has neighborhood cafes and shops."
         },
         {
           "question": "What subway lines serve Prospect Heights?",
@@ -2012,7 +2002,7 @@
         }
       ],
       "streetGuidance": {
-        "description": "Prospect Heights is divided between the brownstone core (south of Eastern Parkway) and the new-development zone (north, near Barclays Center). Vanderbilt Avenue is the main commercial street. The blocks along Eastern Parkway and near Grand Army Plaza are the most prestigious residential streets.",
+        "description": "Prospect Heights is divided between the brownstone core (south of Eastern Parkway) and the new-development zone (north, near Barclays Center). Vanderbilt Avenue is the main commercial street. The blocks along Eastern Parkway and near Grand Army Plaza are the best-known residential streets.",
         "bestBlocksForParks": [
           "Sterling Place between Vanderbilt and Underhill",
           "St. Marks Avenue near Prospect Park",
@@ -2038,7 +2028,7 @@
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Close to Prospect Park, the Brooklyn Museum, and Botanic Garden access with strong neighborhood schools and community.",
+          "description": "Close to Prospect Park, the Brooklyn Museum, and Botanic Garden access.",
           "budgetRange": "$1.2M - $3M",
           "propertyType": "2-3 bedroom brownstone or condo"
         },
@@ -2194,23 +2184,22 @@
       "tagline": "Brooklyn's Waterfront Gem",
       "heroImage": "https://images.unsplash.com/photo-1684508405245-3d3dac130dfc?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1684508405245-3d3dac130dfc?w=1200&q=80",
-      "summary": "Greenpoint is the northernmost neighborhood in Brooklyn, offering a distinctive blend of Polish heritage, waterfront living, and creative energy along the East River. Average price per square foot is approximately $1,100. The neighborhood features a charming mix of row houses, new waterfront condos, and an indie commercial scene along Manhattan Avenue and Franklin Street.",
+      "summary": "Greenpoint is the northernmost neighborhood in Brooklyn, offering a distinctive blend of waterfront living and creative energy along the East River. Average price per square foot is approximately $1,100. The neighborhood features a charming mix of row houses, new waterfront condos, and an indie commercial scene along Manhattan Avenue and Franklin Street.",
       "avgPricePerSqft": 1100,
       "dominantPropertyType": "Condo",
       "walkScore": 95,
       "transitScore": 82,
-      "topSchool": "PS 110 The Monitor",
       "nearestSubway": [
         "G"
       ],
       "faqs": [
         {
           "question": "What is the average apartment price in Greenpoint?",
-          "answer": "The median sale price in Greenpoint is approximately $900,000. New waterfront condos average $1.1 million, while inland condos and co-ops average $700,000. Townhouses and two-family homes range from $1.5 million to $3 million."
+          "answer": "The median sale price in Greenpoint is approximately $900,000. New waterfront condos average $1.1 million, while inland condos and co-ops average $700,000. Townhouses and two-unit homes range from $1.5 million to $3 million."
         },
         {
-          "question": "What parks and schools are near Greenpoint?",
-          "answer": "Greenpoint is becoming increasingly popular with families. WNYC Transmitter Park and the new Box Street Park offer waterfront play space. The neighborhood has a calm, residential feel with lower density than neighboring Williamsburg. Local bakeries and family-run businesses add to the community atmosphere."
+          "question": "What parks are near Greenpoint?",
+          "answer": "WNYC Transmitter Park and the new Box Street Park offer waterfront play space. The neighborhood has a calm, residential feel with lower density than neighboring Williamsburg. Local bakeries and other local businesses add to the community atmosphere."
         },
         {
           "question": "What subway lines serve Greenpoint?",
@@ -2218,11 +2207,7 @@
         },
         {
           "question": "What is the waterfront development in Greenpoint?",
-          "answer": "The Greenpoint waterfront is undergoing a major transformation with projects like Greenpoint Landing, a 5,500-unit mixed-use development on 22 acres. The development includes market-rate and affordable housing, a new school, and 3.5 acres of public parkland along the East River."
-        },
-        {
-          "question": "What is the Polish heritage of Greenpoint?",
-          "answer": "Greenpoint has been a center of Polish-American life in Brooklyn since the mid-19th century. Manhattan Avenue between Greenpoint Avenue and Calyer Street still has Polish bakeries, restaurants, delis, and shops. This cultural heritage adds distinctive character to the neighborhood's dining and community life."
+          "answer": "The Greenpoint waterfront is undergoing a major transformation with projects like Greenpoint Landing, a 5,500-unit mixed-use development on 22 acres. The development includes market-rate and affordable housing and 3.5 acres of public parkland along the East River."
         },
         {
           "question": "How much is rent in Greenpoint?",
@@ -2282,7 +2267,7 @@
         }
       ],
       "streetGuidance": {
-        "description": "Greenpoint has two main commercial corridors: Manhattan Avenue (traditional, with Polish bakeries and local shops) and Franklin Street (hip, with boutiques, cafes, and restaurants). The waterfront along West Street is the newest residential area with luxury condos. Inland blocks retain a quieter, more traditional residential character.",
+        "description": "Greenpoint has two main commercial corridors: Manhattan Avenue (traditional, with bakeries and local shops) and Franklin Street (with boutiques, cafes, and restaurants). The waterfront along West Street is the newest residential area with luxury condos. Inland blocks retain a quieter, more traditional residential character.",
         "bestBlocksForParks": [
           "Milton Street near McGolrick Park",
           "Noble Street",
@@ -2422,7 +2407,7 @@
           "Nassau Avenue (G)"
         ]
       },
-      "localVibe": "A waterfront neighborhood of low-rise row houses and converted industrial buildings, with a strong Polish-heritage commercial strip and new development along the East River.",
+      "localVibe": "A waterfront neighborhood of low-rise row houses and converted industrial buildings, with a commercial strip and new development along the East River.",
       "notableStreets": [
         "Manhattan Avenue",
         "Franklin Street",
@@ -2436,7 +2421,7 @@
         "Newtown Barge Playground",
         "Java Street Garden"
       ],
-      "diningScene": "Manhattan Avenue features Polish bakeries and delis alongside contemporary cafes, craft cocktail bars, and a growing number of Asian and Mediterranean restaurants."
+      "diningScene": "Manhattan Avenue features bakeries and delis alongside contemporary cafes, craft cocktail bars, and a growing number of Asian and Mediterranean restaurants."
     },
     {
       "slug": "bed-stuy",
@@ -2451,7 +2436,6 @@
       "dominantPropertyType": "Townhouse",
       "walkScore": 92,
       "transitScore": 80,
-      "topSchool": "PS 3 Bedford Village",
       "nearestSubway": [
         "A",
         "C",
@@ -2463,11 +2447,11 @@
       "faqs": [
         {
           "question": "What is the average home price in Bed-Stuy?",
-          "answer": "The median sale price in Bed-Stuy is approximately $950,000. Brownstone townhouses range from $1.2 million to $3.5 million depending on size, condition, and block. One-bedroom condos average $550,000. Multi-family brownstones offer investment opportunities starting around $1.5 million."
+          "answer": "The median sale price in Bed-Stuy is approximately $950,000. Brownstone townhouses range from $1.2 million to $3.5 million depending on size, condition, and block. One-bedroom condos average $550,000. Multi-unit brownstones offer investment opportunities starting around $1.5 million."
         },
         {
-          "question": "What parks and schools are near Bed-Stuy?",
-          "answer": "Bed-Stuy has a strong family community with numerous playgrounds, Herbert Von King Park, and a network of community organizations. The neighborhood's brownstone blocks offer generously sized apartments and private outdoor space. Schools are improving, and the community is deeply engaged in education advocacy."
+          "question": "What parks are near Bed-Stuy?",
+          "answer": "Bed-Stuy has numerous playgrounds, Herbert Von King Park, and a network of community organizations. The neighborhood's brownstone blocks offer generously sized apartments and private outdoor space."
         },
         {
           "question": "What subway lines serve Bed-Stuy?",
@@ -2565,13 +2549,13 @@
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Properties with multi-family brownstones with strong rental demand, significant appreciation potential, and income from multiple units.",
+          "description": "Properties with multi-unit brownstones with strong rental demand, significant appreciation potential, and income from multiple units.",
           "budgetRange": "$1.5M - $3.5M",
-          "propertyType": "2-4 family brownstone"
+          "propertyType": "2-4 unit brownstone"
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties offering spacious brownstone living with private outdoor gardens, strong community ties, and room to grow.",
+          "description": "Properties offering spacious brownstone living with private outdoor gardens and strong community ties.",
           "budgetRange": "$1.2M - $2.5M",
           "propertyType": "Brownstone townhouse"
         },

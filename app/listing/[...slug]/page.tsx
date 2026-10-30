@@ -1030,7 +1030,7 @@ export default async function ListingPage({ params }: Props) {
     BikeStorage: 'Bike Room',
     BicycleStorage: 'Bike Room',
     // Building Features
-    CommonPlayroom: "Children's Playroom",
+    CommonPlayroom: 'Playroom',
     Elevators: 'Elevator',
     BusinessCenter: 'Business Center',
     GameRoom: "Residents' Lounge",
@@ -1121,7 +1121,7 @@ export default async function ListingPage({ params }: Props) {
     [/\b(gym|fitness\s+center|exercise\s+room|work\s*-?\s*out)/i, 'Gym/Fitness'],
     [/\b(roof\s*-?\s*deck|roof\s*-?\s*top\s+terrace|rooftop\s+deck)/i, 'Roof Deck'],
     [/\b(bike\s+room|bicycle\s+storage|bike\s+storage)/i, 'Bike Room'],
-    [/\b(children.s\s+playroom|kids\s+room|playroom)/i, "Children's Playroom"],
+    [/\b(children.s\s+playroom|kids\s+room|playroom)/i, 'Playroom'],
     [/\b(community\s+room|residents.\s+lounge|common\s+room)/i, "Residents' Lounge"],
     [/\b(swimming\s+pool|indoor\s+pool|outdoor\s+pool)\b/i, 'Swimming Pool'],
     [/\b(package\s+room)/i, 'Package Room'],

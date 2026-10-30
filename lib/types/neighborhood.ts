@@ -86,7 +86,6 @@ export interface Neighborhood {
   dominantPropertyType: string;
   walkScore: number;
   transitScore: number;
-  topSchool: string;
   nearestSubway: string[];
 
   faqs: NeighborhoodFAQ[];

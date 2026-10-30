@@ -62,10 +62,10 @@ const uwsFaqSchema = {
     },
     {
       '@type': 'Question',
-      name: 'Should I sell my UWS townhouse as single-family or keep it multi-unit?',
+      name: 'Should I sell my UWS townhouse as single-unit or keep it multi-unit?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'On the Upper West Side, both configurations have strong markets. Single-family conversions appeal to end-users seeking full-floor living near Central Park and the cultural corridor. Multi-unit (2-4 family) appeals to investors and owner-occupants who want rental income to offset carrying costs. We model both scenarios to recommend the best strategy.',
+        text: 'On the Upper West Side, both configurations have strong markets. Single-unit conversions appeal to end-users seeking full-floor living near Central Park and the cultural corridor. Multi-unit (2-4 units) appeals to investors and owner-occupants who want rental income to offset carrying costs. We model both scenarios to recommend the best strategy.',
       },
     },
     {
@@ -73,7 +73,7 @@ const uwsFaqSchema = {
       name: 'How long does it take to sell a townhouse on the Upper West Side?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'UWS townhouses typically sell within 3-6 months when priced correctly. The buyer pool is highly qualified — typically families, investors, or developers. Spring (March-June) is the strongest selling season. Well-maintained brownstones on prime blocks can sell faster, especially if they offer garden-level income potential.',
+        text: 'UWS townhouses typically sell within 3-6 months when priced correctly. The buyer pool is highly qualified — typically end-users, investors, or developers. Spring (March-June) is the strongest selling season. Well-maintained brownstones on prime blocks can sell faster, especially if they offer garden-level income potential.',
       },
     },
     {
@@ -104,9 +104,9 @@ const FAQS = [
       'Many UWS townhouses are within LPC districts including the Riverside-West End Historic District, Upper West Side/CPW Historic District, and West End-Collegiate Historic District. We include a full landmark analysis in your CMA.',
   },
   {
-    question: 'Should I sell as single-family or multi-unit?',
+    question: 'Should I sell as single-unit or multi-unit?',
     answer:
-      'Both have strong UWS markets. Single-family appeals to end-users wanting full-floor living near Central Park and the cultural corridor. Multi-unit appeals to investors and owner-occupants who want rental income. We model both scenarios.',
+      'Both have strong UWS markets. Single-unit appeals to end-users wanting full-floor living near Central Park and the cultural corridor. Multi-unit appeals to investors and owner-occupants who want rental income. We model both scenarios.',
   },
   {
     question: 'How long does it take to sell on the UWS?',
@@ -125,8 +125,8 @@ const UWS_TOWNHOUSE_BLOCKS = [
     area: 'West 70s',
     streets: '70th - 79th, Columbus to Riverside',
     character:
-      'Prime brownstone blocks near the Natural History Museum. Tree-lined streets with high foot traffic. Walking distance to Central Park and Riverside Park.',
-    appeal: 'Families, end-users, high walkability',
+      'Prime brownstone blocks near the Natural History Museum. Tree-lined streets with high foot traffic. A short distance from Central Park and Riverside Park.',
+    appeal: 'End-users, high walkability',
   },
   {
     area: 'West 80s',
@@ -140,7 +140,7 @@ const UWS_TOWNHOUSE_BLOCKS = [
     streets: '90th - 99th, Columbus to Riverside',
     character:
       'Strong value relative to blocks further south. Proximity to Riverside Park, Joan of Arc Park, and the 96th Street Express stop. Mix of original and renovated row houses.',
-    appeal: 'Value buyers, investors, young families',
+    appeal: 'Value buyers, investors, end-users',
   },
   {
     area: 'West 100s-110s',
