@@ -491,6 +491,9 @@ async function fetchManifestPage(
           { idx_display_yn: true },
           { owner_opt_out: false },
           { internet_entire_listing_display_yn: true },
+          // A unit is listed under the building's street address with its unit number, so a listing whose seller switched address display
+          // off must not appear here (it used to: only the other four gates were applied). Same flag the listing page honours.
+          { internet_address_display_yn: true },
           { participant_only: false },
           // MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
           //
@@ -620,7 +623,8 @@ async function getCachedManifestPage(
   try {
     return await cachedPublicRead(
       capturingFetch,
-      ['building-manifest-page'],
+      // Version part: a changed where clause (address-display gate, 2026-10-30) must not be answered from pages cached under the old one.
+      ['building-manifest-page', 'address-gate-1'],
       // Per-shard invalidation (Maya review of PR #561): pages carry their
       // SHARD tag — writers expire exactly the shards whose listings
       // changed and every other shard's cache survives the cycle. The
@@ -1186,7 +1190,8 @@ export async function getBuildingDataCached(params: {
   const postalCode = params.postalCode?.trim() || null;
   const payload = await cachedPublicRead(
     buildBuildingPayload,
-    ['building-data', streetNumber.toUpperCase(), streetName.toUpperCase(), postalCode ?? ''],
+    // 'gates-1': payloads assembled before the address-display, return-copy and media-permission gates (2026-10-30) are not reused.
+    ['building-data', 'gates-1', streetNumber.toUpperCase(), streetName.toUpperCase(), postalCode ?? ''],
     {
       // EXACT tag only (Neon-quiet distinct-building correction): the coarse
       // search tag would expire EVERY building on EVERY sync that changed any
