@@ -8,12 +8,13 @@
  *      for listing and agent entries where it is accurate. They carry none.
  *   2. SL-0004 (Mallan website-only) was live and indexable but absent from the sitemap. It is now listed, through gates of its own.
  *
+ * The 59 neighbourhood guides are offered since their copy was cleaned of school, family and protected-class wording (owner instruction
+ * 2026-10-30; the word-level guard in guardrails-prohibited-terms-single-source.test.ts fails if it returns).
+ *
  * NOT offered, on purpose (independent compliance review 2026-10-30, recorded in State):
- *   - the 59 neighbourhood guides: their copy carries school and family wording that Master 23.10 / 21.12 say does not publish until
- *     governed, and an owner decision cannot waive that;
  *   - building pages: the building data layer has open gate questions (units read without the display flags, no return-copy
  *     exclusion on the live layer) that have to be closed against the live provider first.
- * Whoever lifts either hold changes the matching test below in the same PR that records the decision.
+ * Whoever lifts that hold changes the matching test below in the same PR that records the decision.
  *
  * The rows are shaped like real `listings` rows. The Prisma client is mocked for the sitemap route; the population itself is checked by
  * evaluating the real `where` over sample rows, not by matching its text.
@@ -222,14 +223,26 @@ describe('/sitemap.xml: what it lists', () => {
     expect(urls.filter((u) => u.includes('/listing/'))).toEqual([]);
   });
 
-  describe('held back, with the reason (change these in the PR that records the decision)', () => {
-    it('does not list the neighbourhood guides (Master 23.10 SCHOOLS, 21.12 neighbourhood copy)', async () => {
-      const { urls } = await run([RLS_ROW]);
-      const guides = ALL_BOROUGH_SLUGS.flatMap((b) => loadNeighborhoods(b).map((n) => `https://mallan.nyc/${b}/${n.slug}`));
-      expect(guides.length).toBeGreaterThan(50);
-      expect(urls.filter((u) => guides.includes(u))).toEqual([]);
+  describe('neighbourhood guides', () => {
+    const guides = ALL_BOROUGH_SLUGS.flatMap((b) => loadNeighborhoods(b).map((n) => ({ borough: b, url: `https://mallan.nyc/${b}/${n.slug}` })));
+
+    it('lists every neighbourhood guide, once, with no lastmod (they have no modification time)', async () => {
+      const { entries, urls } = await run([RLS_ROW]);
+      expect(guides).toHaveLength(59);
+      expect(guides.filter((g) => !urls.includes(g.url))).toEqual([]);
+      expect(new Set(urls).size).toBe(urls.length);
+      expect(entries.filter((e) => guides.some((g) => g.url === e.url) && e.lastModified !== undefined)).toEqual([]);
     });
 
+    it('lists only addresses that have a page: each borough has a [neighborhood] route', () => {
+      const missing = [...new Set(guides.map((g) => g.borough))].filter(
+        (b) => !fs.existsSync(path.resolve(__dirname, '../../app', b, '[neighborhood]', 'page.tsx')),
+      );
+      expect(missing).toEqual([]);
+    });
+  });
+
+  describe('held back, with the reason (change these in the PR that records the decision)', () => {
     it('does not list building pages (data-layer gate questions open)', async () => {
       const { urls } = await run([RLS_ROW, MALLAN_ROW]);
       expect(urls.filter((u) => u.includes('/buildings/'))).toEqual([]);

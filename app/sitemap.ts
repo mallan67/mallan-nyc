@@ -1,6 +1,6 @@
 import { MetadataRoute } from 'next';
 import prisma from '@/lib/prisma';
-import { loadSitemapListingRows, sitemapListingPath } from '@/lib/sitemap/population';
+import { loadSitemapListingRows, neighbourhoodGuidePaths, sitemapListingPath } from '@/lib/sitemap/population';
 
 const BASE_URL = 'https://mallan.nyc';
 
@@ -28,9 +28,9 @@ export const revalidate = 300;
  * Only includes safe-to-index public routes.
  * Excludes: admin, client-access, demo, agent-only routes.
  *
- * NOT offered, on purpose (independent compliance review 2026-10-30; recorded in the State document): the 59 neighbourhood guides,
- * whose copy carries school and family wording that Master 23.10 / 21.12 say must not publish until governed; and building pages,
- * whose data layer has open gate questions. Neither is a decision this file may make.
+ * Neighbourhood guides are offered since their copy was cleaned of school, family and protected-class wording (Master 23.10 / 21.12; the
+ * word-level guard test fails if it returns). NOT offered, on purpose (independent compliance review 2026-10-30; recorded in the State
+ * document): building pages, whose data layer has open gate questions. That is not a decision this file may make.
  *
  * COMPLIANCE: which listings are offered, and why, is lib/sitemap/population.ts: only listings that pass the distribution gates,
  * suppressed-address listings use MLS-ID-based slugs (no address leak), closed listings are excluded (24-hour removal rule), owner
@@ -66,6 +66,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/bronx`, changeFrequency: 'weekly', priority: 0.7 },
     { url: `${BASE_URL}/staten-island`, changeFrequency: 'weekly', priority: 0.6 },
   ];
+
+  // Neighbourhood guides (/{borough}/{neighbourhood}), no lastmod: they have no per-page modification time.
+  const neighbourhoodPages: MetadataRoute.Sitemap = neighbourhoodGuidePaths().map((p) => ({
+    url: `${BASE_URL}${p}`,
+    changeFrequency: 'weekly' as const,
+    priority: 0.6,
+  }));
 
   // Legal/compliance pages - required for indexing
   const legalPages: MetadataRoute.Sitemap = [
@@ -110,5 +117,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Non-fatal
   }
 
-  return [...staticPages, ...legalPages, ...listingPages, ...agentPages];
+  return [...staticPages, ...neighbourhoodPages, ...legalPages, ...listingPages, ...agentPages];
 }

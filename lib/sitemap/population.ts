@@ -9,7 +9,8 @@
  *     (owner_opt_out, participant_only), on entire-listing or address display switched off, on a lapsed exclusive agreement
  *     (expiration_date in the past), and on any status but active or a missing price.
  *
- * NOT offered, on purpose (compliance review of 2026-10-30; see State): building pages and the neighbourhood guides.
+ * Neighbourhood guides (59) are offered too, since their copy was cleaned of school, family and protected-class wording (2026-10-30).
+ * NOT offered, on purpose (compliance review of 2026-10-30; see State): building pages, until their data layer's gates are verified.
  */
 import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
@@ -18,6 +19,16 @@ import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { buildListingSlugFromDbRow } from '@/lib/listing-slug';
 import { dedupeRawDbRows } from '@/lib/listings/dedupe-crm-vs-idx';
 import { excludeMallanRlsReturnCopies, mallanWebsiteOnlyWhere } from '@/lib/listings/mallan-source-identity';
+import { ALL_BOROUGH_SLUGS, loadNeighborhoods } from '@/lib/neighborhoods/boroughs';
+
+/**
+ * Paths of the neighbourhood guides (/{borough}/{neighbourhood}), the same canonical each guide page declares in its metadata.
+ * Offered since the copy was cleaned of school, family and protected-class wording (owner instruction 2026-10-30); the word-level guard
+ * in tests/runtime/guardrails-prohibited-terms-single-source.test.ts fails if that wording returns.
+ */
+export function neighbourhoodGuidePaths(): string[] {
+  return ALL_BOROUGH_SLUGS.flatMap((borough) => loadNeighborhoods(borough).map((n) => `/${borough}/${n.slug}`));
+}
 
 export function sitemapListingWhere(now: Date = new Date()): Prisma.ListingWhereInput {
   return {
