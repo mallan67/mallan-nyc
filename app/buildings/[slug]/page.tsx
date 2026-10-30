@@ -7,8 +7,36 @@ import BackButton from '@/app/components/BackButton';
 import BuildingViolations from '@/app/components/BuildingViolations';
 import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
 import { getBuildingDataCached } from '@/lib/buildings/public-building-data';
+import { buildingCanonicalHref } from '@/lib/buildings/slug';
 
 export const revalidate = 600;
+
+// The units and photos on this page come from a data layer whose display gates are not yet verified against the live provider
+// (State, 2026-10-30), while robots.txt now lets image crawlers fetch listing photos. Until that is closed, image crawlers are told
+// not to index this page's images. A page-level `robots` replaces the layout's rather than merging, so the site-wide settings
+// (app/layout.tsx) are repeated here.
+const BUILDING_PAGE_ROBOTS = {
+  index: true,
+  follow: true,
+  noimageindex: true,
+  googleBot: {
+    index: true,
+    follow: true,
+    noimageindex: true,
+    'max-video-preview': -1,
+    'max-image-preview': 'large',
+    'max-snippet': -1,
+  },
+} as const;
+
+// A URL carrying ?bn= is a display variant: the name comes from the link, not from our data, and is printed in the title and heading. It is
+// never indexed (its canonical is the URL without ?bn=), so text typed into a link cannot become an indexed statement on this site.
+const BUILDING_PAGE_ROBOTS_NAME_VARIANT = {
+  index: false,
+  follow: true,
+  noimageindex: true,
+  googleBot: { index: false, follow: true, noimageindex: true },
+} as const;
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -135,8 +163,8 @@ function displayLabel(raw: string | null): string {
     LowRise: 'Low Rise',
     WalkUp: 'Walk-Up',
     Townhouse: 'Townhouse',
-    MultiFamily: 'Multi-Family',
-    SingleFamily: 'Single Family',
+    MultiFamily: 'Multi-Unit',
+    SingleFamily: 'Single-Unit Home',
     Brownstone: 'Brownstone',
     PreWar: 'Pre-War',
     PostWar: 'Post-War',
@@ -164,7 +192,7 @@ function AmenityIcon({ label }: { label: string }) {
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const sp = await searchParams;
-  if (!sp.sn || !sp.st) return { title: 'Building | Mallan Real Estate' };
+  if (!sp.sn || !sp.st) return { title: 'Building | Mallan Real Estate', robots: BUILDING_PAGE_ROBOTS };
 
   const data = await fetchBuildingData({
     streetNumber: sp.sn, streetName: sp.st, postalCode: sp.z, buildingName: sp.bn,
@@ -175,14 +203,14 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const activeCount = data?.stats?.totalActive || 0;
   const salesCount = data?.stats?.totalSales || 0;
 
-  const canonicalParams = new URLSearchParams({ sn: sp.sn, st: sp.st });
-  if (sp.z) canonicalParams.set('z', sp.z);
-  if (sp.bn) canonicalParams.set('bn', sp.bn);
+  // The building name (bn) is display-only and not part of a building's identity, so every ?bn= variant canonicalises to one URL.
+  const canonicalUrl = `https://mallan.nyc${buildingCanonicalHref({ streetNumber: sp.sn, streetName: sp.st, postalCode: sp.z })}`;
 
   return {
     title: `${label} — Units, Sales History & Amenities | Mallan Real Estate`,
     description: `Explore ${label} in New York, NY${zip}. ${activeCount} active listing${activeCount !== 1 ? 's' : ''}, ${salesCount} recent sale${salesCount !== 1 ? 's' : ''}. View building amenities, price history, and available units.`,
-    alternates: { canonical: `https://mallan.nyc/buildings/profile?${canonicalParams.toString()}` },
+    alternates: { canonical: canonicalUrl },
+    robots: sp.bn ? BUILDING_PAGE_ROBOTS_NAME_VARIANT : BUILDING_PAGE_ROBOTS,
     openGraph: {
       title: `${label} | Building Intelligence | Mallan Real Estate`,
       description: `Building profile for ${label}. Active listings, sales history, amenities, and market data.`,
@@ -235,7 +263,6 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
       addressCountry: 'US',
     },
     ...(building.yearBuilt ? { yearBuilt: building.yearBuilt } : {}),
-    ...(building.storiesTotal ? { numberOfRooms: building.storiesTotal } : {}),
     ...(building.amenities.length > 0 ? {
       amenityFeature: building.amenities.map((a) => ({ '@type': 'LocationFeatureSpecification', name: a, value: true })),
     } : {}),

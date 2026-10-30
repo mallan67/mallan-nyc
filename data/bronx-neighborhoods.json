@@ -8,23 +8,22 @@
       "tagline": "Suburban Serenity Within City Limits",
       "heroImage": "https://images.unsplash.com/photo-1518218392262-1beb4730fb09?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1518218392262-1beb4730fb09?w=1200&q=85",
-      "summary": "Riverdale is the Bronx's established residential enclave, offering tree-lined streets, Hudson River views, and a distinctly suburban feel just 30 minutes from Midtown Manhattan. With stately homes, quality co-ops, and local public schools, it draws buyers seeking space and value. Average price per square foot is approximately $375.",
+      "summary": "Riverdale is the Bronx's established residential enclave, offering tree-lined streets, Hudson River views, and a distinctly suburban feel just 30 minutes from Midtown Manhattan. With stately homes and quality co-ops, it draws buyers seeking space and value. Average price per square foot is approximately $375.",
       "avgPricePerSqft": 375,
       "dominantPropertyType": "Co-op",
       "walkScore": 65,
       "transitScore": 56,
-      "topSchool": "Horace Mann School",
       "nearestSubway": [
         "1"
       ],
       "faqs": [
         {
           "question": "What is the average home price in Riverdale?",
-          "answer": "The median sale price in Riverdale is approximately $425,000, driven largely by co-ops in large complexes. Single-family homes and townhouses range from $600,000 to over $2 million depending on lot size, condition, and Hudson River views."
+          "answer": "The median sale price in Riverdale is approximately $425,000, driven largely by co-ops in large complexes. Single-unit homes and townhouses range from $600,000 to over $2 million depending on lot size, condition, and Hudson River views."
         },
         {
-          "question": "What parks and schools are near Riverdale?",
-          "answer": "Riverdale is home to notable private schools including Horace Mann, Riverdale Country School, and Ethical Culture Fieldston. Public schools include PS 81. The area offers abundant green space through Wave Hill and Van Cortlandt Park."
+          "question": "What parks are near Riverdale?",
+          "answer": "The area offers abundant green space through Wave Hill and Van Cortlandt Park."
         },
         {
           "question": "How do you get to Manhattan from Riverdale?",
@@ -32,11 +31,11 @@
         },
         {
           "question": "What types of housing are available in Riverdale?",
-          "answer": "Riverdale offers a diverse housing stock including large co-op complexes (like Skyview-on-the-Hudson and The Whitehall), single-family Tudor and Colonial homes, split-levels, and some newer condo developments. Pre-war co-ops dominate the market by volume."
+          "answer": "Riverdale offers a varied housing stock including large co-op complexes (like Skyview-on-the-Hudson and The Whitehall), single-unit Tudor and Colonial homes, split-levels, and some newer condo developments. Pre-war co-ops dominate the market by volume."
         },
         {
           "question": "What is the difference between North Riverdale and South Riverdale?",
-          "answer": "North Riverdale (above 254th Street) features more single-family homes on larger lots with a quieter, more suburban character. South Riverdale (below 254th Street) has more co-op buildings, better transit access, and a more urban-suburban mix. Both areas offer excellent value compared to Manhattan."
+          "answer": "North Riverdale (above 254th Street) features more single-unit homes on larger lots with a quieter, more suburban character. South Riverdale (below 254th Street) has more co-op buildings, better transit access, and a more urban-suburban mix. Both areas offer excellent value compared to Manhattan."
         },
         {
           "question": "How much is rent in Riverdale?",
@@ -98,7 +97,6 @@
       "streetGuidance": {
         "description": "Riverdale's hilly terrain creates dramatic variation block by block. Properties along Palisade Avenue and Independence Avenue offer Hudson River views at a premium. The Henry Hudson Parkway divides the neighborhood, with the western side generally more desirable for its proximity to the river and green space.",
         "bestBlocksForParks": [
-          "Fieldston Road area near the schools",
           "West 254th Street between Independence and Riverdale Avenues",
           "Delafield Avenue near Riverdale Park"
         ],
@@ -116,13 +114,13 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring proximity to Horace Mann and Riverdale Country School, green space, and a residential suburban character without leaving NYC. Riverdale's parks are a major draw.",
+          "description": "Properties featuring green space and a residential suburban character without leaving NYC. Riverdale's parks are a major draw.",
           "budgetRange": "$400K - $1.2M",
-          "propertyType": "3-bedroom co-op or single-family home"
+          "propertyType": "3-bedroom co-op or single-unit home"
         },
         {
           "type": "Flex-Space & Grand Layouts",
-          "description": "Homeowners transitioning from larger suburban properties in Westchester who want to remain close to the city while keeping a neighborhood feel.",
+          "description": "Co-ops close to the city, with a neighborhood feel.",
           "budgetRange": "$300K - $600K",
           "propertyType": "1-2 bedroom co-op with river views"
         },
@@ -205,7 +203,7 @@
         },
         {
           "name": "Liebman's Delicatessen",
-          "cuisine": "Jewish Deli",
+          "cuisine": "Deli",
           "priceRange": "$$"
         },
         {
@@ -220,7 +218,6 @@
         "riverdale homes bronx",
         "riverdale apartments",
         "bronx luxury real estate",
-        "riverdale family homes",
         "hudson river views bronx"
       ],
       "bounds": {
@@ -266,23 +263,22 @@
       "tagline": "New England Charm in New York City",
       "heroImage": "https://images.unsplash.com/photo-1766083984372-982cf4df40e7?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1766083984372-982cf4df40e7?w=1200&q=80",
-      "summary": "City Island is a hidden gem in the Bronx — a 1.5-mile-long island in Long Island Sound that feels more like a New England fishing village than New York City. Known for its seafood restaurants, maritime culture, and tight-knit community, it offers a unique lifestyle unlike anywhere else in the five boroughs. Average price per square foot is approximately $325.",
+      "summary": "City Island is a hidden gem in the Bronx — a 1.5-mile-long island in Long Island Sound that feels more like a New England fishing village than New York City. Known for its seafood restaurants and maritime culture, it offers a unique setting unlike anywhere else in the five boroughs. Average price per square foot is approximately $325.",
       "avgPricePerSqft": 325,
-      "dominantPropertyType": "Single Family",
+      "dominantPropertyType": "Single-Unit Home",
       "walkScore": 52,
       "transitScore": 38,
-      "topSchool": "PS 175",
       "nearestSubway": [
         "6"
       ],
       "faqs": [
         {
           "question": "What is the average home price on City Island?",
-          "answer": "The median sale price on City Island is approximately $520,000. Most housing consists of single-family homes, bungalows, and small multi-family properties. Waterfront homes with views command premiums of 30-50% above the median. Some historic Victorian homes can exceed $800,000."
+          "answer": "The median sale price on City Island is approximately $520,000. Most housing consists of single-unit homes, bungalows, and small multi-unit properties. Waterfront homes with views command premiums of 30-50% above the median. Some historic Victorian homes can exceed $800,000."
         },
         {
           "question": "Is City Island a good place to live?",
-          "answer": "City Island offers a unique lifestyle with a strong sense of community, waterfront living, and a quieter pace of life. Residents enjoy fresh seafood, boating, and a main street lined with shops and galleries. The trade-off is limited transit access and a longer commute to Manhattan."
+          "answer": "City Island offers waterfront living and a quieter pace of life. Residents enjoy fresh seafood, boating, and a main street lined with shops and galleries. The trade-off is limited transit access and a longer commute to Manhattan."
         },
         {
           "question": "How do you get to Manhattan from City Island?",
@@ -298,7 +294,7 @@
         },
         {
           "question": "How much is rent on City Island?",
-          "answer": "Rental options on City Island are limited compared to mainland Bronx neighborhoods. Median rent is approximately $1,800 for a one-bedroom. Most rentals are in small multi-family homes or accessory apartments. The limited rental inventory keeps demand steady year-round."
+          "answer": "Rental options on City Island are limited compared to mainland Bronx neighborhoods. Median rent is approximately $1,800 for a one-bedroom. Most rentals are in small multi-unit homes or accessory apartments. The limited rental inventory keeps demand steady year-round."
         }
       ],
       "marketStats": {
@@ -327,7 +323,7 @@
           "nickname": null,
           "architect": null,
           "yearBuilt": 1920,
-          "type": "Single Family",
+          "type": "Single-Unit Home",
           "units": 1,
           "priceRange": "$600K - $850K",
           "slug": "104-horton-street"
@@ -337,7 +333,7 @@
           "nickname": null,
           "architect": null,
           "yearBuilt": 1940,
-          "type": "Single Family",
+          "type": "Single-Unit Home",
           "units": 12,
           "priceRange": "$450K - $750K",
           "slug": "city-island-sailing-club-area"
@@ -357,7 +353,6 @@
         "description": "City Island Avenue is the main commercial strip running the length of the island. Side streets to the east and west offer waterfront access. The southern tip tends to be quieter and more residential, while the northern end near the bridge has more commercial activity.",
         "bestBlocksForParks": [
           "Minneford Avenue south of Tier Street",
-          "King Avenue near PS 175",
           "Marine Street near Pelham Cemetery"
         ],
         "bestBlocksForNightlife": [
@@ -374,21 +369,21 @@
       "buyerPersonas": [
         {
           "type": "Flex-Space & Grand Layouts",
-          "description": "Properties featuring a slower pace of life with waterfront living, maritime culture, and a strong community atmosphere within NYC.",
+          "description": "Properties featuring waterfront living and maritime culture within NYC.",
           "budgetRange": "$400K - $700K",
-          "propertyType": "Single-family home"
+          "propertyType": "Single-unit home"
         },
         {
           "type": "Market Entry Points",
-          "description": "Properties featuring affordable homeownership in NYC who value character and community over nightlife and convenience.",
+          "description": "Properties featuring affordable homeownership in NYC, with character and a quiet setting.",
           "budgetRange": "$300K - $500K",
           "propertyType": "Bungalow or small home"
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Properties with City Island's scarcity value — limited land, strong seasonal tourism, and growing interest from Properties featuring unique NYC properties.",
+          "description": "City Island's scarcity value: limited land, strong seasonal tourism, and growing interest in unique NYC homes.",
           "budgetRange": "$450K - $800K",
-          "propertyType": "Multi-family or waterfront single-family"
+          "propertyType": "Multi-unit or waterfront single-unit"
         },
         {
           "type": "Secondary Residences & Studios",
@@ -517,7 +512,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 87,
       "transitScore": 82,
-      "topSchool": "PS 277",
       "nearestSubway": [
         "2",
         "4",
@@ -768,33 +762,32 @@
         "Randalls Island (via footbridge)",
         "Bronx Kill Greenway"
       ],
-      "diningScene": "A growing dining scene along Alexander Avenue and Third Avenue, with Latin American restaurants, craft breweries, and contemporary eateries in the emerging waterfront district."
+      "diningScene": "A growing dining scene along Alexander Avenue and Third Avenue, with Latin American restaurants, craft breweries, and contemporary eateries in the waterfront district."
     },
     {
       "slug": "pelham-bay",
       "name": "Pelham Bay",
       "fullName": "Pelham Bay, Bronx",
       "borough": "Bronx",
-      "tagline": "Parks, Beaches, and Neighborhood Pride",
+      "tagline": "Parks and Beaches",
       "heroImage": "https://images.unsplash.com/photo-1609271424514-ff5d66c4ff3a?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1609271424514-ff5d66c4ff3a?w=1200&q=80",
-      "summary": "Pelham Bay is a residential neighborhood in the northeast Bronx anchored by Pelham Bay Park, the largest park in New York City. The area offers a mix of single-family homes, co-ops, and small apartment buildings, attracting buyers who value outdoor recreation, community ties, and affordable homeownership. Average price per square foot is approximately $300.",
+      "summary": "Pelham Bay is a residential neighborhood in the northeast Bronx anchored by Pelham Bay Park, the largest park in New York City. The area offers a mix of single-unit homes, co-ops, and small apartment buildings, with outdoor recreation and affordable homeownership. Average price per square foot is approximately $300.",
       "avgPricePerSqft": 300,
-      "dominantPropertyType": "Single Family",
+      "dominantPropertyType": "Single-Unit Home",
       "walkScore": 72,
       "transitScore": 65,
-      "topSchool": "PS 71",
       "nearestSubway": [
         "6"
       ],
       "faqs": [
         {
           "question": "What is the average home price in Pelham Bay?",
-          "answer": "The median sale price in Pelham Bay is approximately $410,000. Single-family homes typically range from $450,000 to $750,000, while co-ops in the area start around $150,000. Multi-family properties (2-3 units) range from $500,000 to $900,000."
+          "answer": "The median sale price in Pelham Bay is approximately $410,000. Single-unit homes typically range from $450,000 to $750,000, while co-ops in the area start around $150,000. Multi-unit properties (2-3 units) range from $500,000 to $900,000."
         },
         {
-          "question": "What parks and schools are near Pelham Bay?",
-          "answer": "Pelham Bay is well-suited for residents who value parks and schools with local public schools, low-density residential streets, and unmatched access to Pelham Bay Park and Orchard Beach. The area has a strong sense of community with local sports leagues, seasonal events, and longtime residents."
+          "question": "What parks are near Pelham Bay?",
+          "answer": "Pelham Bay offers low-density residential streets and unmatched access to Pelham Bay Park and Orchard Beach. The area has local sports leagues and seasonal events."
         },
         {
           "question": "What is Pelham Bay Park?",
@@ -806,7 +799,7 @@
         },
         {
           "question": "What types of homes are in Pelham Bay?",
-          "answer": "Pelham Bay has a diverse housing stock including detached single-family homes (many Colonial and Tudor style), attached rowhouses, small multi-family properties, and several co-op complexes. The neighborhood retains a suburban character with front yards and driveways."
+          "answer": "Pelham Bay has a varied housing stock including detached single-unit homes (many Colonial and Tudor style), attached rowhouses, small multi-unit properties, and several co-op complexes. The neighborhood retains a suburban character with front yards and driveways."
         },
         {
           "question": "How much is rent in Pelham Bay?",
@@ -859,7 +852,7 @@
           "nickname": null,
           "architect": null,
           "yearBuilt": 1935,
-          "type": "Single Family",
+          "type": "Single-Unit Home",
           "units": 1,
           "priceRange": "$550K - $750K",
           "slug": "3184-country-club-road"
@@ -886,25 +879,25 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring detached homes with yards, local public schools, and immediate access to NYC's largest park for outdoor recreation.",
+          "description": "Properties featuring detached homes with yards and immediate access to NYC's largest park for outdoor recreation.",
           "budgetRange": "$450K - $750K",
-          "propertyType": "Single-family home"
+          "propertyType": "Single-unit home"
         },
         {
           "type": "Market Entry Points",
-          "description": "First-time Properties featuring the most affordable path to NYC homeownership with subway access, choosing co-ops in the neighborhood's mid-rise buildings.",
+          "description": "Properties featuring the most affordable path to NYC homeownership with subway access, in the neighborhood's mid-rise co-op buildings.",
           "budgetRange": "$150K - $350K",
           "propertyType": "1-2 bedroom co-op"
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Multi-family properties with steady rental demand and stable long-term residents.",
+          "description": "Multi-unit properties with steady rental demand.",
           "budgetRange": "$500K - $900K",
-          "propertyType": "2-3 family home"
+          "propertyType": "2-3 unit home"
         },
         {
           "type": "Flex-Space & Grand Layouts",
-          "description": "Homeowners seeking to move to a manageable co-op or smaller home while remaining in a neighborhood with strong community ties and outdoor access.",
+          "description": "A co-op or smaller home in a neighborhood with outdoor access.",
           "budgetRange": "$200K - $400K",
           "propertyType": "1-2 bedroom co-op"
         }
@@ -992,7 +985,7 @@
         "pelham bay homes for sale",
         "pelham bay co-ops",
         "country club bronx homes",
-        "bronx single family homes",
+        "bronx single-unit homes",
         "pelham bay park area real estate",
         "northeast bronx real estate"
       ],
@@ -1042,7 +1035,6 @@
       "dominantPropertyType": "Co-op",
       "walkScore": 92,
       "transitScore": 84,
-      "topSchool": "Fordham University",
       "nearestSubway": [
         "4",
         "B",
@@ -1051,7 +1043,7 @@
       "faqs": [
         {
           "question": "What is the average home price in Fordham?",
-          "answer": "The median sale price in Fordham is approximately $275,000, making it one of the most affordable neighborhoods in NYC with subway access. Co-ops dominate the market, with one-bedrooms starting around $100,000. Multi-family properties range from $400,000 to $800,000."
+          "answer": "The median sale price in Fordham is approximately $275,000, making it one of the most affordable neighborhoods in NYC with subway access. Co-ops dominate the market, with one-bedrooms starting around $100,000. Multi-unit properties range from $400,000 to $800,000."
         },
         {
           "question": "What is Fordham known for?",
@@ -1063,7 +1055,7 @@
         },
         {
           "question": "Is Fordham good for investment properties?",
-          "answer": "Fordham offers strong investment potential due to its affordability, proximity to major institutions (Fordham University, Montefiore Medical Center), and excellent transit. Multi-family properties generate solid rental income from steady demand driven by students, hospital workers, and families."
+          "answer": "Fordham offers strong investment potential due to its affordability, proximity to major institutions (Fordham University, Montefiore Medical Center), and excellent transit. Multi-unit properties generate solid rental income from steady demand."
         },
         {
           "question": "What is the difference between Fordham Heights and Belmont?",
@@ -1129,7 +1121,6 @@
       "streetGuidance": {
         "description": "Fordham Road is the main east-west commercial artery and one of the busiest retail corridors in the Bronx. The Grand Concourse provides a grand north-south boulevard with Art Deco architecture. The area around Fordham University is quieter and more residential. Arthur Avenue (Belmont) to the east is a culinary destination.",
         "bestBlocksForParks": [
-          "Decatur Avenue near PS 8",
           "Valentine Avenue between Fordham Road and Kingsbridge Road",
           "Belmont area near Arthur Avenue"
         ],
@@ -1147,27 +1138,27 @@
       "buyerPersonas": [
         {
           "type": "Market Entry Points",
-          "description": "First-time Properties featuring NYC's most affordable co-ops with subway access. Fordham offers entry-level homeownership with strong institutional anchors nearby.",
+          "description": "Properties featuring NYC's most affordable co-ops with subway access. Fordham offers entry-level homeownership with strong institutional anchors nearby.",
           "budgetRange": "$100K - $275K",
           "propertyType": "1-bedroom co-op"
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Multi-family properties near Fordham University and Montefiore Medical Center, which generate consistent rental demand year-round.",
+          "description": "Multi-unit properties near Fordham University and Montefiore Medical Center, which generate consistent rental demand year-round.",
           "budgetRange": "$400K - $800K",
-          "propertyType": "2-3 family home"
+          "propertyType": "2-3 unit home"
         },
         {
           "type": "Metropolitan Connectivity",
-          "description": "Listings near Montefiore Medical Center and Fordham University with affordable housing within walking distance of work.",
+          "description": "Listings near Montefiore Medical Center and Fordham University with affordable housing a short distance from work.",
           "budgetRange": "$150K - $350K",
           "propertyType": "1-2 bedroom co-op"
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring affordable space with access to the Bronx Zoo, Botanical Garden, and a strong neighborhood school network.",
+          "description": "Properties featuring affordable space with access to the Bronx Zoo and Botanical Garden.",
           "budgetRange": "$250K - $500K",
-          "propertyType": "2-3 bedroom co-op or multi-family"
+          "propertyType": "2-3 bedroom co-op or multi-unit"
         }
       ],
       "ctas": {
@@ -1219,7 +1210,7 @@
         {
           "name": "Fordham University (Rose Hill)",
           "type": "university",
-          "description": "A prestigious Jesuit university founded in 1841 with a beautiful Gothic campus and Keating Hall clock tower"
+          "description": "A university founded in 1841 with a beautiful Gothic campus and Keating Hall clock tower"
         },
         {
           "name": "Arthur Avenue / Belmont",

@@ -7,12 +7,11 @@
       "tagline": "Classic Manhattan Elegance",
       "heroImage": "https://images.unsplash.com/photo-1584994799933-e4f717e88632?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1584994799933-e4f717e88632?w=1200&q=80",
-      "summary": "The Upper East Side is Manhattan's most refined residential neighborhood, home to Museum Mile, Central Park frontage, and some of the city's most prestigious co-ops and condos. Average price per square foot is approximately $1,500.",
+      "summary": "The Upper East Side is Manhattan's most refined residential neighborhood, home to Museum Mile, Central Park frontage, and some of the city's best-known co-ops and condos. Average price per square foot is approximately $1,500.",
       "avgPricePerSqft": 1500,
       "dominantPropertyType": "Co-op",
       "walkScore": 96,
       "transitScore": 89,
-      "topSchool": "Brearley School",
       "nearestSubway": [
         "4",
         "5",
@@ -25,8 +24,8 @@
           "answer": "The median sale price on the Upper East Side is approximately $1.1 million, with co-ops averaging around $900,000 and condos around $1.6 million. Prices vary significantly by block, with Fifth Avenue and Park Avenue commanding the highest premiums."
         },
         {
-          "question": "What parks and schools are near the Upper East Side?",
-          "answer": "Yes, the Upper East Side is well-suited for residents who value parks and schools. It offers excellent public and private schools, proximity to Central Park playgrounds, pediatric medical facilities, and a relatively quiet residential atmosphere."
+          "question": "What parks are near the Upper East Side?",
+          "answer": "The Upper East Side offers proximity to Central Park, including its playgrounds, and a relatively quiet residential atmosphere."
         },
         {
           "question": "What subway lines serve the Upper East Side?",
@@ -34,11 +33,11 @@
         },
         {
           "question": "What is the difference between co-ops and condos on the Upper East Side?",
-          "answer": "Co-ops make up about 75% of UES housing stock and are typically 20-30% less expensive per square foot than condos. Co-ops require board approval, have stricter financing and subletting rules, but offer lower monthly costs. Condos offer more flexibility for investors and international buyers."
+          "answer": "Co-ops make up about 75% of UES housing stock and are typically 20-30% less expensive per square foot than condos. Co-ops require board approval, have stricter financing and subletting rules, but offer lower monthly costs. Condos offer more flexibility for investors."
         },
         {
           "question": "What are the best blocks on the Upper East Side?",
-          "answer": "The 'Gold Coast' between 60th and 80th Streets along Fifth and Park Avenues is the most prestigious. East 70s between Madison and Park is especially sought-after. Yorkville (east of Lexington, 80s-90s) offers more affordable options with a neighborhood feel."
+          "answer": "The 'Gold Coast' between 60th and 80th Streets along Fifth and Park Avenues is the best known. East 70s between Madison and Park is especially sought-after. Yorkville (east of Lexington, 80s-90s) offers more affordable options with a neighborhood feel."
         },
         {
           "question": "How much is rent on the Upper East Side?",
@@ -58,7 +57,7 @@
       "featuredBuildings": [
         {
           "name": "740 Park Avenue",
-          "nickname": "The Richest Building in NYC",
+          "nickname": null,
           "architect": "Rosario Candela & Arthur Loomis Harmon",
           "yearBuilt": 1930,
           "type": "Co-op",
@@ -118,7 +117,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring park access, quiet residential streets, and classic pre-war apartments near notable schools including Brearley and Chapin.",
+          "description": "Properties featuring park access, quiet residential streets, and classic pre-war apartments.",
           "budgetRange": "$1.5M - $5M",
           "propertyType": "3-4 bedroom co-op"
         },
@@ -130,7 +129,7 @@
         },
         {
           "type": "Secondary Residences & Studios",
-          "description": "Properties featuring a prestigious Manhattan address with strong resale value and rental flexibility.",
+          "description": "Properties featuring a Manhattan address with strong resale value and rental flexibility.",
           "budgetRange": "$2M - $10M",
           "propertyType": "Luxury condo"
         },
@@ -274,12 +273,11 @@
       "tagline": "Cultural Haven by the Park",
       "heroImage": "https://images.unsplash.com/photo-1539233487784-1a29074b0f57?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1539233487784-1a29074b0f57?w=1200&q=80",
-      "summary": "The Upper West Side combines intellectual culture, pre-war architecture, and unrivaled access to Central Park and Riverside Park. Home to Lincoln Center and the American Museum of Natural History, it's one of Manhattan's most beloved residential neighborhoods.",
+      "summary": "The Upper West Side combines pre-war architecture, cultural institutions, and unrivaled access to Central Park and Riverside Park. Home to Lincoln Center and the American Museum of Natural History, it's one of Manhattan's most beloved residential neighborhoods.",
       "avgPricePerSqft": 1350,
       "dominantPropertyType": "Co-op",
       "walkScore": 97,
       "transitScore": 92,
-      "topSchool": "Trinity School",
       "nearestSubway": [
         "1",
         "2",
@@ -293,16 +291,16 @@
           "answer": "The median sale price on the Upper West Side is approximately $1.05 million. Pre-war co-ops average around $850,000, while newer condos average $1.4 million. Central Park West addresses command significant premiums."
         },
         {
-          "question": "What parks and schools are near the Upper West Side?",
-          "answer": "The UWS has some of Manhattan's best public schools (PS 87, PS 199) and easy park access on both sides — Central Park and Riverside Park. The neighborhood offers a walkable, residential atmosphere with abundant green space and cultural institutions."
+          "question": "What parks are near the Upper West Side?",
+          "answer": "Central Park and Riverside Park offer easy park access on both sides. The neighborhood offers a walkable, residential atmosphere with abundant green space and cultural institutions."
         },
         {
           "question": "What are the best streets on the Upper West Side?",
-          "answer": "Central Park West and Riverside Drive offer the most prestigious addresses. West End Avenue is a quiet, tree-lined residential boulevard. The low 70s near Lincoln Center combine culture with elegant living."
+          "answer": "Central Park West and Riverside Drive offer the most sought-after addresses. West End Avenue is a quiet, tree-lined residential boulevard. The low 70s near Lincoln Center combine culture with elegant living."
         },
         {
           "question": "How does the Upper West Side compare to the Upper East Side?",
-          "answer": "The UWS has a more relaxed, intellectual, and community-focused atmosphere compared to the more formal UES. UWS prices are about 10% lower on average. The UWS has more green space (Riverside Park) but fewer luxury retail options."
+          "answer": "The UWS has a more relaxed atmosphere compared to the more formal UES. UWS prices are about 10% lower on average. The UWS has more green space (Riverside Park) but fewer luxury retail options."
         },
         {
           "question": "What subway lines serve the Upper West Side?",
@@ -326,7 +324,7 @@
       "featuredBuildings": [
         {
           "name": "15 Central Park West",
-          "nickname": "Limestone Jesus",
+          "nickname": null,
           "architect": "Robert A.M. Stern",
           "yearBuilt": 2008,
           "type": "Condo",
@@ -386,7 +384,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties offering dual-park access, proximity to Trinity School and Columbia University, and the neighborhood's intellectual, community-oriented atmosphere.",
+          "description": "Properties offering dual-park access and proximity to Columbia University.",
           "budgetRange": "$1.2M - $4M",
           "propertyType": "3-bedroom pre-war co-op"
         },
@@ -466,7 +464,7 @@
         },
         {
           "name": "Barney Greengrass",
-          "cuisine": "Jewish Deli",
+          "cuisine": "Deli",
           "priceRange": "$$"
         },
         {
@@ -486,8 +484,7 @@
         "central park west condos",
         "upper west side co-ops",
         "lincoln center apartments",
-        "riverside drive real estate",
-        "manhattan family apartments"
+        "riverside drive real estate"
       ],
       "borough": "Manhattan",
       "bounds": {
@@ -540,7 +537,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 98,
       "transitScore": 95,
-      "topSchool": "PS 234 Independence School",
       "nearestSubway": [
         "1",
         "2",
@@ -552,15 +548,15 @@
       "faqs": [
         {
           "question": "Why is Tribeca so expensive?",
-          "answer": "Tribeca commands Manhattan's highest price per square foot due to its spacious loft apartments (many over 2,000 sq ft), cobblestone-street charm, well-regarded schools including PS 234, low density, and celebrity cachet. Limited new construction keeps supply tight."
+          "answer": "Tribeca commands Manhattan's highest price per square foot due to its spacious loft apartments (many over 2,000 sq ft), cobblestone-street charm, low density, and celebrity cachet. Limited new construction keeps supply tight."
         },
         {
           "question": "What type of apartments are in Tribeca?",
           "answer": "Tribeca is known for converted warehouse lofts with soaring ceilings, exposed brick, and oversized windows. New development condos offer modern luxury. The neighborhood also has a small number of townhouses, which are among the most expensive in the city."
         },
         {
-          "question": "What parks and schools are near Tribeca?",
-          "answer": "Tribeca offers convenient access to PS 234 (highly rated), Hudson River Park, and Washington Market Park. The low-rise character provides a village atmosphere with ample green space and recreation."
+          "question": "What parks are near Tribeca?",
+          "answer": "Tribeca offers convenient access to Hudson River Park and Washington Market Park. The low-rise character provides a village atmosphere with ample green space and recreation."
         },
         {
           "question": "What is the average price in Tribeca?",
@@ -634,7 +630,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties offering spacious loft living, proximity to PS 234, and a village feel within walking distance of Hudson River Park.",
+          "description": "Properties offering spacious loft living and a village feel a short distance from Hudson River Park.",
           "budgetRange": "$3M - $10M",
           "propertyType": "3+ bedroom loft or townhouse"
         },
@@ -646,7 +642,7 @@
         },
         {
           "type": "Secondary Residences & Studios",
-          "description": "Properties featuring a trophy asset in Manhattan's most exclusive residential neighborhood.",
+          "description": "Properties featuring a trophy asset in one of Manhattan's best-known residential neighborhoods.",
           "budgetRange": "$5M - $30M+",
           "propertyType": "Full-floor loft or penthouse"
         }
@@ -786,7 +782,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 99,
       "transitScore": 96,
-      "topSchool": "PS 130 Hernando de Soto",
       "nearestSubway": [
         "N",
         "R",
@@ -886,7 +881,7 @@
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Properties with SoHo's strong rental demand from international visitors and luxury tenants.",
+          "description": "Properties with SoHo's strong rental demand from visitors and the luxury rental market.",
           "budgetRange": "$2M - $6M",
           "propertyType": "2-bedroom condo"
         },
@@ -1033,12 +1028,11 @@
       "tagline": "Art, Culture & High Line Living",
       "heroImage": "https://images.unsplash.com/photo-1666291070723-eea484401c71?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1666291070723-eea484401c71?w=1200&q=80",
-      "summary": "Chelsea blends world-class art galleries, the iconic High Line park, and Chelsea Market into one of Manhattan's most dynamic neighborhoods. Its mix of brownstones, converted lofts, and new luxury towers attracts a arts and cultural community.",
+      "summary": "Chelsea blends world-class art galleries, the iconic High Line park, and Chelsea Market into one of Manhattan's most dynamic neighborhoods. Housing includes brownstones, converted lofts, and new luxury towers.",
       "avgPricePerSqft": 1650,
       "dominantPropertyType": "Condo",
       "walkScore": 98,
       "transitScore": 93,
-      "topSchool": "PS 11 William T. Harris",
       "nearestSubway": [
         "1",
         "2",
@@ -1287,7 +1281,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 98,
       "transitScore": 100,
-      "topSchool": "PS 89 Liberty",
       "nearestSubway": [
         "1",
         "2",
@@ -1311,8 +1304,8 @@
           "answer": "The median sale price in FiDi is approximately $950,000, making it one of the more affordable Manhattan neighborhoods for modern condos. Price per square foot averages around $1,250, significantly less than Tribeca or SoHo."
         },
         {
-          "question": "What parks and schools are near FiDi?",
-          "answer": "The area features well-regarded schools including PS 89 and PS 234, along with waterfront parks that provide ample outdoor space. The Fulton Center and Brookfield Place offer year-round activities and amenities."
+          "question": "What parks are near FiDi?",
+          "answer": "The area features waterfront parks that provide ample outdoor space. The Fulton Center and Brookfield Place offer year-round activities and amenities."
         },
         {
           "question": "What is the commute from the Financial District?",
@@ -1398,7 +1391,7 @@
         },
         {
           "type": "Commuter-Centric Listings",
-          "description": "Listings with short commutes, modern amenities, and waterfront living.",
+          "description": "Properties with short commutes, modern amenities, and waterfront living.",
           "budgetRange": "$800K - $1.8M",
           "propertyType": "1-bedroom luxury condo"
         }
@@ -1550,7 +1543,6 @@
       "dominantPropertyType": "Co-op",
       "walkScore": 99,
       "transitScore": 95,
-      "topSchool": "PS 41 Greenwich Village",
       "nearestSubway": [
         "1",
         "2",
@@ -1575,10 +1567,6 @@
         {
           "question": "What are the best streets in Greenwich Village?",
           "answer": "Bedford Street, Commerce Street, and Grove Street in the West Village are among the most charming in all of Manhattan. West 10th, 11th, and 12th Streets between Fifth and Sixth Avenues have gorgeous brownstone blocks. Washington Square North has landmark townhouses."
-        },
-        {
-          "question": "Is Greenwich Village good for young people?",
-          "answer": "Yes, the Village has been a hub for the arts, academia, and cultural life for over a century. NYU's campus is centered here, and the neighborhood has abundant nightlife, dining, and cultural venues."
         },
         {
           "question": "What subway lines serve Greenwich Village?",
@@ -1660,7 +1648,7 @@
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring tree-lined streets, local schools, and a village atmosphere within Manhattan.",
+          "description": "Properties featuring tree-lined streets and a village atmosphere within Manhattan.",
           "budgetRange": "$2M - $8M",
           "propertyType": "Townhouse or 3-bedroom co-op"
         }
@@ -1809,7 +1797,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 98,
       "transitScore": 100,
-      "topSchool": "UNIS (United Nations International School)",
       "nearestSubway": [
         "4",
         "5",
@@ -1834,7 +1821,7 @@
         },
         {
           "question": "Is Midtown East good for commuters?",
-          "answer": "Midtown East has arguably the best transit in the world. Grand Central Terminal serves Metro-North, and the 4/5/6/7/S subway lines. The E and M trains add Queens and Brooklyn connections. Most of Midtown's offices are walking distance."
+          "answer": "Midtown East has arguably the best transit in the world. Grand Central Terminal serves Metro-North, and the 4/5/6/7/S subway lines. The E and M trains add Queens and Brooklyn connections. Most of Midtown's offices are a short walk away."
         },
         {
           "question": "What subway lines serve Midtown East?",
@@ -1884,7 +1871,7 @@
         }
       ],
       "streetGuidance": {
-        "description": "The area around Sutton Place and Beekman Place offers quiet, residential enclaves with river views. The blocks near the UN (40s east of First Avenue) attract international buyers. Park Avenue between 46th and 57th is primarily commercial but prestigious. Tudor City is a hidden gem.",
+        "description": "The area around Sutton Place and Beekman Place offers quiet, residential enclaves with river views. The blocks near the UN are in the 40s east of First Avenue. Park Avenue between 46th and 57th is primarily commercial. Tudor City is a hidden gem.",
         "bestBlocksForParks": [
           "Sutton Place area",
           "Tudor City",
@@ -1904,7 +1891,7 @@
       "buyerPersonas": [
         {
           "type": "Commuter-Centric Listings",
-          "description": "Listings near a short commute to Midtown offices and Grand Central access.",
+          "description": "Properties with a short commute to Midtown offices and Grand Central access.",
           "budgetRange": "$600K - $1.5M",
           "propertyType": "Studio or 1-bedroom condo"
         },
@@ -2055,12 +2042,11 @@
       "tagline": "Theater District Living",
       "heroImage": "https://images.unsplash.com/photo-1712249764660-624d586d3186?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1712249764660-624d586d3186?w=1200&q=80",
-      "summary": "Hell's Kitchen, also known as Clinton, has evolved from a gritty neighborhood into a vibrant residential destination. Proximity to Times Square, Hudson Yards, and Restaurant Row makes it well-connected to Manhattan's theater and cultural districts.",
+      "summary": "Hell's Kitchen, also known as Clinton, has evolved into a vibrant residential destination. Proximity to Times Square, Hudson Yards, and Restaurant Row makes it well-connected to Manhattan's theater and cultural districts.",
       "avgPricePerSqft": 1200,
       "dominantPropertyType": "Condo",
       "walkScore": 97,
       "transitScore": 94,
-      "topSchool": "PS 111 Adolph S. Ochs",
       "nearestSubway": [
         "A",
         "C",
@@ -2080,7 +2066,7 @@
         },
         {
           "question": "Why is it called Hell's Kitchen?",
-          "answer": "The name dates to the mid-1800s and various origin stories exist. Today, locals and agents often use the name 'Clinton' as well. The neighborhood has shed its rough past and is now one of Midtown's most desirable areas."
+          "answer": "The name dates to the mid-1800s and various origin stories exist. Today, locals and agents often use the name 'Clinton' as well."
         },
         {
           "question": "What is the average rent in Hell's Kitchen?",
@@ -2142,13 +2128,13 @@
         },
         {
           "type": "Market Entry Points",
-          "description": "First-time Properties featuring Midtown convenience at below-average Manhattan prices.",
+          "description": "Properties featuring Midtown convenience at below-average Manhattan prices.",
           "budgetRange": "$400K - $900K",
           "propertyType": "Studio or 1-bedroom co-op"
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Properties with strong rental demand from the Midtown workforce.",
+          "description": "Properties with strong rental demand near Midtown.",
           "budgetRange": "$600K - $1.5M",
           "propertyType": "1-bedroom condo"
         }
@@ -2199,7 +2185,7 @@
         {
           "name": "Restaurant Row (46th Street)",
           "type": "dining",
-          "description": "Block of diverse restaurants near Broadway theaters"
+          "description": "Block of varied restaurants near Broadway theaters"
         },
         {
           "name": "Intrepid Sea, Air & Space Museum",
@@ -2284,12 +2270,11 @@
       "tagline": "Creative Energy, Authentic NYC",
       "heroImage": "https://images.unsplash.com/photo-1515080496064-bf1309a108f6?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1515080496064-bf1309a108f6?w=1200&q=80",
-      "summary": "The East Village is Manhattan's epicenter of counterculture, independent restaurants, and creative energy. Once home to punk rock and beat poetry, it now blends its artistic heritage with increasingly upscale living.",
+      "summary": "The East Village is Manhattan's epicenter of counterculture, independent restaurants, and creative energy. Once home to punk rock and beat poetry, it now blends its artistic heritage with luxury living.",
       "avgPricePerSqft": 1300,
       "dominantPropertyType": "Co-op",
       "walkScore": 99,
       "transitScore": 91,
-      "topSchool": "PS 63 STAR Academy",
       "nearestSubway": [
         "6",
         "L",
@@ -2302,7 +2287,7 @@
       "faqs": [
         {
           "question": "What is the East Village like?",
-          "answer": "The East Village is one of Manhattan's most eclectic neighborhoods with a thriving restaurant scene, independent boutiques, live music venues, and a diverse community."
+          "answer": "The East Village is one of Manhattan's most eclectic neighborhoods with a thriving restaurant scene, independent boutiques, and live music venues."
         },
         {
           "question": "Is the East Village expensive?",
@@ -2371,13 +2356,13 @@
         },
         {
           "type": "Market Entry Points",
-          "description": "First-time Properties featuring a central Manhattan location with character and value.",
+          "description": "Properties featuring a central Manhattan location with character and value.",
           "budgetRange": "$400K - $850K",
           "propertyType": "Studio co-op"
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Properties with the East Village's strong rental demand from the area's workforce.",
+          "description": "Properties with the East Village's strong rental demand.",
           "budgetRange": "$600K - $1.5M",
           "propertyType": "1-bedroom condo"
         }
@@ -2499,15 +2484,14 @@
       "name": "Lower East Side",
       "fullName": "Lower East Side, Manhattan",
       "borough": "Manhattan",
-      "tagline": "Historic Grit Meets Modern Cool",
+      "tagline": "Historic Character Meets Modern Cool",
       "heroImage": "https://images.unsplash.com/photo-1662369800166-a05d950eba15?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1662369800166-a05d950eba15?w=1200&q=80",
-      "summary": "The Lower East Side is one of Manhattan's most rapidly transforming neighborhoods. Its immigrant heritage, street art, and nightlife energy now coexist with luxury condo towers and acclaimed restaurants.",
+      "summary": "The Lower East Side combines street art, nightlife energy, luxury condo towers, and acclaimed restaurants.",
       "avgPricePerSqft": 1200,
       "dominantPropertyType": "Condo",
       "walkScore": 98,
       "transitScore": 88,
-      "topSchool": "PS 134 Henrietta Szold",
       "nearestSubway": [
         "F",
         "M",
@@ -2517,7 +2501,7 @@
       "faqs": [
         {
           "question": "Is the Lower East Side a good real estate value?",
-          "answer": "The LES has been one of Manhattan's hottest markets. New luxury developments have transformed the area while preserving its cultural character. Prices remain below nearby SoHo and the Village."
+          "answer": "The LES has been one of Manhattan's hottest markets. New luxury developments have added to the area while preserving its cultural character. Prices remain below nearby SoHo and the Village."
         },
         {
           "question": "What is LES nightlife like?",
@@ -2585,13 +2569,13 @@
         },
         {
           "type": "Market Entry Points",
-          "description": "First-time Properties featuring lower Manhattan at accessible price points.",
+          "description": "Properties featuring lower Manhattan at accessible price points.",
           "budgetRange": "$400K - $900K",
           "propertyType": "Studio or 1-bedroom"
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Properties with rapid appreciation and strong rental yields in a transforming neighborhood.",
+          "description": "Properties with rapid appreciation and strong rental yields.",
           "budgetRange": "$600K - $2M",
           "propertyType": "1-2 bedroom condo"
         }
@@ -2646,7 +2630,7 @@
       "dining": [
         {
           "name": "Katz's Delicatessen",
-          "cuisine": "Jewish Deli",
+          "cuisine": "Deli",
           "priceRange": "$$"
         },
         {
@@ -2656,7 +2640,7 @@
         },
         {
           "name": "Russ & Daughters Cafe",
-          "cuisine": "Jewish",
+          "cuisine": "Cafe",
           "priceRange": "$$"
         }
       ],
@@ -2706,15 +2690,14 @@
       "name": "Harlem",
       "fullName": "Harlem, Manhattan",
       "borough": "Manhattan",
-      "tagline": "Renaissance Reborn",
+      "tagline": "Brownstone Living, Cultural Legacy",
       "heroImage": "https://images.unsplash.com/photo-1666601248988-cd17421bbb29?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1666601248988-cd17421bbb29?w=1200&q=80",
-      "summary": "Harlem is experiencing a historic renaissance, with stunning brownstone renovations, new developments, and a thriving cultural scene built on its legendary heritage. It offers Manhattan's best value for space and architectural character.",
+      "summary": "Harlem offers stunning brownstone renovations, new developments, and a thriving cultural scene built on its legendary heritage. It offers Manhattan's best value for space and architectural character.",
       "avgPricePerSqft": 850,
       "dominantPropertyType": "Condo",
       "walkScore": 95,
       "transitScore": 88,
-      "topSchool": "Success Academy Harlem",
       "nearestSubway": [
         "2",
         "3",
@@ -2788,7 +2771,7 @@
       "buyerPersonas": [
         {
           "type": "Market Entry Points",
-          "description": "First-time Properties featuring Manhattan's most affordable entry with excellent transit and culture.",
+          "description": "Properties featuring Manhattan's most affordable entry with excellent transit and culture.",
           "budgetRange": "$350K - $700K",
           "propertyType": "1-bedroom co-op or condo"
         },
@@ -2902,7 +2885,7 @@
           "135th Street (2/3/B/C)"
         ]
       },
-      "localVibe": "Brownstone-lined blocks and wide boulevards define this historic neighborhood, with landmark theaters, churches, and cultural institutions along 125th Street.",
+      "localVibe": "Brownstone-lined blocks and wide boulevards define this historic neighborhood, with landmark theaters and cultural institutions along 125th Street.",
       "notableStreets": [
         "125th Street (Martin Luther King Jr. Boulevard)",
         "Lenox Avenue (Malcolm X Boulevard)",
@@ -2931,7 +2914,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 99,
       "transitScore": 98,
-      "topSchool": "The School at Columbia University (nearby)",
       "nearestSubway": [
         "N",
         "R",
@@ -3135,7 +3117,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 99,
       "transitScore": 98,
-      "topSchool": "PS 40 Augustus Saint-Gaudens",
       "nearestSubway": [
         "N",
         "R",
@@ -3192,7 +3173,7 @@
         }
       ],
       "streetGuidance": {
-        "description": "Park Avenue South has the best dining and nightlife. Broadway is the main commercial artery. The blocks near Union Square are livelier, while those near Madison Square Park are quieter and more upscale.",
+        "description": "Park Avenue South has the best dining and nightlife. Broadway is the main commercial artery. The blocks near Union Square are livelier, while those near Madison Square Park are quieter.",
         "bestBlocksForParks": [
           "Near Madison Square Park",
           "East 20s between Park and Lexington"
@@ -3328,22 +3309,21 @@
         "Union Square Park",
         "Gramercy Park (private, key access)"
       ],
-      "diningScene": "Eataly and the restaurants ringing Madison Square Park anchor the dining scene, complemented by a mix of upscale and casual options along Park Avenue South."
+      "diningScene": "Eataly and the restaurants ringing Madison Square Park anchor the dining scene, complemented by a mix of fine-dining and casual options along Park Avenue South."
     },
     {
       "slug": "gramercy",
       "name": "Gramercy",
       "fullName": "Gramercy, Manhattan",
       "borough": "Manhattan",
-      "tagline": "Exclusive Park, Refined Living",
+      "tagline": "Private Park, Refined Living",
       "heroImage": "https://images.unsplash.com/photo-1759283127893-74bd787ee851?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1759283127893-74bd787ee851?w=1200&q=80",
-      "summary": "Gramercy is one of Manhattan's most exclusive residential enclaves, anchored by the private Gramercy Park — one of only two remaining private parks in NYC. The neighborhood offers elegant pre-war architecture and a serene atmosphere in the heart of the city.",
+      "summary": "Gramercy is one of Manhattan's most distinctive residential enclaves, anchored by the private Gramercy Park — one of only two remaining private parks in NYC. The neighborhood offers elegant pre-war architecture and a serene atmosphere in the heart of the city.",
       "avgPricePerSqft": 1450,
       "dominantPropertyType": "Co-op",
       "walkScore": 97,
       "transitScore": 93,
-      "topSchool": "PS 40 Augustus Saint-Gaudens",
       "nearestSubway": [
         "6",
         "L",
@@ -3354,7 +3334,7 @@
       "faqs": [
         {
           "question": "What is Gramercy Park?",
-          "answer": "Gramercy Park is a private 2-acre park accessible only to residents of 39 surrounding buildings who pay an annual fee and receive a key. It's one of Manhattan's most exclusive addresses."
+          "answer": "Gramercy Park is a private 2-acre park accessible only to residents of 39 surrounding buildings who pay an annual fee and receive a key."
         },
         {
           "question": "Is Gramercy expensive?",
@@ -3416,7 +3396,7 @@
       "buyerPersonas": [
         {
           "type": "Flex-Space & Grand Layouts",
-          "description": "Properties with an exclusive, tranquil address with park key access.",
+          "description": "Properties with a tranquil address with park key access.",
           "budgetRange": "$1M - $4M",
           "propertyType": "2-bedroom co-op with park key"
         },
@@ -3546,7 +3526,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 94,
       "transitScore": 85,
-      "topSchool": "PS 276 Battery Park City",
       "nearestSubway": [
         "1",
         "R",
@@ -3555,11 +3534,11 @@
       "faqs": [
         {
           "question": "Is Battery Park City a good place to live?",
-          "answer": "Battery Park City is one of Manhattan's most livable neighborhoods, offering waterfront parks, well-regarded schools including PS 276 and Stuyvesant High School, modern buildings, and a peaceful atmosphere."
+          "answer": "Battery Park City is one of Manhattan's most livable neighborhoods, offering waterfront parks, modern buildings, and a peaceful atmosphere."
         },
         {
           "question": "What are BPC apartment prices?",
-          "answer": "Median sale price is approximately $1.05M. BPC offers good value for modern, family-sized apartments with water views at prices below neighboring Tribeca and FiDi."
+          "answer": "Median sale price is approximately $1.05M. BPC offers good value for modern, spacious apartments with water views at prices below neighboring Tribeca and FiDi."
         },
         {
           "question": "Does Battery Park City flood?",
@@ -3616,7 +3595,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring spacious layouts, waterfront parks, and well-regarded schools at below-Tribeca prices.",
+          "description": "Properties featuring spacious layouts and waterfront parks at below-Tribeca prices.",
           "budgetRange": "$1M - $3M",
           "propertyType": "2-3 bedroom condo"
         },
@@ -3669,7 +3648,7 @@
         {
           "name": "Brookfield Place",
           "type": "shopping",
-          "description": "Upscale shopping and dining complex in the World Financial Center"
+          "description": "Shopping and dining complex in the World Financial Center"
         }
       ],
       "dining": [
@@ -3743,7 +3722,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 95,
       "transitScore": 90,
-      "topSchool": "PS 11 (nearby Chelsea)",
       "nearestSubway": [
         "7"
       ],
@@ -3808,7 +3786,7 @@
       "buyerPersonas": [
         {
           "type": "Secondary Residences & Studios",
-          "description": "Properties featuring new construction with full-service amenities and a prestigious Manhattan address.",
+          "description": "Properties featuring new construction with full-service amenities.",
           "budgetRange": "$2M - $15M",
           "propertyType": "2-3 bedroom luxury condo"
         },
@@ -3922,12 +3900,11 @@
       "tagline": "Central, Connected, Vibrant",
       "heroImage": "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1200&q=80",
-      "summary": "Midtown West encompasses the area around Times Square, the Garment District, and the Penn Station corridor. While commercially focused, pockets of residential living offer unmatched convenience for commuters and urban professionals.",
+      "summary": "Midtown West encompasses the area around Times Square, the Garment District, and the Penn Station corridor. While commercially focused, pockets of residential living offer unmatched convenience for commuters.",
       "avgPricePerSqft": 1350,
       "dominantPropertyType": "Condo",
       "walkScore": 98,
       "transitScore": 100,
-      "topSchool": "PS 51 Elias Howe",
       "nearestSubway": [
         "1",
         "2",
@@ -3947,7 +3924,7 @@
       "faqs": [
         {
           "question": "Is Midtown West good for living?",
-          "answer": "Midtown West offers unmatched convenience with every subway line, Penn Station, and Port Authority within walking distance. Residential pockets between 8th and 9th Avenues in the upper 40s and 50s are surprisingly livable."
+          "answer": "Midtown West offers unmatched convenience with every subway line, Penn Station, and Port Authority close by. Residential pockets between 8th and 9th Avenues in the upper 40s and 50s are surprisingly livable."
         },
         {
           "question": "What are Midtown West apartment prices?",
@@ -3991,7 +3968,7 @@
         }
       ],
       "streetGuidance": {
-        "description": "The blocks between 8th and 9th Avenues from 45th to 57th are the most residential. Times Square-adjacent blocks are noisy but ultra-convenient. The area near Penn Station is commercial but transforming.",
+        "description": "The blocks between 8th and 9th Avenues from 45th to 57th are the most residential. Times Square-adjacent blocks are noisy but ultra-convenient. The area near Penn Station is commercial.",
         "bestBlocksForParks": [
           "West 50s between 8th and 9th Avenues"
         ],
@@ -4156,7 +4133,6 @@
       "dominantPropertyType": "Co-op",
       "walkScore": 99,
       "transitScore": 95,
-      "topSchool": "PS 41 Greenwich Village",
       "nearestSubway": [
         "1 at Christopher St-Sheridan Sq",
         "A/C/E at West 4th St-Washington Sq",
@@ -4180,12 +4156,8 @@
           "answer": "The West Village features a mix of Federal and Greek Revival townhouses from the early 1800s, pre-war walk-up co-ops, and a select number of newer boutique condos. The landmarked historic district preserves much of the original 19th-century architecture and low-rise streetscape."
         },
         {
-          "question": "What schools are located near the West Village?",
-          "answer": "PS 41 Greenwich Village on West 11th Street is the zoned elementary school. PS 3 Charrette School is nearby in the broader Village area. The neighborhood is also close to several well-regarded private schools including St. Luke's School and the Little Red School House."
-        },
-        {
           "question": "How walkable is the West Village?",
-          "answer": "The West Village has a Walk Score of 99, making it one of the most walkable neighborhoods in Manhattan. Daily errands, dining, and entertainment are all within easy walking distance. The irregular street grid creates a quieter pedestrian environment compared to the Midtown grid."
+          "answer": "The West Village has a Walk Score of 99, making it one of the most walkable neighborhoods in Manhattan. Daily errands, dining, and entertainment are all close by. The irregular street grid creates a quieter pedestrian environment compared to the Midtown grid."
         }
       ],
       "marketStats": {
@@ -4444,7 +4416,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 99,
       "transitScore": 96,
-      "topSchool": "PS 130 Hernando De Soto",
       "nearestSubway": [
         "6 at Spring St",
         "B/D/F/M at Broadway-Lafayette St",
@@ -4470,10 +4441,6 @@
         {
           "question": "What parks are near Nolita?",
           "answer": "DeSalvio Playground on Spring and Mulberry Streets serves as the primary green space within Nolita. Elizabeth Street Garden, a treasured community garden on Elizabeth Street between Prince and Spring, provides a unique open space. Sara D. Roosevelt Park is a short walk east."
-        },
-        {
-          "question": "What schools are near Nolita?",
-          "answer": "PS 130 Hernando De Soto on Hester Street is the zoned elementary school. PS 19 Asher Levy is nearby on the Lower East Side. The neighborhood also has proximity to private options including St. Patrick's Old Cathedral School on Mott Street."
         }
       ],
       "marketStats": {
@@ -4567,7 +4534,7 @@
         },
         {
           "type": "Commuter-Centric Listings",
-          "description": "Units within walking distance of three subway stations (6, B/D/F/M, N/R/W) offering quick access to Midtown, Brooklyn, and the Financial District.",
+          "description": "Units a short distance from three subway stations (6, B/D/F/M, N/R/W) offering quick access to Midtown, Brooklyn, and the Financial District.",
           "budgetRange": "$700K - $1.5M",
           "propertyType": "1-bedroom co-op or condo"
         }
@@ -4620,7 +4587,7 @@
         {
           "name": "St. Patrick's Old Cathedral",
           "type": "Historic Landmark",
-          "description": "The original seat of the Roman Catholic Archdiocese of New York, built in 1815 with a walled cemetery"
+          "description": "Historic landmark built in 1815 with a walled cemetery"
         },
         {
           "name": "DeSalvio Playground",
@@ -4727,7 +4694,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 99,
       "transitScore": 100,
-      "topSchool": "PS 110 Florence Nightingale",
       "nearestSubway": [
         "6 at Bleecker St",
         "B/D/F/M at Broadway-Lafayette St",
@@ -4753,10 +4719,6 @@
         {
           "question": "What parks and open spaces are near NoHo?",
           "answer": "Washington Square Park is immediately to the west, offering 9.75 acres of green space. Cooper Square and Astor Place provide public gathering areas. Tompkins Square Park in the East Village and Sara D. Roosevelt Park on the Lower East Side are a short walk away."
-        },
-        {
-          "question": "What schools are located near NoHo?",
-          "answer": "PS 110 Florence Nightingale is the nearest zoned public elementary school. PS 41 Greenwich Village is also nearby. The neighborhood is surrounded by NYU's campus, and private school options include Grace Church School on East 10th Street and Friends Seminary on East 16th Street."
         }
       ],
       "marketStats": {
@@ -4999,12 +4961,11 @@
       "tagline": "Historic Character, Downtown Convenience",
       "heroImage": "https://images.unsplash.com/photo-1749410351265-64d333808a8e?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1749410351265-64d333808a8e?w=1200&q=80",
-      "summary": "Little Italy is a compact neighborhood centered on Mulberry Street between Broome and Canal Streets, preserving its heritage through historic tenement architecture and the annual Feast of San Gennaro. While much smaller than its historical footprint, the neighborhood offers affordable entry points into prime downtown Manhattan with strong transit access and proximity to SoHo, Nolita, and Chinatown. Average price per square foot is approximately $1,300.",
+      "summary": "Little Italy is a compact neighborhood centered on Mulberry Street between Broome and Canal Streets, known for its historic tenement architecture and the annual Feast of San Gennaro. While much smaller than its historical footprint, the neighborhood offers affordable entry points into prime downtown Manhattan with strong transit access and proximity to SoHo, Nolita, and Chinatown. Average price per square foot is approximately $1,300.",
       "avgPricePerSqft": 1300,
       "dominantPropertyType": "Co-op",
       "walkScore": 98,
       "transitScore": 95,
-      "topSchool": "PS 130 Hernando De Soto",
       "nearestSubway": [
         "6 at Spring St",
         "J/Z at Bowery",
@@ -5029,8 +4990,8 @@
           "answer": "The Feast of San Gennaro is an 11-day street festival held every September on Mulberry Street, dating back to 1926. It features food vendors, live entertainment, parades, and carnival games. Properties on Mulberry Street between Canal and Houston experience increased foot traffic during the festival."
         },
         {
-          "question": "What parks and schools are near Little Italy?",
-          "answer": "DeSalvio Playground on Spring and Mulberry Streets provides green space at the northern edge. Columbus Park on Mulberry and Bayard Streets offers athletic fields and open lawns. PS 130 Hernando De Soto on Hester Street is the zoned elementary school, and PS 1 Alfred E. Smith is also nearby."
+          "question": "What parks are near Little Italy?",
+          "answer": "DeSalvio Playground on Spring and Mulberry Streets provides green space at the northern edge. Columbus Park on Mulberry and Bayard Streets offers athletic fields and open lawns."
         },
         {
           "question": "How does Little Italy compare to neighboring Nolita?",
@@ -5122,7 +5083,7 @@
         },
         {
           "type": "Commuter-Centric Listings",
-          "description": "Units within walking distance of four subway lines (6, J/Z, N/Q/R/W, B/D) connecting to Midtown, the Financial District, and Brooklyn.",
+          "description": "Units a short distance from four subway lines (6, J/Z, N/Q/R/W, B/D) connecting to Midtown, the Financial District, and Brooklyn.",
           "budgetRange": "$500K - $1.2M",
           "propertyType": "1-bedroom co-op"
         },
@@ -5192,7 +5153,7 @@
         {
           "name": "Old St. Patrick's Cathedral",
           "type": "Historic Landmark",
-          "description": "The original seat of the Roman Catholic Archdiocese of New York (1815), with a walled cemetery and catacombs"
+          "description": "Historic landmark (1815) with a walled cemetery and catacombs"
         }
       ],
       "dining": [
@@ -5285,7 +5246,6 @@
       "dominantPropertyType": "Co-op",
       "walkScore": 98,
       "transitScore": 97,
-      "topSchool": "PS 124 Yung Wing",
       "nearestSubway": [
         "N/Q/R/W at Canal St",
         "J/Z at Canal St",
@@ -5309,10 +5269,6 @@
         {
           "question": "What parks and open spaces are in Chinatown?",
           "answer": "Columbus Park on Mulberry and Bayard Streets is the neighborhood's main green space with sports courts and a pavilion. Sara D. Roosevelt Park runs along Chrystie Street from Canal to Houston. Seward Park and the East River waterfront are a short walk south and east."
-        },
-        {
-          "question": "What schools are near Chinatown?",
-          "answer": "PS 124 Yung Wing on Division Street is a well-regarded zoned elementary school. PS 2 Meyer London and PS 42 Benjamin Altman are also nearby. The neighborhood is home to several dual-language programs and after-school enrichment centers."
         },
         {
           "question": "How close is Chinatown to the Financial District and Brooklyn Bridge?",
@@ -5379,7 +5335,7 @@
           "Cherry Street near the East River waterfront"
         ],
         "bestBlocksForNightlife": [
-          "Doyers Street (the 'Bloody Angle' bar corridor)",
+          "Doyers Street (bar corridor)",
           "Bowery between Canal and Broome",
           "Orchard Street near the Lower East Side border"
         ],
@@ -5580,7 +5536,6 @@
       "dominantPropertyType": "Co-op",
       "walkScore": 95,
       "transitScore": 88,
-      "topSchool": "Castle Bridge School (PS 513)",
       "nearestSubway": [
         "A at 181st St",
         "1 at 181st St",
@@ -5602,10 +5557,6 @@
         {
           "question": "What types of buildings are in Washington Heights?",
           "answer": "The neighborhood is dominated by pre-war elevator co-ops from the 1920s and 1930s, many featuring Art Deco details, large room counts, and generous layouts. There is limited new condo development. Townhouses and walk-ups are found along the side streets, particularly in the Hudson Heights sub-neighborhood."
-        },
-        {
-          "question": "What schools serve the Washington Heights area?",
-          "answer": "Notable schools include Castle Bridge School (PS 513), PS 187 Hudson Cliffs, and the Equity Project Charter School. Yeshiva University anchors the 185th Street corridor. The neighborhood offers a range of public, charter, and private educational options across grade levels."
         },
         {
           "question": "How much is rent in Washington Heights?",
@@ -5852,12 +5803,11 @@
       "tagline": "Manhattan's Northernmost Retreat",
       "heroImage": "https://images.unsplash.com/photo-1723665350328-b87f9f600efd?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1723665350328-b87f9f600efd?w=1200&q=80",
-      "summary": "Inwood is Manhattan's northernmost neighborhood, where Inwood Hill Park preserves the island's last natural forest and the original Lenape caves. Bounded by the Hudson and Harlem Rivers, Inwood offers large pre-war apartments, some of the lowest prices per square foot on the island, and a tight-knit residential atmosphere with easy A train express service to Midtown.",
+      "summary": "Inwood is Manhattan's northernmost neighborhood, where Inwood Hill Park preserves the island's last natural forest and the original Lenape caves. Bounded by the Hudson and Harlem Rivers, Inwood offers large pre-war apartments, some of the lowest prices per square foot on the island, and easy A train express service to Midtown.",
       "avgPricePerSqft": 420,
       "dominantPropertyType": "Co-op",
       "walkScore": 92,
       "transitScore": 82,
-      "topSchool": "PS 98 Shorackapock",
       "nearestSubway": [
         "A at 207th St",
         "1 at 207th St",
@@ -5879,10 +5829,6 @@
         {
           "question": "What types of buildings are found in Inwood?",
           "answer": "Inwood's housing stock is predominantly pre-war co-ops from the 1920s and 1930s, many with large layouts, high ceilings, and Art Deco lobbies. The Park Terrace section features garden apartment complexes. Recent years have seen some new condo construction along the waterfront and near Dyckman Street."
-        },
-        {
-          "question": "What schools are in the Inwood area?",
-          "answer": "PS 98 Shorackapock is a well-regarded elementary school. IS 218 serves middle school students. The neighborhood also has Inwood Early College for high school and several charter options. Columbia University's Baker Athletics Complex is located at the tip of Manhattan."
         },
         {
           "question": "How much is rent in Inwood?",
@@ -6117,7 +6063,6 @@
       "dominantPropertyType": "Co-op",
       "walkScore": 98,
       "transitScore": 95,
-      "topSchool": "The Epiphany School",
       "nearestSubway": [
         "6 at 33rd St",
         "4/5/6 at Grand Central-42nd St",
@@ -6134,15 +6079,15 @@
         },
         {
           "question": "What types of buildings are in Murray Hill?",
-          "answer": "Murray Hill has a diverse building stock. The side streets between Park and Lexington Avenues feature brownstones and pre-war co-ops. Third Avenue has many postwar doorman buildings. Recent years have added modern condo towers, particularly along Park Avenue South and near the East River."
+          "answer": "Murray Hill has a varied building stock. The side streets between Park and Lexington Avenues feature brownstones and pre-war co-ops. Third Avenue has many postwar doorman buildings. Recent years have added modern condo towers, particularly along Park Avenue South and near the East River."
         },
         {
           "question": "What is the restaurant scene like in Murray Hill?",
-          "answer": "Lexington Avenue in the upper 20s through low 30s is known as 'Curry Hill' for its concentration of South Asian restaurants. Third Avenue between 28th and 38th Streets has a dense mix of bars and casual dining. The neighborhood offers excellent variety at all price points."
+          "answer": "Lexington Avenue in the upper 20s through low 30s has a concentration of South Asian restaurants. Third Avenue between 28th and 38th Streets has a dense mix of bars and casual dining. The neighborhood offers excellent variety at all price points."
         },
         {
           "question": "What landmarks and cultural institutions are in Murray Hill?",
-          "answer": "The Morgan Library & Museum on Madison Avenue is a world-class institution housing rare manuscripts and art. Sniffen Court, a charming mews off 36th Street, is a designated historic district. The Scandinavia House cultural center and the Church of the Incarnation are also notable landmarks."
+          "answer": "The Morgan Library & Museum on Madison Avenue is a world-class institution housing rare manuscripts and art. Sniffen Court, a charming mews off 36th Street, is a designated historic district. The Scandinavia House cultural center is also a notable landmark."
         },
         {
           "question": "How much is rent in Murray Hill?",
@@ -6222,7 +6167,7 @@
       "buyerPersonas": [
         {
           "type": "Commuter-Centric Listings",
-          "description": "Listings within walking distance of Grand Central Terminal, Penn Station, and multiple subway lines — among the most connected locations in Manhattan.",
+          "description": "Listings a short distance from Grand Central Terminal, Penn Station, and multiple subway lines — among the most connected locations in Manhattan.",
           "budgetRange": "$500K - $900K",
           "propertyType": "1-bedroom co-op or condo"
         },
@@ -6387,7 +6332,6 @@
       "dominantPropertyType": "Co-op",
       "walkScore": 97,
       "transitScore": 90,
-      "topSchool": "PS 116 Mary Lindley Murray",
       "nearestSubway": [
         "6 at 28th St",
         "6 at 23rd St",
@@ -6400,7 +6344,7 @@
         },
         {
           "question": "What subway lines serve Kips Bay?",
-          "answer": "The 6 train stops at 23rd and 28th Streets along Lexington Avenue. The R and W trains stop at 28th Street along Broadway (western edge). The neighborhood is also within walking distance of Grand Central Terminal for express 4/5 service."
+          "answer": "The 6 train stops at 23rd and 28th Streets along Lexington Avenue. The R and W trains stop at 28th Street along Broadway (western edge). The neighborhood is also a short distance from Grand Central Terminal for express 4/5 service."
         },
         {
           "question": "What types of buildings are in Kips Bay?",
@@ -6648,12 +6592,11 @@
       "tagline": "Quiet Elegance on the East River",
       "heroImage": "https://images.unsplash.com/photo-1750072931653-914a415cb6a4?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1750072931653-914a415cb6a4?w=1200&q=80",
-      "summary": "Sutton Place is one of Manhattan's most exclusive and tranquil residential enclaves, a pocket of refined co-ops and townhouses lining the East River between 53rd and 59th Streets. Known for its private cul-de-sacs, dead-end streets with river access, and discreet old-money elegance, Sutton Place offers a rarefied alternative to the bustle of Midtown just blocks away.",
+      "summary": "Sutton Place is one of Manhattan's most tranquil residential enclaves, a pocket of refined co-ops and townhouses lining the East River between 53rd and 59th Streets. Known for its private cul-de-sacs and dead-end streets with river access, Sutton Place offers a rarefied alternative to the bustle of Midtown just blocks away.",
       "avgPricePerSqft": 1250,
       "dominantPropertyType": "Co-op",
       "walkScore": 95,
       "transitScore": 86,
-      "topSchool": "PS 59 Beekman Hill International",
       "nearestSubway": [
         "4/5/6 at 59th St",
         "N/R/W at Lexington Ave-59th St",
@@ -6674,11 +6617,11 @@
         },
         {
           "question": "What types of buildings are in Sutton Place?",
-          "answer": "The neighborhood is defined by prestigious pre-war co-ops from the 1920s and 1930s, many with white-glove service and strict board requirements. There are also grand townhouses along Sutton Place South and Riverview Terrace. The recently completed 3 Sutton Place added rare new condo inventory."
+          "answer": "The neighborhood is defined by pre-war co-ops from the 1920s and 1930s, many with white-glove service and strict board requirements. There are also grand townhouses along Sutton Place South and Riverview Terrace. The recently completed 3 Sutton Place added rare new condo inventory."
         },
         {
           "question": "What parks and waterfront access does Sutton Place have?",
-          "answer": "Sutton Place Park, a small green space at the foot of 57th Street, offers East River views and the Queensboro Bridge as a backdrop. Riverview Terrace, a private cul-de-sac, provides one of Manhattan's most exclusive waterfront settings. The East River Esplanade extends north and south for walking and jogging."
+          "answer": "Sutton Place Park, a small green space at the foot of 57th Street, offers East River views and the Queensboro Bridge as a backdrop. Riverview Terrace, a private cul-de-sac, provides one of Manhattan's best-known waterfront settings. The East River Esplanade extends north and south for walking and jogging."
         },
         {
           "question": "How much is rent in Sutton Place?",
@@ -6738,7 +6681,7 @@
         }
       ],
       "streetGuidance": {
-        "description": "Sutton Place is defined by its dead-end streets and river proximity. Sutton Place South (the street) and Riverview Terrace are the most prestigious addresses. First Avenue provides the commercial services. The blocks between 53rd and 57th along Sutton Place proper are the quietest and most residential. The area near the Queensboro Bridge has slightly more activity.",
+        "description": "Sutton Place is defined by its dead-end streets and river proximity. Sutton Place South (the street) and Riverview Terrace are the best-known addresses. First Avenue provides the commercial services. The blocks between 53rd and 57th along Sutton Place proper are the quietest and most residential. The area near the Queensboro Bridge has slightly more activity.",
         "bestBlocksForParks": [
           "Sutton Place Park at 57th Street",
           "Riverview Terrace",
@@ -6758,7 +6701,7 @@
       "buyerPersonas": [
         {
           "type": "Secondary Residences & Studios",
-          "description": "Properties in one of Manhattan's most discreet enclaves, offering white-glove co-ops with East River views, private cul-de-sacs, and a Midtown address without Midtown congestion.",
+          "description": "Properties in one of Manhattan's quietest enclaves, offering white-glove co-ops with East River views, private cul-de-sacs, and a Midtown address without Midtown congestion.",
           "budgetRange": "$1.5M - $8M",
           "propertyType": "2-3 bedroom co-op"
         },
@@ -6827,7 +6770,7 @@
         {
           "name": "Riverview Terrace",
           "type": "landmark",
-          "description": "Private cul-de-sac of five townhouses overlooking the East River, one of Manhattan's most exclusive addresses"
+          "description": "Private cul-de-sac of five townhouses overlooking the East River"
         },
         {
           "name": "Queensboro Bridge",
@@ -6935,7 +6878,6 @@
       "dominantPropertyType": "Co-op",
       "walkScore": 96,
       "transitScore": 90,
-      "topSchool": "PS 165 Robert E. Simon",
       "nearestSubway": [
         "1 at 116th St-Columbia University",
         "1 at 110th St-Cathedral Pkwy",
@@ -6960,7 +6902,7 @@
         },
         {
           "question": "What are the notable landmarks in Morningside Heights?",
-          "answer": "The Cathedral of St. John the Divine is the world's largest Anglican cathedral. Grant's Tomb overlooks the Hudson River. The Columbia University campus, designed by McKim, Mead & White, features the iconic Low Memorial Library. Riverside Church has a 74-bell carillon and observation deck."
+          "answer": "The Cathedral of St. John the Divine is a landmark of Romanesque and Gothic architecture. Grant's Tomb overlooks the Hudson River. The Columbia University campus, designed by McKim, Mead & White, features the iconic Low Memorial Library. Riverside Church has a 74-bell carillon and observation deck."
         },
         {
           "question": "How much is rent in Morningside Heights?",
@@ -7052,7 +6994,7 @@
         },
         {
           "type": "Commuter-Centric Listings",
-          "description": "Listings near the 1 train on Broadway with direct express access to Midtown via transfer at 96th Street, offering short commute times.",
+          "description": "Properties near the 1 train on Broadway, with access to Midtown express service via transfer at 96th Street.",
           "budgetRange": "$400K - $800K",
           "propertyType": "1-2 bedroom co-op"
         },
@@ -7100,7 +7042,7 @@
         {
           "name": "Cathedral of St. John the Divine",
           "type": "Landmark",
-          "description": "The largest Anglican cathedral in the world, with ongoing construction since 1892 and a mix of Romanesque and Gothic architecture"
+          "description": "A landmark with ongoing construction since 1892 and a mix of Romanesque and Gothic architecture"
         },
         {
           "name": "Riverside Park and Sakura Park",
@@ -7206,7 +7148,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 95,
       "transitScore": 84,
-      "topSchool": "PS 171 Patrick Henry",
       "nearestSubway": [
         "6 at 116th St",
         "6 at 110th St",
@@ -7486,7 +7427,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 85,
       "transitScore": 78,
-      "topSchool": "PS/IS 217 Roosevelt Island School",
       "nearestSubway": [
         "F at Roosevelt Island",
         "Tram at 59th St & 2nd Ave"
@@ -7742,7 +7682,6 @@
       "dominantPropertyType": "Co-op",
       "walkScore": 97,
       "transitScore": 88,
-      "topSchool": "PS 290 Manhattan New School",
       "nearestSubway": [
         "4/5/6 at 86th St",
         "Q at 86th St",
@@ -7768,7 +7707,7 @@
         },
         {
           "question": "What types of buildings are available in Yorkville?",
-          "answer": "Yorkville has a diverse building stock: pre-war walk-ups and elevator buildings east of Third Avenue, postwar white-brick towers along Second and Third Avenues, and newer luxury condos. The neighborhood also has some remaining townhouses on the side streets in the low 80s."
+          "answer": "Yorkville has a varied building stock: pre-war walk-ups and elevator buildings east of Third Avenue, postwar white-brick towers along Second and Third Avenues, and newer luxury condos. The neighborhood also has some remaining townhouses on the side streets in the low 80s."
         },
         {
           "question": "How much is rent in Yorkville?",
@@ -7828,7 +7767,7 @@
         }
       ],
       "streetGuidance": {
-        "description": "Yorkville's character shifts distinctly from west to east. Lexington Avenue is a busy commercial corridor. Third Avenue has shops and restaurants. Second Avenue has benefited enormously from the new subway. First Avenue and York Avenue are quieter residential stretches, and East End Avenue is among the most exclusive addresses.",
+        "description": "Yorkville's character shifts distinctly from west to east. Lexington Avenue is a busy commercial corridor. Third Avenue has shops and restaurants. Second Avenue has benefited enormously from the new subway. First Avenue and York Avenue are quieter residential stretches, and East End Avenue is among the best-known addresses.",
         "bestBlocksForParks": [
           "East End Avenue near Carl Schurz Park",
           "East 86th Street entrance to Central Park",
@@ -8000,7 +7939,7 @@
         "Asphalt Green",
         "East River Esplanade"
       ],
-      "diningScene": "Second Avenue is the main dining strip, with a mix of German-heritage restaurants, neighborhood pubs, sushi bars, and contemporary cafes."
+      "diningScene": "Second Avenue is the main dining strip, with a mix of German restaurants, neighborhood pubs, sushi bars, and contemporary cafes."
     },
     {
       "slug": "two-bridges",
@@ -8015,7 +7954,6 @@
       "dominantPropertyType": "Condo",
       "walkScore": 96,
       "transitScore": 86,
-      "topSchool": "PS 126 Jacob August Riis",
       "nearestSubway": [
         "F at East Broadway",
         "B/D at Grand St",
@@ -8138,7 +8076,7 @@
         },
         {
           "type": "Commuter-Centric Listings",
-          "description": "Listings with walking distance to the Financial District, multiple subway lines, and easy Brooklyn Bridge access for cross-borough commutes.",
+          "description": "Listings with a short distance from the Financial District, multiple subway lines, and easy Brooklyn Bridge access for cross-borough commutes.",
           "budgetRange": "$700K - $1.2M",
           "propertyType": "1-bedroom condo"
         }
@@ -8197,7 +8135,7 @@
         {
           "name": "Museum at Eldridge Street",
           "type": "Museum",
-          "description": "National Historic Landmark synagogue built in 1887, featuring stunning stained glass and architectural restoration, located just north of the neighborhood"
+          "description": "National Historic Landmark built in 1887, featuring stunning stained glass and architectural restoration, located just north of the neighborhood"
         }
       ],
       "dining": [

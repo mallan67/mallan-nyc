@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ALLOWED_MEDIA_HOSTS, isAllowedMediaUrl } from "@/lib/media/proxy-url-policy";
 import { classifyBody, sniffImageType } from "@/lib/media/sniff-image-type";
 import { getAccessToken } from "@/lib/idx/auth";
+import { checkRouteRateLimit } from "@/lib/middleware/rate-limiter";
 
 // Allow proxying from Cotality media domains
 // Old CoreLogic hosts deprecated — deadline April 30, 2026
@@ -92,6 +93,11 @@ async function readBounded(response: Response, max: number): Promise<ArrayBuffer
   return buffer;
 }
 
+// Search-engine crawlers that robots.txt lets fetch photos here (app/robots.ts searchEngineBot). Matched on the user agent only to
+// brake them; it is not a trust check, and ordinary visitors are never matched.
+const SEARCH_CRAWLER_UA = /\b(googlebot|bingbot)\b/i;
+const CRAWLER_REQUESTS_PER_MINUTE = 60;
+
 export async function GET(req: NextRequest) {
   const mediaUrl = req.nextUrl.searchParams.get("url");
 
@@ -101,6 +107,14 @@ export async function GET(req: NextRequest) {
 
   if (!isAllowedUrl(mediaUrl)) {
     return NextResponse.json({ error: "URL not allowed" }, { status: 403 });
+  }
+
+  // Crawlers are held to a shared budget BEFORE a slot or a Cotality request is spent (see media_proxy_crawler_global).
+  if (SEARCH_CRAWLER_UA.test(req.headers.get("user-agent") ?? "")) {
+    const withinBudget = await checkRouteRateLimit("all-search-crawlers", "media_proxy_crawler_global", CRAWLER_REQUESTS_PER_MINUTE, 60);
+    if (!withinBudget) {
+      return new NextResponse(null, { status: 429, headers: { "Retry-After": "60", "Cache-Control": "no-store" } });
+    }
   }
 
   await acquireSlot();

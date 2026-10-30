@@ -162,7 +162,7 @@ const PROPERTY_TYPES = [
     type: 'Townhouse',
     summary: 'Fee-simple ownership of the building and the lot.',
     forIntl:
-      'No board. Closing is contract-driven. Often suits buyers wanting a single-family residence, multi-family income property, or a long-hold investment.',
+      'No board. Closing is contract-driven. Often suits buyers wanting a single-unit residence, multi-unit income property, or a long-hold investment.',
     consider: 'Structural condition, Certificate of Occupancy, landmark/LPC status, unused FAR/air rights, mechanicals.',
   },
   {

@@ -10,17 +10,16 @@
       "ogImage": "https://images.unsplash.com/photo-1658756562843-162fa850def7?w=1200&q=80",
       "summary": "St. George is Staten Island's civic and cultural hub, anchored by the iconic Staten Island Ferry terminal and sweeping views of the Statue of Liberty and Lower Manhattan skyline. A walkable neighborhood with Victorian homes, new waterfront development, and growing arts scene, it offers average prices around $350 per square foot.",
       "avgPricePerSqft": 350,
-      "dominantPropertyType": "Single Family",
+      "dominantPropertyType": "Single-Unit Home",
       "walkScore": 72,
       "transitScore": 58,
-      "topSchool": "PS 31 William T. Davis",
       "nearestSubway": [
         "SIR"
       ],
       "faqs": [
         {
           "question": "What is the average home price in St. George?",
-          "answer": "The median sale price in St. George is approximately $475,000. Victorian single-family homes range from $400,000 to $750,000, while newer condos near the waterfront can range from $350,000 to $600,000. Per square foot pricing averages around $350."
+          "answer": "The median sale price in St. George is approximately $475,000. Victorian single-unit homes range from $400,000 to $750,000, while newer condos near the waterfront can range from $350,000 to $600,000. Per square foot pricing averages around $350."
         },
         {
           "question": "How do you get from St. George to Manhattan?",
@@ -32,11 +31,11 @@
         },
         {
           "question": "What is the St. George waterfront development?",
-          "answer": "The St. George waterfront has undergone significant revitalization including Empire Outlets (New York City's first outlet shopping center), the National Lighthouse Museum, and new residential developments. The area continues to attract investment with mixed-use projects along the esplanade."
+          "answer": "The St. George waterfront has seen significant development including Empire Outlets (New York City's first outlet shopping center), the National Lighthouse Museum, and new residential developments. The area continues to attract investment with mixed-use projects along the esplanade."
         },
         {
           "question": "What types of homes are available in St. George?",
-          "answer": "St. George offers a diverse housing stock including Victorian-era single-family homes on the hillside with harbor views, newer waterfront condos and rentals, multi-family rowhouses, and a small number of co-ops. The hilltop homes above the ferry terminal are particularly sought after for their panoramic views."
+          "answer": "St. George offers a varied housing stock including Victorian-era single-unit homes on the hillside with harbor views, newer waterfront condos and rentals, multi-unit rowhouses, and a small number of co-ops. The hilltop homes above the ferry terminal are particularly sought after for their panoramic views."
         },
         {
           "question": "How much is rent in St. George?",
@@ -99,8 +98,7 @@
         "description": "St. George is a compact, walkable neighborhood centered around the ferry terminal. The hillside streets above the terminal offer dramatic views of the harbor and Manhattan skyline, while the waterfront esplanade provides newer residential options.",
         "bestBlocksForParks": [
           "St. Marks Place near the park",
-          "Hamilton Avenue hilltop section",
-          "Westervelt Avenue near Curtis High School"
+          "Hamilton Avenue hilltop section"
         ],
         "bestBlocksForNightlife": [
           "Bay Street near the ferry terminal",
@@ -128,15 +126,15 @@
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Properties with waterfront revitalization, strong rental demand from ferry riders, and ongoing development projects.",
+          "description": "Properties near the waterfront development, with strong rental demand from ferry riders and ongoing development projects.",
           "budgetRange": "$300K - $700K",
-          "propertyType": "Condo or multi-family"
+          "propertyType": "Condo or multi-unit"
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Spacious Victorian homes with character, local public schools, and easy access to parks and cultural amenities.",
+          "description": "Spacious Victorian homes with character and easy access to parks and cultural amenities.",
           "budgetRange": "$500K - $750K",
-          "propertyType": "Single-family Victorian"
+          "propertyType": "Single-unit Victorian"
         }
       ],
       "ctas": {
@@ -268,12 +266,11 @@
       "tagline": "Staten Island's Premier Hilltop Enclave",
       "heroImage": "https://images.unsplash.com/photo-1675334592668-8ef48509f2e6?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1675334592668-8ef48509f2e6?w=1200&q=80",
-      "summary": "Todt Hill is the highest point on the Atlantic seaboard south of Maine, known for its grand estate homes, lush landscaping, and serene residential atmosphere. One of New York City's most affluent neighborhoods, it offers sprawling properties with average prices around $525 per square foot.",
+      "summary": "Todt Hill is the highest point on the Atlantic seaboard south of Maine, known for its grand estate homes, lush landscaping, and serene residential atmosphere. It offers sprawling properties with average prices around $525 per square foot.",
       "avgPricePerSqft": 525,
-      "dominantPropertyType": "Single Family",
+      "dominantPropertyType": "Single-Unit Home",
       "walkScore": 38,
       "transitScore": 22,
-      "topSchool": "PS 36 J.C. Drumgoole",
       "nearestSubway": [
         "SIR"
       ],
@@ -291,12 +288,8 @@
           "answer": "Todt Hill is car-dependent. Most residents drive to the nearby SIR stations (Grant City or Old Town) or use express bus routes (SIM1, SIM4) to Manhattan. The drive to the St. George Ferry Terminal is about 15 minutes. The Staten Island Expressway provides access to the Verrazzano-Narrows Bridge."
         },
         {
-          "question": "Are there local public schools in Todt Hill?",
-          "answer": "Yes, Todt Hill is served by well-regarded public schools including PS 36 J.C. Drumgoole. The area also has proximity to several private schools. The Staten Island Academy, one of the borough's top private schools, is located nearby."
-        },
-        {
           "question": "What types of homes are in Todt Hill?",
-          "answer": "Todt Hill is primarily single-family detached homes, many on oversized lots with extensive landscaping. Architectural styles include Colonial, Tudor, Mediterranean, and Contemporary. Some properties feature gated entrances, pools, and multi-car garages. The neighborhood also has a small number of townhomes."
+          "answer": "Todt Hill is primarily single-unit detached homes, many on oversized lots with extensive landscaping. Architectural styles include Colonial, Tudor, Mediterranean, and Contemporary. Some properties feature gated entrances, pools, and multi-car garages. The neighborhood also has a small number of townhomes."
         },
         {
           "question": "Is Todt Hill a good investment?",
@@ -319,7 +312,7 @@
           "nickname": null,
           "architect": null,
           "yearBuilt": 1985,
-          "type": "Single Family",
+          "type": "Single-Unit Home",
           "units": 24,
           "priceRange": "$900K - $2M",
           "slug": "todt-hill-estates"
@@ -339,7 +332,7 @@
           "nickname": "Ernest Flagg Estate",
           "architect": "Ernest Flagg",
           "yearBuilt": 1917,
-          "type": "Single Family",
+          "type": "Single-Unit Home",
           "units": 12,
           "priceRange": "$650K - $1.2M",
           "slug": "flagg-court"
@@ -376,21 +369,21 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring spacious estate-style homes with large yards, well-regarded schools, and a quiet residential setting.",
+          "description": "Properties featuring spacious estate-style homes with large yards and a quiet residential setting.",
           "budgetRange": "$900K - $2M",
-          "propertyType": "4-5 bedroom single family"
+          "propertyType": "4-5 bedroom single-unit"
         },
         {
           "type": "Flex-Space & Grand Layouts",
-          "description": "Homeowners looking to relocate from other boroughs to a quieter setting while still being within New York City limits.",
+          "description": "Spacious homes in a quieter setting while still within New York City limits.",
           "budgetRange": "$700K - $1.2M",
-          "propertyType": "3-4 bedroom single family"
+          "propertyType": "3-4 bedroom single-unit"
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Properties with high-value residential properties with strong long-term appreciation in a low-inventory market.",
+          "description": "High-value residential properties with strong long-term appreciation in a low-inventory market.",
           "budgetRange": "$800K - $1.5M",
-          "propertyType": "Single family or townhouse"
+          "propertyType": "Single-unit or townhouse"
         },
         {
           "type": "Secondary Residences & Studios",
@@ -485,7 +478,7 @@
         "todt hill homes for sale",
         "staten island luxury homes",
         "todt hill estate homes",
-        "staten island single family homes",
+        "staten island single-unit homes",
         "todt hill property values",
         "nyc suburban living"
       ],
@@ -501,7 +494,7 @@
           "Bus routes S74, S76, S78 to St. George Ferry Terminal"
         ]
       },
-      "localVibe": "Staten Island's highest elevation, a residential enclave of large single-family homes set on wooded lots, with mature landscaping and winding, hilly roads.",
+      "localVibe": "Staten Island's highest elevation, a residential enclave of large single-unit homes set on wooded lots, with mature landscaping and winding, hilly roads.",
       "notableStreets": [
         "Todt Hill Road",
         "Four Corners Road",
@@ -525,23 +518,22 @@
       "tagline": "Coastal Living with Neighborhood Charm",
       "heroImage": "https://images.unsplash.com/photo-1649139410335-b3243cdfcfa3?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1649139410335-b3243cdfcfa3?w=1200&q=80",
-      "summary": "Great Kills is a South Shore neighborhood known for its beach access, marina, and tight-knit community character. With Great Kills Park offering 580 acres of beaches and trails along Raritan Bay, and a lively Hylan Boulevard corridor, the neighborhood averages around $425 per square foot.",
+      "summary": "Great Kills is a South Shore neighborhood known for its beach access and marina. With Great Kills Park offering 580 acres of beaches and trails along Raritan Bay, and a lively Hylan Boulevard corridor, the neighborhood averages around $425 per square foot.",
       "avgPricePerSqft": 425,
-      "dominantPropertyType": "Single Family",
+      "dominantPropertyType": "Single-Unit Home",
       "walkScore": 62,
       "transitScore": 40,
-      "topSchool": "PS 32 Andrew Jackson",
       "nearestSubway": [
         "SIR"
       ],
       "faqs": [
         {
           "question": "What is the average home price in Great Kills?",
-          "answer": "The median sale price in Great Kills is approximately $625,000. Single-family detached homes range from $500,000 to $900,000, while semi-attached and attached homes can start around $400,000. Per square foot pricing averages around $425."
+          "answer": "The median sale price in Great Kills is approximately $625,000. Single-unit detached homes range from $500,000 to $900,000, while semi-attached and attached homes can start around $400,000. Per square foot pricing averages around $425."
         },
         {
-          "question": "What parks and schools are near Great Kills?",
-          "answer": "Great Kills offers well-regarded public schools, youth sports programs, a marina for boating, and Great Kills Park with 580 acres of beaches and playgrounds. The neighborhood has a strong community feel with active civic associations."
+          "question": "What parks are near Great Kills?",
+          "answer": "Great Kills offers a marina for boating and Great Kills Park with 580 acres of beaches and playgrounds. The neighborhood has active civic associations."
         },
         {
           "question": "What is Great Kills Park?",
@@ -553,11 +545,11 @@
         },
         {
           "question": "What types of homes are available in Great Kills?",
-          "answer": "Great Kills primarily features single-family detached and semi-attached homes, many built in the 1950s-1980s. Cape Cods, raised ranches, and split-levels are common styles. Newer construction includes larger colonial-style homes. The area near the marina also has some waterfront properties."
+          "answer": "Great Kills primarily features single-unit detached and semi-attached homes, many built in the 1950s-1980s. Cape Cods, raised ranches, and split-levels are common styles. Newer construction includes larger colonial-style homes. The area near the marina also has some waterfront properties."
         },
         {
           "question": "How much is rent in Great Kills?",
-          "answer": "Median rent in Great Kills is approximately $1,600 per month for a one-bedroom. Studios average $1,200, two-bedrooms $1,900, and three-bedrooms $2,500. Rental inventory is limited as the neighborhood is predominantly owner-occupied single-family homes."
+          "answer": "Median rent in Great Kills is approximately $1,600 per month for a one-bedroom. Studios average $1,200, two-bedrooms $1,900, and three-bedrooms $2,500. Rental inventory is limited as the neighborhood is predominantly owner-occupied single-unit homes."
         }
       ],
       "marketStats": {
@@ -586,7 +578,7 @@
           "nickname": null,
           "architect": null,
           "yearBuilt": 2010,
-          "type": "Single Family",
+          "type": "Single-Unit Home",
           "units": 18,
           "priceRange": "$650K - $900K",
           "slug": "great-kills-harbor-homes"
@@ -617,7 +609,7 @@
         "bestBlocksForParks": [
           "Nelson Avenue near parks",
           "Lindenwood Road residential area",
-          "Giffords Lane near youth sports fields"
+          "Giffords Lane near sports fields"
         ],
         "bestBlocksForNightlife": [
           "Hylan Boulevard restaurant row",
@@ -633,19 +625,19 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring detached homes with yards, local public schools, beach access, and active community programs.",
+          "description": "Properties featuring detached homes with yards and beach access.",
           "budgetRange": "$550K - $850K",
-          "propertyType": "3-4 bedroom single family"
+          "propertyType": "3-4 bedroom single-unit"
         },
         {
           "type": "Market Entry Points",
-          "description": "First-time homeowners entering the NYC market who want a house with outdoor space at accessible price points.",
+          "description": "A house with outdoor space at accessible price points.",
           "budgetRange": "$400K - $600K",
           "propertyType": "Semi-attached or starter home"
         },
         {
           "type": "Flex-Space & Grand Layouts",
-          "description": "Homeowners seeking a well-established coastal community with marina access and a relaxed pace of life.",
+          "description": "A well-established coastal neighborhood with marina access and a relaxed pace of life.",
           "budgetRange": "$500K - $700K",
           "propertyType": "2-3 bedroom ranch or cape"
         },
@@ -653,7 +645,7 @@
           "type": "Strong Investment & Rental Potential",
           "description": "Properties with the South Shore's strong demand and limited inventory in a predominantly owner-occupied market.",
           "budgetRange": "$400K - $650K",
-          "propertyType": "Multi-family or rental conversion"
+          "propertyType": "Multi-unit or rental conversion"
         }
       ],
       "ctas": {
@@ -742,7 +734,6 @@
         "staten island waterfront homes",
         "south shore staten island",
         "great kills park neighborhood",
-        "staten island family homes",
         "great kills marina homes"
       ],
       "bounds": {
@@ -759,7 +750,7 @@
           "Great Kills SIR station"
         ]
       },
-      "localVibe": "A waterfront residential neighborhood of single-family homes and low-rise buildings on the southeastern shore, with access to a harbor marina and the Gateway National Recreation Area.",
+      "localVibe": "A waterfront residential neighborhood of single-unit homes and low-rise buildings on the southeastern shore, with access to a harbor marina and the Gateway National Recreation Area.",
       "notableStreets": [
         "Hylan Boulevard",
         "Nelson Avenue",
@@ -784,21 +775,20 @@
       "ogImage": "https://images.unsplash.com/photo-1565457210787-a4e17b40f04e?w=1200&q=80",
       "summary": "New Brighton is one of Staten Island's most architecturally distinguished neighborhoods, featuring grand Victorian and Italianate homes along tree-lined streets with views of the Kill Van Kull. Close to the ferry, the Snug Harbor Cultural Center, and a growing arts community, it offers average prices around $375 per square foot.",
       "avgPricePerSqft": 375,
-      "dominantPropertyType": "Single Family",
+      "dominantPropertyType": "Single-Unit Home",
       "walkScore": 68,
       "transitScore": 48,
-      "topSchool": "PS 18 John Peter Zenger",
       "nearestSubway": [
         "SIR"
       ],
       "faqs": [
         {
           "question": "What is the average home price in New Brighton?",
-          "answer": "The median sale price in New Brighton is approximately $525,000. Victorian single-family homes range from $450,000 to $850,000, while multi-family properties can range from $550,000 to $1 million. Per square foot pricing averages around $375."
+          "answer": "The median sale price in New Brighton is approximately $525,000. Victorian single-unit homes range from $450,000 to $850,000, while multi-unit properties can range from $550,000 to $1 million. Per square foot pricing averages around $375."
         },
         {
           "question": "What is Snug Harbor Cultural Center?",
-          "answer": "Snug Harbor Cultural Center and Botanical Garden is an 83-acre campus of 28 historic buildings, including the Chinese Scholar's Garden, the Staten Island Children's Museum, and the Noble Maritime Collection. Originally a home for retired sailors, it is now one of NYC's premier cultural destinations."
+          "answer": "Snug Harbor Cultural Center and Botanical Garden is an 83-acre campus of 28 historic buildings, including the Chinese Scholar's Garden and the Noble Maritime Collection. Originally a home for sailors, it is now one of NYC's premier cultural destinations."
         },
         {
           "question": "Is New Brighton close to the ferry?",
@@ -806,7 +796,7 @@
         },
         {
           "question": "What types of homes are available in New Brighton?",
-          "answer": "New Brighton features a varied housing stock including grand Victorian and Italianate single-family homes, multi-family brownstones, Craftsman bungalows, and some newer infill construction. The neighborhood is known for architecturally significant homes, many dating to the mid-1800s."
+          "answer": "New Brighton features a varied housing stock including grand Victorian and Italianate single-unit homes, multi-unit brownstones, Craftsman bungalows, and some newer infill construction. The neighborhood is known for architecturally significant homes, many dating to the mid-1800s."
         },
         {
           "question": "Is New Brighton a good area for the arts?",
@@ -814,7 +804,7 @@
         },
         {
           "question": "How much is rent in New Brighton?",
-          "answer": "Median rent in New Brighton is approximately $1,700 per month for a one-bedroom. Studios average $1,300, two-bedrooms $2,100, and three-bedrooms $2,600. Multi-family homes offer some of the most affordable rental options, especially garden-level and upper-floor units."
+          "answer": "Median rent in New Brighton is approximately $1,700 per month for a one-bedroom. Studios average $1,300, two-bedrooms $2,100, and three-bedrooms $2,600. Multi-unit homes offer some of the most affordable rental options, especially garden-level and upper-floor units."
         }
       ],
       "marketStats": {
@@ -833,7 +823,7 @@
           "nickname": null,
           "architect": null,
           "yearBuilt": 1895,
-          "type": "Single Family",
+          "type": "Single-Unit Home",
           "units": 1,
           "priceRange": "$700K - $850K",
           "slug": "pavilion-on-the-terrace"
@@ -843,7 +833,7 @@
           "nickname": null,
           "architect": null,
           "yearBuilt": 1870,
-          "type": "Single Family",
+          "type": "Single-Unit Home",
           "units": 1,
           "priceRange": "$650K - $800K",
           "slug": "henderson-estate"
@@ -863,7 +853,7 @@
           "nickname": null,
           "architect": null,
           "yearBuilt": 1890,
-          "type": "Multi-Family",
+          "type": "Multi-unit",
           "units": 8,
           "priceRange": "$550K - $950K",
           "slug": "brighton-heights-row-houses"
@@ -890,13 +880,13 @@
       "buyerPersonas": [
         {
           "type": "Metropolitan Connectivity",
-          "description": "Manhattan Listings featuring affordable Victorian charm with a short commute via the nearby Staten Island Ferry.",
+          "description": "Properties featuring affordable Victorian charm with a short commute to Manhattan via the nearby Staten Island Ferry.",
           "budgetRange": "$400K - $650K",
-          "propertyType": "Renovated Victorian single family"
+          "propertyType": "Renovated Victorian single-unit"
         },
         {
           "type": "Market Entry Points",
-          "description": "First-time Properties near the neighborhood's historic character, walkability, and proximity to cultural amenities.",
+          "description": "Properties near the neighborhood's historic character, with walkability and proximity to cultural amenities.",
           "budgetRange": "$325K - $500K",
           "propertyType": "Condo or starter home"
         },
@@ -904,11 +894,11 @@
           "type": "Strong Investment & Rental Potential",
           "description": "Properties with the North Shore's strong appreciation potential and rental demand from ferry riders.",
           "budgetRange": "$550K - $950K",
-          "propertyType": "Multi-family brownstone"
+          "propertyType": "Multi-unit brownstone"
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring spacious homes with architectural character, local public schools, and access to parks and cultural centers.",
+          "description": "Properties featuring spacious homes with architectural character and access to parks and cultural centers.",
           "budgetRange": "$500K - $800K",
           "propertyType": "3-4 bedroom Victorian"
         }
@@ -955,11 +945,6 @@
           "name": "Snug Harbor Cultural Center & Botanical Garden",
           "type": "cultural center",
           "description": "83-acre campus of 28 historic buildings with museums, gardens, performance spaces, and the Chinese Scholar's Garden"
-        },
-        {
-          "name": "Staten Island Children's Museum",
-          "type": "museum",
-          "description": "Interactive children's museum located within Snug Harbor with hands-on exhibits and outdoor play spaces"
         },
         {
           "name": "Noble Maritime Collection",

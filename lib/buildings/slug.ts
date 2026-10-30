@@ -34,6 +34,17 @@ export function generateBuildingSlug(parts: BuildingSlugParts): string {
 }
 
 /**
+ * The canonical building URL, as path + query: identity is street number + street + postal code. The slug segment is decorative and
+ * the building name is display-only, so neither is part of it. The building page declares exactly this as its canonical; any sitemap
+ * that ever lists a building must use this same function so the two cannot disagree.
+ */
+export function buildingCanonicalHref(parts: { streetNumber: string; streetName: string; postalCode?: string | null }): string {
+  const params = new URLSearchParams({ sn: parts.streetNumber, st: parts.streetName });
+  if (parts.postalCode) params.set('z', parts.postalCode);
+  return `/buildings/profile?${params.toString()}`;
+}
+
+/**
  * Generate the href for a building page.
  */
 export function buildingHref(parts: BuildingSlugParts): string {
