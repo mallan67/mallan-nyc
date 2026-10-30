@@ -92,6 +92,11 @@ describe("guardrails prohibited-terms: single canonical source (data/)", () => {
  * or "Is X safe?" passed it. This checks WORDS, over what a visitor sees: every text field of the 59 records AND the HTML the real
  * neighbourhood components render for each record.
  *
+ * The one exception to "no school wording" is the governed "Schools and Education" section (plain facts from a dated public
+ * record, same wording on every guide; Master 21.12). It is not rendered here: tests/runtime/neighborhood-schools.test.ts guards
+ * it, checks that school wording appears nowhere else on the guide pages, and lists the school names that contain a word about
+ * people. These records and components stay free of school wording.
+ *
  * Deliberately NOT covered: listing text written by other agents (never edited), MLS property-type vocabulary used by search filters,
  * and the names of landmarks, museums, streets and cuisines, which describe places and not people.
  */

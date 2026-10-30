@@ -10,9 +10,10 @@ import schoolData from '@/data/neighborhood-schools.json';
 export interface SchoolRecord {
   id: string;
   name: string;
+  /** '' when the source record has no address */
   address: string;
   zip: string;
-  /** "Elementary", "Middle", "High", "K-8", "Secondary", "K-12", "Ungraded", or '' when the record does not say */
+  /** "Elementary", "Middle", "High", "K-8", "Secondary", "K-12" or "Ungraded" */
   level: string;
   sector: 'public' | 'charter';
 }
@@ -33,15 +34,25 @@ const data = schoolData as unknown as SchoolDataFile;
 
 export const SCHOOL_SOURCE = data.source;
 
-/** The Department of Education's own address-based school search; it settles which school is zoned for an address. */
+/** The Department of Education's own address-based school search. */
 export const DOE_SCHOOL_SEARCH_URL = 'https://schoolsearch.schools.nyc/';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 /** "2026-07-16" -> "July 2026" */
-export function schoolRecordsUpdatedLabel(): string {
-  const [year, month] = SCHOOL_SOURCE.recordsUpdated.split('-');
+function monthYear(iso: string): string {
+  const [year, month] = iso.split('-');
   return `${MONTHS[Number(month) - 1]} ${year}`;
+}
+
+/** When the City Planning dataset was last updated. */
+export function schoolRecordsUpdatedLabel(): string {
+  return monthYear(SCHOOL_SOURCE.recordsUpdated);
+}
+
+/** When this list was taken from it. */
+export function schoolListRetrievedLabel(): string {
+  return monthYear(SCHOOL_SOURCE.retrieved);
 }
 
 /** Every school record for the given ZIP codes, once each, ordered by name. */
