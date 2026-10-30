@@ -32,8 +32,15 @@ jest.mock('@/lib/prisma', () => ({
   },
 }));
 
+// The building page's metadata asks the data layer for the building; nothing found is enough for what is checked here.
+jest.mock('@/lib/buildings/public-building-data', () => ({
+  __esModule: true,
+  getBuildingDataCached: jest.fn().mockResolvedValue({ success: false }),
+}));
+
 import prisma from '@/lib/prisma';
 import robots from '@/app/robots';
+import { generateMetadata as buildingMetadata } from '@/app/buildings/[slug]/page';
 import sitemap from '@/app/sitemap';
 import { sitemapListingWhere, type SitemapListingRow } from '@/lib/sitemap/population';
 
@@ -244,10 +251,24 @@ describe('building pages: one canonical URL', () => {
     expect(buildingCanonicalHref({ streetNumber: '157', streetName: 'W 57th Street', postalCode: null })).toBe('/buildings/profile?sn=157&st=W+57th+Street');
   });
 
-  it('is what the building page declares as its canonical, without ?bn= (supporting source-grep)', () => {
-    const page = fs.readFileSync(path.resolve(__dirname, '../../app/buildings/[slug]/page.tsx'), 'utf8');
-    expect(page).toMatch(/buildingCanonicalHref\(\{ streetNumber: sp\.sn, streetName: sp\.st, postalCode: sp\.z \}\)/);
-    expect(page).toMatch(/alternates: \{ canonical: canonicalUrl \}/);
-    expect(page).not.toMatch(/canonicalParams/);
+  const meta = (sp: Record<string, string>) => buildingMetadata({ params: Promise.resolve({ slug: 'x' }), searchParams: Promise.resolve(sp) });
+
+  it('is what the building page declares as its canonical, whatever name or slug the link carried', async () => {
+    const expected = 'https://mallan.nyc/buildings/profile?sn=434&st=W+20th+Street&z=10011';
+    for (const bn of [undefined, 'The Foo', 'Foo Tower']) {
+      const m = await meta({ sn: '434', st: 'W 20th Street', z: '10011', ...(bn ? { bn } : {}) });
+      expect(m.alternates?.canonical).toBe(expected);
+    }
+  });
+
+  it('asks image crawlers not to index its images until the building data layer is verified, and keeps the site-wide robots settings', async () => {
+    const withData = await meta({ sn: '434', st: 'W 20th Street', z: '10011' });
+    const withoutAddress = await meta({});
+    for (const m of [withData, withoutAddress]) {
+      expect(m.robots).toMatchObject({
+        index: true, follow: true, noimageindex: true,
+        googleBot: { index: true, follow: true, noimageindex: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
+      });
+    }
   });
 });

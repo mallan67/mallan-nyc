@@ -11,6 +11,24 @@ import { buildingCanonicalHref } from '@/lib/buildings/slug';
 
 export const revalidate = 600;
 
+// The units and photos on this page come from a data layer whose display gates are not yet verified against the live provider
+// (State, 2026-10-30), while robots.txt now lets image crawlers fetch listing photos. Until that is closed, image crawlers are told
+// not to index this page's images. A page-level `robots` replaces the layout's rather than merging, so the site-wide settings
+// (app/layout.tsx) are repeated here.
+const BUILDING_PAGE_ROBOTS = {
+  index: true,
+  follow: true,
+  noimageindex: true,
+  googleBot: {
+    index: true,
+    follow: true,
+    noimageindex: true,
+    'max-video-preview': -1,
+    'max-image-preview': 'large',
+    'max-snippet': -1,
+  },
+} as const;
+
 type Props = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{
@@ -165,7 +183,7 @@ function AmenityIcon({ label }: { label: string }) {
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const sp = await searchParams;
-  if (!sp.sn || !sp.st) return { title: 'Building | Mallan Real Estate' };
+  if (!sp.sn || !sp.st) return { title: 'Building | Mallan Real Estate', robots: BUILDING_PAGE_ROBOTS };
 
   const data = await fetchBuildingData({
     streetNumber: sp.sn, streetName: sp.st, postalCode: sp.z, buildingName: sp.bn,
@@ -176,13 +194,14 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const activeCount = data?.stats?.totalActive || 0;
   const salesCount = data?.stats?.totalSales || 0;
 
-  // The building name (bn) is display-only and not part of a building's identity, so every ?bn= variant canonicalises to the one URL the sitemap lists.
+  // The building name (bn) is display-only and not part of a building's identity, so every ?bn= variant canonicalises to one URL.
   const canonicalUrl = `https://mallan.nyc${buildingCanonicalHref({ streetNumber: sp.sn, streetName: sp.st, postalCode: sp.z })}`;
 
   return {
     title: `${label} — Units, Sales History & Amenities | Mallan Real Estate`,
     description: `Explore ${label} in New York, NY${zip}. ${activeCount} active listing${activeCount !== 1 ? 's' : ''}, ${salesCount} recent sale${salesCount !== 1 ? 's' : ''}. View building amenities, price history, and available units.`,
     alternates: { canonical: canonicalUrl },
+    robots: BUILDING_PAGE_ROBOTS,
     openGraph: {
       title: `${label} | Building Intelligence | Mallan Real Estate`,
       description: `Building profile for ${label}. Active listings, sales history, amenities, and market data.`,
