@@ -18,8 +18,9 @@ function zipPhrase(zipCodes: readonly string[]): string {
 /**
  * Schools and Education. Facts only: a list by ZIP code from one named public record, the same wording and the same
  * selection rule on every guide, shown in full on every guide, with no ranking or quality claim and no statement about
- * who a place or a school is for. Where the record has no school for a guide's ZIP codes the section is absent, not
- * an empty notice. Master 21.12 / 21.11 / 23.10; guarded by tests/runtime/neighborhood-schools.test.ts.
+ * who a place or a school is for. What the list includes and leaves out is stated directly under the lead. Where the
+ * record has no school for a guide's ZIP codes the section is absent, not an empty notice.
+ * Master 21.12 / 21.11 / 23.10; guarded by tests/runtime/neighborhood-schools.test.ts.
  */
 export default function NeighborhoodSchools({ zipCodes }: NeighborhoodSchoolsProps) {
   const schools = schoolsForZipCodes(zipCodes);
@@ -32,13 +33,16 @@ export default function NeighborhoodSchools({ zipCodes }: NeighborhoodSchoolsPro
         <h2 id="schools-and-education" className="text-2xl sm:text-3xl font-display font-semibold text-brand-dark mb-3">
           Schools and Education
         </h2>
-        <p className="text-brand-dark/90 mb-5 max-w-3xl">
-          {`This list shows ${count} public and charter ${count === 1 ? 'school' : 'schools'} with an address in ${zipPhrase(zipCodes)}, taken from the NYC Department of City Planning Facilities Database.`}
+        <p className="text-brand-dark/90 mb-3 max-w-3xl">
+          {`This list shows ${count} public and charter ${count === 1 ? 'school' : 'schools'} in ${zipPhrase(zipCodes)}, taken from the NYC Department of City Planning Facilities Database.`}
+        </p>
+        <p className="text-sm sm:text-base text-brand-dark/90 mb-5 max-w-3xl">
+          Included: public schools and charter schools that the database records from NYC Department of Education site data. Not included: private schools, and charter school sites that have no NYC Department of Education site record in the database.
         </p>
 
         <div className="overflow-x-auto mb-5">
           <table className="w-full text-left text-sm sm:text-base text-brand-dark/90">
-            <caption className="sr-only">Public and charter schools with an address in {zipPhrase(zipCodes)}</caption>
+            <caption className="sr-only">Public and charter schools in {zipPhrase(zipCodes)}</caption>
             <thead>
               <tr className="border-b border-brand-dark/15">
                 <th scope="col" className="py-2 pr-3 font-semibold">School</th>
@@ -68,7 +72,7 @@ export default function NeighborhoodSchools({ zipCodes }: NeighborhoodSchoolsPro
           .
         </p>
         <p className="text-xs sm:text-sm text-brand-dark/75 max-w-3xl">
-          {`Source: ${SCHOOL_SOURCE.publisher} ${SCHOOL_SOURCE.dataset}, dataset updated ${schoolRecordsUpdatedLabel()}; list taken ${schoolListRetrievedLabel()}. Included: public schools and charter schools that the database records from NYC Department of Education site data. Not included: private schools, and charter schools that have no NYC Department of Education site record in the database.`}
+          {`Source: ${SCHOOL_SOURCE.publisher} ${SCHOOL_SOURCE.dataset}, dataset updated ${schoolRecordsUpdatedLabel()}; list taken ${schoolListRetrievedLabel()}.`}
         </p>
       </div>
     </section>

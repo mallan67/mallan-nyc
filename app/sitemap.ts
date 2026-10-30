@@ -28,7 +28,7 @@ export const revalidate = 300;
  * Only includes safe-to-index public routes.
  * Excludes: admin, client-access, demo, agent-only routes.
  *
- * Neighbourhood guides are offered since their copy was cleaned of school, family and protected-class wording (Master 23.10 / 21.12; the
+ * Neighbourhood guides are offered since their copy was cleaned of family and protected-class wording (schools appear only in the governed "Schools and Education" fact list) (Master 23.10 / 21.12; the
  * word-level guard test fails if it returns). NOT offered, on purpose (independent compliance review 2026-10-30; recorded in the State
  * document): building pages, whose data layer has open gate questions. That is not a decision this file may make.
  *

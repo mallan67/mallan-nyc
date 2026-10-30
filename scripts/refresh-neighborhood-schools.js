@@ -181,6 +181,7 @@ async function main() {
       sector,
       sourceName: r.facname,
       sourceAddress,
+      sourceZip: r.zipcode,
       sourceSubgroup: r.facsubgrp,
       sourceFactype: r.factype,
       sourceDatasource: r.datasource,

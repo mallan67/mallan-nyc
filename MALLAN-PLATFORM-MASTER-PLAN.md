@@ -5602,13 +5602,13 @@ AI-GENERATED COPY
 **School information on a neighborhood guide is a governed fact list.** A school district named in neighborhood copy is part of this surface, so a school may appear on a guide only as the list below and nowhere else on the guide. The list is allowed when all of these hold:
 
 1. It states only these facts about each school: name, address, level, and public or charter. It states no enrollment, capacity, district, zone, catchment or attendance information, no score, grade, rating, rank or comparison, and nothing about who a school or the place is for.
-2. Each fact is taken, as the record gives it, from one named official public record, and the page names the record, the date the record was last updated and the date the list was taken. The list is refreshed when the record is updated and is never more than 13 months old; a guard in CI fails when it is older.
-3. One rule selects the schools for every guide (every school in the record with the guide's ZIP codes, none omitted, ordered by name) and one presentation shows them on every guide. The page says in plain words what the list includes and what it leaves out. Where the record has no school for a guide's ZIP codes the section is absent: not empty, not a placeholder.
+2. Each fact is taken from one named official public record, as the record gives it, with only the capitalisation and spelling corrections documented in the script that builds the list. The page names the record, the date the record was last updated and the date the list was taken. The owner or the principal broker has the list refreshed when the record is updated; a guard in CI fails every build once the list is more than 13 months old, which forces the refresh.
+3. One rule selects the schools for every guide (every school within the stated scope that has one of the guide's ZIP codes, none omitted, ordered by name) and one presentation shows them on every guide. The page says in plain words what the list includes and what it leaves out. Where the record has no school for a guide's ZIP codes the section is absent: not empty, not a placeholder.
 4. A list by ZIP code says it is by ZIP code, not by attendance zone, and sends a reader who needs schools by address to the NYC Department of Education's address search.
 5. A reader's use of the list is not a signal: it is not tracked, scored or fed to any recommendation (§22.5).
 6. Its wording and its data pass the review in this section before publication. The principal broker or the owner reads or accepts the section and the review is recorded in the Execution State. A guard in CI fails when school wording appears anywhere else on the guide pages and when the list departs from its recorded source.
 
-School names print as the record gives them. The owner decides which school names that contain a word about people may print; the accepted names are listed in the guard, and a new one fails it until it is accepted.
+School names print as the record gives them, with only those documented corrections. The owner decides which school names that contain a word about people may print; the accepted names are listed in the guard, and a new one fails it until it is accepted.
 
 Any other school content does not render. Schools on listing, building, search, e-mail and client-portal pages are not governed here; they remain the finding in §23.10.
 

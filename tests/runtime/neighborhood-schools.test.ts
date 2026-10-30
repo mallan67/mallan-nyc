@@ -37,6 +37,7 @@ type FileRecord = {
   sector: string;
   sourceName: string;
   sourceAddress: string;
+  sourceZip: string;
   sourceSubgroup: string;
   sourceFactype: string;
   sourceDatasource: string;
@@ -63,8 +64,10 @@ const plain = (html: string) =>
   html.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, ' ').replace(/\s+([.,;:])/g, '$1').trim();
 
 // Independent re-derivation: same letters and digits as the source, whatever the capitalisation, leading zeros, ordinal suffix,
-// "The" filed at the end ("..., THE"), or the one documented source misspelling in the address.
-const nameKey = (s: string) => s.toUpperCase().replace(/, THE$/, '').replace(/^THE /, '').replace(/\b0+(?=\d)/g, '').replace(/\s+/g, ' ');
+// "The" filed at the end ("..., THE" is read as "THE ..."; a "The" that appears or disappears in any other way is a difference),
+// or the one documented source misspelling in the address.
+const filedThe = (s: string) => (/, THE$/.test(s) ? `THE ${s.replace(/, THE$/, '')}` : s);
+const nameKey = (s: string) => filedThe(s.toUpperCase()).replace(/\b0+(?=\d)/g, '').replace(/\s+/g, ' ');
 const addressKey = (s: string) =>
   s
     .toUpperCase()
@@ -102,8 +105,10 @@ describe('data/neighborhood-schools.json: one dated public record, nothing hand-
   it('every record is complete, from the Department of Education site data, and classified exactly as its source type says', () => {
     expect(all.length).toBeGreaterThan(0);
     const ids = new Set<string>();
-    for (const rows of Object.values(file.zips)) {
+    for (const [zip, rows] of Object.entries(file.zips)) {
       for (const s of rows) {
+        // a record sits under the ZIP code its source record carries
+        expect(s.sourceZip).toBe(zip);
         expect(s.id).toMatch(/^[0-9a-f]{32}$/);
         expect(ids.has(s.id)).toBe(false);
         ids.add(s.id);
@@ -153,6 +158,20 @@ describe('data/neighborhood-schools.json: one dated public record, nothing hand-
     expect(wrong).toEqual([]);
   });
 
+  it('nothing in the file is hand-edited: every display string is exactly what the generator\'s formatter makes of the recorded source string', () => {
+    const edited = all.flatMap((s) => [
+      ...(generator.formatName(s.sourceName) === s.name ? [] : [`name: ${s.name}`]),
+      ...((s.sourceAddress ? generator.formatAddress(s.sourceAddress) : '') === s.address ? [] : [`address: ${s.address}`]),
+    ]);
+    expect(edited).toEqual([]);
+  });
+
+  it('keeps the records the generator once dropped silently (a school with no address in its source record stays on the list)', () => {
+    // Benjamin N. Cardozo High School (11364) and I.S. 230 (11372): the source record has no street address.
+    const blank = all.filter((s) => s.sourceAddress === '').map((s) => s.id);
+    expect(blank).toEqual(expect.arrayContaining(['35a7f10607596679553715154bc3414b', '447fda897d8e1672a68950712e61c42d']));
+  });
+
   it('the formatter keeps its documented behaviour', () => {
     expect(generator.formatName('P.S. 003 CHARRETTE SCHOOL')).toBe('P.S. 3 Charrette School');
     expect(generator.formatName('P.S. 242 - THE YOUNG DIPLOMATS MAGNET ACADEMY')).toBe('P.S. 242 - The Young Diplomats Magnet Academy');
@@ -188,9 +207,11 @@ describe('data/neighborhood-schools.json: one dated public record, nothing hand-
 });
 
 describe('school names that contain a word about people are an explicit, owner-visible list', () => {
-  // Owner instruction 2026-10-30: "remove all word of families and children". That was about wording Mallan writes. A school's name is the
-  // record's proper noun, printed as the record has it. This is the list of names the guard has seen; a name that is not on it fails the
-  // test until the owner accepts it (add it here) or the record is excluded. Pending the owner's decision at merge.
+  // Owner instruction 2026-10-30: "remove all word of families and children". ASSUMPTION, pending the owner's answer: that instruction
+  // was about wording Mallan writes, and a school's name is the record's proper noun, printed as the record has it. These are the lists
+  // of names the guard has seen; a name that is not on a list fails the test until the owner accepts it (add it here). Excluding records
+  // by a word in their name would break "every school in the scope, none omitted" and would need its own Master wording.
+  // Pending the owner's decision at merge (State, owner decision 1).
   const PEOPLE_WORDS = /\b(?:famil(?:y|ies)|child(?:ren)?(?:['’]s)?|kids?|toddlers?|bab(?:y|ies)|infants?|parents?|teen(?:s|agers?)?|young|youth|seniors?|couples?|married|singles|men(?:['’]s)?|women(?:['’]s)?|girls?|boys?)\b/i;
   const ACCEPTED_NAMES_WITH_PEOPLE_WORDS: string[] = [
     "Beginning With Children Charter School II",
@@ -231,6 +252,33 @@ describe('school names that contain a word about people are an explicit, owner-v
     const found = [...new Set(all.filter((s) => PEOPLE_WORDS.test(s.name)).map((s) => s.name))].sort();
     expect(found).toEqual([...ACCEPTED_NAMES_WITH_PEOPLE_WORDS].sort());
   });
+
+  // Names that carry a disability, language, national-origin or ethnicity word. Shown to the owner with the list above, so the decision
+  // is taken over the protected classes and not only the words about people.
+  const OTHER_SENSITIVE_WORDS = /\b(?:autis\w*|sign language|hospital schools|special|bilingual|bicultural|dual language|french|asian|hellenic|hebrew|newcomers|new americans|latin|yeshiva|jewish|catholic|christian|islamic|muslim|church|cathedral|holy)\b/i;
+  const ACCEPTED_NAMES_WITH_OTHER_SENSITIVE_WORDS: string[] = [
+    "47 The American Sign Language and English Secondary School",
+    "Academy for New Americans",
+    "Amistad Dual Language School",
+    "Hellenic Classical Charter School",
+    "Hellenic Classical Charter School - Staten Island",
+    "High School for Dual Language and Asian Studies",
+    "Hospital Schools",
+    "Liberty High School Academy for Newcomers",
+    "M.S. M247 Dual Language Middle School",
+    "NYC Autism Charter School East Harlem",
+    "New York French-American Charter School",
+    "P.S. 25 Bilingual School",
+    "Special Music School",
+    "The 47 American Sign Language & English Lower School",
+    "The Bilingual Bicultural School",
+    "The Brooklyn Latin School",
+  ];
+
+  it('matches the second list the owner has been shown (disability, language, national-origin and similar words)', () => {
+    const found = [...new Set(all.filter((s) => OTHER_SENSITIVE_WORDS.test(s.name)).map((s) => s.name))].sort();
+    expect(found).toEqual([...ACCEPTED_NAMES_WITH_OTHER_SENSITIVE_WORDS].sort());
+  });
 });
 
 describe('the Schools and Education section, rendered for each of the guides', () => {
@@ -241,6 +289,7 @@ describe('the Schools and Education section, rendered for each of the guides', (
     ['proximity/convenience', /\b(?:near|nearby|nearest|close|closest|closer|proximity|convenient|convenience|access|steps|walk|walking|minutes|commute|surrounded|around|distance|blocks?|within)\b/i],
     ['zoning/district', /\b(?:zone|zones|zoning|district|districts|catchment|feeder|enrolment|enrollment|admission|admissions|waitlist|demand)\b/i],
     ['audience/familial', /\b(?:famil(?:y|ies)|child(?:ren)?(?:['’]s)?|kids?|students?|parents?|teens?|young|youth|couples?|singles?|\w*buyers?|renters?|residents?|neighbors?|community|households?|school-age|girls?|boys?|men|women)\b/i],
+    ['comparison/superlative', /\b(?:more|most|fewer|fewest|least|than|average|larger|largest|smaller|smallest|highest|lowest|funded|funding|waiting|determined|attendance|compared?|versus)\b/i],
     ['safety/steering', /\b(?:safe|safer|safest|safety|crime|dangerous|gentrif\w+|up-and-coming|affluent|wealth\w*|working[- ]class|gritty|rough|transitional|upscale|trendy|hip)\b/i],
     ['protected class', /\b(?:diverse|diversity|multicultural|immigrants?|ethnic\w*|religio\w*|catholic|jewish|christian|islamic|parochial|synagogues?|mosques?)\b/i],
   ];
@@ -263,23 +312,18 @@ describe('the Schools and Education section, rendered for each of the guides', (
   it("lists exactly the records for the guide's ZIP codes: the stated count equals the rows, every row is in the data, none omitted, always in full", () => {
     for (const g of withSchools) {
       const html = render(g.zipCodes);
-      const expected = schoolsForZipCodes(g.zipCodes);
+      // expected rows are derived here, from the file, not by the function under test: each record once, by name
+      const byId = new Map<string, FileRecord & { zip: string }>();
+      for (const z of g.zipCodes) for (const r of file.zips[z] ?? []) if (!byId.has(r.id)) byId.set(r.id, { ...r, zip: z });
+      const expected = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }) || a.address.localeCompare(b.address, 'en', { numeric: true }));
+      expect(schoolsForZipCodes(g.zipCodes).map((s) => s.id)).toEqual(expected.map((s) => s.id));
       const rows = [...html.matchAll(/<tr[^>]*><th scope="row"[^>]*>(.*?)<\/th><td[^>]*>(.*?)<\/td>/g)].map((m) => [plain(m[1]), plain(m[2])]);
       expect(rows).toEqual(expected.map((s) => [s.name, s.address ? `${s.address}, ${s.zip}` : `Address not listed, ${s.zip}`]));
-      const lead = plain(html).match(/This list shows (\d+) public and charter schools? with an address in/);
+      const lead = plain(html).match(/This list shows (\d+) public and charter schools? in ZIP codes?/);
       expect(lead).not.toBeNull();
       expect(Number(lead![1])).toBe(expected.length);
       // one presentation for every guide: never collapsed, never cut
       expect(html).not.toContain('<details');
-    }
-  });
-
-  it('selects from the file by ZIP code only: the count for a guide equals the number of records in its ZIP codes', () => {
-    for (const g of guides) {
-      const n = [...new Set(g.zipCodes)].reduce((sum, z) => sum + (file.zips[z]?.length ?? 0), 0);
-      const unique = new Set(g.zipCodes.flatMap((z) => (file.zips[z] ?? []).map((r) => r.id))).size;
-      expect(schoolsForZipCodes(g.zipCodes)).toHaveLength(unique);
-      expect(unique).toBeLessThanOrEqual(n);
     }
   });
 
@@ -319,10 +363,16 @@ describe('the Schools and Education section, rendered for each of the guides', (
   });
 
   it('describes what it includes and what it leaves out, and names its source and both dates', () => {
-    const text = plain(render(withSchools[0].zipCodes));
-    expect(text).toContain(`Source: NYC Department of City Planning Facilities Database, dataset updated ${schoolRecordsUpdatedLabel()}; list taken ${schoolListRetrievedLabel()}.`);
-    expect(text).toContain('Included: public schools and charter schools that the database records from NYC Department of Education site data.');
-    expect(text).toContain('Not included: private schools, and charter schools that have no NYC Department of Education site record in the database.');
+    for (const g of withSchools) {
+      const html = render(g.zipCodes);
+      const text = plain(html);
+      expect(text).toContain(`Source: NYC Department of City Planning Facilities Database, dataset updated ${schoolRecordsUpdatedLabel()}; list taken ${schoolListRetrievedLabel()}.`);
+      const scope = 'Included: public schools and charter schools that the database records from NYC Department of Education site data. Not included: private schools, and charter school sites that have no NYC Department of Education site record in the database.';
+      expect(text).toContain(scope);
+      // the scope statement sits directly under the lead, before the table, in the same size as the body text
+      expect(text.indexOf('This list shows')).toBeLessThan(text.indexOf(scope));
+      expect(text.indexOf(scope)).toBeLessThan(text.indexOf('School Address Level Type'));
+    }
   });
 
   it('shows the same four columns, with no per-school judgement column', () => {
