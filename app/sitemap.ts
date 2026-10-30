@@ -41,38 +41,47 @@ export const revalidate = 300;
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
+  // No lastmod on static, legal or neighbourhood pages: they have no per-page modification time, and
+  // stamping "now" on every request teaches Google to ignore lastmod, including on the listing and agent
+  // entries below where it IS accurate.
+  //
+  // HELD for Maya (Master 4.1: "Internal visibility is not authorization ... website publication or
+  // SEO/indexation ... a separate decision" per surface; 21.10 sitemap is a governed publication
+  // target): this sitemap does NOT list (a) Mallan-authored website-only listings (SL-/RL-,
+  // rls_eligible=false) and (b) the 59 neighbourhood guide pages. Both are live, indexable pages today;
+  // listing them in the sitemap is a separate, recorded decision. See sitemap-lastmod-and-holds.test.ts.
   // Core public pages - always indexed
   const staticPages: MetadataRoute.Sitemap = [
-    { url: BASE_URL, lastModified: now, changeFrequency: 'daily', priority: 1.0 },
-    { url: `${BASE_URL}/buy`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
-    { url: `${BASE_URL}/buy/international`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${BASE_URL}/rent`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
-    { url: `${BASE_URL}/sell`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
-    { url: `${BASE_URL}/sell/international`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${BASE_URL}/agents`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
-    { url: `${BASE_URL}/about`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${BASE_URL}/open-houses`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
+    { url: BASE_URL, changeFrequency: 'daily', priority: 1.0 },
+    { url: `${BASE_URL}/buy`, changeFrequency: 'daily', priority: 0.9 },
+    { url: `${BASE_URL}/buy/international`, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE_URL}/rent`, changeFrequency: 'daily', priority: 0.9 },
+    { url: `${BASE_URL}/sell`, changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${BASE_URL}/sell/international`, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE_URL}/agents`, changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${BASE_URL}/about`, changeFrequency: 'monthly', priority: 0.6 },
+    { url: `${BASE_URL}/open-houses`, changeFrequency: 'daily', priority: 0.8 },
     // /search is NOT in the sitemap — it's a parameterless thin-content page.
     // The canonical indexable listing URLs are /listing/{slug} (included below).
     // robots.ts blocks /search for all bots; listing these here would create
     // a mixed signal that previously confused Google crawling.
-    { url: `${BASE_URL}/contact`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${BASE_URL}/neighborhoods`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
-    { url: `${BASE_URL}/market`, lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
-    { url: `${BASE_URL}/manhattan`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
-    { url: `${BASE_URL}/brooklyn`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
-    { url: `${BASE_URL}/queens`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
-    { url: `${BASE_URL}/bronx`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
-    { url: `${BASE_URL}/staten-island`, lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${BASE_URL}/contact`, changeFrequency: 'monthly', priority: 0.6 },
+    { url: `${BASE_URL}/neighborhoods`, changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${BASE_URL}/market`, changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${BASE_URL}/manhattan`, changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${BASE_URL}/brooklyn`, changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${BASE_URL}/queens`, changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${BASE_URL}/bronx`, changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${BASE_URL}/staten-island`, changeFrequency: 'weekly', priority: 0.6 },
   ];
 
   // Legal/compliance pages - required for indexing
   const legalPages: MetadataRoute.Sitemap = [
-    { url: `${BASE_URL}/privacy`, lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
-    { url: `${BASE_URL}/terms`, lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
-    { url: `${BASE_URL}/fair-housing`, lastModified: now, changeFrequency: 'yearly', priority: 0.4 },
-    { url: `${BASE_URL}/sop`, lastModified: now, changeFrequency: 'yearly', priority: 0.2 },
-    { url: `${BASE_URL}/reasonable-accommodations`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${BASE_URL}/privacy`, changeFrequency: 'monthly', priority: 0.3 },
+    { url: `${BASE_URL}/terms`, changeFrequency: 'monthly', priority: 0.3 },
+    { url: `${BASE_URL}/fair-housing`, changeFrequency: 'yearly', priority: 0.4 },
+    { url: `${BASE_URL}/sop`, changeFrequency: 'yearly', priority: 0.2 },
+    { url: `${BASE_URL}/reasonable-accommodations`, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
   // Dynamic listing pages — only IDX-displayable, non-suppressed listings
@@ -169,7 +178,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Non-fatal
   }
 
-  // Building profile pages — from local DB (populated by silent upsert)
+  // Building profile pages — from local DB. DORMANT (found 2026-10-29): nothing in the code base ever
+  // writes `buildings.active_listing_count` (column default 0; lib/buildings/upsert.ts does not set
+  // it), so `gt: 0` matches no row and the live sitemap carries no building pages. Left unchanged:
+  // building pages are already discovered through internal links, and their canonical is
+  // /buildings/profile?... which differs from this URL form, so they need their own decision.
   let buildingPages: MetadataRoute.Sitemap = [];
   try {
     const buildings = await prisma.building.findMany({
