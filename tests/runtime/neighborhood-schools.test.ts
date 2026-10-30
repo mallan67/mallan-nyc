@@ -157,7 +157,7 @@ describe('the Schools and Education section, rendered for each of the guides', (
       const html = render(g.zipCodes);
       const expected = schoolsForZipCodes(g.zipCodes);
       const rows = [...html.matchAll(/<tr[^>]*><th scope="row"[^>]*>(.*?)<\/th><td[^>]*>(.*?)<\/td>/g)].map((m) => [plain(m[1]), plain(m[2])]);
-      expect(rows).toEqual(expected.map((s) => [s.name, s.address]));
+      expect(rows).toEqual(expected.map((s) => [s.name, `${s.address}, ${s.zip}`]));
       const lead = plain(html).match(/lists (no|\d+) public (?:and|or) charter schools? with an address in/);
       expect(lead).not.toBeNull();
       expect(lead![1] === 'no' ? 0 : Number(lead![1])).toBe(expected.length);
@@ -172,9 +172,7 @@ describe('the Schools and Education section, rendered for each of the guides', (
         .replace(/ZIP codes? \d{5}(?:(?:, and |, | and )\d{5})*/g, 'ZIP X')
         .replace(/\b\d+ (?=public and charter)/g, 'N ')
         .replace(/Show all \d+ schools/g, 'Show all N schools')
-        .replace(/(public and charter) schools?\b/g, '$1 school(s)')
-        // the ZIP code column exists only when a guide has more than one ZIP code
-        .replace(' ZIP code Level', ' Level');
+        .replace(/(public and charter) schools?\b/g, '$1 school(s)');
     // three variants at most: a list, a collapsed list, and "no school found"
     expect(new Set(guides.map((g) => fixedWording(g.zipCodes))).size).toBeLessThanOrEqual(3);
   });
@@ -211,7 +209,7 @@ describe('the Schools and Education section, rendered for each of the guides', (
   it('does not rank or order by anything but name, and shows no per-school judgement column', () => {
     const html = render(guides.find((g) => g.zipCodes.length > 1)!.zipCodes);
     const headers = [...html.matchAll(/<th scope="col"[^>]*>(.*?)<\/th>/g)].map((m) => m[1]);
-    expect(headers).toEqual(['School', 'Address', 'ZIP code', 'Level', 'Type']);
+    expect(headers).toEqual(['School', 'Address', 'Level', 'Type']);
   });
 });
 

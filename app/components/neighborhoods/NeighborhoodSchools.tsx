@@ -20,7 +20,6 @@ function zipPhrase(zipCodes: readonly string[]): string {
 export default function NeighborhoodSchools({ zipCodes }: NeighborhoodSchoolsProps) {
   const schools = schoolsForZipCodes(zipCodes);
   const count = schools.length;
-  const multiZip = zipCodes.length > 1;
 
   const table = (
     <div className="overflow-x-auto">
@@ -28,20 +27,18 @@ export default function NeighborhoodSchools({ zipCodes }: NeighborhoodSchoolsPro
         <caption className="sr-only">Public and charter schools with an address in {zipPhrase(zipCodes)}</caption>
         <thead>
           <tr className="border-b border-brand-dark/15">
-            <th scope="col" className="py-2 pr-4 font-semibold">School</th>
-            <th scope="col" className="py-2 pr-4 font-semibold">Address</th>
-            {multiZip && <th scope="col" className="py-2 pr-4 font-semibold">ZIP code</th>}
-            <th scope="col" className="py-2 pr-4 font-semibold">Level</th>
+            <th scope="col" className="py-2 pr-3 font-semibold">School</th>
+            <th scope="col" className="py-2 pr-3 font-semibold">Address</th>
+            <th scope="col" className="py-2 pr-3 font-semibold">Level</th>
             <th scope="col" className="py-2 font-semibold">Type</th>
           </tr>
         </thead>
         <tbody>
           {schools.map((s) => (
             <tr key={s.id} className="border-b border-brand-dark/10 align-top">
-              <th scope="row" className="py-2 pr-4 font-normal">{s.name}</th>
-              <td className="py-2 pr-4">{s.address}</td>
-              {multiZip && <td className="py-2 pr-4">{s.zip}</td>}
-              <td className="py-2 pr-4">{s.level || 'Not listed'}</td>
+              <th scope="row" className="py-2 pr-3 font-normal">{s.name}</th>
+              <td className="py-2 pr-3">{`${s.address}, ${s.zip}`}</td>
+              <td className="py-2 pr-3">{s.level || 'Not listed'}</td>
               <td className="py-2">{s.sector === 'charter' ? 'Charter' : 'Public'}</td>
             </tr>
           ))}
