@@ -127,7 +127,7 @@
         },
         {
           "type": "Metropolitan Connectivity",
-          "description": "Short commute to Lower Manhattan with a short commute with a neighborhood feel.",
+          "description": "Properties with a short commute to Lower Manhattan and a neighborhood feel.",
           "budgetRange": "$700K - $1.5M",
           "propertyType": "1-bedroom condo or co-op"
         },
@@ -663,13 +663,13 @@
       "buyerPersonas": [
         {
           "type": "Metropolitan Connectivity",
-          "description": "Short commute to DUMBO or Lower Manhattan with a short commute with industrial-loft living.",
+          "description": "Industrial-loft living with a short commute to Lower Manhattan.",
           "budgetRange": "$900K - $2M",
           "propertyType": "1-bedroom loft condo"
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Properties with high rental demand in a supply-constrained market with consistent appreciation and strong tenant quality.",
+          "description": "Properties with high rental demand in a supply-constrained market with consistent appreciation.",
           "budgetRange": "$800K - $1.5M",
           "propertyType": "Studio or 1-bedroom condo"
         },
@@ -839,7 +839,7 @@
         },
         {
           "question": "What parks are near Park Slope?",
-          "answer": "Prospect Park offers 526 acres of playgrounds, the Brooklyn Botanic Garden, and the Prospect Park Zoo. Fifth and Seventh Avenues have extensive retail and dining options."
+          "answer": "Prospect Park offers 526 acres of green space, including playgrounds, with the Brooklyn Botanic Garden and the Prospect Park Zoo nearby. Fifth and Seventh Avenues have extensive retail and dining options."
         },
         {
           "question": "What subway lines serve Park Slope?",
@@ -931,7 +931,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Prospect Park access and a walkable neighborhood with strong community feel.",
+          "description": "Prospect Park access and a walkable neighborhood.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-4 bedroom brownstone or co-op"
         },
@@ -1095,7 +1095,7 @@
       "tagline": "Intimate Village Charm in Brooklyn",
       "heroImage": "https://images.unsplash.com/photo-1753078403803-7f32bcbec3ff?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1753078403803-7f32bcbec3ff?w=1200&q=80",
-      "summary": "Cobble Hill is a compact, tree-lined neighborhood of beautifully preserved brownstones and row houses, offering an intimate residential experience with excellent dining on Court and Smith Streets. Average price per square foot is approximately $1,200. Its small geographic footprint and historic character create a tight-knit community feel rarely found in New York City.",
+      "summary": "Cobble Hill is a compact, tree-lined neighborhood of beautifully preserved brownstones and row houses, offering an intimate residential experience with excellent dining on Court and Smith Streets. Average price per square foot is approximately $1,200. Its small geographic footprint and historic character create a village-like feel rarely found in New York City.",
       "avgPricePerSqft": 1200,
       "dominantPropertyType": "Townhouse",
       "walkScore": 98,
@@ -1221,13 +1221,13 @@
         },
         {
           "type": "Flex-Space & Grand Layouts",
-          "description": "Properties in a walkable brownstone neighborhood with character and community.",
+          "description": "Properties in a walkable brownstone neighborhood with character.",
           "budgetRange": "$800K - $1.8M",
           "propertyType": "1-2 bedroom condo"
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Properties with brownstone properties in a supply-constrained historic district with strong long-term appreciation and consistent rental demand.",
+          "description": "Brownstone properties in a supply-constrained historic district with strong long-term appreciation and consistent rental demand.",
           "budgetRange": "$2M - $4.5M",
           "propertyType": "2-unit brownstone"
         }
@@ -1367,7 +1367,7 @@
       "tagline": "Deep Gardens and Deeper Roots",
       "heroImage": "https://images.unsplash.com/photo-1684803894476-909823ca61e3?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1684803894476-909823ca61e3?w=1200&q=80",
-      "summary": "Carroll Gardens is distinguished by its unusually deep front gardens and one of Brooklyn's best dining scenes along Smith Street. Average price per square foot is approximately $1,100. The neighborhood offers contemporary dining, shopping, and a strong sense of community pride.",
+      "summary": "Carroll Gardens is distinguished by its unusually deep front gardens and one of Brooklyn's best dining scenes along Smith Street. Average price per square foot is approximately $1,100. The neighborhood offers contemporary dining and shopping.",
       "avgPricePerSqft": 1100,
       "dominantPropertyType": "Townhouse",
       "walkScore": 97,
@@ -1475,7 +1475,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring the signature deep-garden brownstones and an active neighborhood community with a village feel.",
+          "description": "Properties featuring the signature deep-garden brownstones with a village feel.",
           "budgetRange": "$1.5M - $4M",
           "propertyType": "3-bedroom brownstone"
         },
@@ -2431,7 +2431,7 @@
       "tagline": "Brooklyn's Brownstone Capital",
       "heroImage": "https://images.unsplash.com/photo-1563506555774-45a862b5f91b?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1563506555774-45a862b5f91b?w=1200&q=80",
-      "summary": "Bedford-Stuyvesant is one of Brooklyn's largest neighborhoods and home to the greatest concentration of Victorian brownstones in New York City. Average price per square foot is approximately $750. Bed-Stuy offers exceptional architectural value, a vibrant arts and dining scene along Tompkins Avenue and Lewis Avenue, and a deeply rooted sense of community.",
+      "summary": "Bedford-Stuyvesant is one of Brooklyn's largest neighborhoods and home to the greatest concentration of Victorian brownstones in New York City. Average price per square foot is approximately $750. Bed-Stuy offers exceptional architectural value and a vibrant arts and dining scene along Tompkins Avenue and Lewis Avenue.",
       "avgPricePerSqft": 750,
       "dominantPropertyType": "Townhouse",
       "walkScore": 92,
@@ -2555,7 +2555,7 @@
         },
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties offering spacious brownstone living with private outdoor gardens and strong community ties.",
+          "description": "Properties offering spacious brownstone living with private outdoor gardens.",
           "budgetRange": "$1.2M - $2.5M",
           "propertyType": "Brownstone townhouse"
         },

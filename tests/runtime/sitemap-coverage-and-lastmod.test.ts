@@ -274,6 +274,14 @@ describe('building pages: one canonical URL', () => {
     }
   });
 
+  it('does not index a ?bn= variant (its name comes from the link, not from our data); the plain URL stays indexable', async () => {
+    const variant = await meta({ sn: '434', st: 'W 20th Street', z: '10011', bn: 'Typed Into A Link' });
+    expect(variant.robots).toMatchObject({ index: false, follow: true, noimageindex: true });
+    expect(variant.alternates?.canonical).toBe('https://mallan.nyc/buildings/profile?sn=434&st=W+20th+Street&z=10011');
+    const plain = await meta({ sn: '434', st: 'W 20th Street', z: '10011' });
+    expect(plain.robots).toMatchObject({ index: true });
+  });
+
   it('asks image crawlers not to index its images until the building data layer is verified, and keeps the site-wide robots settings', async () => {
     const withData = await meta({ sn: '434', st: 'W 20th Street', z: '10011' });
     const withoutAddress = await meta({});

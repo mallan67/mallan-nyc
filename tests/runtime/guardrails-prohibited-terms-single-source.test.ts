@@ -105,6 +105,8 @@ const FH_WORDS: Array<[string, RegExp]> = [
   ['steering', /\b(?:safe|safer|safest|safety|crime|dangerous|gentrif\w+|up-and-coming|affluent|wealth\w*|elite|prestigious|working[- ]class|blue[- ]collar|gritty|rough|transitional|exclusive|upscale|trendy|hip)\b/i],
   ['ethnic/religion', /\b(?:diverse|diversity|multicultural|immigrants?|ethnic\w*|synagogues?|mosques?|jewish|catholic|jesuit|anglican)\b/i],
   ['disability', /\bwalking distance\b/i],
+  // Statements about WHO lives somewhere or who a place is for (Master 21.12: describing a place is describing who lives in it).
+  ['resident character', /\b(?:grit|tight-knit|bloody|jesus|richest|east meets west|tenant (?:quality|pools?)|(?:community|neighborhood) (?:pride|ties|identity)|(?:long-?time|long-term|stable) residents|international (?:buyers|purchasers)|homeowners (?:moving|transitioning|seeking|looking)|deeply rooted)\b/i],
 ];
 // Proper names and street-number idioms that trip a word but are not statements about people.
 const ALLOWED_NAMES = [/MoMA PS1/g, /Brooklyn Academy of Music/g, /\b(?:in the|low|mid|high|upper) teens\b/gi];
@@ -143,6 +145,20 @@ describe('neighbourhood guide copy: no school, family, child or protected-class 
         .flatMap(([p, v]) => fhHits(v).map((h) => `${r.slug} ${p} -> ${h}`)),
     );
     expect(found).toEqual([]);
+  });
+
+  it('every persona card reads as a sentence (no "First-time Properties featuring...", doubled phrases or "Properties with ... properties")', () => {
+    const broken = records.flatMap((r) =>
+      ((r.buyerPersonas as Array<{ description: string }>) ?? []).flatMap((p, i) =>
+        [
+          /^(?:First-time|Budget-conscious) Properties\b/, /\bfrom Properties\b/, /^[A-Z][a-z]+ Listings\b/,
+          /\bProperties (?:with|featuring|in|near|offering) [^.]*\bproperties\b/, /(\bshort commute\b)[^.]*\1/i,
+        ]
+          .filter((re) => re.test(p.description))
+          .map((re) => `${r.slug} buyerPersonas[${i}] ${re}: ${p.description}`),
+      ),
+    );
+    expect(broken).toEqual([]);
   });
 
   it('no record carries a school field', () => {

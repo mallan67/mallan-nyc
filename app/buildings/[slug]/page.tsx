@@ -29,6 +29,15 @@ const BUILDING_PAGE_ROBOTS = {
   },
 } as const;
 
+// A URL carrying ?bn= is a display variant: the name comes from the link, not from our data, and is printed in the title and heading. It is
+// never indexed (its canonical is the URL without ?bn=), so text typed into a link cannot become an indexed statement on this site.
+const BUILDING_PAGE_ROBOTS_NAME_VARIANT = {
+  index: false,
+  follow: true,
+  noimageindex: true,
+  googleBot: { index: false, follow: true, noimageindex: true },
+} as const;
+
 type Props = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{
@@ -201,7 +210,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     title: `${label} — Units, Sales History & Amenities | Mallan Real Estate`,
     description: `Explore ${label} in New York, NY${zip}. ${activeCount} active listing${activeCount !== 1 ? 's' : ''}, ${salesCount} recent sale${salesCount !== 1 ? 's' : ''}. View building amenities, price history, and available units.`,
     alternates: { canonical: canonicalUrl },
-    robots: BUILDING_PAGE_ROBOTS,
+    robots: sp.bn ? BUILDING_PAGE_ROBOTS_NAME_VARIANT : BUILDING_PAGE_ROBOTS,
     openGraph: {
       title: `${label} | Building Intelligence | Mallan Real Estate`,
       description: `Building profile for ${label}. Active listings, sales history, amenities, and market data.`,
@@ -254,7 +263,6 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
       addressCountry: 'US',
     },
     ...(building.yearBuilt ? { yearBuilt: building.yearBuilt } : {}),
-    ...(building.storiesTotal ? { numberOfRooms: building.storiesTotal } : {}),
     ...(building.amenities.length > 0 ? {
       amenityFeature: building.amenities.map((a) => ({ '@type': 'LocationFeatureSpecification', name: a, value: true })),
     } : {}),

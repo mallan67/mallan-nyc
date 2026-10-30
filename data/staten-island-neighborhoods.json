@@ -375,13 +375,13 @@
         },
         {
           "type": "Flex-Space & Grand Layouts",
-          "description": "Homeowners looking to relocate from other boroughs to a quieter setting while still being within New York City limits.",
+          "description": "A quieter setting while still being within New York City limits.",
           "budgetRange": "$700K - $1.2M",
           "propertyType": "3-4 bedroom single-unit"
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Properties with high-value residential properties with strong long-term appreciation in a low-inventory market.",
+          "description": "High-value residential properties with strong long-term appreciation in a low-inventory market.",
           "budgetRange": "$800K - $1.5M",
           "propertyType": "Single-unit or townhouse"
         },
@@ -518,7 +518,7 @@
       "tagline": "Coastal Living with Neighborhood Charm",
       "heroImage": "https://images.unsplash.com/photo-1649139410335-b3243cdfcfa3?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1649139410335-b3243cdfcfa3?w=1200&q=80",
-      "summary": "Great Kills is a South Shore neighborhood known for its beach access, marina, and tight-knit community character. With Great Kills Park offering 580 acres of beaches and trails along Raritan Bay, and a lively Hylan Boulevard corridor, the neighborhood averages around $425 per square foot.",
+      "summary": "Great Kills is a South Shore neighborhood known for its beach access and marina. With Great Kills Park offering 580 acres of beaches and trails along Raritan Bay, and a lively Hylan Boulevard corridor, the neighborhood averages around $425 per square foot.",
       "avgPricePerSqft": 425,
       "dominantPropertyType": "Single-Unit Home",
       "walkScore": 62,
@@ -533,7 +533,7 @@
         },
         {
           "question": "What parks are near Great Kills?",
-          "answer": "Great Kills offers a marina for boating and Great Kills Park with 580 acres of beaches and playgrounds. The neighborhood has a strong community feel with active civic associations."
+          "answer": "Great Kills offers a marina for boating and Great Kills Park with 580 acres of beaches and playgrounds. The neighborhood has active civic associations."
         },
         {
           "question": "What is Great Kills Park?",
@@ -625,19 +625,19 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties featuring detached homes with yards, beach access, and active community programs.",
+          "description": "Properties featuring detached homes with yards and beach access.",
           "budgetRange": "$550K - $850K",
           "propertyType": "3-4 bedroom single-unit"
         },
         {
           "type": "Market Entry Points",
-          "description": "First-time homeowners entering the NYC market who want a house with outdoor space at accessible price points.",
+          "description": "A house with outdoor space at accessible price points.",
           "budgetRange": "$400K - $600K",
           "propertyType": "Semi-attached or starter home"
         },
         {
           "type": "Flex-Space & Grand Layouts",
-          "description": "Homeowners seeking a well-established coastal community with marina access and a relaxed pace of life.",
+          "description": "A well-established coastal neighborhood with marina access and a relaxed pace of life.",
           "budgetRange": "$500K - $700K",
           "propertyType": "2-3 bedroom ranch or cape"
         },
@@ -880,13 +880,13 @@
       "buyerPersonas": [
         {
           "type": "Metropolitan Connectivity",
-          "description": "Manhattan Listings featuring affordable Victorian charm with a short commute via the nearby Staten Island Ferry.",
+          "description": "Properties featuring affordable Victorian charm with a short commute to Manhattan via the nearby Staten Island Ferry.",
           "budgetRange": "$400K - $650K",
           "propertyType": "Renovated Victorian single-unit"
         },
         {
           "type": "Market Entry Points",
-          "description": "First-time Properties near the neighborhood's historic character, walkability, and proximity to cultural amenities.",
+          "description": "Properties near the neighborhood's historic character, with walkability and proximity to cultural amenities.",
           "budgetRange": "$325K - $500K",
           "propertyType": "Condo or starter home"
         },

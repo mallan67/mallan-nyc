@@ -33,7 +33,7 @@
         },
         {
           "question": "What is the difference between co-ops and condos on the Upper East Side?",
-          "answer": "Co-ops make up about 75% of UES housing stock and are typically 20-30% less expensive per square foot than condos. Co-ops require board approval, have stricter financing and subletting rules, but offer lower monthly costs. Condos offer more flexibility for investors and international buyers."
+          "answer": "Co-ops make up about 75% of UES housing stock and are typically 20-30% less expensive per square foot than condos. Co-ops require board approval, have stricter financing and subletting rules, but offer lower monthly costs. Condos offer more flexibility for investors."
         },
         {
           "question": "What are the best blocks on the Upper East Side?",
@@ -57,7 +57,7 @@
       "featuredBuildings": [
         {
           "name": "740 Park Avenue",
-          "nickname": "The Richest Building in NYC",
+          "nickname": null,
           "architect": "Rosario Candela & Arthur Loomis Harmon",
           "yearBuilt": 1930,
           "type": "Co-op",
@@ -273,7 +273,7 @@
       "tagline": "Cultural Haven by the Park",
       "heroImage": "https://images.unsplash.com/photo-1539233487784-1a29074b0f57?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1539233487784-1a29074b0f57?w=1200&q=80",
-      "summary": "The Upper West Side combines intellectual culture, pre-war architecture, and unrivaled access to Central Park and Riverside Park. Home to Lincoln Center and the American Museum of Natural History, it's one of Manhattan's most beloved residential neighborhoods.",
+      "summary": "The Upper West Side combines pre-war architecture, cultural institutions, and unrivaled access to Central Park and Riverside Park. Home to Lincoln Center and the American Museum of Natural History, it's one of Manhattan's most beloved residential neighborhoods.",
       "avgPricePerSqft": 1350,
       "dominantPropertyType": "Co-op",
       "walkScore": 97,
@@ -300,7 +300,7 @@
         },
         {
           "question": "How does the Upper West Side compare to the Upper East Side?",
-          "answer": "The UWS has a more relaxed, intellectual, and community-focused atmosphere compared to the more formal UES. UWS prices are about 10% lower on average. The UWS has more green space (Riverside Park) but fewer luxury retail options."
+          "answer": "The UWS has a more relaxed atmosphere compared to the more formal UES. UWS prices are about 10% lower on average. The UWS has more green space (Riverside Park) but fewer luxury retail options."
         },
         {
           "question": "What subway lines serve the Upper West Side?",
@@ -324,7 +324,7 @@
       "featuredBuildings": [
         {
           "name": "15 Central Park West",
-          "nickname": "Limestone Jesus",
+          "nickname": null,
           "architect": "Robert A.M. Stern",
           "yearBuilt": 2008,
           "type": "Condo",
@@ -384,7 +384,7 @@
       "buyerPersonas": [
         {
           "type": "Expansive Indoor-Outdoor Living",
-          "description": "Properties offering dual-park access, proximity to Columbia University, and the neighborhood's intellectual, community-oriented atmosphere.",
+          "description": "Properties offering dual-park access and proximity to Columbia University.",
           "budgetRange": "$1.2M - $4M",
           "propertyType": "3-bedroom pre-war co-op"
         },
@@ -881,7 +881,7 @@
         },
         {
           "type": "Strong Investment & Rental Potential",
-          "description": "Properties with SoHo's strong rental demand from international visitors and the luxury rental market.",
+          "description": "Properties with SoHo's strong rental demand from visitors and the luxury rental market.",
           "budgetRange": "$2M - $6M",
           "propertyType": "2-bedroom condo"
         },
@@ -1391,7 +1391,7 @@
         },
         {
           "type": "Commuter-Centric Listings",
-          "description": "Listings with short commutes, modern amenities, and waterfront living.",
+          "description": "Properties with short commutes, modern amenities, and waterfront living.",
           "budgetRange": "$800K - $1.8M",
           "propertyType": "1-bedroom luxury condo"
         }
@@ -1871,7 +1871,7 @@
         }
       ],
       "streetGuidance": {
-        "description": "The area around Sutton Place and Beekman Place offers quiet, residential enclaves with river views. The blocks near the UN (40s east of First Avenue) attract international buyers. Park Avenue between 46th and 57th is primarily commercial. Tudor City is a hidden gem.",
+        "description": "The area around Sutton Place and Beekman Place offers quiet, residential enclaves with river views. The blocks near the UN are in the 40s east of First Avenue. Park Avenue between 46th and 57th is primarily commercial. Tudor City is a hidden gem.",
         "bestBlocksForParks": [
           "Sutton Place area",
           "Tudor City",
@@ -1891,7 +1891,7 @@
       "buyerPersonas": [
         {
           "type": "Commuter-Centric Listings",
-          "description": "Listings near a short commute to Midtown offices and Grand Central access.",
+          "description": "Properties with a short commute to Midtown offices and Grand Central access.",
           "budgetRange": "$600K - $1.5M",
           "propertyType": "Studio or 1-bedroom condo"
         },
@@ -2128,7 +2128,7 @@
         },
         {
           "type": "Market Entry Points",
-          "description": "First-time Properties featuring Midtown convenience at below-average Manhattan prices.",
+          "description": "Properties featuring Midtown convenience at below-average Manhattan prices.",
           "budgetRange": "$400K - $900K",
           "propertyType": "Studio or 1-bedroom co-op"
         },
@@ -2356,7 +2356,7 @@
         },
         {
           "type": "Market Entry Points",
-          "description": "First-time Properties featuring a central Manhattan location with character and value.",
+          "description": "Properties featuring a central Manhattan location with character and value.",
           "budgetRange": "$400K - $850K",
           "propertyType": "Studio co-op"
         },
@@ -2484,7 +2484,7 @@
       "name": "Lower East Side",
       "fullName": "Lower East Side, Manhattan",
       "borough": "Manhattan",
-      "tagline": "Historic Grit Meets Modern Cool",
+      "tagline": "Historic Character Meets Modern Cool",
       "heroImage": "https://images.unsplash.com/photo-1662369800166-a05d950eba15?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1662369800166-a05d950eba15?w=1200&q=80",
       "summary": "The Lower East Side combines street art, nightlife energy, luxury condo towers, and acclaimed restaurants.",
@@ -2569,7 +2569,7 @@
         },
         {
           "type": "Market Entry Points",
-          "description": "First-time Properties featuring lower Manhattan at accessible price points.",
+          "description": "Properties featuring lower Manhattan at accessible price points.",
           "budgetRange": "$400K - $900K",
           "propertyType": "Studio or 1-bedroom"
         },
@@ -2771,7 +2771,7 @@
       "buyerPersonas": [
         {
           "type": "Market Entry Points",
-          "description": "First-time Properties featuring Manhattan's most affordable entry with excellent transit and culture.",
+          "description": "Properties featuring Manhattan's most affordable entry with excellent transit and culture.",
           "budgetRange": "$350K - $700K",
           "propertyType": "1-bedroom co-op or condo"
         },
@@ -5335,7 +5335,7 @@
           "Cherry Street near the East River waterfront"
         ],
         "bestBlocksForNightlife": [
-          "Doyers Street (the 'Bloody Angle' bar corridor)",
+          "Doyers Street (bar corridor)",
           "Bowery between Canal and Broome",
           "Orchard Street near the Lower East Side border"
         ],
@@ -5803,7 +5803,7 @@
       "tagline": "Manhattan's Northernmost Retreat",
       "heroImage": "https://images.unsplash.com/photo-1723665350328-b87f9f600efd?w=1600&q=80",
       "ogImage": "https://images.unsplash.com/photo-1723665350328-b87f9f600efd?w=1200&q=80",
-      "summary": "Inwood is Manhattan's northernmost neighborhood, where Inwood Hill Park preserves the island's last natural forest and the original Lenape caves. Bounded by the Hudson and Harlem Rivers, Inwood offers large pre-war apartments, some of the lowest prices per square foot on the island, and a tight-knit residential atmosphere with easy A train express service to Midtown.",
+      "summary": "Inwood is Manhattan's northernmost neighborhood, where Inwood Hill Park preserves the island's last natural forest and the original Lenape caves. Bounded by the Hudson and Harlem Rivers, Inwood offers large pre-war apartments, some of the lowest prices per square foot on the island, and easy A train express service to Midtown.",
       "avgPricePerSqft": 420,
       "dominantPropertyType": "Co-op",
       "walkScore": 92,
@@ -6994,7 +6994,7 @@
         },
         {
           "type": "Commuter-Centric Listings",
-          "description": "Listings near the 1 train on Broadway with direct express access to Midtown via transfer at 96th Street, offering short commute times.",
+          "description": "Properties near the 1 train on Broadway, with access to Midtown express service via transfer at 96th Street.",
           "budgetRange": "$400K - $800K",
           "propertyType": "1-2 bedroom co-op"
         },
