@@ -5599,6 +5599,19 @@ AI-GENERATED COPY
 
 **Neighborhood copy is a Fair-Housing surface in its own right.** Describing a place is describing who lives in it. Copy about a neighborhood, a school district, a building's population or the kind of person a property "suits" passes the screen before publication, and the prohibited-proxy and anti-steering rules in §21.11 apply to authored description exactly as they apply to a filter or a ranking weight. §22.5 governs what Mallan may infer about a client; this governs what Mallan may publish about a place.
 
+**School information on a neighborhood guide is a governed fact list.** A school district named in neighborhood copy is part of this surface, so a school may appear on a guide only as the list below and nowhere else on the guide. The list is allowed when all of these hold:
+
+1. It states only these facts about each school: name, address, level, and public or charter. It states no enrollment, capacity, district, zone, catchment or attendance information, no score, grade, rating, rank or comparison, and nothing about who a school or the place is for.
+2. Each fact is taken from one named official public record, as the record gives it, with only the capitalisation and spelling corrections documented in the script that builds the list. The page names the record, the date the record was last updated and the date the list was taken. The owner or the principal broker has the list refreshed when the record is updated; a guard in CI fails every build once the list is more than 13 months old, which forces the refresh.
+3. One rule selects the schools for every guide (every school within the stated scope that has one of the guide's ZIP codes, none omitted, ordered by name) and one presentation shows them on every guide. The page says in plain words what the list includes and what it leaves out. Where the record has no school for a guide's ZIP codes the section is absent: not empty, not a placeholder.
+4. A list by ZIP code says it is by ZIP code, not by attendance zone, and sends a reader who needs schools by address to the NYC Department of Education's address search.
+5. A reader's use of the list is not a signal: it is not tracked, scored or fed to any recommendation (§22.5).
+6. Its wording and its data pass the review in this section before publication. The principal broker or the owner reads or accepts the section and the review is recorded in the Execution State. A guard in CI fails when school wording appears anywhere else on the guide pages and when the list departs from its recorded source.
+
+School names print as the record gives them, with only those documented corrections. The owner decides which school names that contain a word about people may print; the accepted names are listed in the guard, and a new one fails it until it is accepted.
+
+Any other school content does not render. Schools on listing, building, search, e-mail and client-portal pages are not governed here; they remain the finding in §23.10.
+
 **A lead-generation page is an advertising surface.** It carries brokerage identity, licensed-name, attribution and required-language obligations like any other public page, and its copy, imagery, claims and capture flow run the same screen. Lead generation is a brokerage capability under §19.1 and the inquiry it produces is intake under §23.9; the page that performs the generating is governed here.
 
 **SEO copy, AEO copy and public structured data are authored content, not only publication targets.** §21.10 governs whether a listing may reach those surfaces. Page titles, meta descriptions, answer-engine copy, copy written for discovery and the values placed in structured data are themselves Mallan public statements and pass this contract before publication. Structured data may not assert more than the governed record it describes; a value that does is a public-truth defect under §27.2.
@@ -6434,11 +6447,11 @@ BUILDING AMENITIES — §4.5.6
 MEDIA — §21.9, §11.11
 DISCLOSURE BLOCKS — §9.7, §11.6, §21.10
 NEIGHBORHOOD CONTENT — §21.12
-SCHOOLS — no owning section; the finding
+SCHOOLS — §21.12 (school information on the neighborhood guides only); school components on other pages remain the finding
 MARKETING CTA — §19.1 and §23.9 own what the resulting inquiry becomes; the eligibility of the CTA itself is the finding
 ```
 
-**Schools are not a neutral amenity component.** School content on a public page is a steering surface. Mallan does not publish one until §21.12 governs its copy and §21.11's prohibited-proxy and anti-steering rules are applied to it. Until then it does not render.
+**Schools are a steering surface and render only as the governed fact list in §21.12.** That list is on the neighborhood guide pages. School content on any other surface does not render until a section governs it, and the school components now on listing pages (`SchoolInfo` and the Education and Daycares groups of `NeighborhoodExplorer`) are the finding.
 
 ---
 

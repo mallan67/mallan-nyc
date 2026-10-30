@@ -15,6 +15,7 @@ import StreetGuidanceSection from '@/app/components/neighborhoods/StreetGuidance
 import BuyerPersonas from '@/app/components/neighborhoods/BuyerPersonas';
 import NeighborhoodCTASection from '@/app/components/neighborhoods/NeighborhoodCTASection';
 import AdjacentNeighborhoods from '@/app/components/neighborhoods/AdjacentNeighborhoods';
+import NeighborhoodSchools from '@/app/components/neighborhoods/NeighborhoodSchools';
 
 const allNeighborhoods = loadNeighborhoods('manhattan');
 
@@ -107,6 +108,7 @@ export default async function NeighborhoodPage({
         {n.buyerPersonas.length > 0 && (
           <BuyerPersonas name={n.name} personas={n.buyerPersonas} />
         )}
+        <NeighborhoodSchools zipCodes={n.zipCodes} />
         <NeighborhoodCTASection name={n.name} ctas={n.ctas} />
         <AdjacentNeighborhoods
           currentSlug={n.slug}

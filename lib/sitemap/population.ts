@@ -9,7 +9,7 @@
  *     (owner_opt_out, participant_only), on entire-listing or address display switched off, on a lapsed exclusive agreement
  *     (expiration_date in the past), and on any status but active or a missing price.
  *
- * Neighbourhood guides (59) are offered too, since their copy was cleaned of school, family and protected-class wording (2026-10-30).
+ * Neighbourhood guides (59) are offered too, since their copy was cleaned of family and protected-class wording (2026-10-30); schools appear only in the governed "Schools and Education" fact list.
  * NOT offered, on purpose (compliance review of 2026-10-30; see State): building pages, until their data layer's gates are verified.
  */
 import type { Prisma } from '@prisma/client';
@@ -23,7 +23,7 @@ import { ALL_BOROUGH_SLUGS, loadNeighborhoods } from '@/lib/neighborhoods/boroug
 
 /**
  * Paths of the neighbourhood guides (/{borough}/{neighbourhood}), the same canonical each guide page declares in its metadata.
- * Offered since the copy was cleaned of school, family and protected-class wording (owner instruction 2026-10-30); the word-level guard
+ * Offered since the copy was cleaned of family and protected-class wording (schools appear only in the governed fact list) (owner instruction 2026-10-30); the word-level guard
  * in tests/runtime/guardrails-prohibited-terms-single-source.test.ts fails if that wording returns.
  */
 export function neighbourhoodGuidePaths(): string[] {
