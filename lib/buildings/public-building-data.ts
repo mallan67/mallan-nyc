@@ -21,13 +21,13 @@ import { getPrimaryPhoto, classifyMediaItem } from '@/lib/media/listing-media-re
 import prisma from '@/lib/prisma';
 import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
-import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { checkDistributionGatesWithAddress } from '@/lib/idx/trestle-mapper';
 import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 // Durable hero delivery + the ONE public media URL policy. Read-safe helper: it
 // needs only R2_PUBLIC_URL and returns null (never throws) so this public read
 // path falls back to the source locator instead of crashing.
 import { r2PublicUrlForKeyRead } from '@/lib/images/r2';
-import { excludeMallanRlsReturnCopies } from '@/lib/listings/mallan-source-identity';
+import { excludeMallanRlsReturnCopies, isMallanRlsReturnCopy } from '@/lib/listings/mallan-source-identity';
 import { petPolicyLabels } from '@/lib/search/pet-policy';
 
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
@@ -76,11 +76,12 @@ function getPhotoUrl(record: CotalityRecord): string | null {
  * Common $select fields for building queries.
  * NOTE: IDXEntireListingDisplayYN, ParticipantOnlyYN, IDXParticipationYN do NOT exist
  * on Cotality's IDX Plus feed — including them causes OData 400 errors.
- * Display gating is decided in Mallan's layer after retrieval (checkDistributionGates);
- * the provider cannot gate for Mallan (Master §0.4). This $select does not carry the
- * Internet*DisplayYN flags, so that gate currently sees them as absent.
+ * Display gating is decided in Mallan's layer after retrieval (checkDistributionGatesWithAddress);
+ * the provider cannot gate for Mallan (Master §0.4). The select carries the four fields those gates read
+ * (LIVE_GATE_FIELDS), the same ones app/api/listings/building and the sync request on this resource; before
+ * 2026-10-30 it did not, so the gates saw every flag as absent and an explicit false never blocked a unit.
  */
-const BUILDING_SELECT = [
+const BUILDING_SELECT_LEGACY = [
   // Core listing fields
   'ListingId', 'ListingKey', 'SourceSystemKey', 'ListPrice', 'ClosePrice',
   'BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'LivingArea',
@@ -114,6 +115,23 @@ const BUILDING_SELECT = [
   // Association/financial
   'AssociationFee', 'AssociationFeeFrequency', 'AssociationFeeIncludes',
 ].join(',');
+
+/** What the display gates read. Property.Permission, InternetEntireListingDisplayYN, InternetAddressDisplayYN and ListOfficeMlsId are all in
+ *  data/cotality-enums.live.json (pulled from the live $metadata 2026-10-24). */
+const LIVE_GATE_FIELDS = 'Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,ListOfficeMlsId';
+const BUILDING_SELECT = `${BUILDING_SELECT_LEGACY},${LIVE_GATE_FIELDS}`;
+
+/** A live record may be shown as a unit only if its display flags allow it (explicit false blocks, null passes: the IDX Plus convention),
+ *  its ADDRESS may be shown (a unit is printed under the street address), and it is not Mallan's own listing returned through Cotality
+ *  (the local SL-/RL- row is the canonical public listing, Charter 1A). */
+function isLiveRecordDisplayable(r: CotalityRecord): boolean {
+  const gate = checkDistributionGatesWithAddress(r as Record<string, unknown>);
+  if (!gate.displayable || !gate.addressDisplayable) return false;
+  return !isMallanRlsReturnCopy({
+    listing_id: String(r.ListingId ?? ''),
+    list_office_mls_id: r.ListOfficeMlsId == null ? null : String(r.ListOfficeMlsId),
+  });
+}
 
 /** Extract building-level info from a set of Cotality records.
  *  Scans ALL records to find the richest data for each field. */
@@ -812,6 +830,13 @@ async function buildBuildingPayload(
     let allCotalityRecords: CotalityRecord[] = [];
     const gatedRecordsCount = 0; // Records that exist but are gated (VOW prompt)
 
+    // FAIL CLOSED: if the provider ever rejects the extended select (HTTP 400 and nothing returned), the request is repeated with the
+    // legacy select ONLY for building-level facts (year built, amenities). Without the display fields no live record is trusted as a
+    // unit or a photo, so units then come from the gated database manifest alone. It never falls back to showing ungated live units.
+    let liveSelect = BUILDING_SELECT;
+    let liveUnitsTrusted = true;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+    let selectRejected = false;
     try {
       const token = await getAccessToken();
       const zipFilter = cleanPostalCode ? ` and PostalCode eq '${cleanPostalCode}'` : '';
@@ -827,7 +852,7 @@ async function buildBuildingPayload(
       const MEDIA_EXPAND = "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN;$top=10;$orderby=Order)";
       const allParams = new URLSearchParams({
         $filter: addressFilter,
-        $select: BUILDING_SELECT,
+        $select: liveSelect,
         $expand: MEDIA_EXPAND,
         $orderby: 'ListPrice desc',
         $top: '60',
@@ -848,7 +873,7 @@ async function buildBuildingPayload(
           const fallbackFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetNameUpper}')${zipFilter}`;
           const fallbackParams = new URLSearchParams({
             $filter: fallbackFilter,
-            $select: BUILDING_SELECT,
+            $select: liveSelect,
             $expand: MEDIA_EXPAND,
             $orderby: 'ListPrice desc',
             $top: '60',
@@ -870,7 +895,7 @@ async function buildBuildingPayload(
           const noZipFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetNameUpper}')`;
           const noZipParams = new URLSearchParams({
             $filter: noZipFilter,
-            $select: BUILDING_SELECT,
+            $select: liveSelect,
             $expand: MEDIA_EXPAND,
             $orderby: 'ListPrice desc',
             $top: '60',
@@ -885,11 +910,12 @@ async function buildBuildingPayload(
           }
         }
       } else if (allRes.status === 400) {
+        selectRejected = true;
         // OData filter error — try simpler filter without direction
         const simpleFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetNameUpper}')`;
         const simpleParams = new URLSearchParams({
           $filter: simpleFilter,
-          $select: BUILDING_SELECT,
+          $select: liveSelect,
           $expand: MEDIA_EXPAND,
           $orderby: 'ListPrice desc',
           $top: '60',
@@ -908,6 +934,14 @@ async function buildBuildingPayload(
     } catch (cotalityErr) {
       console.warn('[/api/buildings] Cotality fetch error:', cotalityErr);
     }
+    if (allCotalityRecords.length === 0 && selectRejected && liveSelect === BUILDING_SELECT) {
+      console.error('[/api/buildings] extended select rejected by the provider; live units disabled, building facts only');
+      liveSelect = BUILDING_SELECT_LEGACY;
+      liveUnitsTrusted = false;
+      continue;
+    }
+    break;
+    }
 
     // Neon-quiet (2026-07-23): the fire-and-forget upsertBuildingFromRecords
     // write path was REMOVED from this public read. Production proof it was
@@ -923,9 +957,7 @@ async function buildBuildingPayload(
     const buildingInfo = extractBuildingInfo(allCotalityRecords);
 
     // Now filter for individual listing display (Closed > 24h removed per REBNY RLS Sec. 2.05)
-    allCotalityRecords = allCotalityRecords.filter(
-      (r) => checkDistributionGates(r as Record<string, unknown>).displayable
-    );
+    allCotalityRecords = liveUnitsTrusted ? allCotalityRecords.filter(isLiveRecordDisplayable) : [];
 
     // Separate records by status — StandardStatus ONLY (2026-10-02 Status
     // cutover; Master Plan Section 0.6: StandardStatus and MlsStatus are
@@ -1190,7 +1222,7 @@ export async function getBuildingDataCached(params: {
   const postalCode = params.postalCode?.trim() || null;
   const payload = await cachedPublicRead(
     buildBuildingPayload,
-    // 'gates-1': payloads assembled before the address-display, return-copy and media-permission gates (2026-10-30) are not reused.
+    // 'gates-1': payloads assembled before the address-display (manifest) and live-unit display-flag, address and return-copy gates (2026-10-30) are not reused.
     ['building-data', 'gates-1', streetNumber.toUpperCase(), streetName.toUpperCase(), postalCode ?? ''],
     {
       // EXACT tag only (Neon-quiet distinct-building correction): the coarse
