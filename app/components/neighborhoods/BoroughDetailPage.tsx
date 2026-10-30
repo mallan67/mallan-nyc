@@ -11,6 +11,7 @@ import StreetGuidanceSection from './StreetGuidanceSection';
 import BuyerPersonas from './BuyerPersonas';
 import NeighborhoodCTASection from './NeighborhoodCTASection';
 import AdjacentNeighborhoods from './AdjacentNeighborhoods';
+import NeighborhoodSchools from './NeighborhoodSchools';
 import type { Neighborhood, Borough, BoroughSlug } from '@/lib/types/neighborhood';
 
 interface BoroughDetailPageProps {
@@ -74,6 +75,7 @@ export default function BoroughDetailPage({
         {n.buyerPersonas.length > 0 && (
           <BuyerPersonas name={n.name} personas={n.buyerPersonas} />
         )}
+        <NeighborhoodSchools zipCodes={n.zipCodes} />
         <NeighborhoodCTASection name={n.name} ctas={n.ctas} />
         <AdjacentNeighborhoods
           currentSlug={n.slug}

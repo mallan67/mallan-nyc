@@ -6434,11 +6434,19 @@ BUILDING AMENITIES — §4.5.6
 MEDIA — §21.9, §11.11
 DISCLOSURE BLOCKS — §9.7, §11.6, §21.10
 NEIGHBORHOOD CONTENT — §21.12
-SCHOOLS — no owning section; the finding
+SCHOOLS — §23.10 below, as a governed fact list on the neighborhood guides; school components on listing pages remain the finding
 MARKETING CTA — §19.1 and §23.9 own what the resulting inquiry becomes; the eligibility of the CTA itself is the finding
 ```
 
-**Schools are not a neutral amenity component.** School content on a public page is a steering surface. Mallan does not publish one until §21.12 governs its copy and §21.11's prohibited-proxy and anti-steering rules are applied to it. Until then it does not render.
+**School content is a steering surface, and it renders only as a governed fact list.** §21.12 treats copy about a school district as neighborhood copy, and §21.11 forbids steering on a protected characteristic or a proxy for one. A public page therefore carries school information only when all of these hold:
+
+1. It states facts about each school (name, address, level, public or charter) taken from a named official public record, and the page names the record and its date.
+2. The same section, the same wording and the same selection rule appear on every page of that kind, and no school is selected, ordered or left out for any reason other than that rule.
+3. It carries no ranking, rating, "top", "best" or "good" claim, no zoning, district or attendance claim of its own, no proximity or convenience claim, and no statement about who the schools or the place are for.
+4. A list by ZIP code says it is by ZIP code and sends a reader who needs the school zoned for an address to the NYC Department of Education's address search.
+5. Its copy has passed the §21.12 review before publication, and a guard in CI fails the build when school wording appears outside the governed section.
+
+Any other school content does not render. The neighborhood guides carry this section and `tests/runtime/neighborhood-schools.test.ts` is its guard. School components on listing pages (`SchoolInfo` and the Education and Daycares groups of `NeighborhoodExplorer`) are not covered by this paragraph and remain the finding.
 
 ---
 
