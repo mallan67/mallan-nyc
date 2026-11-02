@@ -61,6 +61,52 @@ export const CARD_IMAGE_WIDTHS: readonly number[] = IMAGE_CONFIG.cardImageWidths
 export const CARD_IMAGE_QUALITY: number = IMAGE_CONFIG.cardImageQuality;
 
 /**
+ * LISTING-DETAIL GALLERY (2026-11-02) — the main viewer, the thumbnail strip and the lightbox.
+ *
+ * Until now the gallery was deliberately NOT opted in (tests/runtime/responsive-image.test.ts pinned it so a
+ * move would be "a deliberate, reviewed act"). Measured on an emulated 820px tablet on Slow 4G, a 17-photo
+ * listing transferred 6.9 MB (5.9 MB of it images) with a 27.8s LCP, because the strip's 88px thumbnails each
+ * downloaded the full-resolution original. These ladders are the gallery's OWN — never the card ladder — and
+ * every width / quality is already admitted by next.config (images.deviceSizes / imageSizes / qualities):
+ * see config/image-optimization.json `$comment_gallery` for the arithmetic.
+ */
+export const GALLERY_IMAGE_WIDTHS: readonly number[] = IMAGE_CONFIG.galleryImageWidths;
+export const GALLERY_IMAGE_QUALITY: number = IMAGE_CONFIG.galleryImageQuality;
+export const GALLERY_THUMB_WIDTHS: readonly number[] = IMAGE_CONFIG.galleryThumbWidths;
+export const GALLERY_THUMB_QUALITY: number = IMAGE_CONFIG.galleryThumbQuality;
+export const GALLERY_FULLSCREEN_WIDTHS: readonly number[] = IMAGE_CONFIG.galleryFullscreenWidths;
+export const GALLERY_FULLSCREEN_QUALITY: number = IMAGE_CONFIG.galleryFullscreenQuality;
+
+/**
+ * Off switch for the GALLERY alone. It is a SOURCE constant: turning it off is a code change and a deploy, NOT a
+ * runtime switch (a runtime switch would need an environment variable, which is a configuration change that needs
+ * approval). Set to false and the gallery serves the raw source exactly as it did before; cards are unaffected.
+ */
+export const GALLERY_OPTIMIZER_ENABLED = true;
+
+/**
+ * The ONLY hosts the gallery may hand to the optimizer: Mallan's R2 host. Photos whose URL is on Cotality
+ * (api.cotality.com, normally behind the media proxy) stay on the existing proxy until the IDX Plus agreement is
+ * checked for direct fetching, transformation and caching, and a withdrawal path for those copies exists.
+ * HOST-LEVEL ONLY: R2 can hold copies of Cotality-feed photos (the media sync mirrors them) and those DO reach the
+ * optimizer. See config/image-optimization.json `$comment_galleryOptimizerHosts` for the residual risk.
+ */
+export const GALLERY_OPTIMIZER_HOSTS: readonly string[] = IMAGE_CONFIG.galleryOptimizerHosts;
+
+/** True only for an absolute https URL, no credentials, on a gallery-approved (Mallan R2) host. Proxy URLs are never unwrapped. */
+export function isGalleryOptimizable(src: string | null | undefined): boolean {
+  if (!src || typeof src !== 'string') return false;
+  let u: URL;
+  try {
+    u = new URL(src);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'https:' || u.username || u.password) return false;
+  return GALLERY_OPTIMIZER_HOSTS.includes(u.hostname.toLowerCase());
+}
+
+/**
  * EXACT hosts the optimizer may be handed. Shared with next.config.js via
  * config/image-optimization.json so the two cannot drift; a helper-approved
  * host that Next rejects would 400 every card photo.
@@ -107,6 +153,18 @@ export const CARD_SIZES = {
   split: '(max-width: 768px) 50vw, 30vw',
   /** Full-bleed. Only for a surface genuinely rendered at viewport width. */
   hero: '100vw',
+} as const;
+
+/**
+ * `sizes` for the listing-detail gallery, measured on the harness at 360/390/412/820/1440:
+ *   main       — full-bleed to the viewport on phones and tablets, inside a 1600px max container above that.
+ *   thumb      — the strip's fixed 88x60 CSS px tile (md+ only).
+ *   fullscreen — the lightbox photo is <=95vw x <=92vh; asked at 100vw so it can never under-resolve.
+ */
+export const GALLERY_SIZES = {
+  main: '(min-width: 1600px) 1600px, 100vw',
+  thumb: '88px',
+  fullscreen: '100vw',
 } as const;
 
 export type CardSizeKey = keyof typeof CARD_SIZES;
@@ -184,6 +242,8 @@ export function optimizedUrl(src: string, width: number, quality = CARD_IMAGE_QU
 export function buildImageSources(
   src: string | null | undefined,
   widths: readonly number[] = CARD_IMAGE_WIDTHS,
+  quality: number = CARD_IMAGE_QUALITY,
+  defaultWidth = 640,
 ): { src: string; srcSet?: string } {
   const raw = src || '';
   // Proxied Trestle photos must be unwrapped first; R2 and other
@@ -192,8 +252,8 @@ export function buildImageSources(
   if (!isOptimizableSource(target)) return { src: raw };
   return {
     // Default candidate for browsers that ignore srcSet — deliberately a
-    // card-sized width, never the original.
-    src: optimizedUrl(target, 640),
-    srcSet: widths.map((w) => `${optimizedUrl(target, w)} ${w}w`).join(', '),
+    // mid-sized width, never the original. (Cards: 640; the gallery passes its own.)
+    src: optimizedUrl(target, defaultWidth, quality),
+    srcSet: widths.map((w) => `${optimizedUrl(target, w, quality)} ${w}w`).join(', '),
   };
 }
