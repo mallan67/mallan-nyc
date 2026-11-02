@@ -21,11 +21,12 @@ const panel = (f: BootedForm) => f.d.getElementById('saleValidationPanel')!;
 const listItems = (f: BootedForm) => [...f.d.querySelectorAll('#saleMissingFieldsList li')].map((li) => li.textContent ?? '');
 const missingNow = (f: BootedForm): any[] => (f.w as any).collectSaleMissingRequired();
 
-// every ancestor that would hide an element
-const hiddenBy = (el: Element | null, w: any): string[] => {
+// every ancestor that would hide an element: the page hides tabs, sub-tabs and the Building window with an inline display:none or the Tailwind `hidden` class
+// (not jsdom's getComputedStyle: its selector engine cannot parse the page's escaped Tailwind rules)
+const hiddenBy = (el: Element | null, _w: any): string[] => {
   const out: string[] = [];
   for (let e: Element | null = el; e; e = e.parentElement) {
-    if (e.classList.contains('hidden') || w.getComputedStyle(e).display === 'none') out.push(e.id || e.className.toString().slice(0, 40) || e.tagName);
+    if (e.classList.contains('hidden') || (e as HTMLElement).style?.display === 'none') out.push(e.id || e.className.toString().slice(0, 40) || e.tagName);
   }
   return out;
 };
@@ -33,6 +34,11 @@ const hiddenBy = (el: Element | null, w: any): string[] => {
 // fills a required field the way an agent would
 function fill(f: BootedForm, m: any) {
   const field = m.field;
+  if (field.type === 'checkboxGroup') {
+    const first = f.d.querySelector(`input[name="${field.name}"]`) as HTMLInputElement | null;
+    if (first) { first.checked = true; first.dispatchEvent(new f.w.Event('change', { bubbles: true })); }
+    return;
+  }
   if (field.type === 'radio') {
     const first = f.d.querySelector(`input[name="${field.name}"]`) as HTMLInputElement | null;
     if (first) { first.checked = true; first.dispatchEvent(new f.w.Event('change', { bubbles: true })); }
@@ -188,6 +194,58 @@ describe('what stays as it was', () => {
       chooseStatus(f, 'Future');
       expect(status(f)).toBe('Future');
       expect(panel(f).classList.contains('hidden')).toBe(true);
+    } finally { f.close(); }
+  });
+});
+
+describe('the fields the REBNY server requires and the agent fills (they used to reach the server unflagged)', () => {
+  it('are in the list with their tab, the Building window included', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
+    try {
+      chooseStatus(f, 'Active');
+      const items = listItems(f).join('\n');
+      for (const want of ['Listing Info \u2014 Street Address', 'Listing Info \u2014 Borough', 'Listing Info \u2014 Zip Code', 'Listing Info \u2014 Neighborhood', 'Listing Info \u2014 Structure Type',
+        'Listing Info \u2014 Ownership Type', 'Listing Info \u2014 Concessions', 'Listing Info \u2014 Showing Instructions', 'Unit Info \u2014 Total Rooms', 'Unit Info \u2014 Pets Allowed',
+        'Building window \u2014 Year Built', 'Building window \u2014 Total Floors', 'Building window \u2014 Tax Block', 'Building window \u2014 Tax Lot']) expect(items).toContain(want);
+    } finally { f.close(); }
+  });
+
+  it('a Building window field opens that window and its sub-tab when its item is clicked', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
+    try {
+      chooseStatus(f, 'Active');
+      expect(f.d.getElementById('saleBuildingModal')!.classList.contains('hidden')).toBe(true);
+      const idx = missingNow(f).findIndex((m) => m.label === 'Tax Lot');
+      expect(idx).toBeGreaterThanOrEqual(0);
+      (f.d.querySelector(`#saleMissingFieldsList [data-sale-missing="${idx}"]`) as HTMLElement).click();
+      expect(f.d.getElementById('saleBuildingModal')!.classList.contains('hidden')).toBe(false);
+      expect(hiddenBy(f.d.getElementById('saleBldgTaxLot'), f.w)).toEqual([]);                  // the Financials sub-tab is open
+    } finally { f.close(); }
+  });
+
+  it('Structure Type is answered by either box, and so is Neighborhood', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
+    try {
+      const has = (label: string) => missingNow(f).some((m) => m.label === label);
+      expect(has('Structure Type')).toBe(true);
+      const bt = f.d.getElementById('saleBldgType') as HTMLSelectElement;
+      const opt = Array.from(bt.options).find((o) => o.value);
+      bt.value = opt!.value;                                                                   // the Building window's box, not the main tab's
+      expect(has('Structure Type')).toBe(false);
+      expect(has('Neighborhood')).toBe(true);
+      const nb = f.d.getElementById('saleBldgNeighborhood') as HTMLSelectElement;
+      nb.insertAdjacentHTML('beforeend', '<option value="Turtle Bay">Turtle Bay</option>');
+      nb.value = 'Turtle Bay';
+      expect(has('Neighborhood')).toBe(false);
+    } finally { f.close(); }
+  });
+
+  it('Garage is not demanded (a building\'s garage is its property type), and nothing optional is', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
+    try {
+      const labels = missingNow(f).map((m) => m.label);
+      expect(labels).not.toContain('Garage');
+      expect(labels.filter((l) => /garage/i.test(l))).toEqual(['Garage Spaces'].filter((l) => labels.includes(l)));   // only the form's own earlier entry, if it applies
     } finally { f.close(); }
   });
 });

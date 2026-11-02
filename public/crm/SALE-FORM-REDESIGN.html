@@ -8134,6 +8134,10 @@ function collectSaleFormData() {
     if (data.saleTHLevels) data.Levels = [data.saleTHLevels]; else delete data.Levels;   // the townhouse tab's levels; else the unit's floors radio (Levels) through the claim pass
     data.ZoningDescription = data.saleTHZoning || '';
     data.GarageSpaces = _saleInt(data.saleTHGarageSpaces);
+    // A garage assigned to the unit (some condos and co-ops): the Unit tab's answer fills Cotality's GarageYN / GarageSpaces when the townhouse tab (a house's own
+    // garage) has none. A building's garage is the "Parking Garage" amenity (ParkingFeatures). Before, only the townhouse tab reached GarageYN / GarageSpaces.
+    if (data.GarageYN === undefined && (data.saleGarageSpaces === 'Yes' || data.saleGarageSpaces === 'No')) data.GarageYN = data.saleGarageSpaces === 'Yes';
+    if (data.GarageSpaces == null && data.saleGarageSpaces === 'Yes' && _saleInt(data.saleGarageSpacesCount) != null) data.GarageSpaces = _saleInt(data.saleGarageSpacesCount);
     data.ParkingTotal = _saleInt(data.saleTHParkingTotal);
     data.FoundationArea = _saleNum(data.saleTHFoundationArea);
     data.BasementYN = data.saleTHBasementYN === true || data.saleTHBasementYN === 'true' || data.saleTHBasementYN === 'Yes';
@@ -8779,6 +8783,10 @@ const REBNY_ACTIVE_STATUSES = ['Active', 'ComingSoon', 'BackOnMarket', 'OfferOut
 
 // Check if a field has a value (works for radio, select, input, textarea)
 function fieldHasValue(field) {
+    // A group of boxes is answered when at least one is ticked
+    if (field.type === 'checkboxGroup') return !!document.querySelector('input[name="' + field.name + '"]:checked');
+    // A value the form takes from either of two boxes (Structure Type: the main tab or the Building window)
+    if (field.orIds && field.orIds.some(function (oid) { const e = document.getElementById(oid); return e && e.value && String(e.value).trim() !== ''; })) return true;
     if (field.type === 'radio') {
         if (field.name) {
             if (document.querySelector('input[name="' + field.name + '"]:checked')) return true;
@@ -8852,6 +8860,24 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleTHLotSizeUnits', label: 'Lot Size Units', type: 'select', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING','LAND'] },
     { id: 'saleTHLotDimensions', label: 'Lot Dimensions', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING','LAND'] },
     { id: 'saleTHBuildingArea', label: 'Building Area Total', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING'] },
+    // Required by the REBNY server rules (lib/compliance/rebny-validator.ts, getRequiredFields for a residential sale) and filled in by the agent. The form used to leave
+    // these to the server, which refused an Active listing without saying which field. Not here on purpose: Garage (a building's garage is its property type) and the
+    // values the form sets itself (agent, status, display flags, syndication). Tax Lot is Property.TaxLot; the Tax Lot box is saved under that name.
+    { id: 'saleStreetAddress', label: 'Street Address', type: 'input', tab: 1, section: 'Listing Information/Address' },
+    { id: 'saleBorough', label: 'Borough', type: 'select', tab: 1, section: 'Listing Information/Address' },
+    { id: 'saleZipCode', label: 'Zip Code', type: 'input', tab: 1, section: 'Listing Information/Address' },
+    { id: 'saleNeighborhoodFromAddress', orIds: ['saleBldgNeighborhood'], label: 'Neighborhood', type: 'input', tab: 1, section: 'Listing Information/Address' },
+    { id: 'saleStructureType', orIds: ['saleBldgType'], label: 'Structure Type', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
+    { id: 'saleCommonInterest', label: 'Ownership Type', type: 'select', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDO','CONDOP','COMMERCIAL_CONDO','COMMERCIAL_COOP'] },
+    { id: 'saleConcessions', label: 'Concessions', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
+    { id: 'saleShowingInstructions', label: 'Showing Instructions', type: 'input', tab: 1, section: 'Listing Information/Description' },
+    { id: 'saleTotalRooms', label: 'Total Rooms', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
+    { name: 'salePetsAllowed', label: 'Pets Allowed', type: 'checkboxGroup', tab: 2, section: 'Unit Information/Features' },
+    // In the Building window (not a numbered tab): the jump opens that window and the sub-tab
+    { id: 'saleBldgYearBuilt', label: 'Year Built', type: 'input', tab: 'B', section: 'Building window/Essentials' },
+    { id: 'saleBldgTotalFloors', label: 'Total Floors', type: 'input', tab: 'B', section: 'Building window/Essentials' },
+    { id: 'saleBldgTaxBlock', label: 'Tax Block', type: 'input', tab: 'B', section: 'Building window/Financials' },
+    { id: 'saleBldgTaxLot', label: 'Tax Lot', type: 'input', tab: 'B', section: 'Building window/Financials' },
 ];
 
 // Check if a conditional field is relevant based on current property type
@@ -8996,7 +9022,7 @@ function validateREBNYRequired(formType) {
 }
 
 // ── The required fields that are empty, each with the tab it is on ──────────────────────────────────────────────
-const SALE_TAB_NAMES = { 1: 'Listing Info', 2: 'Unit Info', 3: 'TH/Building', 4: 'Distribution', 5: 'Preview', 6: 'History' };
+const SALE_TAB_NAMES = { 1: 'Listing Info', 2: 'Unit Info', 3: 'TH/Building', 4: 'Distribution', 5: 'Preview', 6: 'History', B: 'Building window' };
 
 function collectSaleMissingRequired() {
     const out = [];
@@ -9024,12 +9050,20 @@ function saleMissingTarget(el) {
 // Opens the tab (and the sub-tab inside it) that holds a missing field, and points at it.
 function revealSaleField(m) {
     const els = saleFieldElements(m.field);
-    showSaleMainTab(m.tab);
     const el = els[0];
+    if (el && el.closest && el.closest('#saleBuildingModal')) {
+        // a Building window field: open the window, then the sub-tab that holds it
+        showSaleBuildingInfo();
+        const bsub = el.closest('.sale-bldg-sub-tab-content');
+        const bm = bsub && /^saleBldgSubTabContent(\d+)_(\d+)$/.exec(bsub.id);
+        if (bm) showSaleBldgSubTab(parseInt(bm[1], 10), parseInt(bm[2], 10));
+    } else {
+        showSaleMainTab(m.tab);
+        const sub = el && el.closest('.sale-sub-tab');
+        const mm = sub && /^saleSubTabContent(\d+)_(\d+)$/.exec(sub.id);
+        if (mm) showSaleSubTab(parseInt(mm[1], 10), parseInt(mm[2], 10));
+    }
     if (!el) return;
-    const sub = el.closest('.sale-sub-tab');
-    const mm = sub && /^saleSubTabContent(\d+)_(\d+)$/.exec(sub.id);
-    if (mm) showSaleSubTab(parseInt(mm[1], 10), parseInt(mm[2], 10));
     const target = saleMissingTarget(el);
     if (target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     if (el.focus) el.focus({ preventScroll: true });
@@ -10492,7 +10526,7 @@ function _salePropTypeLabel(value) { if (!value) return ''; var el = document.qu
 // i whole number, n number, b yes / no, d date, m list, e one member, s text). Runs after the explicit emits; a key already set is left as it is; a control the
 // page marks Mallan-internal is skipped; an unticked box or an empty control asserts nothing. ──
 // The keys the collector builds itself (a unit with its amount, one member of a list, the views): the claim pass leaves them alone
-var SALE_COLLECTOR_OWNED = { LivingAreaUnits: 1, BuildingAreaUnits: 1, LotSizeUnits: 1, PropertyCondition: 1, SpecialListingConditions: 1, View: 1, ViewYN: 1, HeatingYN: 1, CoolingYN: 1, LaundryFeatures: 1, LandmarkStatusYN: 1 };
+var SALE_COLLECTOR_OWNED = { LivingAreaUnits: 1, BuildingAreaUnits: 1, LotSizeUnits: 1, PropertyCondition: 1, SpecialListingConditions: 1, View: 1, ViewYN: 1, HeatingYN: 1, CoolingYN: 1, LaundryFeatures: 1, LandmarkStatusYN: 1, GarageSpaces: 1 };
 function _saleEmitClaims(data) {
     var kinds = (typeof window !== 'undefined' && window.COTALITY_FIELD_KINDS) || {};
     var zones = [document.querySelector('.flex-1'), document.getElementById('saleBuildingModal'), document.getElementById('saleMediaModal')].filter(Boolean);
