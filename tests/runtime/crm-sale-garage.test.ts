@@ -103,3 +103,42 @@ describe('the garage a listing sends to Cotality', () => {
     expect(html).toMatch(/id="saleTHGarageSpaces"[^>]*data-concept="GarageSpaces"/);
   });
 });
+
+describe('taking a saved garage back (Vercel agent review on #677)', () => {
+  it('a unit whose agent chooses No on the Unit tab sends GarageYN false and 0 spaces, taking back a saved Yes', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
+    try {
+      propertyType(f, 'Condo');
+      setValue(f, 'saleTHGarageYN', 'Yes');                                  // what a saved record with GarageYN true puts in the form
+      setValue(f, 'saleTHGarageSpaces', '1');
+      radio(f, 'saleGarageSpaces', 'Yes');
+      radio(f, 'saleGarageSpaces', 'No');                                    // the agent changes their answer
+      const data = collect(f);
+      expect(data.GarageYN).toBe(false);
+      expect(data.GarageSpaces).toBe(0);
+    } finally { f.close(); }
+  });
+
+  it('the untouched default No still says nothing: a saved GarageYN true is kept', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
+    try {
+      propertyType(f, 'Condo');
+      setValue(f, 'saleTHGarageYN', 'Yes');
+      setValue(f, 'saleTHGarageSpaces', '1');
+      const data = collect(f);                                               // the Unit tab's radio was never touched
+      expect(data.GarageYN).toBe(true);
+      expect(data.GarageSpaces).toBe(1);
+    } finally { f.close(); }
+  });
+
+  it('a house is not affected by the Unit tab\'s No: its own TH answer stands', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
+    try {
+      propertyType(f, 'SingleFamilyTownhouse');
+      setValue(f, 'saleTHGarageYN', 'Yes');
+      setValue(f, 'saleTHGarageSpaces', '2');
+      radio(f, 'saleGarageSpaces', 'No');
+      expect(collect(f).GarageYN).toBe(true);
+    } finally { f.close(); }
+  });
+});

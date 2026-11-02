@@ -565,6 +565,8 @@ function buildingExtras(rec: Record<string, unknown> | null | undefined) {
     capital_reserves_yn: yn01(custom('CapitalReservesYN')),
     capital_reserves_total: num(custom('CapitalReservesTotal')),
     building_parking_total: num(custom('BuildingParkingTotal')),
+    // The building's own tax lot (REBNY custom key). A record's Property.TaxLot is ONE UNIT's lot (a condo unit's is 1xxx): it is not the building's.
+    building_tax_lot: String(custom('BuildingTaxLot') || ''),
   };
 }
 

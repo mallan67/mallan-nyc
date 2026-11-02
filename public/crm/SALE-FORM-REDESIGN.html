@@ -1934,6 +1934,11 @@ body { font-family: Manrope, sans-serif; }
                     <input type="text" id="saleFloorInBuilding" placeholder="e.g., 26" class="field-input" required data-concept="EntryLevel">
                 </div>
                 <div>
+                    <!-- Property.TaxLot is the UNIT's own lot (a condo unit's is 1xxx, e.g. 1218); the building's lot is the Building window's box (REBNY custom key BuildingTaxLot). A co-op shares the building's. -->
+                    <label class="field-label">Tax Lot (unit)</label>
+                    <input type="text" id="saleUnitTaxLot" placeholder="e.g., 1218" class="field-input" data-concept="TaxLot" title="The unit's own tax lot (Cotality Property.TaxLot). A co-op or a house has the building's lot: leave this blank and fill the Building Tax Lot.">
+                </div>
+                <div>
                     <!-- REBNY I15: UnitNumber (Floor + Line = Apt #, e.g., 26B) -->
                     <label class="field-label">Line in Building</label>
                     <input type="text" id="saleLineInBuilding" placeholder="e.g., B" class="field-input" data-concept="UnitNumber">
@@ -4739,8 +4744,8 @@ body { font-family: Manrope, sans-serif; }
                                 <input type="text" id="saleBldgTaxBlock" placeholder="1234" class="field-input" data-concept="TaxBlock">
                             </div>
                             <div>
-                                <label class="field-label">Tax Lot</label>
-                                <input type="text" id="saleBldgTaxLot" placeholder="56" class="field-input" data-concept="BuildingTaxLot">
+                                <label class="field-label">Building Tax Lot</label>
+                                <input type="text" id="saleBldgTaxLot" placeholder="e.g., 7501" class="field-input" data-concept="BuildingTaxLot" title="The building's own tax lot (REBNY custom key BuildingTaxLot). The unit's lot is on the Unit tab.">
                             </div>
                             <div>
                                 <label class="field-label">Annual RE Taxes</label>
@@ -5626,7 +5631,7 @@ function populateBuildingFromIDX(prefix, building) {
 
     // ── 5. Tax + association ─────────────────────────────────────────
     setIfPresent(prefix + 'BldgTaxBlock', pick('tax_block', 'taxBlock'));
-    setIfPresent(prefix + 'BldgTaxLot', pick('tax_lot', 'taxLot'));
+    setIfPresent(prefix + 'BldgTaxLot', pick('building_tax_lot', 'buildingTaxLot'));      // not tax_lot: a record's TaxLot is one UNIT's lot
     setIfPresent(prefix + 'BldgAnnualTaxes', pick('tax_annual_amount', 'taxAnnualAmount'));
     setIfPresent(prefix + 'BldgAssociationName', pick('association_name', 'associationName'));
     // AssociationFee / AssociationFeeFrequency are real Cotality fields returned
@@ -7878,7 +7883,8 @@ function collectSaleFormData() {
     data.TaxBlock = data.saleBldgTaxBlock || '';
     // Cotality canonical is `TaxLot` (not BuildingTaxLot, which is not in
     // Cotality $metadata). (Audit F2, 2026-05-30 — Cotality-only.)
-    data.TaxLot = data.saleBldgTaxLot || '';
+    data.TaxLot = data.saleUnitTaxLot || data.saleBldgTaxLot || '';                            // Property.TaxLot: the UNIT's lot; a co-op or a house has the building's
+    data.BuildingTaxLot = data.saleBldgTaxLot || '';                                          // the building's own lot: REBNY custom key (live: it differs from TaxLot on 17 of 100 Active listings)
     data.AssociationName = data.saleBldgAssociationName || '';
     // Land lease — a building fact (live Property fields): the townhouse tab's own answer when the listing is a townhouse / house, else the Building panel's; the Essentials Yes/No mirrors it.
     var _thLandYN = (document.getElementById('saleTHLandLeaseYN') || {}).value || ''; var _bldgLandYN = (document.getElementById('saleBldgLandLeaseYN') || {}).value || '';
@@ -8146,6 +8152,9 @@ function collectSaleFormData() {
             if (data.GarageYN === undefined) data.GarageYN = true;
             if (data.GarageSpaces == null && _unitGarageCount != null) data.GarageSpaces = _unitGarageCount;
         }
+    } else if (data.saleGarageSpaces === 'No' && window._saleGarageAnswered && shouldSkipTab3('sale')) {
+        data.GarageYN = false;                              // a unit whose agent chose No: no garage is assigned (a saved Yes is taken back)
+        data.GarageSpaces = 0;                              // no garage assigned: zero spaces (Cotality carries 0 on most listings); a number that is set is not refilled by the tagging pass
     }
     data.ParkingTotal = _saleInt(data.saleTHParkingTotal);
     data.FoundationArea = _saleNum(data.saleTHFoundationArea);
@@ -8881,12 +8890,12 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleConcessions', label: 'Concessions', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleShowingInstructions', label: 'Showing Instructions', type: 'input', tab: 1, section: 'Listing Information/Description' },
     { id: 'saleTotalRooms', label: 'Total Rooms', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
+    { id: 'saleUnitTaxLot', orIds: ['saleBldgTaxLot'], label: 'Tax Lot', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
     { name: 'salePetsAllowed', label: 'Pets Allowed', type: 'checkboxGroup', tab: 2, section: 'Unit Information/Features' },
     // In the Building window (not a numbered tab): the jump opens that window and the sub-tab
     { id: 'saleBldgYearBuilt', label: 'Year Built', type: 'input', tab: 'B', section: 'Building window/Essentials' },
     { id: 'saleBldgTotalFloors', label: 'Total Floors', type: 'input', tab: 'B', section: 'Building window/Essentials' },
     { id: 'saleBldgTaxBlock', label: 'Tax Block', type: 'input', tab: 'B', section: 'Building window/Financials' },
-    { id: 'saleBldgTaxLot', label: 'Tax Lot', type: 'input', tab: 'B', section: 'Building window/Financials' },
 ];
 
 // Check if a conditional field is relevant based on current property type
@@ -9012,6 +9021,8 @@ function initSaleValidation() {
         if (m) revealSaleField(m);
     });
     // The status the listing had before the agent changes it (so a move into Active is told from a move between live statuses)
+    // The Unit tab's garage question defaults to No. A No the agent has chosen (a change event; opening a saved listing sets it without one) is an answer.
+    document.querySelectorAll('input[name="saleGarageSpaces"]').forEach(function (r) { r.addEventListener('change', function () { window._saleGarageAnswered = true; }); });
     const statusBox = document.getElementById('saleStatus');
     if (statusBox) ['focus', 'mousedown'].forEach(function (ev) { statusBox.addEventListener(ev, function () { statusBox.dataset.prevStatus = statusBox.value; }); });
     const buildingWindow = document.getElementById('saleBuildingModal');
@@ -9844,7 +9855,8 @@ var SALE_FIELD_MAP = [
   { rls: 'saleBldgNumElevators', form: 'saleBldgNumElevators', type: 'number', src: 'raw', fallbackRls: 'ElevatorsTotal' }, // internal; ElevatorsTotal not in Cotality
   { rls: 'CrossStreet', form: 'saleBldgCrossStreet1', type: 'text', src: 'raw' },
   { rls: 'TaxBlock', form: 'saleBldgTaxBlock', type: 'text', src: 'raw' },
-  { rls: 'TaxLot', form: 'saleBldgTaxLot', type: 'text', src: 'raw', fallbackRls: 'BuildingTaxLot' },
+  { rls: 'TaxLot', form: 'saleUnitTaxLot', type: 'text', src: 'raw' },
+  { rls: 'BuildingTaxLot', form: 'saleBldgTaxLot', type: 'text', src: 'raw', fallbackRls: 'TaxLot' },   // saved before the split: the one lot was kept under TaxLot
   { rls: 'AssociationName', form: 'saleBldgAssociationName', type: 'text', src: 'raw' },
   { rls: 'NewConstructionYN', form: 'saleBldgNewConstruction', type: 'bool', src: 'raw' },
   // SponsorUnitYN restores the Essentials Sponsor Unit Yes/No (SALE_RADIO_MAP below), not a building box.

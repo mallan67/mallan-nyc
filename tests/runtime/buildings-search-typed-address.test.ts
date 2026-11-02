@@ -38,8 +38,10 @@ function stubCotality(records: Record<string, unknown>[]) {
   global.fetch = jest.fn(async () => ({ ok: true, status: 200, json: async () => ({ value: records }) })) as unknown as typeof fetch;
 }
 
+// The route limits a caller to 20 searches a minute: every call here comes from its own address, so the number of tests in this file never trips it.
+let callerSeq = 0;
 async function search(q: string) {
-  const res = await GET(new NextRequest(`http://localhost/api/buildings/search?q=${encodeURIComponent(q)}`));
+  const res = await GET(new NextRequest(`http://localhost/api/buildings/search?q=${encodeURIComponent(q)}`, { headers: { 'x-forwarded-for': `10.1.${Math.floor(++callerSeq / 250)}.${callerSeq % 250}` } }));
   return (await res.json()) as { buildings: Array<Record<string, unknown>> };
 }
 
@@ -236,5 +238,23 @@ describe('the current listing names the neighborhood, not an older record of the
     stubCotality([]);
     await search('800 2nd Ave');
     expect(String(queryRaw.mock.calls[0][0])).toContain("ORDER BY (status = 'Active') DESC, modification_timestamp DESC");
+  });
+});
+
+// Maya, 2026-11-02: "the building has its own and unit has its own". A record's Property.TaxLot is ONE UNIT's lot (live: 50 Henry Street 7B is 1218); the building's is the
+// REBNY custom key BuildingTaxLot (7502).
+describe('the building\'s own tax lot', () => {
+  it('is returned as building_tax_lot from the record\'s custom field, not taken from a unit\'s TaxLot', async () => {
+    queryRaw.mockResolvedValue([]);
+    stubCotality([liveRecord({ TaxLot: '1218', TaxBlock: '00277', CustomProperty: [{ CustomFields: JSON.stringify({ BuildingTaxLot: '7502' }) }] })]);
+    const { buildings } = await search('800 2nd Ave');
+    expect(buildings[0]).toMatchObject({ tax_lot: '1218', building_tax_lot: '7502' });
+  });
+
+  it('is blank when Cotality has none (the unit\'s lot is never offered as the building\'s)', async () => {
+    queryRaw.mockResolvedValue([]);
+    stubCotality([liveRecord({ TaxLot: '1218' })]);
+    const { buildings } = await search('800 2nd Ave');
+    expect(buildings[0].building_tax_lot).toBe('');
   });
 });

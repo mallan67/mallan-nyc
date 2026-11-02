@@ -206,7 +206,7 @@ describe('the fields the REBNY server requires and the agent fills (they used to
       const items = listItems(f).join('\n');
       for (const want of ['Listing Info \u2014 Street Address', 'Listing Info \u2014 Borough', 'Listing Info \u2014 Zip Code', 'Listing Info \u2014 Neighborhood', 'Listing Info \u2014 Structure Type',
         'Listing Info \u2014 Ownership Type', 'Listing Info \u2014 Concessions', 'Listing Info \u2014 Showing Instructions', 'Unit Info \u2014 Total Rooms', 'Unit Info \u2014 Pets Allowed',
-        'Building window \u2014 Year Built', 'Building window \u2014 Total Floors', 'Building window \u2014 Tax Block', 'Building window \u2014 Tax Lot']) expect(items).toContain(want);
+        'Building window \u2014 Year Built', 'Building window \u2014 Total Floors', 'Building window \u2014 Tax Block', 'Unit Info \u2014 Tax Lot']) expect(items).toContain(want);
     } finally { f.close(); }
   });
 
@@ -215,11 +215,11 @@ describe('the fields the REBNY server requires and the agent fills (they used to
     try {
       chooseStatus(f, 'Active');
       expect(f.d.getElementById('saleBuildingModal')!.classList.contains('hidden')).toBe(true);
-      const idx = missingNow(f).findIndex((m) => m.label === 'Tax Lot');
+      const idx = missingNow(f).findIndex((m) => m.label === 'Tax Block');
       expect(idx).toBeGreaterThanOrEqual(0);
       (f.d.querySelector(`#saleMissingFieldsList [data-sale-missing="${idx}"]`) as HTMLElement).click();
       expect(f.d.getElementById('saleBuildingModal')!.classList.contains('hidden')).toBe(false);
-      expect(hiddenBy(f.d.getElementById('saleBldgTaxLot'), f.w)).toEqual([]);                  // the Financials sub-tab is open
+      expect(hiddenBy(f.d.getElementById('saleBldgTaxBlock'), f.w)).toEqual([]);                  // the Financials sub-tab is open
     } finally { f.close(); }
   });
 
