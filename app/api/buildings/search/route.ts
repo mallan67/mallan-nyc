@@ -7,6 +7,7 @@ import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
 import { canonicalizeDirection, canonicalizeSuffix, canonicalizeStreetName } from '@/lib/address/nyc-address-normalizer';
 import { parseCustomFields } from '@/lib/search/crm-idx-filter';
+import { applyLiveBuildingIdentity, backfillBuildingIdentity, cleanBuildingText, normalizeBuildingQuery, numberedStreetMatches } from '@/lib/buildings/building-lookup-clean';
 
 const COTALITY_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -55,7 +56,8 @@ export interface ParsedAddress {
 }
 
 export function parseAddressQuery(q: string): ParsedAddress {
-  const trimmed = q.trim();
+  // A unit typed in the address box ("800 2nd Ave #806") and an ordinal word ("800 Second Avenue") must not defeat the lookup: the building has neither.
+  const trimmed = normalizeBuildingQuery(q);
   const match = trimmed.match(/^(\d+)\s+(.+)$/);
   if (!match) {
     return { buildingName: trimmed };
@@ -601,9 +603,9 @@ export async function GET(request: NextRequest) {
         params.push(`%${parsed.streetName}%`);
         paramIdx++;
       }
-      const sql = `SELECT address, features, raw_data, custom_fields, property_type, property_sub_type FROM listings WHERE ${conditions.join(' AND ')} LIMIT 20`;
+      const sql = `SELECT address, features, raw_data, custom_fields, property_type, property_sub_type, neighborhood FROM listings WHERE ${conditions.join(' AND ')} LIMIT 20`;
       const dbResults = await prisma.$queryRawUnsafe<Array<{
-        address: unknown; features: unknown; raw_data: unknown; custom_fields: unknown; property_type: string | null; property_sub_type: string | null;
+        address: unknown; features: unknown; raw_data: unknown; custom_fields: unknown; property_type: string | null; property_sub_type: string | null; neighborhood: string | null;
       }>>(sql, ...params);
 
       diag.localDbResultCount = dbResults.length;
@@ -612,6 +614,10 @@ export async function GET(request: NextRequest) {
       for (const l of dbResults) {
         const addr = l.address as Record<string, unknown>;
         const feat = l.features as Record<string, unknown> | null;
+        // a numbered street names ONE street: "2nd Avenue" is not 12th or 21st Avenue (the index matches a name by "contains")
+        if (!numberedStreetMatches(addr.StreetName, parsed.streetName)) continue;
+        const rowName = cleanBuildingText(addr.BuildingName);
+        const rowNeighborhood = cleanBuildingText(addr.SubdivisionName) || cleanBuildingText(l.neighborhood);
         const fullAddr = formatAddress(addr);
         // Building identity: BuildingKeyNumeric (BK) if present, else full
         // address + borough + zip (addressIdentityKey). (Building identity merge.)
@@ -632,6 +638,8 @@ export async function GET(request: NextRequest) {
           String(addr.CityRegion ?? ''), String(addr.PostalCode ?? ''),
         );
         if (_existing) {
+          // another unit of the same building knows what the first one left blank (name, neighborhood)
+          backfillBuildingIdentity(_existing, { name: rowName, neighborhood: rowNeighborhood });
           mergeMissingExtras(_existing, buildingExtras(feat));
           // Merge saved profile values from this additional unit of the same
           // building — first non-empty value per key wins. (Building merge.)
@@ -648,13 +656,13 @@ export async function GET(request: NextRequest) {
         const dbAttendance = String(feat?.AttendanceType || '').toLowerCase();
         buildings.push({
           address: fullAddr,
-          name: String(addr.BuildingName || ''),
+          name: rowName,
           borough: String(addr.CityRegion || ''),
           city: String(addr.City || ''),
           state: String(addr.StateOrProvince || ''),
           zip: String(addr.PostalCode || ''),
-          neighborhood: String(addr.SubdivisionName || ''),
-          subdivisionName: String(addr.SubdivisionName || ''),
+          neighborhood: rowNeighborhood,
+          subdivisionName: cleanBuildingText(addr.SubdivisionName) || rowNeighborhood,
           streetNumber: String(addr.StreetNumber || ''),
           streetDirPrefix: String(addr.StreetDirPrefix || ''),
           streetName: String(addr.StreetName || ''),
@@ -715,7 +723,7 @@ export async function GET(request: NextRequest) {
         where: {
           address: { path: ['BuildingName'], string_contains: parsed.buildingName.toUpperCase() },
         },
-        select: { address: true, features: true, raw_data: true, custom_fields: true, property_type: true, property_sub_type: true },
+        select: { address: true, features: true, raw_data: true, custom_fields: true, property_type: true, property_sub_type: true, neighborhood: true },
         take: 10,
       });
 
@@ -725,6 +733,8 @@ export async function GET(request: NextRequest) {
       for (const l of dbResults) {
         const addr = l.address as Record<string, unknown>;
         const feat = l.features as Record<string, unknown> | null;
+        const rowName = cleanBuildingText(addr.BuildingName);
+        const rowNeighborhood = cleanBuildingText(addr.SubdivisionName) || cleanBuildingText(l.neighborhood);
         // Use formatAddress so StreetDirPrefix is preserved — the prior
         // inline concat dropped E/W/N/S and saved malformed addresses.
         const fullAddr = formatAddress(addr);
@@ -745,6 +755,7 @@ export async function GET(request: NextRequest) {
           String(addr.CityRegion ?? ''), String(addr.PostalCode ?? ''),
         );
         if (_existing) {
+          backfillBuildingIdentity(_existing, { name: rowName, neighborhood: rowNeighborhood });
           mergeMissingExtras(_existing, buildingExtras(feat));
           // Merge saved profile values across units of the same building —
           // first non-empty value per key wins. (Building merge.)
@@ -761,13 +772,13 @@ export async function GET(request: NextRequest) {
         const dbAttendance = String(feat?.AttendanceType || '').toLowerCase();
         buildings.push({
           address: fullAddr,
-          name: String(addr.BuildingName || ''),
+          name: rowName,
           borough: String(addr.CityRegion || ''),
           city: String(addr.City || ''),
           state: String(addr.StateOrProvince || ''),
           zip: String(addr.PostalCode || ''),
-          neighborhood: String(addr.SubdivisionName || ''),
-          subdivisionName: String(addr.SubdivisionName || ''),
+          neighborhood: rowNeighborhood,
+          subdivisionName: cleanBuildingText(addr.SubdivisionName) || rowNeighborhood,
           streetNumber: String(addr.StreetNumber || ''),
           streetDirPrefix: String(addr.StreetDirPrefix || ''),
           streetName: String(addr.StreetName || ''),
@@ -933,6 +944,8 @@ export async function GET(request: NextRequest) {
           }
 
           for (const r of records) {
+            // a numbered street names ONE street: "2nd Avenue" is not 12th or 21st Avenue
+            if (!numberedStreetMatches(r.StreetName, parsed.streetName)) continue;
             const fullAddr = formatAddress(r);
             // Same building-identity key as the DB path so a Cotality record
             // enriches (not duplicates) a DB-built building — and so the saved
@@ -952,6 +965,8 @@ export async function GET(request: NextRequest) {
               String(r.CityRegion ?? ''), String(r.PostalCode ?? ''),
             );
             if (existing) {
+              // The live Cotality record names the area (SubdivisionName) even when the stored copy of the building does not: the live API is the authority
+              applyLiveBuildingIdentity(existing, { name: cleanBuildingText(r.BuildingName), neighborhood: cleanBuildingText(r.SubdivisionName) });
               mergeMissingExtras(existing, buildingExtras(r));
               // Carry this record's fuller borough/zip/building_key onto the
               // existing building so the address-only guard can reject a later
@@ -968,13 +983,13 @@ export async function GET(request: NextRequest) {
 
             buildings.push({
               address: fullAddr,
-              name: String(r.BuildingName || ''),
+              name: cleanBuildingText(r.BuildingName),
               borough: String(r.CityRegion || ''),
               city: String(r.City || ''),
               state: String(r.StateOrProvince || ''),
               zip: String(r.PostalCode || ''),
-              neighborhood: String(r.SubdivisionName || ''),
-              subdivisionName: String(r.SubdivisionName || ''),
+              neighborhood: cleanBuildingText(r.SubdivisionName),
+              subdivisionName: cleanBuildingText(r.SubdivisionName),
               // Address atoms — surface separately so the form can save
               // them without re-parsing the display label.
               streetNumber: String(r.StreetNumber || ''),

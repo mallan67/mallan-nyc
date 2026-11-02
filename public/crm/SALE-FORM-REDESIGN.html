@@ -5904,6 +5904,16 @@ function autoDeriveSaleStructureType() {
 }
 
 // Address field onblur — auto-populate from building data (local cache then API)
+// The typed street address as a comparable key: "800 2nd Ave" and "800 2ND Avenue" (and "800 Second Avenue") are the same address.
+function _saleAddressKey(text) {
+    var ORD = { first: '1', second: '2', third: '3', fourth: '4', fifth: '5', sixth: '6', seventh: '7', eighth: '8', ninth: '9', tenth: '10' };
+    var SUF = { street: 'st', avenue: 'ave', boulevard: 'blvd', place: 'pl', drive: 'dr', road: 'rd', lane: 'ln', court: 'ct', terrace: 'ter', parkway: 'pkwy' };
+    var DIR = { east: 'e', west: 'w', north: 'n', south: 's' };
+    return String(text || '').toLowerCase().replace(/[.,#]/g, ' ').split(/\s+/).filter(Boolean).map(function (t) {
+        return ORD[t] || SUF[t] || DIR[t] || t.replace(/^(\d+)(st|nd|rd|th)$/, '$1');
+    }).join(' ');
+}
+
 function saleAddressBlurLookup() {
     const addr = document.getElementById('saleStreetAddress')?.value?.trim();
     if (!addr || addr.length < 5) { parseSaleAddress(); return; }
@@ -5926,8 +5936,11 @@ function saleAddressBlurLookup() {
         }
         buildingDatabase = matches;
         var results = document.getElementById('saleBuildingSearchResults');
-        if (results && matches.length === 1) {
-            selectBuildingFromIDX('sale', matches[0].address);
+        // exactly one candidate IS the typed address: apply it (the others are look-alikes that merely start the same way)
+        var _typedKey = _saleAddressKey(addr);
+        var _exact = matches.filter(function (b) { return _saleAddressKey(b.address) === _typedKey; });
+        if (results && (matches.length === 1 || _exact.length === 1)) {
+            selectBuildingFromIDX('sale', (_exact.length === 1 ? _exact[0] : matches[0]).address);
         } else if (results && matches.length > 1) {
             results.textContent = '';
             matches.forEach(function(b) { results.appendChild(_saleBuildingCandidateRow(b, [b.name, [b.neighborhood, b.borough].filter(Boolean).join(', ')].filter(Boolean).join(' | '), function (picked) { selectBuildingFromIDX('sale', picked); })); });

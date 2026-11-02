@@ -381,7 +381,7 @@ describe('route wiring — saved profile merged into the building object', () =>
   });
 
   it('DB raw SQL SELECT pulls raw_data + custom_fields', () => {
-    expect(ROUTE).toMatch(/SELECT address, features, raw_data, custom_fields, property_type, property_sub_type FROM listings/);
+    expect(ROUTE).toMatch(/SELECT address, features, raw_data, custom_fields, property_type, property_sub_type(, neighborhood)? FROM listings/);   // + the listing's own neighborhood column (a unit that knows the area names it for the building)
     expect(ROUTE).toMatch(/address: unknown; features: unknown; raw_data: unknown; custom_fields: unknown;/);
   });
 
