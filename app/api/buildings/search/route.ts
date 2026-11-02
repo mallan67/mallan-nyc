@@ -55,7 +55,9 @@ export interface ParsedAddress {
 }
 
 export function parseAddressQuery(q: string): ParsedAddress {
-  const trimmed = q.trim();
+  // A building lookup is not a unit lookup. An explicitly written apartment
+  // designator belongs in UnitNumber and must not poison the StreetName filter.
+  const trimmed = q.trim().replace(/\s*,?\s*(?:#\s*|(?:unit|apt|apartment|suite|ste)\.?\s*#?\s*)(?:[A-Za-z0-9]+(?:-[A-Za-z0-9]+)?)\s*$/i, '').trim();
   const match = trimmed.match(/^(\d+)\s+(.+)$/);
   if (!match) {
     return { buildingName: trimmed };
@@ -565,6 +567,8 @@ function buildingExtras(rec: Record<string, unknown> | null | undefined) {
     capital_reserves_yn: yn01(custom('CapitalReservesYN')),
     capital_reserves_total: num(custom('CapitalReservesTotal')),
     building_parking_total: num(custom('BuildingParkingTotal')),
+    // The building's own tax lot (REBNY custom key). A record's Property.TaxLot is ONE UNIT's lot (a condo unit's is 1xxx): it is not the building's.
+    building_tax_lot: String(custom('BuildingTaxLot') || ''),
   };
 }
 
@@ -638,7 +642,9 @@ export async function GET(request: NextRequest) {
   let cotHadResults = false;
 
   try {
-    // ── 1. Search DB first ──
+    // ── 1. Search DB first. This cache is not required for an authenticated
+    // Cotality address lookup: a Neon timeout must not hide valid provider data.
+    try {
     if (parsed.streetNumber && (parsed.streetName || parsed.streetDirPrefix)) {
       const conditions = [`address->>'StreetNumber' = $1`];
       const params: string[] = [parsed.streetNumber];
@@ -895,6 +901,11 @@ export async function GET(request: NextRequest) {
         });
         registerBuilding(buildingByKey, buildingByAddrOnly, buildings[buildings.length - 1], _bkKey, _addrKey, _aoKey);
       }
+    }
+    } catch (dbErr) {
+      diag.errorClass = 'db_error';
+      diag.errorMessage = 'Local building cache unavailable; checking Cotality';
+      console.warn('[/api/buildings/search] Local cache failed; attempting Cotality building lookup:', dbErr);
     }
 
     // ── 2. Supplement from Cotality if DB has <5 results ──
@@ -1182,7 +1193,7 @@ export async function GET(request: NextRequest) {
     // Build error hint for frontend
     let errorHint: string | undefined;
     if (buildings.length === 0) {
-      if (diag.errorClass === 'cotality_non_200' || diag.errorClass === 'token_failed' || diag.errorClass === 'unknown') {
+      if (diag.errorClass === 'cotality_non_200' || diag.errorClass === 'token_failed' || diag.errorClass === 'unknown' || diag.errorClass === 'db_error') {
         errorHint = 'Building lookup temporarily unavailable.';
       } else {
         errorHint = 'No Cotality building match found.';
