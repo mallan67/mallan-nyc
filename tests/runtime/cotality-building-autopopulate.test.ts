@@ -47,8 +47,8 @@ describe('buildings/search response shape — Cotality fields the modal needs', 
   });
 
   test('Cotality branch response surfaces neighborhood + subdivisionName + address atoms', () => {
-    expect(src).toMatch(/neighborhood:\s*String\(r\.SubdivisionName/);
-    expect(src).toMatch(/subdivisionName:\s*String\(r\.SubdivisionName/);
+    expect(src).toMatch(/neighborhood:\s*cleanText\(r\.SubdivisionName/);
+    expect(src).toMatch(/subdivisionName:\s*cleanText\(r\.SubdivisionName/);
     expect(src).toMatch(/streetDirPrefix:\s*String\(r\.StreetDirPrefix/);
     expect(src).toMatch(/source:\s*['"]cotality['"]/);
   });

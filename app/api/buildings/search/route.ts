@@ -131,6 +131,26 @@ interface CotalityRecord {
   [key: string]: unknown;
 }
 
+// A stored value can be the TEXT "null" / "undefined" (live row: BuildingName "null" on 800 2nd Avenue). That is no name and no neighborhood.
+function cleanText(v: unknown): string {
+  const s = String(v ?? '').trim();
+  return s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined' ? '' : s;
+}
+
+// The Cotality filter matches the street NAME by `contains`, so the typed "2nd" (parsed to "2") also returned 8001 12TH Avenue and 8002 21st Avenue: three
+// candidates, none applied. For a numbered street the served StreetName must carry the SAME number ("2ND", "E 46TH", "46" all match; "12TH", "21st", "22ND" do not).
+function servedStreetMatchesTyped(typedStreetName: string | undefined, servedStreetName: unknown): boolean {
+  if (!typedStreetName || !/^\d+$/.test(typedStreetName)) return true;
+  const served = String(servedStreetName ?? '').match(/\d+/);
+  return served !== null && Number(served[0]) === Number(typedStreetName);
+}
+
+// `startswith(StreetNumber,'800')` also returns 8001 and 8002. A number followed by a street is a whole number: it must equal the served StreetNumber.
+function recordIsTypedAddress(rec: Record<string, unknown>, typed: ParsedAddress): boolean {
+  if (typed.streetNumber && String(rec.StreetNumber ?? '').trim() !== typed.streetNumber) return false;
+  return servedStreetMatchesTyped(typed.streetName, rec.StreetName);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Building-identity key. A building is the SAME building across listings when:
 //   1. BuildingKeyNumeric matches (Cotality's canonical building id), else
@@ -611,6 +631,7 @@ export async function GET(request: NextRequest) {
 
       for (const l of dbResults) {
         const addr = l.address as Record<string, unknown>;
+        if (!recordIsTypedAddress(addr, parsed)) continue;
         const feat = l.features as Record<string, unknown> | null;
         const fullAddr = formatAddress(addr);
         // Building identity: BuildingKeyNumeric (BK) if present, else full
@@ -648,13 +669,13 @@ export async function GET(request: NextRequest) {
         const dbAttendance = String(feat?.AttendanceType || '').toLowerCase();
         buildings.push({
           address: fullAddr,
-          name: String(addr.BuildingName || ''),
+          name: cleanText(addr.BuildingName),
           borough: String(addr.CityRegion || ''),
           city: String(addr.City || ''),
           state: String(addr.StateOrProvince || ''),
           zip: String(addr.PostalCode || ''),
-          neighborhood: String(addr.SubdivisionName || ''),
-          subdivisionName: String(addr.SubdivisionName || ''),
+          neighborhood: cleanText(addr.SubdivisionName),
+          subdivisionName: cleanText(addr.SubdivisionName),
           streetNumber: String(addr.StreetNumber || ''),
           streetDirPrefix: String(addr.StreetDirPrefix || ''),
           streetName: String(addr.StreetName || ''),
@@ -761,13 +782,13 @@ export async function GET(request: NextRequest) {
         const dbAttendance = String(feat?.AttendanceType || '').toLowerCase();
         buildings.push({
           address: fullAddr,
-          name: String(addr.BuildingName || ''),
+          name: cleanText(addr.BuildingName),
           borough: String(addr.CityRegion || ''),
           city: String(addr.City || ''),
           state: String(addr.StateOrProvince || ''),
           zip: String(addr.PostalCode || ''),
-          neighborhood: String(addr.SubdivisionName || ''),
-          subdivisionName: String(addr.SubdivisionName || ''),
+          neighborhood: cleanText(addr.SubdivisionName),
+          subdivisionName: cleanText(addr.SubdivisionName),
           streetNumber: String(addr.StreetNumber || ''),
           streetDirPrefix: String(addr.StreetDirPrefix || ''),
           streetName: String(addr.StreetName || ''),
@@ -933,6 +954,7 @@ export async function GET(request: NextRequest) {
           }
 
           for (const r of records) {
+            if (!recordIsTypedAddress(r, parsed)) continue;
             const fullAddr = formatAddress(r);
             // Same building-identity key as the DB path so a Cotality record
             // enriches (not duplicates) a DB-built building — and so the saved
@@ -957,6 +979,11 @@ export async function GET(request: NextRequest) {
               // existing building so the address-only guard can reject a later
               // different one, and the BK identity sticks once known.
               promoteIdentity(existing, String(r.CityRegion ?? ''), String(r.PostalCode ?? ''), _bkKey);
+              // The stored copy can lack the name / neighborhood the live record carries: fill a blank, never replace a value.
+              const liveArea = cleanText(r.SubdivisionName);
+              if (liveArea && !cleanText(existing.neighborhood)) { existing.neighborhood = liveArea; existing.subdivisionName = liveArea; }
+              const liveName = cleanText(r.BuildingName);
+              if (liveName && !cleanText(existing.name)) existing.name = liveName;
               // Re-register so any newly-known key (BK / fuller address) also
               // resolves to this object on a later row.
               registerBuilding(buildingByKey, buildingByAddrOnly, existing, _bkKey, _addrKey, _aoKey);
@@ -968,13 +995,13 @@ export async function GET(request: NextRequest) {
 
             buildings.push({
               address: fullAddr,
-              name: String(r.BuildingName || ''),
+              name: cleanText(r.BuildingName),
               borough: String(r.CityRegion || ''),
               city: String(r.City || ''),
               state: String(r.StateOrProvince || ''),
               zip: String(r.PostalCode || ''),
-              neighborhood: String(r.SubdivisionName || ''),
-              subdivisionName: String(r.SubdivisionName || ''),
+              neighborhood: cleanText(r.SubdivisionName),
+              subdivisionName: cleanText(r.SubdivisionName),
               // Address atoms — surface separately so the form can save
               // them without re-parsing the display label.
               streetNumber: String(r.StreetNumber || ''),
