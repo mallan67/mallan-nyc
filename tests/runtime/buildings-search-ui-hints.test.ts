@@ -10,7 +10,7 @@ import { resolve } from 'path';
 const FORM_PATH = resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html');
 const formHtml = readFileSync(FORM_PATH, 'utf8');
 
-const fnStart = formHtml.indexOf('async function fetchBuildingsFromAPI(query)');
+const fnStart = formHtml.indexOf('async function fetchBuildingsFromAPI(query');
 const fnEnd = formHtml.indexOf('\n}', fnStart + 100) + 2;
 const fnBody = formHtml.slice(fnStart, fnEnd);
 
@@ -22,12 +22,12 @@ describe('fetchBuildingsFromAPI — error hint surfacing', () => {
   it('401 response shows session expired toast', () => {
     expect(fnBody).toContain('resp.status === 401');
     expect(fnBody).toContain('Session expired. Please log in again.');
-    expect(fnBody).toContain("showToast(hint || 'Session expired. Please log in again.', 'error')");
+    expect(fnBody).toContain("showToast(window._saleBuildingLookupError, 'error')");
   });
 
   it('non-OK non-401 response shows temporarily unavailable toast', () => {
     expect(fnBody).toContain('!resp.ok');
-    expect(fnBody).toContain("showToast(hint || 'Building lookup temporarily unavailable.', 'warning')");
+    expect(fnBody).toContain("showToast(window._saleBuildingLookupError, 'warning')");
   });
 
   it('200 empty with _errorHint shows the hint as toast', () => {
@@ -44,7 +44,7 @@ describe('fetchBuildingsFromAPI — error hint surfacing', () => {
     const catchIdx = fnBody.indexOf('catch (e)');
     expect(catchIdx).toBeGreaterThan(-1);
     const catchBody = fnBody.slice(catchIdx, catchIdx + 300);
-    expect(catchBody).toContain("showToast('Building lookup temporarily unavailable.', 'warning')");
+    expect(catchBody).toContain("showToast(window._saleBuildingLookupError, 'warning')");
   });
 
   it('no longer has the silent if (!resp.ok) return [] pattern', () => {

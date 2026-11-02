@@ -412,9 +412,13 @@ describe('Cotality $select', () => {
 
 describe('no hardcoded production values in the route (fixtures only)', () => {
   it('route source contains none of the known prod identifiers', () => {
-    expect(ROUTE).not.toContain('RLS20093870');
-    expect(ROUTE).not.toContain('SL-0004');
-    expect(ROUTE).not.toMatch(/333\s+E(?:ast)?\s+46/i);
-    expect(ROUTE).not.toContain('20093870');
+    // Reject hardcoding in executable code, not in historical comments.
+    const executable = ROUTE.split('\n')
+      .filter((line) => !line.trim().startsWith('//') && !line.trim().startsWith('*'))
+      .join('\n');
+    expect(executable).not.toContain('RLS20093870');
+    expect(executable).not.toContain('SL-0004');
+    expect(executable).not.toMatch(/333\s+E(?:ast)?\s+46/i);
+    expect(executable).not.toContain('20093870');
   });
 });

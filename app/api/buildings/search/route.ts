@@ -55,7 +55,12 @@ export interface ParsedAddress {
 }
 
 export function parseAddressQuery(q: string): ParsedAddress {
-  const trimmed = q.trim();
+  // Drop an explicit apartment/unit suffix only AFTER an actual street address.
+  // E.g. "333 East 46th Street #2G" searches that building; "100 Amsterdam"
+  // and "1 Unit Street" remain literal street names. A unit is never a building key.
+  const raw = q.trim();
+  const suffix = raw.match(/^(.*?\S)(?:\s+|,\s*)(?:(?:apt|apartment|unit|ste|suite|fl|floor)\.?\s+#?\s*|#\s*)([A-Za-z0-9-]+)\s*$/i);
+  const trimmed = suffix && suffix[1].trim().split(/\s+/).length >= 2 ? suffix[1].trim() : raw;
   const match = trimmed.match(/^(\d+)\s+(.+)$/);
   if (!match) {
     return { buildingName: trimmed };
@@ -638,7 +643,9 @@ export async function GET(request: NextRequest) {
   let cotHadResults = false;
 
   try {
-    // ── 1. Search DB first ──
+    // ── 1. Search Mallan's stored address cache. It is optional enrichment:
+    // a Neon failure must not prevent an authorized live Cotality lookup.
+    try {
     if (parsed.streetNumber && (parsed.streetName || parsed.streetDirPrefix)) {
       const conditions = [`address->>'StreetNumber' = $1`];
       const params: string[] = [parsed.streetNumber];
@@ -896,6 +903,11 @@ export async function GET(request: NextRequest) {
         registerBuilding(buildingByKey, buildingByAddrOnly, buildings[buildings.length - 1], _bkKey, _addrKey, _aoKey);
       }
     }
+    } catch (cacheError) {
+      diag.errorClass = 'db_error';
+      diag.errorMessage = 'Local address cache unavailable; Cotality fallback attempted';
+      console.warn('[/api/buildings/search] DB cache unavailable; continuing to Cotality', cacheError);
+    }
 
     // ── 2. Supplement from Cotality if DB has <5 results ──
     if (buildings.length < 5 && parsed.streetNumber && (parsed.streetName || parsed.streetDirPrefix)) {
@@ -1014,7 +1026,7 @@ export async function GET(request: NextRequest) {
           diag.cotality.firstThreeAddresses = records.slice(0, 3).map(formatAddress);
 
           if (records.length > 0) cotHadResults = true;
-          if (records.length === 0) {
+          if (records.length === 0 && diag.errorClass === 'none') {
             diag.errorClass = 'cotality_zero_results';
           }
 
@@ -1130,28 +1142,73 @@ export async function GET(request: NextRequest) {
           }
           // The display query above returns the 20 highest-priced listings: too few to say what a building is. The type is read from every listing of the building, asked for
           // with only the fields that decide it.
+          // When a query returns fewer than 20 records and no nextLink, its
+          // display results already contain all ownership evidence. Avoid a
+          // redundant, serial 200-row request for such buildings (live
+          // 800 2ND Avenue has four Property rows).
+          // Large buildings still need full votes: a recent sample of co-op
+          // units alone cannot prove that a building is not a condop.
+          let classificationEvidenceComplete = records.length < 20 && !data['@odata.nextLink'];
           const lean = new Map<string, CotalityRecord[]>();
-          if (evidence.size > 0) {
+          if (evidence.size > 0 && !classificationEvidenceComplete) {
+            const evParams = new URLSearchParams({
+              $filter: filter,
+              $select: 'StandardStatus,CommonInterest,PropertySubType,StructureType,NumberOfUnitsTotal,StreetNumber,StreetName,StreetDirPrefix,CityRegion,PostalCode',
+              $orderby: 'ModificationTimestamp desc',
+              $top: '200',
+            });
+            // Classification is enrichment, never a prerequisite to a valid
+            // address result. Bound both fetch and JSON parsing; abort when
+            // the deadline expires instead of holding the CRM response open.
+            const controller = new AbortController();
+            let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
             try {
-              const evParams = new URLSearchParams({
-                $filter: filter,
-                $select: 'StandardStatus,CommonInterest,PropertySubType,StructureType,NumberOfUnitsTotal,StreetNumber,StreetName,StreetDirPrefix,CityRegion,PostalCode',
-                $orderby: 'ModificationTimestamp desc',
-                $top: '200',
+              const fullEvidence = async (): Promise<CotalityRecord[] | null> => {
+                const evRes = await fetch(`${COTALITY_URL}/odata/Property?${evParams}`, {
+                  headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+                  next: { revalidate: 3600 },
+                  signal: controller.signal,
+                });
+                if (!evRes.ok) return null;
+                const body = await evRes.json();
+                // A page with nextLink is not the full building's history.
+                // Treat missing pages as unresolved, never as a verified Co-op.
+                if (body['@odata.nextLink']) return null;
+                return Array.isArray(body.value) ? body.value as CotalityRecord[] : null;
+              };
+              const deadline = new Promise<null>((resolve) => {
+                deadlineTimer = setTimeout(() => { controller.abort(); resolve(null); }, 1500);
               });
-              const evRes = await fetch(`${COTALITY_URL}/odata/Property?${evParams}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, next: { revalidate: 3600 } });
-              if (evRes.ok) {
-                for (const rec of ((await evRes.json()).value || []) as CotalityRecord[]) {
+              const page = await Promise.race([fullEvidence(), deadline]);
+              if (page && page.length > 0) {
+                classificationEvidenceComplete = true;
+                for (const rec of page) {
                   const k = addressIdentityKey(rec);
-                  const list = lean.get(k); if (list) list.push(rec); else lean.set(k, [rec]);
+                  const list = lean.get(k);
+                  if (list) list.push(rec); else lean.set(k, [rec]);
                 }
               }
-            } catch { /* the 20 listings already fetched are the evidence */ }
+            } catch {
+              // Do not let optional classification suppress the valid address.
+              // The first 20 records do not prove the building's ownership.
+            } finally {
+              if (deadlineTimer !== undefined) clearTimeout(deadlineTimer);
+            }
           }
           for (const [b, recs] of evidence) {
+            const target = b as Record<string, unknown>;
+            if (!classificationEvidenceComplete) {
+              // A unit-level CommonInterest from a truncated sample is not
+              // verified building ownership. Never silently call a condop
+              // a co-op merely because the deep query timed out.
+              target.common_interest = '';
+              target.building_kind = null;
+              target.ownership_votes = {};
+              target.classification_unverified = true;
+              continue;
+            }
             const all = lean.get(addressIdentityKey(recs[0]));
             const c = classifyBuilding(all && all.length > 0 ? all : recs);
-            const target = b as Record<string, unknown>;
             if (c.commonInterest) target.common_interest = c.commonInterest;
             target.building_kind = c.kind;
             target.ownership_votes = c.votes;
@@ -1182,7 +1239,7 @@ export async function GET(request: NextRequest) {
     // Build error hint for frontend
     let errorHint: string | undefined;
     if (buildings.length === 0) {
-      if (diag.errorClass === 'cotality_non_200' || diag.errorClass === 'token_failed' || diag.errorClass === 'unknown') {
+      if (diag.errorClass === 'cotality_non_200' || diag.errorClass === 'token_failed' || diag.errorClass === 'unknown' || diag.errorClass === 'db_error') {
         errorHint = 'Building lookup temporarily unavailable.';
       } else {
         errorHint = 'No Cotality building match found.';
