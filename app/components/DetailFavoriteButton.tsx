@@ -40,7 +40,7 @@ export default function DetailFavoriteButton(props: DetailFavoriteButtonProps) {
           );
         }
       }}
-      className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-2xl ring-1 transition-colors ${
+      className={`inline-flex items-center gap-2 px-3 min-[400px]:px-4 py-2 text-sm font-medium rounded-2xl ring-1 transition-colors ${
         active
           ? 'bg-red-50 text-red-600 ring-red-200 hover:bg-red-100'
           : 'bg-white text-brand-dark/95 ring-black/10 hover:bg-gray-50'
@@ -60,7 +60,8 @@ export default function DetailFavoriteButton(props: DetailFavoriteButtonProps) {
           d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
         />
       </svg>
-      {active ? 'Saved' : 'Save'}
+      {/* Below 400px the label gives its room to the price in the sticky bar; the accessible name is unchanged. */}
+      <span className="max-[399px]:sr-only">{active ? 'Saved' : 'Save'}</span>
     </button>
   );
 }
