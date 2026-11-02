@@ -1,15 +1,17 @@
 import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
+import { EMPTY_TWIN_CONTEXT } from "@/lib/listings/mallan-twin-context";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import {
   applyPublicListingPostFilters,
   buildPublicListingDbSearch,
   mallanAuthoredWhere,
+  mallanExclusiveWhere,
 } from "@/lib/search/public-listing-db";
 
 describe("buildPublicListingDbSearch", () => {
   it("applies the shared fail-closed RLS gate while preserving website-only path", () => {
-    const { where, orderBy } = buildPublicListingDbSearch(new URLSearchParams("type=sale"));
+    const { where, orderBy } = buildPublicListingDbSearch(new URLSearchParams("type=sale"), EMPTY_TWIN_CONTEXT);
 
     expect(where).toMatchObject({
       status: { in: ["Active", "ActiveUnderContract", "ComingSoon"] },
@@ -51,7 +53,7 @@ describe("buildPublicListingDbSearch", () => {
       statuses: "Active,Closed,ComingSoon",
       propertySubTypes: "Co-op,New Development",
       sort: "newest",
-    }));
+    }), EMPTY_TWIN_CONTEXT);
 
     expect(where.list_price).toEqual({ gte: 1000000, lte: 2000000 });
     expect(where.bedrooms_total).toEqual({ gte: 2, lte: 4 });
@@ -68,7 +70,7 @@ describe("buildPublicListingDbSearch", () => {
   });
 
   it("pushes address search into JSON conditions so pagination remains DB-backed", () => {
-    const { where } = buildPublicListingDbSearch(new URLSearchParams("address=400 East 90th Street"));
+    const { where } = buildPublicListingDbSearch(new URLSearchParams("address=400 East 90th Street"), EMPTY_TWIN_CONTEXT);
 
     // PR #106 (audit-fix A · Fix 2) wrapped each address segment in an
     // OR-of-{PascalCase, camelCase} for defensive dual-key support. The
@@ -93,13 +95,13 @@ describe("buildPublicListingDbSearch", () => {
   });
 
   it("applies special public sorts with their required filters", () => {
-    const exclusives = buildPublicListingDbSearch(new URLSearchParams("sort=exclusives"));
+    const exclusives = buildPublicListingDbSearch(new URLSearchParams("sort=exclusives"), EMPTY_TWIN_CONTEXT);
     // "Exclusives" are Mallan-AUTHORED listings (canonical SL-/RL-, including website-only), never rows that merely carry an agent_id: syncAgentHistory stamps agent_id onto third-party rows
     expect(exclusives.where.agent_id).toBeUndefined();
-    expect(exclusives.where.AND).toEqual(expect.arrayContaining([mallanAuthoredWhere()]));
+    expect(exclusives.where.AND).toEqual(expect.arrayContaining([mallanExclusiveWhere(EMPTY_TWIN_CONTEXT)]));
     expect(exclusives.orderBy).toEqual({ modification_timestamp: "desc" });
 
-    const newDev = buildPublicListingDbSearch(new URLSearchParams("sort=new-development"));
+    const newDev = buildPublicListingDbSearch(new URLSearchParams("sort=new-development"), EMPTY_TWIN_CONTEXT);
     expect(newDev.where.property_sub_type).toEqual({ in: ["NewConstruction", "New Construction"] });
     expect(newDev.orderBy).toEqual({ modification_timestamp: "desc" });
   });
@@ -110,19 +112,12 @@ describe("buildPublicListingDbSearch", () => {
     // (lib/idx/fetch.ts:427 matches BuyerAgentMlsId), so agent_id != null is unsafe.
     const { where } = buildPublicListingDbSearch(
       new URLSearchParams("type=sale&exclusive=mallan"),
+      EMPTY_TWIN_CONTEXT,
     );
 
-    // Identity is an AND-ed OR over the canonical Mallan id.
-    expect(where.AND).toEqual(
-      expect.arrayContaining([
-        {
-          OR: [
-            { listing_id: { startsWith: "SL-" } },
-            { listing_id: { startsWith: "RL-" } },
-          ],
-        },
-      ]),
-    );
+    // Identity is an AND-ed OR: the canonical Mallan id (authored) OR a verified Mallan-listed Cotality row (office + roster agent + exclusive agreement).
+    expect(where.AND).toEqual(expect.arrayContaining([mallanExclusiveWhere(EMPTY_TWIN_CONTEXT)]));
+    expect(mallanExclusiveWhere(EMPTY_TWIN_CONTEXT).OR).toEqual(expect.arrayContaining([mallanAuthoredWhere()]));
     // It must NOT fall back to agent_id (which can be set on third-party IDX rows).
     expect(where.agent_id).toBeUndefined();
   });
@@ -137,15 +132,15 @@ describe("buildPublicListingDbSearch", () => {
     expect(mallanAuthoredWhere()).not.toBe(mallanAuthoredWhere());          // a fresh object every time: callers append it to their own where
   });
 
-  it("exclusive=mallan together with sort=exclusives applies the Mallan-authored predicate ONCE", () => {
-    const { where } = buildPublicListingDbSearch(new URLSearchParams("type=sale&exclusive=mallan&sort=exclusives"));
+  it("exclusive=mallan together with sort=exclusives applies the Mallan-exclusive predicate ONCE", () => {
+    const { where } = buildPublicListingDbSearch(new URLSearchParams("type=sale&exclusive=mallan&sort=exclusives"), EMPTY_TWIN_CONTEXT);
     expect(where.agent_id).toBeUndefined();
-    expect((where.AND as unknown[]).filter((c) => JSON.stringify(c) === JSON.stringify(mallanAuthoredWhere()))).toHaveLength(1);
+    expect((where.AND as unknown[]).filter((c) => JSON.stringify(c) === JSON.stringify(mallanExclusiveWhere(EMPTY_TWIN_CONTEXT)))).toHaveLength(1);
   });
 
   it("without exclusive=mallan or sort=exclusives, no Mallan-authored predicate is applied (the general feed is every listing)", () => {
-    const { where } = buildPublicListingDbSearch(new URLSearchParams("type=sale&sort=newest"));
-    expect(where.AND ?? []).not.toEqual(expect.arrayContaining([mallanAuthoredWhere()]));
+    const { where } = buildPublicListingDbSearch(new URLSearchParams("type=sale&sort=newest"), EMPTY_TWIN_CONTEXT);
+    expect(where.AND ?? []).not.toEqual(expect.arrayContaining([mallanExclusiveWhere(EMPTY_TWIN_CONTEXT)]));
   });
 
   it("keeps the general-feed minBeds floor (third-party studios excluded)", () => {
@@ -153,6 +148,7 @@ describe("buildPublicListingDbSearch", () => {
     // studio is filtered out at the DB by bedrooms_total >= 1.
     const { where } = buildPublicListingDbSearch(
       new URLSearchParams("type=sale&beds=1"),
+      EMPTY_TWIN_CONTEXT,
     );
     expect(where.bedrooms_total).toEqual({ gte: 1 });
   });
@@ -329,6 +325,6 @@ describe("applyPublicListingPostFilters", () => {
 });
 
 it('suppresses Mallan feed return-copies before DB count and pagination on the general listings route', () => {
-  const { where } = buildPublicListingDbSearch(new URLSearchParams("type=sale"));
-  expect(where.AND).toEqual(expect.arrayContaining([excludeMallanRlsReturnCopies()]));
+  const { where } = buildPublicListingDbSearch(new URLSearchParams("type=sale"), EMPTY_TWIN_CONTEXT);
+  expect(where.AND).toEqual(expect.arrayContaining([excludeMallanRlsReturnCopies(EMPTY_TWIN_CONTEXT)]));
 });

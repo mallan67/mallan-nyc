@@ -20,7 +20,8 @@ jest.mock('@/lib/sentry-report', () => ({ __esModule: true, reportApiError: jest
 import { computeDbEnvelopeSource } from '@/app/api/listings/route';
 import { classifyDbListing } from '@/lib/idx/db-to-public-dto';
 import { excludeMallanRlsReturnCopies } from '@/lib/listings/mallan-source-identity';
-import { buildPublicListingDbSearch, mallanAuthoredWhere } from '@/lib/search/public-listing-db';
+import { EMPTY_TWIN_CONTEXT } from '@/lib/listings/mallan-twin-context';
+import { buildPublicListingDbSearch, mallanExclusiveWhere } from '@/lib/search/public-listing-db';
 
 const ROOT = resolve(__dirname, '../..');
 const read = (p: string) => readFileSync(resolve(ROOT, p), 'utf8');
@@ -65,13 +66,13 @@ describe('computeDbEnvelopeSource labels a response by the listings in it', () =
 });
 
 describe('the sort=exclusives query is the Mallan-authored predicate, not agent_id', () => {
-  it('sort=exclusives carries mallanAuthoredWhere() and no agent_id filter', () => {
-    const { where } = buildPublicListingDbSearch(new URLSearchParams('type=sale&sort=exclusives'));
+  it('sort=exclusives carries mallanExclusiveWhere() and no agent_id filter', () => {
+    const { where } = buildPublicListingDbSearch(new URLSearchParams('type=sale&sort=exclusives'), EMPTY_TWIN_CONTEXT);
     expect(where.agent_id).toBeUndefined();
     // the return-copy suppression that every public query now carries before count and pagination, and the Mallan-authored predicate, once
     const and = where.AND as Array<Record<string, unknown>>;
     expect(and).toHaveLength(2);
-    expect(and).toEqual(expect.arrayContaining([excludeMallanRlsReturnCopies(), mallanAuthoredWhere()]));
+    expect(and).toEqual(expect.arrayContaining([excludeMallanRlsReturnCopies(EMPTY_TWIN_CONTEXT), mallanExclusiveWhere(EMPTY_TWIN_CONTEXT)]));
   });
 });
 
@@ -87,13 +88,13 @@ describe('/api/listings', () => {
 
   it('fetchExclusiveListings ANDs the Mallan-authored predicate after every other filter has been set (the neighborhood branch assigns where.AND)', () => {
     const body = fnBody(route, 'async function fetchExclusiveListings');
-    expect(body).toContain('where: { AND: [where, mallanAuthoredWhere()] }');
-    expect(body.indexOf('mallanAuthoredWhere()')).toBeGreaterThan(body.lastIndexOf('where.AND ='));
+    expect(body).toContain('where: { AND: [where, mallanExclusiveWhere(twin)] }');
+    expect(body.indexOf('mallanExclusiveWhere(twin)')).toBeGreaterThan(body.lastIndexOf('where.AND ='));
     expect(body).toContain("rls_eligible: false");                       // the website-only branch of its display gate is still there
   });
 
   it('imports the predicate from the one module that owns it', () => {
-    expect(route).toMatch(/mallanAuthoredWhere,?\s*\}\s*from '@\/lib\/search\/public-listing-db'/);
+    expect(route).toMatch(/mallanExclusiveWhere,?\s*\}\s*from '@\/lib\/search\/public-listing-db'/);
   });
 });
 

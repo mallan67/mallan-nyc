@@ -26,6 +26,7 @@ import {
 } from '@/lib/auth/listing-capabilities';
 
 const BROKER = { userId: 1n, role: 'BROKER' };
+const PROVEN_DUPLICATE = { returnCopyIds: ['RLS20093870'], agentsByMlsId: {} };
 const ASSIGNED_AGENT = { userId: 42n, role: 'AGENT' };
 const OTHER_AGENT = { userId: 99n, role: 'AGENT' };
 
@@ -59,8 +60,14 @@ const THIRD_PARTY: CapabilityListing = {
 describe('source classification', () => {
   it('separates the three concepts', () => {
     expect(classifyListingSource(LOCAL)).toBe('mallan-local');
-    expect(classifyListingSource(RETURN_COPY)).toBe('mallan-rls-return-copy');
-    expect(classifyListingSource(THIRD_PARTY)).toBe('third-party-rls');
+    // RLS20093870 is a PROVEN duplicate of the Mallan-authored SL-0004 (the same physical unit): that is what makes it a return-copy.
+    expect(classifyListingSource(RETURN_COPY, PROVEN_DUPLICATE)).toBe('mallan-rls-return-copy');
+    expect(classifyListingSource(THIRD_PARTY, PROVEN_DUPLICATE)).toBe('third-party-rls');
+  });
+
+  it('a Mallan-office Cotality row with no proven twin is not a return-copy (and is still read-only: Cotality owns it)', () => {
+    expect(classifyListingSource(RETURN_COPY, { returnCopyIds: [], agentsByMlsId: {} })).toBe('third-party-rls');
+    expect(listingCapabilities(BROKER, RETURN_COPY).mayManageMallanLocalListing).toBe(false);
   });
 
   it('a local row is local even when an office id is somehow present', () => {

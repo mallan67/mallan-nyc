@@ -28,6 +28,7 @@ import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 // path falls back to the source locator instead of crashing.
 import { r2PublicUrlForKeyRead } from '@/lib/images/r2';
 import { excludeMallanRlsReturnCopies } from '@/lib/listings/mallan-source-identity';
+import { loadMallanTwinContext } from '@/lib/listings/mallan-twin-context';
 import { petPolicyLabels } from '@/lib/search/pet-policy';
 
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
@@ -499,7 +500,7 @@ async function fetchManifestPage(
           // building, next to the local canonical listing. Applied inside the
           // query so it precedes the shard page window, from the same single
           // owner as every other emitter.
-          excludeMallanRlsReturnCopies(),
+          excludeMallanRlsReturnCopies(await loadMallanTwinContext()),
           { address: { path: ['StreetNumber'], string_starts_with: shard } },
         ],
       },

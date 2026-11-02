@@ -5,6 +5,7 @@ import Link from 'next/link';
 // performs is a canonicalization, and canonicalization is permanent (308).
 import { notFound, permanentRedirect } from 'next/navigation';
 import { isMallanRlsReturnCopy, isMallanWebsiteOnlyListing, isMallanLocalListing } from '@/lib/listings/mallan-source-identity';
+import { loadMallanTwinContext } from '@/lib/listings/mallan-twin-context';
 import { resolveReturnCopyCanonicalTarget } from '@/lib/listings/return-copy-canonical';
 import AgentAvatar from '@/app/components/AgentAvatar';
 import InquiryForm from '@/app/components/InquiryForm';
@@ -35,6 +36,7 @@ import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
 import { resolveListingResult } from '@/lib/listings/listing-fetch-result';
 import type { BoroughSlug } from '@/lib/types/neighborhood';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
+import MallanExclusiveBadge from '@/app/components/MallanExclusiveBadge';
 // NOTE (compute repair PR #511): the public listing page renders ONLY from the
 // synchronized Neon copy (listing + listing_media). It must NEVER call the live
 // Cotality feed (OAuth, Property, Media) during an ordinary page request —
@@ -457,7 +459,8 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // suppressed URL — so it adds no cost to normal detail renders. It is
     // deliberately uncapped: a `take` could hide the very twin being sought and
     // silently downgrade a redirect into a 404.
-    if (isMallanRlsReturnCopy(dbListing)) {
+    const twin = await loadMallanTwinContext();
+    if (isMallanRlsReturnCopy(dbListing, twin)) {
       const localCandidates = await prisma.listing.findMany({
         where: {
           OR: [
@@ -484,6 +487,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       const target = resolveReturnCopyCanonicalTarget(
         dbListing,
         localCandidates.map((c) => ({ ...c, slug: buildListingSlugFromDbRow(c) })),
+        twin,
       );
       if (target.kind === 'fail-closed') return null;
       if (target.kind === 'redirect') {
@@ -624,6 +628,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // #612 did) computes the right answer and then discards it.
     const baseDto = dbListingToPublicDTO(dbListing, {
       hadFeedRelationalRows: feedAuthority.get(dbListing.listing_id),
+      twin,
     });
 
     const dto: PublicListingDTO = {
@@ -1457,6 +1462,7 @@ export default async function ListingPage({ params }: Props) {
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2 22V6l10-4 10 4v16l-10-4L2 22z" /></svg>
                       {displayPropertyType}
                     </span>
+                    <MallanExclusiveBadge listing={listing} size="md" />
                     {listing.previousListPrice && listing.listPrice < listing.previousListPrice && (
                       <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 text-[13px] font-medium rounded-full">
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>

@@ -5,6 +5,7 @@ import { generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { ACTIVE_DISPLAY_VALUES } from '@/lib/compliance/status';
 import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
+import { loadMallanTwinContext } from "@/lib/listings/mallan-twin-context";
 
 const BASE_URL = 'https://mallan.nyc';
 
@@ -100,7 +101,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         // row is. This route builds its gate inline rather than through
         // `buildSearchDisplayWhere`, so the exclusion is applied explicitly
         // from the SAME single owner.
-        AND: [excludeMallanRlsReturnCopies()],
+        AND: [excludeMallanRlsReturnCopies(await loadMallanTwinContext())],
       },
       select: {
         listing_id: true,

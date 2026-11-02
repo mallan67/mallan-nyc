@@ -17,7 +17,16 @@
  * and ambiguous/address-suppressed rows can therefore never be merged.
  */
 
-import { resolveReturnCopyCanonicalTarget } from '@/lib/listings/return-copy-canonical';
+import { resolveReturnCopyCanonicalTarget as resolveWithContext } from '@/lib/listings/return-copy-canonical';
+import type { MallanTwinContext } from '@/lib/listings/mallan-twin-context';
+
+/** The identity context in which RLS20093870 is a PROVEN duplicate of the Mallan-authored SL-0004. */
+const PROVEN: MallanTwinContext = { returnCopyIds: ['RLS20093870'], agentsByMlsId: {} };
+const resolveReturnCopyCanonicalTarget = (
+  requested: Parameters<typeof resolveWithContext>[0],
+  candidates: Parameters<typeof resolveWithContext>[1],
+  context: MallanTwinContext = PROVEN,
+) => resolveWithContext(requested, candidates, context);
 
 const addr = (over: Record<string, unknown> = {}) => ({
   StreetNumber: '333',
@@ -143,5 +152,19 @@ describe('only return-copies are canonicalized', () => {
   it('unknown provenance is NOT redirected', () => {
     const unknown = { ...RETURN_COPY, list_office_mls_id: null };
     expect(resolveReturnCopyCanonicalTarget(unknown, [LOCAL_TWIN]).kind).toBe('not-applicable');
+  });
+
+  it('a Mallan-office row with NO proven twin renders normally: it is Mallan\'s own listing, not a duplicate (800 Second Ave #806)', () => {
+    const own = { ...RETURN_COPY, listing_id: 'RLS20123633', address: addr({ StreetNumber: '800', StreetName: 'Second', UnitNumber: '806' }) };
+    expect(resolveReturnCopyCanonicalTarget(own, [LOCAL_TWIN]).kind).toBe('not-applicable');
+    expect(resolveReturnCopyCanonicalTarget(own, [], { returnCopyIds: [], agentsByMlsId: {} }).kind).toBe('not-applicable');
+  });
+
+  it('a Draft local row is not a twin (it is not public): the redirect target must be published', () => {
+    const draft = { ...LOCAL_TWIN, status: 'Draft' };
+    const out = resolveReturnCopyCanonicalTarget(RETURN_COPY, [draft]);
+    expect(out.kind).toBe('fail-closed');
+    if (out.kind !== 'fail-closed') throw new Error('expected fail-closed');
+    expect(out.reason).toBe('no-local-twin');
   });
 });

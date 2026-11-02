@@ -117,6 +117,12 @@ const findManyMock = jest.fn(async (q: Record<string, any>) => {
   }
   return all.slice(start, start + take);
 });
+// The identity context (lib/listings/mallan-twin-context.ts) is its own unit under test; here it is fixed to "nothing is a duplicate" so this suite's
+// prisma mock only sees the reads it is about.
+jest.mock("@/lib/listings/mallan-twin-context", () => ({
+  ...jest.requireActual("@/lib/listings/mallan-twin-context"),
+  loadMallanTwinContext: jest.fn(async () => ({ returnCopyIds: [], agentsByMlsId: {} })),
+}));
 jest.mock("@/lib/prisma", () => ({
   __esModule: true,
   default: { listing: { findMany: (...a: unknown[]) => findManyMock(...(a as [Record<string, unknown>])) } },

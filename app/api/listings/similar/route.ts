@@ -17,6 +17,7 @@ import { fetchListingMedia } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
 import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
+import { loadMallanTwinContext } from "@/lib/listings/mallan-twin-context";
 import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
 
 export const maxDuration = 60;
@@ -138,6 +139,7 @@ async function computeSimilarListings(params: SimilarParams): Promise<Record<str
       })
       .catch(() => null);
 
+    const twin = await loadMallanTwinContext();
     const dbResultsRaw = await prisma.listing.findMany({
       where: {
         status: 'Active',
@@ -153,7 +155,7 @@ async function computeSimilarListings(params: SimilarParams): Promise<Record<str
         // row could appear as a "similar" comp beside — or instead of — its own
         // local canonical listing. Applied from the same single owner, inside
         // the query so it precedes any limit.
-        AND: [excludeMallanRlsReturnCopies()],
+        AND: [excludeMallanRlsReturnCopies(twin)],
         OR: [
           { address: { path: ['PostalCode'], equals: postalCode } },
           ...(neighborhood ? [{ neighborhood }] : []),

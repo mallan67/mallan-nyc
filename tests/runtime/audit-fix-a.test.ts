@@ -29,6 +29,7 @@ import {
 } from '@/lib/idx/db-to-public-dto';
 import { toDisplayListing } from '@/lib/idx/display-adapter';
 import { buildPublicListingDbSearch } from '@/lib/search/public-listing-db';
+import { EMPTY_TWIN_CONTEXT } from '@/lib/listings/mallan-twin-context';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -157,7 +158,7 @@ describe('Audit-fix PR A · Fix 2 — address search PascalCase + camelCase supp
     const params = new URLSearchParams();
     params.set('type', 'sale');
     params.set('address', addr);
-    return buildPublicListingDbSearch(params).where;
+    return buildPublicListingDbSearch(params, EMPTY_TWIN_CONTEXT).where;
   }
 
   function flattenAnd(where: unknown): unknown[] {
@@ -237,7 +238,7 @@ describe('Search-fix · Fix 4 — case-insensitive address search', () => {
     const params = new URLSearchParams();
     params.set('type', 'sale');
     params.set('address', addr);
-    return buildPublicListingDbSearch(params).where;
+    return buildPublicListingDbSearch(params, EMPTY_TWIN_CONTEXT).where;
   }
 
   function flattenAnd(where: unknown): unknown[] {
@@ -465,14 +466,20 @@ describe('Audit-fix PR A · Fix 3 — /buy?exclusive=mallan filter', () => {
     const params = new URLSearchParams();
     params.set('type', 'sale');
     params.set('exclusive', 'mallan');
-    const { where } = buildPublicListingDbSearch(params);
+    const { where } = buildPublicListingDbSearch(params, EMPTY_TWIN_CONTEXT);
     expect(where.agent_id).toBeUndefined();
+    // Mallan-AUTHORED rows (SL-/RL-) OR a VERIFIED Mallan-listed Cotality row (Mallan's list office + a roster agent + an exclusive agreement). Never agent_id.
     expect(where.AND).toEqual(
       expect.arrayContaining([
         {
           OR: [
-            { listing_id: { startsWith: 'SL-' } },
-            { listing_id: { startsWith: 'RL-' } },
+            {
+              OR: [
+                { listing_id: { startsWith: 'SL-' } },
+                { listing_id: { startsWith: 'RL-' } },
+              ],
+            },
+            expect.objectContaining({ list_office_mls_id: { in: ['7041'] }, list_agent_mls_id: { in: [] } }),
           ],
         },
       ]),
@@ -482,7 +489,7 @@ describe('Audit-fix PR A · Fix 3 — /buy?exclusive=mallan filter', () => {
   it('omitting exclusive leaves agent_id unconstrained', () => {
     const params = new URLSearchParams();
     params.set('type', 'sale');
-    const { where } = buildPublicListingDbSearch(params);
+    const { where } = buildPublicListingDbSearch(params, EMPTY_TWIN_CONTEXT);
     expect(where.agent_id).toBeUndefined();
   });
 
@@ -491,21 +498,21 @@ describe('Audit-fix PR A · Fix 3 — /buy?exclusive=mallan filter', () => {
       const params = new URLSearchParams();
       params.set('type', 'sale');
       params.set('exclusive', bad);
-      const { where } = buildPublicListingDbSearch(params);
+      const { where } = buildPublicListingDbSearch(params, EMPTY_TWIN_CONTEXT);
       expect(where.agent_id).toBeUndefined();
     }
   });
 
-  it('exclusive=mallan + sort=exclusives narrows to Mallan-AUTHORED listings once, never by agent_id (the conditions compose)', () => {
+  it('exclusive=mallan + sort=exclusives narrows to Mallan exclusives (authored or verified Mallan-listed) once, never by agent_id (the conditions compose)', () => {
     // 2026-10-09: sort=exclusives used to set `agent_id: { not: null }`, which lists another firm's listing that the sync stamped with an agent_id
     const params = new URLSearchParams();
     params.set('type', 'sale');
     params.set('exclusive', 'mallan');
     params.set('sort', 'exclusives');
-    const { where, orderBy } = buildPublicListingDbSearch(params);
+    const { where, orderBy } = buildPublicListingDbSearch(params, EMPTY_TWIN_CONTEXT);
     expect(where.agent_id).toBeUndefined();
-    // the return-copy suppression is the other group that names SL-/RL-; it also names office ids, so it is not counted here
-    const mallanOnly = (where.AND as Array<Record<string, unknown>>).filter((c) => Array.isArray(c.OR) && JSON.stringify(c.OR).includes('"startsWith":"SL-"') && !JSON.stringify(c.OR).includes('list_office_mls_id'));
+    // the return-copy suppression is the other group that names SL-/RL-; only the Mallan-exclusive predicate also names the agreement, so count that one
+    const mallanOnly = (where.AND as Array<Record<string, unknown>>).filter((c) => Array.isArray(c.OR) && JSON.stringify(c.OR).includes('"startsWith":"SL-"') && JSON.stringify(c.OR).includes('ListingAgreement'));
     expect(mallanOnly).toHaveLength(1);
     expect(orderBy).toEqual({ modification_timestamp: 'desc' });
   });

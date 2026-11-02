@@ -36,6 +36,7 @@ import {
   isMallanRlsReturnCopy,
   type MallanSourceIdentityRow,
 } from '@/lib/listings/mallan-source-identity';
+import { lastKnownMallanTwinContext, type MallanTwinContext } from '@/lib/listings/mallan-twin-context';
 
 /**
  * Which of the three charter concepts this row is.
@@ -187,9 +188,13 @@ export const CAPABILITY_LISTING_SELECT = {
 } as const;
 
 /** Classify a row into exactly one of the three charter concepts. */
-export function classifyListingSource(listing: CapabilityListing): ListingSourceClass {
+export function classifyListingSource(
+  listing: CapabilityListing,
+  // Internal (CRM) readers use the context this process last loaded; a Cotality row is read-only either way (neither class is editable).
+  context: MallanTwinContext = lastKnownMallanTwinContext(),
+): ListingSourceClass {
   if (isMallanLocalListing(listing)) return 'mallan-local';
-  if (isMallanRlsReturnCopy(listing)) return 'mallan-rls-return-copy';
+  if (isMallanRlsReturnCopy(listing, context)) return 'mallan-rls-return-copy';
   return 'third-party-rls';
 }
 
