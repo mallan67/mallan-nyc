@@ -1171,6 +1171,9 @@ export async function GET(request: NextRequest) {
                 });
                 if (!evRes.ok) return null;
                 const body = await evRes.json();
+                // A page with nextLink is not the full building's history.
+                // Treat missing pages as unresolved, never as a verified Co-op.
+                if (body['@odata.nextLink']) return null;
                 return Array.isArray(body.value) ? body.value as CotalityRecord[] : null;
               };
               const deadline = new Promise<null>((resolve) => {
