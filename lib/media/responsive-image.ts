@@ -85,9 +85,11 @@ export const GALLERY_FULLSCREEN_QUALITY: number = IMAGE_CONFIG.galleryFullscreen
 export const GALLERY_OPTIMIZER_ENABLED = true;
 
 /**
- * The ONLY hosts the gallery may hand to the optimizer: Mallan's own R2 host. Cotality photos stay on the existing
- * media proxy until the IDX Plus agreement is checked for direct fetching, transformation and 31-day caching, and a
- * withdrawal path for those copies exists. See config/image-optimization.json `$comment_galleryOptimizerHosts`.
+ * The ONLY hosts the gallery may hand to the optimizer: Mallan's R2 host. Photos whose URL is on Cotality
+ * (api.cotality.com, normally behind the media proxy) stay on the existing proxy until the IDX Plus agreement is
+ * checked for direct fetching, transformation and caching, and a withdrawal path for those copies exists.
+ * HOST-LEVEL ONLY: R2 can hold copies of Cotality-feed photos (the media sync mirrors them) and those DO reach the
+ * optimizer. See config/image-optimization.json `$comment_galleryOptimizerHosts` for the residual risk.
  */
 export const GALLERY_OPTIMIZER_HOSTS: readonly string[] = IMAGE_CONFIG.galleryOptimizerHosts;
 

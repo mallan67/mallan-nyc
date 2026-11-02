@@ -161,7 +161,15 @@
     "IDX Plus agreement permits that for the detail gallery, and what must happen to those copies when a",
     "listing is withdrawn or its media authorization changes, is NOT established. Until it is certified this list",
     "must not contain a Cotality host. It is a strict subset of optimizerTrustedHosts (a test enforces both).",
-    "The search cards' existing behaviour (which does optimize Cotality photos) is not changed by this key."
+    "The search cards' existing behaviour (which does optimize Cotality photos) is not changed by this key.",
+    "",
+    "THIS IS A HOST-LEVEL CONTROL, NOT A CONTENT-LEVEL ONE. Mallan's R2 can hold copies of Cotality-feed photos",
+    "(the media sync mirrors the hero photo of every displayable third-party listing, and galleries mirrored",
+    "earlier stay in the bucket), and those R2 URLs DO reach the optimizer. What this key guarantees is only that",
+    "no api.cotality.com URL does. Also open: there is no purge path for a transformed copy once issued (Vercel",
+    "supports invalidation by source image; nothing here calls it), and the copy may outlive the 31-day",
+    "minimumCacheTTL because R2 objects are served with max-age=31536000 (how the optimizer combines the two is",
+    "not verified). Rights to store, transform and CDN-cache are not established in this repo."
   ],
   "galleryOptimizerHosts": ["pub-c05d6bb7575841e88a1f634081aaf714.r2.dev"],
   "galleryImageWidths": [640, 828, 1080, 1280, 1920, 2048, 3840],

@@ -131,7 +131,7 @@ describe('ListingMediaGallery asks the optimizer for the pixels it shows', () =>
     expect(decode(attr(t, 'src'))).not.toBe(r2(3));
   });
 
-  it('COMPLIANCE POLICY: a Cotality photo stays on the existing media proxy — the gallery never hands it to the optimizer', () => {
+  it('COMPLIANCE POLICY (host level): a Cotality-HOSTED photo stays on the existing media proxy — no api.cotality.com URL reaches the optimizer (R2 copies of feed photos do; see the config note)', () => {
     // The optimizer would fetch api.cotality.com directly (no Mallan proxy: no bearer authorization, no response
     // validation, a 31-day transformed copy). Whether the IDX Plus agreement permits that for the detail gallery,
     // and what happens to those copies when a listing is withdrawn, is NOT established, so the gallery keeps the
@@ -223,7 +223,9 @@ describe('ListingMediaGallery source contracts (failure, lightbox, non-photo med
 });
 
 describe('COMPLIANCE POLICY — which sources the gallery may hand to the optimizer', () => {
-  it('only Mallan\'s own R2 host, declared in the shared config and a strict subset of the card trust list', () => {
+  it('only Mallan\'s R2 host (a HOST-level control: R2 can hold Cotality-sourced copies), declared in the shared config and a strict subset of the card trust list', () => {
+    // The config's $comment_galleryOptimizerHosts must keep saying so, so nobody reads this list as "no Cotality-sourced pixels".
+    expect(JSON.stringify(IMAGE_CONFIG['$comment_galleryOptimizerHosts'])).toMatch(/HOST-LEVEL CONTROL, NOT A CONTENT-LEVEL ONE/);
     expect(GALLERY_OPTIMIZER_HOSTS).toEqual(['pub-c05d6bb7575841e88a1f634081aaf714.r2.dev']);
     expect(IMAGE_CONFIG.galleryOptimizerHosts).toEqual([...GALLERY_OPTIMIZER_HOSTS]);
     for (const h of GALLERY_OPTIMIZER_HOSTS) expect(OPTIMIZER_TRUSTED_HOSTS).toContain(h);
