@@ -5248,6 +5248,7 @@ function toggleSaleAuctionFields() {
 // Building database — loaded from API, no hardcoded mock data
 let buildingDatabase = [];
 let _buildingSearchTimeout = null;
+let _buildingSearchSeq = 0;   // the number of the search the box asked last: an answer to an earlier one is not shown
 
 // Map RESO CommonInterest enum values to sale form salePropertyType radio values.
 // Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §5, §11
@@ -5266,13 +5267,14 @@ function _commonInterestToFormType(ci) {
 }
 
 // Fetch buildings from API by address query
-async function fetchBuildingsFromAPI(query) {
+async function fetchBuildingsFromAPI(query, stillWanted) {   // stillWanted (optional): false once a newer search has started, so a late answer says nothing
     if (!query || query.length < 3) return [];
     try {
         var resp = await fetch('/api/buildings/search?q=' + encodeURIComponent(query), { credentials: 'same-origin' });
         // Read body for all responses — backend returns _errorHint on errors
         var body;
         try { body = await resp.json(); } catch (_) { body = {}; }
+        if (stillWanted && !stillWanted()) return [];   // a newer search is running: its answer is the one to show, and this one raises no message
         var hint = body._errorHint || null;
 
         if (resp.status === 401) {
@@ -5353,15 +5355,18 @@ function _saleBuildingCandidateRow(b, subtitle, onPick) {
 function searchBuildingForListing(query, prefix) {
     const results = document.getElementById(prefix + 'BuildingSearchResults');
     if (!results) return;
-    if (query.length < 3) { results.classList.add('hidden'); return; }
+    if (query.length < 3) { _buildingSearchSeq++; results.classList.add('hidden'); return; }
 
     // Debounce API calls
     clearTimeout(_buildingSearchTimeout);
     _buildingSearchTimeout = setTimeout(async function() {
+        var seq = ++_buildingSearchSeq;
+        var stillWanted = function() { return seq === _buildingSearchSeq; };
         results.innerHTML = '<div class="p-3 text-sm text-gray-400">Searching...</div>';
         results.classList.remove('hidden');
 
-        var matches = await fetchBuildingsFromAPI(query);
+        var matches = await fetchBuildingsFromAPI(query, stillWanted);
+        if (!stillWanted()) return;   // the box asked something newer while the index was answering; that answer is the one to show
         buildingDatabase = matches; // Cache results for selectBuildingFromIDX
 
         if (matches.length === 0) {
