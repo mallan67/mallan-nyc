@@ -43,6 +43,11 @@ window.alert = function(msg) { showToast(String(msg)); };
 </script>
 <style>
 body { font-family: Manrope, sans-serif; }
+/* A required field that is still empty when a listing is made live: boxed in red, with the tab's count on the tab button */
+.sale-missing-field { outline: 2px solid #ef4444 !important; outline-offset: 2px; border-radius: 6px; background-color: #fef2f2; }
+.sale-missing-pulse { animation: saleMissingPulse 0.8s ease-in-out 2; }
+@keyframes saleMissingPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } 50% { box-shadow: 0 0 0 6px rgba(239,68,68,.35); } }
+.sale-tab-missing { background: #ef4444; color: #fff; border-radius: 9999px; font-size: 10px; font-weight: 700; padding: 0 6px; margin-left: auto; line-height: 16px; }
 /* Sidebar */
 .sidebar-tab { transition: all 0.2s ease; border-left: 3px solid transparent; }
 .sidebar-tab:hover { background: #f8fafc; border-left-color: #d1d5db; }
@@ -661,7 +666,7 @@ body { font-family: Manrope, sans-serif; }
                     </div>
                     <p class="text-xs text-red-600 mb-2">The following fields are required by REBNY RLS before this listing can be set to Active:</p>
                     <ul id="saleMissingFieldsList" class="text-xs text-red-700 space-y-1 ml-4 list-disc"></ul>
-                    <p class="text-xs text-gray-600 mt-2 italic">Status has been reverted to Draft. Complete all required fields to activate.</p>
+                    <p id="saleValidationNote" class="text-xs text-gray-600 mt-2 italic">Status has been reverted to Draft. Complete all required fields to activate.</p>
                 </div>
             </div>
 
@@ -8391,11 +8396,9 @@ function submitSalesListing() {
     var listTypeRadio = document.querySelector('input[name="saleListingType"]:checked');
     var isInHouseListing = listTypeRadio && (listTypeRadio.value === 'InHouseInternal' || listTypeRadio.value === 'InHouseWebOnly' || listTypeRadio.value === 'InHouse');
     if (!isInHouseListing && !_submitIsDraft) {
-        const saleMissing = validateREBNYRequired('sale');
+        const saleMissing = collectSaleMissingRequired();
         if (saleMissing.length > 0) {
-            const summaryEl = document.getElementById('saleValidationSummary');
-            if (summaryEl) summaryEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            alert('Cannot submit: ' + saleMissing.length + ' required REBNY field(s) missing.');
+            showSaleMissingRequired('save');          // the list (tab + field, each one jumps to it), the red boxes, the counts on the tabs
             return;
         }
     }
@@ -8876,44 +8879,70 @@ function updateSaleValidationSummary() {
     // Don't show errors until agent has attempted Next/Submit
     if (!window._saleValidationActivated) return;
 
+    const missing = collectSaleMissingRequired();
+    window._saleMissingNow = missing;
     const missingBySection = {};
     const missingByTab = {};
 
-    SALE_REQUIRED_FIELDS.forEach(function(field) {
-        if (!isFieldRelevant(field)) return;
-        if (!isStatusRelevant(field)) return;
-
-        const empty = !fieldHasValue(field);
-
-        // Update field-level red border
-        if (field.id) {
-            const el = document.getElementById(field.id);
-            if (el) {
-                if (empty) el.classList.add('border-red-400');
-                else el.classList.remove('border-red-400');
-            }
-        }
-
-        if (empty) {
-            if (!missingBySection[field.section]) missingBySection[field.section] = [];
-            missingBySection[field.section].push(field.label);
-            missingByTab[field.tab] = true;
-        }
+    // The boxes: clear what an earlier pass painted, then paint what is still empty (a radio group is boxed as a row)
+    document.querySelectorAll('.sale-missing-field').forEach(function (n) { n.classList.remove('sale-missing-field'); });
+    SALE_REQUIRED_FIELDS.forEach(function (field) {
+        if (!field.id) return;
+        const el = document.getElementById(field.id);
+        if (el && !missing.some(function (m) { return m.field === field; })) el.classList.remove('border-red-400');
+    });
+    missing.forEach(function (m) {
+        const els = saleFieldElements(m.field);
+        if (m.field.id && els[0]) els[0].classList.add('border-red-400');
+        if (els[0]) saleMissingTarget(els[0]).classList.add('sale-missing-field');
+        if (!missingBySection[m.section]) missingBySection[m.section] = [];
+        missingBySection[m.section].push(m.label);
+        missingByTab[m.tab] = (missingByTab[m.tab] || 0) + 1;
     });
 
-    // Update tab stars in sidebar
+    // Each tab: its dot, and the number of required fields still empty on it
     ['1','2','3','4','5','6'].forEach(function(t) {
+        const n = missingByTab[parseInt(t, 10)] || 0;
         const dot = document.getElementById('saleTabDot' + t);
         if (dot) {
-            if (missingByTab[parseInt(t)]) {
-                dot.classList.remove('bg-green-400');
-                dot.classList.add('bg-red-400');
-            } else {
-                dot.classList.remove('bg-red-400');
-                dot.classList.add('bg-green-400');
-            }
+            dot.classList.toggle('bg-red-400', n > 0);
+            dot.classList.toggle('bg-green-400', n === 0);
         }
+        [document.getElementById('sidebarTab' + t), document.querySelectorAll('.mobile-tab')[parseInt(t, 10) - 1]].forEach(function (btn) {
+            if (!btn) return;
+            const old = btn.querySelector('.sale-tab-missing');
+            if (old) old.remove();
+            if (n > 0) {
+                const badge = document.createElement('span');
+                badge.className = 'sale-tab-missing';
+                badge.textContent = String(n);
+                badge.title = n + ' required field' + (n === 1 ? '' : 's') + ' missing on ' + (SALE_TAB_NAMES[t] || ('tab ' + t));
+                btn.appendChild(badge);
+            }
+        });
     });
+
+    // The list under the status: the tab and the field, each one jumps to its field (text only: nothing here is markup)
+    const listEl = document.getElementById('saleMissingFieldsList');
+    const panelEl = document.getElementById('saleValidationPanel');
+    if (listEl) {
+        listEl.textContent = '';
+        missing.forEach(function (m, idx) {
+            const li = document.createElement('li');
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'underline text-left hover:text-red-900';
+            btn.setAttribute('data-sale-missing', String(idx));
+            btn.textContent = m.tabName + ' \u2014 ' + m.label;
+            li.appendChild(btn);
+            const where = document.createElement('span');
+            where.className = 'text-gray-500';
+            where.textContent = ' (' + m.section + ')';
+            li.appendChild(where);
+            listEl.appendChild(li);
+        });
+    }
+    if (panelEl) panelEl.classList.toggle('hidden', missing.length === 0);
 
     // Build summary HTML
     const sections = Object.keys(missingBySection);
@@ -8939,6 +8968,16 @@ function updateSaleValidationSummary() {
 window._saleValidationActivated = false;
 
 function initSaleValidation() {
+    // A click on a missing field in the list opens its tab and points at it
+    const missingList = document.getElementById('saleMissingFieldsList');
+    if (missingList) missingList.addEventListener('click', function (e) {
+        const b = e.target.closest && e.target.closest('[data-sale-missing]');
+        const m = b && (window._saleMissingNow || [])[parseInt(b.getAttribute('data-sale-missing'), 10)];
+        if (m) revealSaleField(m);
+    });
+    // The status the listing had before the agent changes it (so a move into Active is told from a move between live statuses)
+    const statusBox = document.getElementById('saleStatus');
+    if (statusBox) ['focus', 'mousedown'].forEach(function (ev) { statusBox.addEventListener(ev, function () { statusBox.dataset.prevStatus = statusBox.value; }); });
     const container = document.querySelector('.flex-1');
     if (!container) return;
     // Wire real-time listeners — they check the gate inside updateSaleValidationSummary
@@ -8953,16 +8992,64 @@ function activateSaleValidation() {
 
 // Validate required fields for submission
 function validateREBNYRequired(formType) {
-    const fields = SALE_REQUIRED_FIELDS;
-    const missing = [];
-    fields.forEach(function(field) {
+    return collectSaleMissingRequired().map(function (m) { return m.label; });
+}
+
+// ── The required fields that are empty, each with the tab it is on ──────────────────────────────────────────────
+const SALE_TAB_NAMES = { 1: 'Listing Info', 2: 'Unit Info', 3: 'TH/Building', 4: 'Distribution', 5: 'Preview', 6: 'History' };
+
+function collectSaleMissingRequired() {
+    const out = [];
+    SALE_REQUIRED_FIELDS.forEach(function (field) {
         if (!isFieldRelevant(field)) return;
         if (!isStatusRelevant(field)) return;
-        if (!fieldHasValue(field)) {
-            missing.push(field.label);
-        }
+        if (!fieldHasValue(field)) out.push({ field: field, label: field.label, tab: field.tab, tabName: SALE_TAB_NAMES[field.tab] || ('Tab ' + field.tab), section: field.section });
     });
-    return missing;
+    return out;
+}
+
+// The controls of a required field: one box, or every button of a radio group.
+function saleFieldElements(field) {
+    if (field.id) { const el = document.getElementById(field.id); return el ? [el] : []; }
+    if (field.name) return Array.prototype.slice.call(document.querySelectorAll('[name="' + field.name + '"]'));
+    return [];
+}
+
+// What gets the red box: the control itself, or the row that holds a radio group.
+function saleMissingTarget(el) {
+    if (el.type === 'radio' || el.type === 'checkbox') { const lab = el.closest('label'); return (lab && lab.parentElement) || el.parentElement || el; }
+    return el;
+}
+
+// Opens the tab (and the sub-tab inside it) that holds a missing field, and points at it.
+function revealSaleField(m) {
+    const els = saleFieldElements(m.field);
+    showSaleMainTab(m.tab);
+    const el = els[0];
+    if (!el) return;
+    const sub = el.closest('.sale-sub-tab');
+    const mm = sub && /^saleSubTabContent(\d+)_(\d+)$/.exec(sub.id);
+    if (mm) showSaleSubTab(parseInt(mm[1], 10), parseInt(mm[2], 10));
+    const target = saleMissingTarget(el);
+    if (target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (el.focus) el.focus({ preventScroll: true });
+    target.classList.add('sale-missing-pulse');
+    setTimeout(function () { target.classList.remove('sale-missing-pulse'); }, 1700);
+}
+
+// Shows what is missing and why the listing did not go live: the list (tab + field, each one jumps to its field), the red boxes, the counts on the tabs.
+function showSaleMissingRequired(mode) {
+    window._saleValidationActivated = true;
+    updateSaleValidationSummary();
+    const panel = document.getElementById('saleValidationPanel');
+    if (!panel) return;
+    const note = document.getElementById('saleValidationNote');
+    if (note) note.textContent = mode === 'status' ? 'The status was not changed. Complete these fields, then set it to Active.'
+        : mode === 'save' ? 'Not saved as a live listing. Complete these fields, or Save as Draft.' : 'Complete these fields.';
+    if (!panel.offsetParent) showSaleMainTab(1);                      // the list lives on Listing Info
+    if (panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const n = (window._saleMissingNow || []).length;
+    if (n) showToast(n + ' required field' + (n === 1 ? ' is' : 's are') + ' missing. They are listed and boxed in red.', 'error');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -9076,7 +9163,7 @@ function validateStatusChange(formType) {
     const draftBadge = document.getElementById('saleDraftBadge');
     if (!statusEl) return;
 
-    const newStatus = statusEl.value;
+    let newStatus = statusEl.value;
     const prevStatus = statusEl.dataset.prevStatus || 'Draft';
 
     // Check valid transition per STATUS_TRANSITIONS state machine.
@@ -9090,22 +9177,25 @@ function validateStatusChange(formType) {
         }
     }
 
-    // Show warning for active/live statuses with missing required fields
+    // Becoming live (Draft / Future / Withdrawn / Expired -> Active, ComingSoon, ...) needs every required field: the change is refused, the status goes back,
+    // and the missing fields are listed with their tab and boxed in red. A move between statuses that are already live is not "becoming active" and is not held
+    // back by it. (An InHouse listing is not on RLS: the same exemption the Save check has.)
     if (REBNY_ACTIVE_STATUSES.includes(newStatus)) {
-        const missing = validateREBNYRequired('sale');
-        if (missing.length > 0) {
-            if (panelEl) {
-                panelEl.classList.remove('hidden');
-                if (listEl) listEl.innerHTML = missing.map(m => '<li>' + m + '</li>').join('');
-            }
-        } else {
-            if (panelEl) panelEl.classList.add('hidden');
+        const missing = collectSaleMissingRequired();
+        const wasLive = REBNY_ACTIVE_STATUSES.includes(prevStatus);
+        if (missing.length > 0 && !wasLive && !_isInHouseListingType('sale')) {
+            statusEl.value = (prevStatus && prevStatus !== newStatus && !wasLive) ? prevStatus : 'Draft';
+            newStatus = statusEl.value;
+            showSaleMissingRequired('status');
+        } else if (missing.length > 0) {
+            showSaleMissingRequired('warn');          // already live (or in-house): say what is missing, do not hold the change
+        } else if (window._saleValidationActivated) {
+            updateSaleValidationSummary();            // nothing missing any more: clear the list and the boxes
         }
     }
 
     // Update previous status tracking
     statusEl.dataset.prevStatus = newStatus;
-    if (panelEl) panelEl.classList.add('hidden');
 
     // Update draft badge
     if (draftBadge) {
