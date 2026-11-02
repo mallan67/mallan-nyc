@@ -20,41 +20,36 @@ const formHtml = fs.readFileSync(FORM_PATH, 'utf8');
 // ─── 1. InHouse still permits Cotality building lookup ───────────────────────
 
 describe('Form — InHouse permits Cotality building lookup', () => {
-  it('searchBuildingForListing does NOT have InHouse early-return', () => {
-    const fnMatch = formHtml.match(/function searchBuildingForListing\(query, prefix\)\s*\{([\s\S]{0,600}?)\n\s*\/\/ Debounce/);
-    expect(fnMatch).not.toBeNull();
-    expect(fnMatch![1]).not.toContain('_isInHouseListingType');
+  it('building lookup remains available in InHouse mode', () => {
+    const start = formHtml.indexOf('function searchBuildingForListing(query, prefix)');
+    const end = formHtml.indexOf('// Building selection', start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    expect(formHtml.slice(start, end)).not.toContain('_isInHouseListingType');
   });
-
-  it('saleAddressBlurLookup does NOT have InHouse early-return', () => {
-    const fnStart = formHtml.indexOf('function saleAddressBlurLookup()');
-    expect(fnStart).toBeGreaterThan(-1);
-    const body = formHtml.slice(fnStart, fnStart + 3500);
-    expect(body).not.toContain('_isInHouseListingType');
+  it('main-address lookup remains available in InHouse mode', () => {
+    const start = formHtml.indexOf('function saleAddressBlurLookup()');
+    expect(start).toBeGreaterThan(-1);
+    expect(formHtml.slice(start, start + 4500)).not.toContain('_isInHouseListingType');
   });
-
-  it('fetchBuildingsFromAPI is called by both searchBuildingForListing and saleAddressBlurLookup', () => {
-    expect(formHtml).toContain('fetchBuildingsFromAPI(query)');
-    expect(formHtml).toContain('fetchBuildingsFromAPI(addr)');
+  it('both address entry points call the authenticated building API', () => {
+    const calls = formHtml.match(/fetchBuildingsFromAPI\(street, stillWanted\)/g) || [];
+    expect(calls).toHaveLength(2);
   });
-
-  it('saleAddressBlurLookup checks local cache first, then falls back to API', () => {
-    const fnStart = formHtml.indexOf('function saleAddressBlurLookup()');
-    expect(fnStart).toBeGreaterThan(-1);
-    const body = formHtml.slice(fnStart, fnStart + 3500);
-    expect(body).toContain('buildingDatabase.find(');
-    expect(body).toContain('fetchBuildingsFromAPI(addr)');
-    const cacheIdx = body.indexOf('buildingDatabase.find(');
-    const apiIdx = body.indexOf('fetchBuildingsFromAPI(addr)');
-    expect(cacheIdx).toBeLessThan(apiIdx);
+  it('checks the exact cached address before querying Cotality', () => {
+    const start = formHtml.indexOf('function saleAddressBlurLookup()');
+    const body = formHtml.slice(start, start + 4500);
+    const cached = body.indexOf('bl.exactMatch(buildingDatabase, street)');
+    const api = body.indexOf('fetchBuildingsFromAPI(street, stillWanted)');
+    expect(cached).toBeGreaterThan(-1);
+    expect(api).toBeGreaterThan(cached);
   });
-
-  it('saleAddressBlurLookup shows candidates in existing results UI on multi-match', () => {
-    const fnStart = formHtml.indexOf('function saleAddressBlurLookup()');
-    expect(fnStart).toBeGreaterThan(-1);
-    const body = formHtml.slice(fnStart, fnStart + 3500);
+  it('offers a candidate list for non-exact or ambiguous matches', () => {
+    const start = formHtml.indexOf('function saleAddressBlurLookup()');
+    const body = formHtml.slice(start, start + 4500);
     expect(body).toContain('saleBuildingSearchResults');
     expect(body).toContain("selectBuildingFromIDX('sale'");
+    expect(body).toContain('bl.exactMatch(matches, street)');
   });
 });
 

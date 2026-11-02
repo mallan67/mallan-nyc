@@ -286,7 +286,7 @@ describe('sales form — both building entry points (Path 1 main address + Path 
   });
 
   test('Main-address blur lookup shows a clear no-match message (not silent)', () => {
-    expect(fnBody('saleAddressBlurLookup')).toMatch(/No building match found/i);
+    expect(fnBody('saleAddressBlurLookup')).toMatch(/No matching building found/i);
   });
 
   test('Main-address blur lookup auto-applies a single exact match', () => {
