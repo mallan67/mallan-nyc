@@ -10,7 +10,7 @@ import { resolve } from 'path';
 const FORM_PATH = resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html');
 const formHtml = readFileSync(FORM_PATH, 'utf8');
 
-const fnStart = formHtml.indexOf('async function fetchBuildingsFromAPI(query)');
+const fnStart = formHtml.indexOf('async function fetchBuildingsFromAPI(query');
 const fnEnd = formHtml.indexOf('\n}', fnStart + 100) + 2;
 const fnBody = formHtml.slice(fnStart, fnEnd);
 
