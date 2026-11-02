@@ -78,10 +78,31 @@ export const GALLERY_FULLSCREEN_WIDTHS: readonly number[] = IMAGE_CONFIG.gallery
 export const GALLERY_FULLSCREEN_QUALITY: number = IMAGE_CONFIG.galleryFullscreenQuality;
 
 /**
- * Kill switch for the GALLERY alone. Set to false and the gallery serves the raw source exactly as it did
- * before (cards are unaffected; `buildImageSources` itself still serves them). One line, no redeploy of config.
+ * Off switch for the GALLERY alone. It is a SOURCE constant: turning it off is a code change and a deploy, NOT a
+ * runtime switch (a runtime switch would need an environment variable, which is a configuration change that needs
+ * approval). Set to false and the gallery serves the raw source exactly as it did before; cards are unaffected.
  */
 export const GALLERY_OPTIMIZER_ENABLED = true;
+
+/**
+ * The ONLY hosts the gallery may hand to the optimizer: Mallan's own R2 host. Cotality photos stay on the existing
+ * media proxy until the IDX Plus agreement is checked for direct fetching, transformation and 31-day caching, and a
+ * withdrawal path for those copies exists. See config/image-optimization.json `$comment_galleryOptimizerHosts`.
+ */
+export const GALLERY_OPTIMIZER_HOSTS: readonly string[] = IMAGE_CONFIG.galleryOptimizerHosts;
+
+/** True only for an absolute https URL, no credentials, on a gallery-approved (Mallan R2) host. Proxy URLs are never unwrapped. */
+export function isGalleryOptimizable(src: string | null | undefined): boolean {
+  if (!src || typeof src !== 'string') return false;
+  let u: URL;
+  try {
+    u = new URL(src);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'https:' || u.username || u.password) return false;
+  return GALLERY_OPTIMIZER_HOSTS.includes(u.hostname.toLowerCase());
+}
 
 /**
  * EXACT hosts the optimizer may be handed. Shared with next.config.js via
@@ -130,11 +151,6 @@ export const CARD_SIZES = {
   split: '(max-width: 768px) 50vw, 30vw',
   /** Full-bleed. Only for a surface genuinely rendered at viewport width. */
   hero: '100vw',
-  /**
-   * SimilarListings card on the listing page: a fixed 260px (<=640px) / 280px rail card. At 2x that is 520 / 560
-   * device px, which the 640 rung covers (1.14-1.23x) without reaching for 828.
-   */
-  similar: '(max-width: 640px) 260px, 280px',
 } as const;
 
 /**

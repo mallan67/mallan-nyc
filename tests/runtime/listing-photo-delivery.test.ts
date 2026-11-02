@@ -19,7 +19,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import ListingMediaGallery from '@/app/components/ListingMediaGallery';
-import { SimilarCard } from '@/app/components/SimilarListings';
 import IMAGE_CONFIG from '@/config/image-optimization.json';
 import {
   buildImageSources,
@@ -33,6 +32,9 @@ import {
   GALLERY_FULLSCREEN_WIDTHS,
   GALLERY_FULLSCREEN_QUALITY,
   GALLERY_SIZES,
+  GALLERY_OPTIMIZER_HOSTS,
+  isGalleryOptimizable,
+  OPTIMIZER_TRUSTED_HOSTS,
 } from '@/lib/media/responsive-image';
 
 const R2 = 'https://pub-c05d6bb7575841e88a1f634081aaf714.r2.dev/photos/RLS20114974';
@@ -129,11 +131,29 @@ describe('ListingMediaGallery asks the optimizer for the pixels it shows', () =>
     expect(decode(attr(t, 'src'))).not.toBe(r2(3));
   });
 
-  it('a Cotality photo behind the media proxy is unwrapped to the trusted absolute URL for the optimizer', () => {
+  it('COMPLIANCE POLICY: a Cotality photo stays on the existing media proxy — the gallery never hands it to the optimizer', () => {
+    // The optimizer would fetch api.cotality.com directly (no Mallan proxy: no bearer authorization, no response
+    // validation, a 31-day transformed copy). Whether the IDX Plus agreement permits that for the detail gallery,
+    // and what happens to those copies when a listing is withdrawn, is NOT established, so the gallery keeps the
+    // proxy for Cotality media until it is certified. (The search cards' existing behaviour is not changed here.)
     const html = render(photos(3, () => proxied(COTALITY)));
     const main = mainImg(html);
-    expect(decode(attr(main, 'srcset'))).toContain(`url=${encodeURIComponent(COTALITY)}&w=640`);
-    expect(decode(attr(main, 'srcset'))).not.toContain('/api/media/proxy');
+    expect(attr(main, 'srcset')).toBeUndefined();
+    expect(attr(main, 'sizes')).toBeUndefined();
+    expect(decode(attr(main, 'src'))).toBe(proxied(COTALITY));
+    for (const t of thumbImgs(html)) {
+      expect(attr(t, 'srcset')).toBeUndefined();
+      expect(decode(attr(t, 'src'))).toBe(proxied(COTALITY));
+    }
+    // ...and the unwrapped absolute URL is not optimizable either
+    expect(isGalleryOptimizable(COTALITY)).toBe(false);
+    expect(isGalleryOptimizable(proxied(COTALITY))).toBe(false);
+  });
+
+  it('a gallery mixing Mallan R2 and Cotality-proxied photos optimizes exactly the R2 ones', () => {
+    const mixed = [{ url: r2(0), thumbUrl: r2(0), order: 0 }, { url: proxied(COTALITY), thumbUrl: proxied(COTALITY), order: 1 }, { url: r2(2), thumbUrl: r2(2), order: 2 }];
+    const thumbs = thumbImgs(render(mixed));
+    expect(thumbs.map((t) => attr(t, 'srcset') !== undefined)).toEqual([true, false, true]);
   });
 
   it.each([
@@ -191,36 +211,55 @@ describe('ListingMediaGallery source contracts (failure, lightbox, non-photo med
     expect(gallery).toMatch(/src=\{videoUrl\}/);
   });
 
-  it('there is one kill switch, in the shared helper', () => {
-    expect(src('lib/media/responsive-image.ts')).toMatch(/export const GALLERY_OPTIMIZER_ENABLED = true/);
+  it('the off switch is a SOURCE constant: turning it off is a code change and a deploy, not a runtime switch', () => {
+    // Stated honestly because the first description of this PR called it a "kill switch" without saying so.
+    // A runtime switch would need an environment variable, which is a configuration change that needs approval.
+    const helper = src('lib/media/responsive-image.ts');
+    expect(helper).toMatch(/export const GALLERY_OPTIMIZER_ENABLED = true/);
+    expect(helper).not.toMatch(/process\.env\.[A-Z_]*GALLERY/);
+    expect(helper).toMatch(/source constant|code change and a deploy/i);
     expect(gallery).toMatch(/GALLERY_OPTIMIZER_ENABLED/);
   });
 });
 
-describe('SimilarListings (same page) and the agent listings cards use the same helper', () => {
-  const item = (photoUrl: string | null, n: number) => ({
-    id: String(n), mlsId: `RLS${n}`, slug: `a-${n}`, listPrice: 3_295_000, beds: 3, baths: 2, sqft: 1800,
-    address: `${n} E 85th Street`, neighborhood: 'Upper East Side', photoUrl, photosCount: 12,
-    propertyType: 'Condo', office: 'Mallan Real Estate Inc.', status: 'Active',
-  });
-  const card = (photoUrl: string | null, n: number) => renderToStaticMarkup(createElement(SimilarCard, { item: item(photoUrl, n), isRental: false }));
-
-  it('an R2 photo gets a card-width srcset and the 260/280px sizes hint', () => {
-    const img = (card(r2(0), 1).match(/<img[^>]*>/) ?? [''])[0];
-    expect(decode(attr(img, 'srcset'))).toContain('w=640');
-    expect(attr(img, 'sizes')).toBe('(max-width: 640px) 260px, 280px');
-    expect(decode(attr(img, 'src'))).not.toBe(r2(0));
+describe('COMPLIANCE POLICY — which sources the gallery may hand to the optimizer', () => {
+  it('only Mallan\'s own R2 host, declared in the shared config and a strict subset of the card trust list', () => {
+    expect(GALLERY_OPTIMIZER_HOSTS).toEqual(['pub-c05d6bb7575841e88a1f634081aaf714.r2.dev']);
+    expect(IMAGE_CONFIG.galleryOptimizerHosts).toEqual([...GALLERY_OPTIMIZER_HOSTS]);
+    for (const h of GALLERY_OPTIMIZER_HOSTS) expect(OPTIMIZER_TRUSTED_HOSTS).toContain(h);
+    expect(GALLERY_OPTIMIZER_HOSTS.length).toBeLessThan(OPTIMIZER_TRUSTED_HOSTS.length);
+    expect(GALLERY_OPTIMIZER_HOSTS.join(' ')).not.toMatch(/cotality|trestle/i);
   });
 
-  it('an untrusted photo stays raw', () => {
-    const img = (card('https://evil.example.com/p.jpg', 2).match(/<img[^>]*>/) ?? [''])[0];
-    expect(attr(img, 'srcset')).toBeUndefined();
-    expect(attr(img, 'src')).toBe('https://evil.example.com/p.jpg');
+  it.each([
+    [r2(0), true],
+    [`${R2}/1779898434281-hero.webp`, true],
+    [COTALITY, false],
+    [proxied(COTALITY), false],
+    [proxied(r2(0)), false],
+    ['https://pub-c05d6bb7575841e88a1f634081aaf714.r2.dev.evil.com/x.jpg', false],
+    ['https://evil.pub-c05d6bb7575841e88a1f634081aaf714.r2.dev/x.jpg', false],
+    ['https://user:pw@pub-c05d6bb7575841e88a1f634081aaf714.r2.dev/x.jpg', false],
+    ['http://pub-c05d6bb7575841e88a1f634081aaf714.r2.dev/x.jpg', false],
+    ['/images/listing-placeholder.svg', false],
+    ['', false],
+    [null, false],
+  ])('isGalleryOptimizable(%s) is %s', (url, expected) => {
+    expect(isGalleryOptimizable(url as string)).toBe(expected);
   });
+});
 
-  it('the agent listings card no longer hands a /api/media/proxy URL to next/image (production: images.localPatterns error)', () => {
-    const tabs = src('app/agents/[name]/listings/ActiveListingsTabs.tsx');
+describe('the agent listings card (production render error) — fixed without extending the optimizer', () => {
+  const tabs = src('app/agents/[name]/listings/ActiveListingsTabs.tsx');
+
+  it('no longer hands a /api/media/proxy URL to next/image (production: images.localPatterns error, 13 times on 2026-11-02)', () => {
     expect(tabs).not.toMatch(/from 'next\/image'/);
-    expect(tabs).toMatch(/<IDXImage[\s\S]*?sizeProfile="grid"/);
+    expect(tabs).toMatch(/<IDXImage/);
+  });
+
+  it('is a profile-less IDXImage: the raw source exactly as before, so no new Cotality optimizer surface is created', () => {
+    const block = (tabs.match(/<IDXImage\b[\s\S]*?\/>/) ?? [''])[0];
+    expect(block).not.toBe('');
+    expect(block).not.toMatch(/sizeProfile=/);
   });
 });

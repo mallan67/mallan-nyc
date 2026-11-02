@@ -153,6 +153,17 @@
     "galleryFullscreenWidths — the lightbox (<=95vw, <=92vh), asked at 100vw so",
     "  it never under-resolves; quality 90, as the heroes use."
   ],
+  "$comment_galleryOptimizerHosts": [
+    "COMPLIANCE POLICY (2026-11-02 pre-merge review). The gallery may hand ONLY Mallan's own R2 host to the",
+    "optimizer. Cotality photos (api.cotality.com, normally reached through /api/media/proxy) stay on the existing",
+    "proxy: it adds the bearer authorization, validates the response and caches 7 days, whereas the optimizer",
+    "would fetch the provider URL directly and keep a transformed copy for minimumCacheTTL (31 days). Whether the",
+    "IDX Plus agreement permits that for the detail gallery, and what must happen to those copies when a",
+    "listing is withdrawn or its media authorization changes, is NOT established. Until it is certified this list",
+    "must not contain a Cotality host. It is a strict subset of optimizerTrustedHosts (a test enforces both).",
+    "The search cards' existing behaviour (which does optimize Cotality photos) is not changed by this key."
+  ],
+  "galleryOptimizerHosts": ["pub-c05d6bb7575841e88a1f634081aaf714.r2.dev"],
   "galleryImageWidths": [640, 828, 1080, 1280, 1920, 2048, 3840],
   "galleryImageQuality": 85,
   "galleryThumbWidths": [128, 256, 384],

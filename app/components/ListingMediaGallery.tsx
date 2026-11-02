@@ -14,6 +14,7 @@ import {
   GALLERY_FULLSCREEN_QUALITY,
   GALLERY_SIZES,
   GALLERY_OPTIMIZER_ENABLED,
+  isGalleryOptimizable,
 } from '@/lib/media/responsive-image';
 
 const PLACEHOLDER = '/images/listing-placeholder.svg';
@@ -128,12 +129,13 @@ export default function ListingMediaGallery({
   }, [retryCount, rawFallback]);
 
   /**
-   * The src / srcSet for one gallery photo: the optimizer's candidates for sources it may be handed (R2 mirror,
-   * Cotality — proxied URLs are unwrapped), the raw URL for everything else and after a failure. The gallery uses
-   * its OWN ladders (lib/media/responsive-image.ts GALLERY_*), never the card ladder.
+   * The src / srcSet for one gallery photo: the optimizer's candidates ONLY for Mallan's own R2 host, the raw URL
+   * for everything else (Cotality photos stay on the existing media proxy: compliance policy, see
+   * config/image-optimization.json `$comment_galleryOptimizerHosts`) and after a failure. The gallery uses its OWN
+   * ladders (lib/media/responsive-image.ts GALLERY_*), never the card ladder.
    */
   const gallerySources = (kind: 'main' | 'thumb' | 'full', idx: number, raw: string): { src: string; srcSet?: string } => {
-    const optimize = GALLERY_OPTIMIZER_ENABLED && !failed.has(idx) && !rawFallback.has(`${kind}:${idx}`);
+    const optimize = GALLERY_OPTIMIZER_ENABLED && isGalleryOptimizable(raw) && !failed.has(idx) && !rawFallback.has(`${kind}:${idx}`);
     if (!optimize) return { src: raw };
     if (kind === 'thumb') return buildImageSources(raw, GALLERY_THUMB_WIDTHS, GALLERY_THUMB_QUALITY, 256);
     if (kind === 'full') return buildImageSources(raw, GALLERY_FULLSCREEN_WIDTHS, GALLERY_FULLSCREEN_QUALITY, 1920);

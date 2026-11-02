@@ -342,7 +342,6 @@ describe('optimization is OPT-IN — only audited surfaces change', () => {
       'app/components/SearchListingCard.tsx',
       'app/components/FeaturedListings.tsx',
       'app/components/CompareProperties.tsx',
-      'app/agents/[name]/listings/ActiveListingsTabs.tsx',
     ];
     const found: Array<{ file: string; hasProfile: boolean }> = [];
     for (const f of files) {
@@ -351,10 +350,9 @@ describe('optimization is OPT-IN — only audited surfaces change', () => {
         found.push({ file: f, hasProfile: /sizeProfile=/.test(block) });
       }
     }
-    // 3 search cards + 1 featured gallery + 1 compare tile + 1 agent listings card = 6
-    // (the agent card replaced a next/image that production rejected for proxied photos, 2026-11-02).
-    expect(found).toHaveLength(6);
-    // All six are audited card surfaces, so all six opt in.
+    // 3 search cards + 1 featured gallery + 1 compare tile = 5.
+    expect(found).toHaveLength(5);
+    // All five are audited card surfaces, so all five opt in.
     expect(found.filter((f) => !f.hasProfile)).toEqual([]);
   });
 
