@@ -359,7 +359,6 @@
     // saleInternetConsumerCommentYN (RESO canonical, per-row opt-out,
     // fail-CLOSED per REBNY compliance §7 — the canonical write is in
     // collectSaleFormData below mirroring the AVM pattern).
-    { rls: 'saleCommNegotiabilityAck', form: 'saleCommNegotiabilityAck', type: 'bool', src: 'raw' },
     { rls: 'saleFairHousingAck', form: 'saleFairHousingAck', type: 'bool', src: 'raw' },
     // saleInternetConsumerCommentYN: form key. Canonical RESO is
     // `InternetConsumerCommentYN` (per-row opt-out, fail-CLOSED per
