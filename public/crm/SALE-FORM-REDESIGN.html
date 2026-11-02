@@ -5407,6 +5407,9 @@ function selectBuildingFromIDX(prefix, picked) {
     // the row the agent clicked (or the one building the lookup chose); a caller that has only an address gets the cached building with that address
     const building = (picked && typeof picked === 'object') ? picked : buildingDatabase.find(b => b.address === picked);
     if (!building) return;
+    if (building.classification_unverified) {
+        showToast('Address loaded, but Cotality building ownership classification is unavailable. Verify the property type before saving.', 'warning');
+    }
     // A unit typed into the building-search box is not a Cotality building
     // attribute. Preserve the agent's own unit, never copy another unit.
     const bl = window.MallanBuildingLookup;

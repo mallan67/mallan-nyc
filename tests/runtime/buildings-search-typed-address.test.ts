@@ -238,3 +238,52 @@ describe('the current listing names the neighborhood, not an older record of the
     expect(String(queryRaw.mock.calls[0][0])).toContain("ORDER BY (status = 'Active') DESC, modification_timestamp DESC");
   });
 });
+
+
+describe('bounded Cotality ownership evidence never blocks a verified building address', () => {
+  it('800 Second Avenue: four returned records need just one request and preserve the verified condo type', async () => {
+    queryRaw.mockResolvedValue([]);
+    const four = Array.from({ length: 4 }, () => liveRecord({ CommonInterest: 'Condominium' }));
+    stubCotality(four);
+    const { buildings } = await search('800 Second Avenue');
+    expect(buildings).toHaveLength(1);
+    expect(buildings[0]).toMatchObject({ address: '800 2ND Avenue', common_interest: 'Condominium', building_kind: 'Condo' });
+    expect(buildings[0].classification_unverified).toBeUndefined();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('333 East 46th: a 20-row stock-cooperative sample cannot hide the full condop evidence', async () => {
+    queryRaw.mockResolvedValue([]);
+    const row = (interest: string) => liveRecord({ StreetNumber: '333', StreetDirPrefix: 'E', StreetName: '46TH', StreetSuffix: 'Street', CommonInterest: interest });
+    const first20 = Array.from({ length: 20 }, () => row('StockCooperative'));
+    const full200 = [
+      ...Array.from({ length: 130 }, () => row('StockCooperative')),
+      ...Array.from({ length: 70 }, () => row('Condop')),
+    ];
+    global.fetch = jest.fn(async (url: string) => ({
+      ok: true, status: 200,
+      json: async () => ({ value: String(url).includes('%24top=200') ? full200 : first20 }),
+    })) as unknown as typeof fetch;
+    const { buildings } = await search('333 East 46th Street');
+    expect(buildings).toHaveLength(1);
+    expect(buildings[0]).toMatchObject({ common_interest: 'Condop', building_kind: 'Condop' });
+    expect(buildings[0].classification_unverified).toBeUndefined();
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('a hung classification request returns the address within 2.5s without guessing its building type', async () => {
+    queryRaw.mockResolvedValue([]);
+    const first20 = Array.from({ length: 20 }, () =>
+      liveRecord({ StreetNumber: '333', StreetDirPrefix: 'E', StreetName: '46TH', StreetSuffix: 'Street', CommonInterest: 'StockCooperative' }));
+    global.fetch = jest.fn((url: string) => {
+      if (String(url).includes('%24top=200')) return new Promise(() => {}) as Promise<Response>;
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ value: first20 }) }) as Promise<Response>;
+    }) as unknown as typeof fetch;
+    const started = Date.now();
+    const { buildings } = await search('333 East 46th Street');
+    expect(Date.now() - started).toBeLessThan(2500);
+    expect(buildings).toHaveLength(1);
+    expect(buildings[0]).toMatchObject({ address: '333 E 46TH Street', classification_unverified: true, common_interest: '', building_kind: null });
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+});

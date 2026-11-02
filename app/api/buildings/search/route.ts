@@ -1142,28 +1142,70 @@ export async function GET(request: NextRequest) {
           }
           // The display query above returns the 20 highest-priced listings: too few to say what a building is. The type is read from every listing of the building, asked for
           // with only the fields that decide it.
+          // When a query returns fewer than 20 records and no nextLink, its
+          // display results already contain all ownership evidence. Avoid a
+          // redundant, serial 200-row request for such buildings (live
+          // 800 2ND Avenue has four Property rows).
+          // Large buildings still need full votes: a recent sample of co-op
+          // units alone cannot prove that a building is not a condop.
+          let classificationEvidenceComplete = records.length < 20 && !data['@odata.nextLink'];
           const lean = new Map<string, CotalityRecord[]>();
-          if (evidence.size > 0) {
+          if (evidence.size > 0 && !classificationEvidenceComplete) {
+            const evParams = new URLSearchParams({
+              $filter: filter,
+              $select: 'StandardStatus,CommonInterest,PropertySubType,StructureType,NumberOfUnitsTotal,StreetNumber,StreetName,StreetDirPrefix,CityRegion,PostalCode',
+              $orderby: 'ModificationTimestamp desc',
+              $top: '200',
+            });
+            // Classification is enrichment, never a prerequisite to a valid
+            // address result. Bound both fetch and JSON parsing; abort when
+            // the deadline expires instead of holding the CRM response open.
+            const controller = new AbortController();
+            let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
             try {
-              const evParams = new URLSearchParams({
-                $filter: filter,
-                $select: 'StandardStatus,CommonInterest,PropertySubType,StructureType,NumberOfUnitsTotal,StreetNumber,StreetName,StreetDirPrefix,CityRegion,PostalCode',
-                $orderby: 'ModificationTimestamp desc',
-                $top: '200',
+              const fullEvidence = async (): Promise<CotalityRecord[] | null> => {
+                const evRes = await fetch(`${COTALITY_URL}/odata/Property?${evParams}`, {
+                  headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+                  next: { revalidate: 3600 },
+                  signal: controller.signal,
+                });
+                if (!evRes.ok) return null;
+                const body = await evRes.json();
+                return Array.isArray(body.value) ? body.value as CotalityRecord[] : null;
+              };
+              const deadline = new Promise<null>((resolve) => {
+                deadlineTimer = setTimeout(() => { controller.abort(); resolve(null); }, 1500);
               });
-              const evRes = await fetch(`${COTALITY_URL}/odata/Property?${evParams}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, next: { revalidate: 3600 } });
-              if (evRes.ok) {
-                for (const rec of ((await evRes.json()).value || []) as CotalityRecord[]) {
+              const page = await Promise.race([fullEvidence(), deadline]);
+              if (page && page.length > 0) {
+                classificationEvidenceComplete = true;
+                for (const rec of page) {
                   const k = addressIdentityKey(rec);
-                  const list = lean.get(k); if (list) list.push(rec); else lean.set(k, [rec]);
+                  const list = lean.get(k);
+                  if (list) list.push(rec); else lean.set(k, [rec]);
                 }
               }
-            } catch { /* the 20 listings already fetched are the evidence */ }
+            } catch {
+              // Do not let optional classification suppress the valid address.
+              // The first 20 records do not prove the building's ownership.
+            } finally {
+              if (deadlineTimer !== undefined) clearTimeout(deadlineTimer);
+            }
           }
           for (const [b, recs] of evidence) {
+            const target = b as Record<string, unknown>;
+            if (!classificationEvidenceComplete) {
+              // A unit-level CommonInterest from a truncated sample is not
+              // verified building ownership. Never silently call a condop
+              // a co-op merely because the deep query timed out.
+              target.common_interest = '';
+              target.building_kind = null;
+              target.ownership_votes = {};
+              target.classification_unverified = true;
+              continue;
+            }
             const all = lean.get(addressIdentityKey(recs[0]));
             const c = classifyBuilding(all && all.length > 0 ? all : recs);
-            const target = b as Record<string, unknown>;
             if (c.commonInterest) target.common_interest = c.commonInterest;
             target.building_kind = c.kind;
             target.ownership_votes = c.votes;
