@@ -133,33 +133,31 @@ describe('filterDisplayableDbListings — website-only bypass', () => {
   });
 });
 
-// ─── 5. Ambiguous Cotality match requires confirmation for InHouse ───────────
+// ─── 5. The address is Cotality's: a found building always writes it, whatever the listing type ──
+// Maya, 2026-11-02: a listing whose address differs from the one Cotality holds does not go through, so the form gives no "keep what I typed" choice.
 
-describe('Form — InHouse address mismatch confirmation', () => {
-  it('selectBuildingFromIDX (the fixed form applies a building in it) checks _isInHouseListingType before address overwrite', () => {
+describe('Form — a found building always writes the Cotality address (no keep-typed option)', () => {
+  const selectBody = () => {
     const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, picked\)\s*\{([\s\S]{0,9000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
-    const body = fnMatch![1];
-    expect(body).toContain('_isInHouseListingType(prefix)');
-    expect(body).toContain('typedNorm');
-    expect(body).toContain('buildingNorm');
-    expect(body).toContain('confirm(');
+    return fnMatch![1];
+  };
+
+  it('has no confirm(), no keep-typed branch, and does not depend on the listing type', () => {
+    const body = selectBody();
+    expect(body).not.toContain('confirm(');
+    expect(body).not.toContain('useCanonical');
+    expect(body).not.toContain('_isInHouseListingType');
   });
 
-  it('confirmation dialog mentions both typed and provider canonical addresses', () => {
-    const fnMatch = formHtml.match(/function selectBuildingFromIDX[\s\S]*?confirm\(([\s\S]*?)\)/);
-    expect(fnMatch).not.toBeNull();
-    const confirmBody = fnMatch![1];
-    expect(confirmBody).toContain('You entered');
-    expect(confirmBody).toContain('Cotality building address');
-  });
-
-  it('Cancel preserves typed address but still populates building fields', () => {
-    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, picked\)\s*\{([\s\S]{0,9000}?)\n\}/);
-    expect(fnMatch).not.toBeNull();
-    const body = fnMatch![1];
-    expect(body).toContain('if (!useCanonical)');
+  it('writes the building address and still populates the building fields', () => {
+    const body = selectBody();
+    expect(body).toContain("setVal(prefix + 'StreetAddress', building.address)");
     expect(body).toContain('populateBuildingFromIDX(prefix, building)');
+  });
+
+  it('tells the agent when what they typed was replaced by the Cotality address', () => {
+    expect(selectBody()).toContain('Address set to the one Cotality holds for this building');
   });
 });
 
@@ -170,8 +168,8 @@ describe('Form — Non-InHouse lookup behavior preserved', () => {
     const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, picked\)\s*\{([\s\S]{0,9000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
     const body = fnMatch![1];
-    const afterGuard = body.split('populateBuildingFromIDX(prefix, building)')[1] || '';
-    expect(afterGuard || body).toContain("setVal(prefix + 'StreetAddress', building.address)");
+    expect(body).not.toContain('confirm(');
+    expect(body).toContain("setVal(prefix + 'StreetAddress', building.address)");
   });
 });
 
