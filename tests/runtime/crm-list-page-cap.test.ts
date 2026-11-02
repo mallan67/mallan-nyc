@@ -105,6 +105,11 @@ const { prisma: prismaMock } = buildPrismaMock({
   listing: { findMany: listingFindMany, count: listingCount },
 });
 jest.mock('@/lib/prisma', () => ({ __esModule: true, default: prismaMock }));
+// The identity context (which listing is the Mallan one and which the Cotality copy) is its own unit under test; here it is fixed so this suite counts only the listings query.
+jest.mock('@/lib/listings/mallan-twin-context', () => ({
+  ...jest.requireActual('@/lib/listings/mallan-twin-context'),
+  loadMallanTwinContext: jest.fn(async () => ({ returnCopyIds: [], agentsByMlsId: {}, canonicalByReturnCopy: {} })),
+}));
 
 // Auth + helpers.
 jest.mock('@/lib/auth', () => ({

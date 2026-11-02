@@ -36,10 +36,12 @@ export interface MallanTwinContext {
   readonly returnCopyIds: readonly string[];
   /** Active Mallan agents by REBNY MLS member id (`Agent.trestle_mls_id`). */
   readonly agentsByMlsId: Readonly<Record<string, MallanVerifiedAgent>>;
+  /** For each duplicate in `returnCopyIds`: the Mallan-authored listing it duplicates (`RLS20093870` -> `SL-0004`). The CRM labels the pair with it. */
+  readonly canonicalByReturnCopy?: Readonly<Record<string, string>>;
 }
 
 /** What a caller that cannot reach the database uses: nothing is proven a duplicate, no agent is verified. */
-export const EMPTY_TWIN_CONTEXT: MallanTwinContext = Object.freeze({ returnCopyIds: [], agentsByMlsId: {} });
+export const EMPTY_TWIN_CONTEXT: MallanTwinContext = Object.freeze({ returnCopyIds: [], agentsByMlsId: {}, canonicalByReturnCopy: {} });
 
 type RowWithAddress = { listing_id: string; address: unknown };
 type LocalRow = RowWithAddress & { status?: string | null };
@@ -69,22 +71,30 @@ export function buildMallanTwinContext(
 
   // The physical units Mallan has authored and has live now (the current listing episode only).
   const localKeys = new Set<string>();
+  const localIdByKey = new Map<string, string>();
   for (const row of localRows) {
     if (!isLocalId(row.listing_id)) continue;
     if (!isLiveListingStatus(row.status)) continue;
     const key = buildAddressKeyFromDbRow({ address: row.address });
-    if (key) localKeys.add(key);
+    if (!key) continue;
+    localKeys.add(key);
+    const previous = localIdByKey.get(key);
+    if (!previous || row.listing_id < previous) localIdByKey.set(key, row.listing_id);
   }
 
   // A Mallan-office Cotality row is a duplicate only when it is live too, and the same physical unit as one of those.
   const returnCopyIds: string[] = [];
+  const canonicalByReturnCopy: Record<string, string> = {};
   for (const row of officeRows) {
     if (isLocalId(row.listing_id)) continue;
     if (!isLiveListingStatus(row.status)) continue;
     const office = typeof row.list_office_mls_id === 'string' ? row.list_office_mls_id.trim() : '';
     if (!office || !officeIds.has(office)) continue;
     const key = buildAddressKeyFromDbRow({ address: row.address });
-    if (key && localKeys.has(key)) returnCopyIds.push(row.listing_id);
+    if (key && localKeys.has(key)) {
+      returnCopyIds.push(row.listing_id);
+      canonicalByReturnCopy[row.listing_id] = localIdByKey.get(key)!;
+    }
   }
   returnCopyIds.sort();
 
@@ -103,7 +113,7 @@ export function buildMallanTwinContext(
     };
   }
 
-  return { returnCopyIds, agentsByMlsId };
+  return { returnCopyIds, agentsByMlsId, canonicalByReturnCopy };
 }
 
 const TTL_MS = 60_000;

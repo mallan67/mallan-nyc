@@ -13994,6 +13994,7 @@ function _mapApiListingToManage(api) {
     return {
         id: api.listing_id || api.id,
         _dbId: api.id,
+        control: api._control || null,   // which record this is (server: lib/listings/listing-control.ts): the Mallan listing you control, or Cotality's read-only copy
         category: isSale ? 'sales' : 'rentals',
         dealType: dealType,
         status: displayStatus,
@@ -14020,6 +14021,21 @@ function _mapApiListingToManage(api) {
         },
         comingSoonStartDate: displayStatus === 'Coming Soon' ? _formatManageDate(api.first_active_date || api.status_changed_at) : null
     };
+}
+
+function manageEsc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// WHICH ONE DO I CONTROL? The same Mallan listing can be listed twice: the Mallan record (SL- / RL-, editable) and Cotality's read-only copy (RLS...). The badge says which
+// is which, in words, with the listing id; the hover says what visitors of mallan.nyc see.
+function manageControlBadge(l) {
+    var c = l && l.control;
+    if (!c) return '';
+    var tone = c.kind === 'mallan-authored'
+        ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
+        : (c.kind === 'cotality-duplicate' ? 'bg-gray-200 text-gray-700 ring-1 ring-gray-300' : 'bg-amber-100 text-amber-800 ring-1 ring-amber-300');
+    return '<span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold ' + tone + '" data-control-kind="' + manageEsc(c.kind) + '" title="' + manageEsc(c.detail) + '">' + manageEsc(c.label) + '</span>';
 }
 
 function loadMyListingsFromAPI(callback) {
@@ -14302,6 +14318,7 @@ function renderManageCards(listings) {
         html += '<div class="flex items-start justify-between gap-3">';
         html += '<div class="flex-1 min-w-0">';
         html += '<p class="font-bold text-gray-900 text-[15px] leading-snug truncate">' + l.address + ', ' + l.unit + '</p>';
+        if (l.control) html += '<p class="mt-1.5">' + manageControlBadge(l) + '</p>';
         html += '<p class="text-lg sm:text-xl font-bold text-gray-900 mt-1">' + manageFormatPrice(l.price, currentManageMode) + '</p>';
         html += '</div>';
         html += '<div class="flex flex-col items-end gap-1.5 flex-shrink-0">';
@@ -14853,7 +14870,7 @@ function renderManageSection(mode) {
         rows += '<tr class="border-t hover:bg-blue-50 cursor-pointer" data-id="' + l.id + '" onclick="manageToggleRow(\'' + l.id + '\')">';
         rows += '<td class="px-3 py-3"><span class="px-2 py-0.5 ' + dc.bg + ' ' + dc.text + ' rounded text-xs">' + l.dealType + '</span></td>';
         rows += '<td class="px-3 py-3"><span class="px-2 py-0.5 ' + sc.bg + ' ' + sc.text + ' rounded text-xs font-semibold">' + l.status + '</span></td>';
-        rows += '<td class="px-3 py-3 font-medium">' + l.address + '</td>';
+        rows += '<td class="px-3 py-3 font-medium">' + l.address + (l.control ? '<div class="mt-1">' + manageControlBadge(l) + '</div>' : '') + '</td>';
         rows += '<td class="px-3 py-3 text-gray-500">' + l.unit + '</td>';
         rows += '<td class="px-3 py-3 font-semibold">' + manageFormatPrice(l.price, currentManageMode) + '</td>';
         rows += '<td class="px-3 py-3 text-gray-500">' + l.rooms + '</td>';
@@ -15068,6 +15085,19 @@ function manageCreateListing() {
 function manageEditListing(id) {
     var listing = manageFindListing(id);
     if (!listing) return;
+    var control = listing.control;
+    if (control && control.editable === false) {
+        // Cotality's record is read-only (the server refuses to save over it). Open the Mallan listing it duplicates; with no Mallan listing, open the read-only view.
+        var mallan = control.canonicalListingId ? manageFindListing(control.canonicalListingId) : null;
+        if (mallan) {
+            manageShowToast('Opening ' + mallan.id + ' \u2014 the one you control. ' + listing.id + ' is Cotality\u2019s read-only copy.');
+            manageEditListing(mallan.id);
+            return;
+        }
+        manageShowToast(listing.id + ' is a Cotality listing \u2014 read-only. Opening the view.');
+        window.open('/crm/' + (listing.category === 'sales' ? 'sale-view' : 'rental-view') + '?listingId=' + encodeURIComponent(listing.id), '_blank');
+        return;
+    }
     var dbId = listing._dbId || listing.id;
     if (listing.category === 'sales') window.open('SALE-FORM-REDESIGN.html?id=' + encodeURIComponent(dbId), '_blank');
     else window.open('RENTAL-FORM-REDESIGN.html?id=' + encodeURIComponent(dbId), '_blank');

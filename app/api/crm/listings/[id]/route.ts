@@ -27,6 +27,8 @@ import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-colum
 import { resolveListingAgentInfo } from "@/lib/listings/agent-info-resolver";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
+import { loadMallanTwinContext } from "@/lib/listings/mallan-twin-context";
+import { describeListingControl } from "@/lib/listings/listing-control";
 import { REBNY_FIELD_TABLES } from "@/lib/compliance/rebny-field-tables";
 import type { Prisma } from "@prisma/client";
 
@@ -111,6 +113,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   // the existing CRM-tier PII boundary in sanitizeForCRM is unchanged.
   sanitized.list_agent_full_name = listing.list_agent_full_name ?? null;
   sanitized.list_office_name = listing.list_office_name ?? null;
+
+  // Which record is this: the Mallan listing the agent controls, or Cotality's read-only copy. The Sale / Rental form shows it and refuses to save over a Cotality record.
+  sanitized._control = describeListingControl(listing, await loadMallanTwinContext());
 
   return NextResponse.json(sanitized);
 }
