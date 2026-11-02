@@ -7104,7 +7104,15 @@ function shouldSkipTab3(formType) {
     const val = selected.value;
     // Only skip Tab 3 for managed building unit types (they use Building Modal, not Tab 3)
     const skipTypes = ['Coop', 'Condo', 'Condop', 'CommercialCoop', 'CommercialCondo', 'RentalBuilding', 'Loft', 'DeededParking'];
-    return skipTypes.includes(val);
+    if (skipTypes.includes(val)) return true;
+    // A commercial, office or retail UNIT in a condo, condop or co-op building is a unit type too: its building facts are the Building panel's, not the TH / Building
+    // tab's. Only a whole building, land, a townhouse, mixed use or fee simple needs that tab.
+    if (formType === 'sale' && (val === 'Commercial' || val === 'Office' || val === 'Retail')) {
+        const ownershipName = val === 'Commercial' ? 'saleCommercialOwnership' : 'saleOfficeRetailOwnership';
+        const ownership = document.querySelector('input[name="' + ownershipName + '"]:checked');
+        return ['Condo', 'Condop', 'Coop', 'CommercialCondo', 'CommercialCondop', 'CommercialCoop'].includes(ownership ? ownership.value : '');
+    }
+    return false;
 }
 
 // Next from Tab 2 last sub-tab (2.3 Features) → Tab 3 if applicable, else Tab 4
@@ -7562,16 +7570,18 @@ function applySalesFieldRules() {
     const tab3Sidebar = document.getElementById('sidebarTab3');
     const tab3Mobile = document.querySelectorAll('.mobile-tab')[2]; // 3rd mobile tab button
     const skipTab3 = shouldSkipTab3('sale');
-    if (tab3Sidebar) {
-        tab3Sidebar.style.display = '';
-        tab3Sidebar.style.opacity = skipTab3 ? '0.4' : '1';
-        tab3Sidebar.style.pointerEvents = skipTab3 ? 'none' : '';
-    }
-    if (tab3Mobile) {
-        tab3Mobile.style.display = '';
-        tab3Mobile.style.opacity = skipTab3 ? '0.4' : '1';
-        tab3Mobile.style.pointerEvents = skipTab3 ? 'none' : '';
-    }
+    // LOCKED, not just greyed: a disabled button cannot be reached by mouse, keyboard or screen reader. It reopens the moment the type needs the tab again.
+    const lockTab3 = (el) => {
+        if (!el) return;
+        el.style.display = '';
+        el.style.opacity = skipTab3 ? '0.4' : '1';
+        el.style.pointerEvents = skipTab3 ? 'none' : '';
+        el.disabled = skipTab3;
+        el.setAttribute('aria-disabled', skipTab3 ? 'true' : 'false');
+        el.title = skipTab3 ? 'Locked: a condo, condop or co-op unit uses the Building panel, not the TH / Building tab' : '';
+    };
+    lockTab3(tab3Sidebar);
+    lockTab3(tab3Mobile);
 
 
     // RLS: Auto-derive StructureType from property type (if not already set by IDX)
