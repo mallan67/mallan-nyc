@@ -249,3 +249,59 @@ describe('the fields the REBNY server requires and the agent fills (they used to
     } finally { f.close(); }
   });
 });
+
+describe('review findings on this gate (Codex, Vercel agent)', () => {
+  it('an InHouse listing (not on RLS) is shown nothing: no list, no boxes, even after an earlier refusal', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
+    try {
+      chooseStatus(f, 'Active');                                              // refused: the list is up and fields are boxed
+      expect(f.d.querySelectorAll('.sale-missing-field').length).toBeGreaterThan(0);
+      const radio = f.d.querySelector('input[name="saleListingType"][value="InHouseInternal"]') as HTMLInputElement;
+      radio.checked = true;
+      radio.dispatchEvent(new f.w.Event('change', { bubbles: true }));
+      chooseStatus(f, 'Active');
+      expect(status(f)).toBe('Active');
+      expect(panel(f).classList.contains('hidden')).toBe(true);
+      expect(f.d.querySelectorAll('.sale-missing-field').length).toBe(0);
+    } finally { f.close(); }
+  });
+
+  it('the list is the one for the status that was ASKED for: Withdrawn to Active does not list the Off Market Date', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
+    try {
+      const sel = f.d.getElementById('saleStatus') as HTMLSelectElement;
+      sel.value = 'Withdrawn';                                                // as a restored listing is
+      sel.dispatchEvent(new f.w.Event('focus'));
+      chooseStatus(f, 'Active');
+      expect(status(f)).toBe('Withdrawn');                                    // refused, back to what it was
+      const labels = listItems(f).join('\n');
+      expect(labels).not.toContain('Off Market Date');                        // that field belongs to Withdrawn, not to Active
+      expect(labels).toContain('CoBroke Agreement Type');
+      // and the list stays that one while the agent fills fields
+      const box = f.d.getElementById('saleCoBrokeAgreementType') as HTMLSelectElement;
+      const opt = Array.from(box.options).find((o) => o.value);
+      box.value = opt!.value; box.dispatchEvent(new f.w.Event('change', { bubbles: true }));
+      expect(listItems(f).join('\n')).not.toContain('Off Market Date');
+    } finally { f.close(); }
+  });
+
+  it('filling a field in the Building window clears its box and its list entry', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
+    try {
+      chooseStatus(f, 'Active');
+      const has = (label: string) => listItems(f).some((t) => t.includes(label));
+      expect(has('Year Built')).toBe(true);
+      expect(f.d.getElementById('saleBldgYearBuilt')!.classList.contains('sale-missing-field')).toBe(true);
+      const year = f.d.getElementById('saleBldgYearBuilt') as HTMLInputElement;
+      year.value = '1960';
+      year.dispatchEvent(new f.w.Event('input', { bubbles: true }));         // inside the Building window, outside the page container
+      expect(has('Year Built')).toBe(false);
+      expect(f.d.getElementById('saleBldgYearBuilt')!.classList.contains('sale-missing-field')).toBe(false);
+    } finally { f.close(); }
+  });
+
+  it('Save goes through validateREBNYRequired (the seam other suites stub), and shows the list instead of an alert', async () => {
+    const html = require('fs').readFileSync(require('path').resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
+    expect(html).toContain("const saleMissing = validateREBNYRequired('sale');\n        if (saleMissing.length > 0) {\n            showSaleMissingRequired('save');");
+  });
+});

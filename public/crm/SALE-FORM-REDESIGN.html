@@ -1947,7 +1947,7 @@ body { font-family: Manrope, sans-serif; }
             <label class="field-label">Garage Spaces Assigned <span class="text-red-500">*</span></label>
             <div class="flex items-center gap-6 mb-3">
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleGarageSpaces" value="Yes" class="w-4 h-4" data-concept="GarageSpaces"> Yes
+                    <input type="radio" name="saleGarageSpaces" value="Yes" class="w-4 h-4"> Yes
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
                     <input type="radio" name="saleGarageSpaces" value="No" class="w-4 h-4" checked> No
@@ -8136,8 +8136,17 @@ function collectSaleFormData() {
     data.GarageSpaces = _saleInt(data.saleTHGarageSpaces);
     // A garage assigned to the unit (some condos and co-ops): the Unit tab's answer fills Cotality's GarageYN / GarageSpaces when the townhouse tab (a house's own
     // garage) has none. A building's garage is the "Parking Garage" amenity (ParkingFeatures). Before, only the townhouse tab reached GarageYN / GarageSpaces.
-    if (data.GarageYN === undefined && (data.saleGarageSpaces === 'Yes' || data.saleGarageSpaces === 'No')) data.GarageYN = data.saleGarageSpaces === 'Yes';
-    if (data.GarageSpaces == null && data.saleGarageSpaces === 'Yes' && _saleInt(data.saleGarageSpacesCount) != null) data.GarageSpaces = _saleInt(data.saleGarageSpacesCount);
+    // Only a Yes is an answer: the Unit tab's No is its default and asserts nothing (a listing opened with GarageYN true keeps it).
+    if (data.saleGarageSpaces === 'Yes') {
+        var _unitGarageCount = _saleInt(data.saleGarageSpacesCount);
+        if (shouldSkipTab3('sale')) {                       // a unit: the townhouse tab is locked, so the Unit tab is the answer, and a count changed here wins
+            data.GarageYN = true;
+            if (_unitGarageCount != null) data.GarageSpaces = _unitGarageCount;
+        } else {                                            // a house keeps its own answer; the Unit tab fills only what the townhouse tab left blank
+            if (data.GarageYN === undefined) data.GarageYN = true;
+            if (data.GarageSpaces == null && _unitGarageCount != null) data.GarageSpaces = _unitGarageCount;
+        }
+    }
     data.ParkingTotal = _saleInt(data.saleTHParkingTotal);
     data.FoundationArea = _saleNum(data.saleTHFoundationArea);
     data.BasementYN = data.saleTHBasementYN === true || data.saleTHBasementYN === 'true' || data.saleTHBasementYN === 'Yes';
@@ -8400,7 +8409,7 @@ function submitSalesListing() {
     var listTypeRadio = document.querySelector('input[name="saleListingType"]:checked');
     var isInHouseListing = listTypeRadio && (listTypeRadio.value === 'InHouseInternal' || listTypeRadio.value === 'InHouseWebOnly' || listTypeRadio.value === 'InHouse');
     if (!isInHouseListing && !_submitIsDraft) {
-        const saleMissing = collectSaleMissingRequired();
+        const saleMissing = validateREBNYRequired('sale');
         if (saleMissing.length > 0) {
             showSaleMissingRequired('save');          // the list (tab + field, each one jumps to it), the red boxes, the counts on the tabs
             return;
@@ -8894,7 +8903,7 @@ function isStatusRelevant(field) {
     if (!field.statusOnly) return true;
     const statusEl = document.getElementById('saleStatus');
     if (!statusEl) return true;
-    return field.statusOnly.includes(statusEl.value);
+    return field.statusOnly.includes(window._saleGateStatus || statusEl.value);       // while a refused change is on screen: the status that was asked for
 }
 
 // Dynamic validation summary — updates panel, tab stars, field-level errors
@@ -8905,8 +8914,9 @@ function updateSaleValidationSummary() {
     // Don't show errors until agent has attempted Next/Submit
     if (!window._saleValidationActivated) return;
 
-    const missing = collectSaleMissingRequired();
+    const missing = _isInHouseListingType('sale') ? [] : collectSaleMissingRequired();   // an InHouse listing is not on RLS: nothing is required of it
     window._saleMissingNow = missing;
+    if (missing.length === 0) window._saleGateStatus = null;
     const missingBySection = {};
     const missingByTab = {};
 
@@ -9004,6 +9014,11 @@ function initSaleValidation() {
     // The status the listing had before the agent changes it (so a move into Active is told from a move between live statuses)
     const statusBox = document.getElementById('saleStatus');
     if (statusBox) ['focus', 'mousedown'].forEach(function (ev) { statusBox.addEventListener(ev, function () { statusBox.dataset.prevStatus = statusBox.value; }); });
+    const buildingWindow = document.getElementById('saleBuildingModal');
+    if (buildingWindow) {
+        buildingWindow.addEventListener('input', function() { updateSaleValidationSummary(); });
+        buildingWindow.addEventListener('change', function() { updateSaleValidationSummary(); });
+    }
     const container = document.querySelector('.flex-1');
     if (!container) return;
     // Wire real-time listeners — they check the gate inside updateSaleValidationSummary
@@ -9214,17 +9229,21 @@ function validateStatusChange(formType) {
     // Becoming live (Draft / Future / Withdrawn / Expired -> Active, ComingSoon, ...) needs every required field: the change is refused, the status goes back,
     // and the missing fields are listed with their tab and boxed in red. A move between statuses that are already live is not "becoming active" and is not held
     // back by it. (An InHouse listing is not on RLS: the same exemption the Save check has.)
+    // The status box has two change handlers: the second one hears the echo of the revert above. While a refused change is on screen, leave its list as it is.
+    if (window._saleGateStatus && newStatus === prevStatus) return;
+    window._saleGateStatus = null;                        // the status a list was built for: set only while a refused change is on screen
     if (REBNY_ACTIVE_STATUSES.includes(newStatus)) {
-        const missing = collectSaleMissingRequired();
+        const missing = _isInHouseListingType('sale') ? [] : collectSaleMissingRequired();   // an InHouse listing is not on RLS: nothing is required of it, so nothing is shown
         const wasLive = REBNY_ACTIVE_STATUSES.includes(prevStatus);
-        if (missing.length > 0 && !wasLive && !_isInHouseListingType('sale')) {
+        if (missing.length > 0 && !wasLive) {
+            window._saleGateStatus = newStatus;           // the list stays the one for the status that was asked for, after the box goes back
             statusEl.value = (prevStatus && prevStatus !== newStatus && !wasLive) ? prevStatus : 'Draft';
             newStatus = statusEl.value;
             showSaleMissingRequired('status');
         } else if (missing.length > 0) {
-            showSaleMissingRequired('warn');          // already live (or in-house): say what is missing, do not hold the change
+            showSaleMissingRequired('warn');              // already live: say what is missing, do not hold the change
         } else if (window._saleValidationActivated) {
-            updateSaleValidationSummary();            // nothing missing any more: clear the list and the boxes
+            updateSaleValidationSummary();                // nothing missing any more: clear the list and the boxes
         }
     }
 
@@ -10526,7 +10545,7 @@ function _salePropTypeLabel(value) { if (!value) return ''; var el = document.qu
 // i whole number, n number, b yes / no, d date, m list, e one member, s text). Runs after the explicit emits; a key already set is left as it is; a control the
 // page marks Mallan-internal is skipped; an unticked box or an empty control asserts nothing. ──
 // The keys the collector builds itself (a unit with its amount, one member of a list, the views): the claim pass leaves them alone
-var SALE_COLLECTOR_OWNED = { LivingAreaUnits: 1, BuildingAreaUnits: 1, LotSizeUnits: 1, PropertyCondition: 1, SpecialListingConditions: 1, View: 1, ViewYN: 1, HeatingYN: 1, CoolingYN: 1, LaundryFeatures: 1, LandmarkStatusYN: 1, GarageSpaces: 1 };
+var SALE_COLLECTOR_OWNED = { LivingAreaUnits: 1, BuildingAreaUnits: 1, LotSizeUnits: 1, PropertyCondition: 1, SpecialListingConditions: 1, View: 1, ViewYN: 1, HeatingYN: 1, CoolingYN: 1, LaundryFeatures: 1, LandmarkStatusYN: 1 };
 function _saleEmitClaims(data) {
     var kinds = (typeof window !== 'undefined' && window.COTALITY_FIELD_KINDS) || {};
     var zones = [document.querySelector('.flex-1'), document.getElementById('saleBuildingModal'), document.getElementById('saleMediaModal')].filter(Boolean);
