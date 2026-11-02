@@ -5883,15 +5883,22 @@ function autoDeriveSaleStructureType() {
 // Address field onblur — auto-populate from building data (local cache then API)
 function saleAddressBlurLookup() {
     const addr = document.getElementById('saleStreetAddress')?.value?.trim();
+    const lookupAddress = addr ? addr.replace(/\s*,?\s*(?:#\s*|(?:unit|apt|apartment|suite|ste)\.?\s*#?\s*)([A-Za-z0-9]+(?:-[A-Za-z0-9]+)?)\s*$/i, '').trim() : '';
+    const originalUnit = addr && addr.match(/\s*,?\s*(?:#\s*|(?:unit|apt|apartment|suite|ste)\.?\s*#?\s*)([A-Za-z0-9]+(?:-[A-Za-z0-9]+)?)\s*$/i);
+    // Keep an explicitly entered Unit/Apt box; never replace it from a nearby
+    // listing. If only the street textbox supplied the unit, copy it once.
+    const unitBox = document.getElementById('saleUnitNumber');
+    if (originalUnit && unitBox && !String(unitBox.value || '').trim()) unitBox.value = originalUnit[1];
     if (!addr || addr.length < 5) { parseSaleAddress(); return; }
-    const localMatch = buildingDatabase.find(b => b.address.toLowerCase() === addr.toLowerCase());
+    const localMatch = buildingDatabase.find(b => b.address.toLowerCase() === (lookupAddress || addr).toLowerCase());
     if (localMatch) {
         selectBuildingFromIDX('sale', localMatch.address);
         parseSaleAddress();
         return;
     }
     // No local match — call API, then show candidates in the existing results UI
-    fetchBuildingsFromAPI(addr).then(function(matches) {
+    fetchBuildingsFromAPI(lookupAddress || addr).then(function(matches) {
+        if ((document.getElementById('saleStreetAddress')?.value || '').trim() !== addr) return; // stale result for an older address
         if (!matches || matches.length === 0) {
             var stale = document.getElementById('saleBuildingSearchResults');
             if (stale) {
