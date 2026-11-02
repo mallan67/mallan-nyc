@@ -40,6 +40,9 @@
   'use strict';
 
   var DIRECTIONS = { east: 'e', west: 'w', north: 'n', south: 's', northeast: 'ne', northwest: 'nw', southeast: 'se', southwest: 'sw' };
+  // Street labels: Cotality uses both 2ND / Second and 5TH / Fifth. A building
+  // address should compare equal in both spellings, without prefix matching.
+  var ORDINAL_WORDS = { first: '1', second: '2', third: '3', fourth: '4', fifth: '5', sixth: '6', seventh: '7', eighth: '8', ninth: '9', tenth: '10', eleventh: '11', twelfth: '12' };
   var SUFFIXES = {
     street: 'st', avenue: 'ave', boulevard: 'blvd', road: 'rd', drive: 'dr', place: 'pl', court: 'ct', lane: 'ln', terrace: 'ter', parkway: 'pkwy', plaza: 'plz', circle: 'cir',
   };
@@ -68,7 +71,7 @@
   function normalizeAddress(value) {
     return str(value).toLowerCase().replace(/[.,#]/g, ' ').split(/\s+/).filter(Boolean).map(function (token) {
       token = token.replace(/^(\d+)(?:st|nd|rd|th)$/, '$1');
-      return own(DIRECTIONS, token) || own(SUFFIXES, token) || token;
+      return own(DIRECTIONS, token) || own(SUFFIXES, token) || own(ORDINAL_WORDS, token) || token;
     }).join(' ');
   }
 

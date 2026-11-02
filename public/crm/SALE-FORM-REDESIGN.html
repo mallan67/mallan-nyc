@@ -106,6 +106,7 @@ body { font-family: Manrope, sans-serif; }
 <!-- API Client — identity from session cookie, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
 <script src="js/forms/server-refusal.js"></script>
+<script src="js/forms/building-lookup.js"></script>
 <script src="js/forms/fair-housing.js"></script>
 <script src="js/forms/concept-kinds.js"></script>
 <script>
@@ -5248,6 +5249,7 @@ function toggleSaleAuctionFields() {
 // Building database — loaded from API, no hardcoded mock data
 let buildingDatabase = [];
 let _buildingSearchTimeout = null;
+let _buildingSearchSeq = 0;  // Old asynchronous results cannot replace the latest address typed.
 
 // Map RESO CommonInterest enum values to sale form salePropertyType radio values.
 // Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §5, §11
@@ -5266,25 +5268,31 @@ function _commonInterestToFormType(ci) {
 }
 
 // Fetch buildings from API by address query
-async function fetchBuildingsFromAPI(query) {
+async function fetchBuildingsFromAPI(query, stillWanted) {
     if (!query || query.length < 3) return [];
     try {
+        if (stillWanted && !stillWanted()) return [];
+        window._saleBuildingLookupError = null;
         var resp = await fetch('/api/buildings/search?q=' + encodeURIComponent(query), { credentials: 'same-origin' });
         // Read body for all responses — backend returns _errorHint on errors
         var body;
         try { body = await resp.json(); } catch (_) { body = {}; }
+        if (stillWanted && !stillWanted()) return [];
         var hint = body._errorHint || null;
 
         if (resp.status === 401) {
-            showToast(hint || 'Session expired. Please log in again.', 'error');
+            window._saleBuildingLookupError = hint || 'Session expired. Please log in again.';
+            showToast(window._saleBuildingLookupError, 'error');
             return [];
         }
         if (!resp.ok) {
-            showToast(hint || 'Building lookup temporarily unavailable.', 'warning');
+            window._saleBuildingLookupError = hint || 'Building lookup temporarily unavailable.';
+            showToast(window._saleBuildingLookupError, 'warning');
             return [];
         }
         var buildings = Array.isArray(body.buildings) ? body.buildings.filter(function (b) { return b && typeof b === 'object' && !Array.isArray(b); }) : [];   // an entry that is not a record is no building
         if (buildings.length === 0 && hint) {
+            window._saleBuildingLookupError = hint;
             showToast(hint, 'warning');
         }
         var txt = function (v) { return typeof v === 'string' ? v : (typeof v === 'number' ? String(v) : ''); };   // a list or an object is no value of a text field
@@ -5323,8 +5331,10 @@ async function fetchBuildingsFromAPI(query) {
             });
         });
     } catch (e) {
+        if (stillWanted && !stillWanted()) return [];
         console.warn('[Building Search] API error:', e.message);
-        showToast('Building lookup temporarily unavailable.', 'warning');
+        window._saleBuildingLookupError = 'Building lookup temporarily unavailable.';
+        showToast(window._saleBuildingLookupError, 'warning');
         return [];
     }
 }
@@ -5353,31 +5363,40 @@ function _saleBuildingCandidateRow(b, subtitle, onPick) {
 function searchBuildingForListing(query, prefix) {
     const results = document.getElementById(prefix + 'BuildingSearchResults');
     if (!results) return;
-    if (query.length < 3) { results.classList.add('hidden'); return; }
-
-    // Debounce API calls
+    // Mark a newer query immediately (not after the 300 ms debounce); an older
+    // in-flight response must never put "No match" over the correct building.
+    const seq = ++_buildingSearchSeq;
     clearTimeout(_buildingSearchTimeout);
+    if (!query || query.length < 3) { results.classList.add('hidden'); return; }
+    const stillWanted = function() {
+        const input = document.getElementById(prefix + 'BuildingSearch');
+        return seq === _buildingSearchSeq && !!input && input.value === query;
+    };
     _buildingSearchTimeout = setTimeout(async function() {
-        results.innerHTML = '<div class="p-3 text-sm text-gray-400">Searching...</div>';
+        if (!stillWanted()) return;
+        results.textContent = 'Searching...';
         results.classList.remove('hidden');
-
-        var matches = await fetchBuildingsFromAPI(query);
-        buildingDatabase = matches; // Cache results for selectBuildingFromIDX
-
-        if (matches.length === 0) {
-            results.innerHTML = '<div class="p-3 text-sm text-gray-500">No matches found. Enter address manually.</div>';
+        const bl = window.MallanBuildingLookup;
+        const street = bl ? bl.searchText(query) : String(query).trim();
+        const matches = await fetchBuildingsFromAPI(street, stillWanted);
+        if (!stillWanted()) return;
+        buildingDatabase = matches;
+        if (!matches.length) {
+            results.textContent = window._saleBuildingLookupError || 'No matching building found. Check the address.';
             return;
         }
-
         results.textContent = '';
         matches.forEach(function(b) {
-            var details = [b.neighborhood, b.borough].filter(Boolean).join(', ');
-            var buildingFacts = [
+            const details = [b.neighborhood, b.borough].filter(Boolean).join(', ');
+            const buildingFacts = [
                 b.totalFloors ? b.totalFloors + ' stories' : '',
                 b.yearBuilt ? 'built ' + b.yearBuilt : '',
             ].filter(Boolean).join(' · ');
-            var subtitle = [b.name, details, buildingFacts].filter(Boolean).join(' — ');
-            results.appendChild(_saleBuildingCandidateRow(b, subtitle, function (picked) { selectBuildingFromIDX(prefix, picked); }));
+            const subtitle = [b.name, details, buildingFacts].filter(Boolean).join(' — ');
+            results.appendChild(_saleBuildingCandidateRow(b, subtitle, function(picked) {
+                if (!stillWanted()) return;
+                selectBuildingFromIDX(prefix, picked);
+            }));
         });
     }, 300);
 }
@@ -5388,6 +5407,14 @@ function selectBuildingFromIDX(prefix, picked) {
     // the row the agent clicked (or the one building the lookup chose); a caller that has only an address gets the cached building with that address
     const building = (picked && typeof picked === 'object') ? picked : buildingDatabase.find(b => b.address === picked);
     if (!building) return;
+    // A unit typed into the building-search box is not a Cotality building
+    // attribute. Preserve the agent's own unit, never copy another unit.
+    const bl = window.MallanBuildingLookup;
+    const entered = document.getElementById(prefix + 'BuildingSearch')?.value || '';
+    const split = bl ? bl.splitAddress(entered) : { unit: '' };
+    const unitEl = document.getElementById(prefix + 'UnitNumber');
+    if (split.unit && unitEl && !String(unitEl.value || '').trim() &&
+        bl && bl.exactMatch([building], entered)) unitEl.value = split.unit;
 
     const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
     const currentAddr = document.getElementById(prefix + 'StreetAddress')?.value?.trim() || '';
@@ -5870,38 +5897,55 @@ function autoDeriveSaleStructureType() {
     if (map[propType]) stEl.value = map[propType];
 }
 
-// Address field onblur — auto-populate from building data (local cache then API)
+// Address field on blur: use the SAME address parser/matcher the Rental form
+// already uses. Never auto-apply the wrong building or copy another unit number.
+let _saleAddressLookupSeq = 0;
 function saleAddressBlurLookup() {
-    const addr = document.getElementById('saleStreetAddress')?.value?.trim();
-    if (!addr || addr.length < 5) { parseSaleAddress(); return; }
-    const localMatch = buildingDatabase.find(b => b.address.toLowerCase() === addr.toLowerCase());
-    if (localMatch) {
-        selectBuildingFromIDX('sale', localMatch.address);
-        parseSaleAddress();
-        return;
+    const input = document.getElementById('saleStreetAddress');
+    const original = input?.value?.trim() || '';
+    const bl = window.MallanBuildingLookup;
+    const parsed = bl ? bl.splitAddress(original) : { street: original, unit: '' };
+    const street = String(parsed.street || '').trim();
+    const unit = document.getElementById('saleUnitNumber');
+    if (parsed.unit && unit && !String(unit.value || '').trim()) unit.value = parsed.unit;
+    if (input && parsed.unit && original !== street) {
+        input.value = street;   // Never save "Unit 2G" inside StreetName.
+        updateListingHeaderBar('sale');
     }
-    // No local match — call API, then show candidates in the existing results UI
-    fetchBuildingsFromAPI(addr).then(function(matches) {
-        if (!matches || matches.length === 0) {
-            var stale = document.getElementById('saleBuildingSearchResults');
-            if (stale) {
-                stale.innerHTML = '<div class="p-3 text-sm text-gray-500">No building match found — enter building details manually.</div>';
-                stale.classList.remove('hidden');
-            }
-            parseSaleAddress();
-            return;
-        }
-        buildingDatabase = matches;
-        var results = document.getElementById('saleBuildingSearchResults');
-        if (results && matches.length === 1) {
-            selectBuildingFromIDX('sale', matches[0].address);
-        } else if (results && matches.length > 1) {
+    const lookupSeq = ++_saleAddressLookupSeq;
+    parseSaleAddress();       // StreetNumber/StreetName exist even before lookup completes.
+    if (!street || street.length < 5) return;
+    const stillWanted = function() {
+        return lookupSeq === _saleAddressLookupSeq &&
+            (document.getElementById('saleStreetAddress')?.value || '').trim() === street;
+    };
+    const cached = bl ? bl.exactMatch(buildingDatabase, street) : null;
+    if (cached) { selectBuildingFromIDX('sale', cached); return; }
+    fetchBuildingsFromAPI(street, stillWanted).then(function(matches) {
+        if (!stillWanted()) return;
+        const exact = bl ? bl.exactMatch(matches, street) : null;
+        if (exact) { buildingDatabase = matches; selectBuildingFromIDX('sale', exact); return; }
+        const results = document.getElementById('saleBuildingSearchResults');
+        if (!results) return;
+        if (!matches || !matches.length) {
+            results.textContent = window._saleBuildingLookupError || 'No matching building found. Check the address.';
+        } else {
+            buildingDatabase = matches;
             results.textContent = '';
-            matches.forEach(function(b) { results.appendChild(_saleBuildingCandidateRow(b, [b.name, [b.neighborhood, b.borough].filter(Boolean).join(', ')].filter(Boolean).join(' | '), function (picked) { selectBuildingFromIDX('sale', picked); })); });
-            results.classList.remove('hidden');
+            matches.forEach(function(candidate) {
+                results.appendChild(_saleBuildingCandidateRow(
+                    candidate,
+                    [candidate.name, [candidate.neighborhood, candidate.borough].filter(Boolean).join(', ')].filter(Boolean).join(' | '),
+                    function(picked) { if (stillWanted()) selectBuildingFromIDX('sale', picked); }
+                ));
+            });
         }
-        parseSaleAddress();
-    }).catch(function() { parseSaleAddress(); });
+        results.classList.remove('hidden');
+    }).catch(function() {
+        if (!stillWanted()) return;
+        const results = document.getElementById('saleBuildingSearchResults');
+        if (results) { results.textContent = 'Building lookup temporarily unavailable.'; results.classList.remove('hidden'); }
+    });
 }
 
 // ══════════════════════════════════════════════════════

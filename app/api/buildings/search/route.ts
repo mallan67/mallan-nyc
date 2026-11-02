@@ -55,7 +55,12 @@ export interface ParsedAddress {
 }
 
 export function parseAddressQuery(q: string): ParsedAddress {
-  const trimmed = q.trim();
+  // Drop an explicit apartment/unit suffix only AFTER an actual street address.
+  // E.g. "333 East 46th Street #2G" searches that building; "100 Amsterdam"
+  // and "1 Unit Street" remain literal street names. A unit is never a building key.
+  const raw = q.trim();
+  const suffix = raw.match(/^(.*?\S)(?:\s+|,\s*)(?:(?:apt|apartment|unit|ste|suite|fl|floor)\.?\s+#?\s*|#\s*)([A-Za-z0-9-]+)\s*$/i);
+  const trimmed = suffix && suffix[1].trim().split(/\s+/).length >= 2 ? suffix[1].trim() : raw;
   const match = trimmed.match(/^(\d+)\s+(.+)$/);
   if (!match) {
     return { buildingName: trimmed };
@@ -638,7 +643,9 @@ export async function GET(request: NextRequest) {
   let cotHadResults = false;
 
   try {
-    // ── 1. Search DB first ──
+    // ── 1. Search Mallan's stored address cache. It is optional enrichment:
+    // a Neon failure must not prevent an authorized live Cotality lookup.
+    try {
     if (parsed.streetNumber && (parsed.streetName || parsed.streetDirPrefix)) {
       const conditions = [`address->>'StreetNumber' = $1`];
       const params: string[] = [parsed.streetNumber];
@@ -896,6 +903,11 @@ export async function GET(request: NextRequest) {
         registerBuilding(buildingByKey, buildingByAddrOnly, buildings[buildings.length - 1], _bkKey, _addrKey, _aoKey);
       }
     }
+    } catch (cacheError) {
+      diag.errorClass = 'db_error';
+      diag.errorMessage = 'Local address cache unavailable; Cotality fallback attempted';
+      console.warn('[/api/buildings/search] DB cache unavailable; continuing to Cotality', cacheError);
+    }
 
     // ── 2. Supplement from Cotality if DB has <5 results ──
     if (buildings.length < 5 && parsed.streetNumber && (parsed.streetName || parsed.streetDirPrefix)) {
@@ -1014,7 +1026,7 @@ export async function GET(request: NextRequest) {
           diag.cotality.firstThreeAddresses = records.slice(0, 3).map(formatAddress);
 
           if (records.length > 0) cotHadResults = true;
-          if (records.length === 0) {
+          if (records.length === 0 && diag.errorClass === 'none') {
             diag.errorClass = 'cotality_zero_results';
           }
 
@@ -1182,7 +1194,7 @@ export async function GET(request: NextRequest) {
     // Build error hint for frontend
     let errorHint: string | undefined;
     if (buildings.length === 0) {
-      if (diag.errorClass === 'cotality_non_200' || diag.errorClass === 'token_failed' || diag.errorClass === 'unknown') {
+      if (diag.errorClass === 'cotality_non_200' || diag.errorClass === 'token_failed' || diag.errorClass === 'unknown' || diag.errorClass === 'db_error') {
         errorHint = 'Building lookup temporarily unavailable.';
       } else {
         errorHint = 'No Cotality building match found.';
