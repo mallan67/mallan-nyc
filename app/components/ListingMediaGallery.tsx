@@ -1,9 +1,20 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useSwipe } from '@/lib/hooks/useSwipe';
 import { toEmbedUrl } from '@/lib/media/embed-url';
+import {
+  buildImageSources,
+  GALLERY_IMAGE_WIDTHS,
+  GALLERY_IMAGE_QUALITY,
+  GALLERY_THUMB_WIDTHS,
+  GALLERY_THUMB_QUALITY,
+  GALLERY_FULLSCREEN_WIDTHS,
+  GALLERY_FULLSCREEN_QUALITY,
+  GALLERY_SIZES,
+  GALLERY_OPTIMIZER_ENABLED,
+} from '@/lib/media/responsive-image';
 
 const PLACEHOLDER = '/images/listing-placeholder.svg';
 
@@ -60,6 +71,8 @@ export default function ListingMediaGallery({
   const [fullscreen, setFullscreen] = useState(false);
   const [failed, setFailed] = useState<Set<number>>(new Set());
   const [retryCount, setRetryCount] = useState<Record<number, number>>({});
+  // Optimizer candidates that failed, keyed `${kind}:${index}`. Each is retried ONCE as the raw source (below).
+  const [rawFallback, setRawFallback] = useState<Set<string>>(new Set());
 
   const sortedImages = [...images].sort((a, b) => (a.order || 0) - (b.order || 0));
   const hasImages = sortedImages.length > 0;
@@ -96,7 +109,15 @@ export default function ListingMediaGallery({
 
   const swipe = useSwipe(nextPhoto, prevPhoto);
 
-  const handleImageError = useCallback((idx: number) => {
+  const handleImageError = useCallback((idx: number, kind: 'main' | 'thumb' = 'main', optimized = false) => {
+    // An optimizer candidate that fails (optimizer off, host dropped, upstream 401/404, transform error) is
+    // retried once as the RAW source before any retry/placeholder logic: sizing must never blank a photo that
+    // would otherwise have rendered (the same rule the search cards follow).
+    const key = `${kind}:${idx}`;
+    if (optimized && !rawFallback.has(key)) {
+      setRawFallback(prev => new Set(prev).add(key));
+      return;
+    }
     const attempts = retryCount[idx] || 0;
     if (attempts < 2) {
       // Retry after a short delay — Cotality throttling is transient
@@ -104,7 +125,37 @@ export default function ListingMediaGallery({
     } else {
       setFailed(prev => new Set(prev).add(idx));
     }
-  }, [retryCount]);
+  }, [retryCount, rawFallback]);
+
+  /**
+   * The src / srcSet for one gallery photo: the optimizer's candidates for sources it may be handed (R2 mirror,
+   * Cotality — proxied URLs are unwrapped), the raw URL for everything else and after a failure. The gallery uses
+   * its OWN ladders (lib/media/responsive-image.ts GALLERY_*), never the card ladder.
+   */
+  const gallerySources = (kind: 'main' | 'thumb' | 'full', idx: number, raw: string): { src: string; srcSet?: string } => {
+    const optimize = GALLERY_OPTIMIZER_ENABLED && !failed.has(idx) && !rawFallback.has(`${kind}:${idx}`);
+    if (!optimize) return { src: raw };
+    if (kind === 'thumb') return buildImageSources(raw, GALLERY_THUMB_WIDTHS, GALLERY_THUMB_QUALITY, 256);
+    if (kind === 'full') return buildImageSources(raw, GALLERY_FULLSCREEN_WIDTHS, GALLERY_FULLSCREEN_QUALITY, 1920);
+    return buildImageSources(raw, GALLERY_IMAGE_WIDTHS, GALLERY_IMAGE_QUALITY, 828);
+  };
+
+  // A server-rendered <img> that fails BEFORE React hydrates never delivers its error event to React (found in a
+  // real browser with the optimizer blocked: the raw fallback never ran and the photo stayed broken). So after
+  // hydration, and after every state change, look for gallery images that already failed (`complete` with no
+  // pixels) and send them through the same handler. Bounded: each pass either swaps to the raw source once,
+  // retries at most twice, or shows the placeholder.
+  const rootRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    root.querySelectorAll<HTMLImageElement>('img[data-gallery-photo]').forEach((img) => {
+      if (img.complete && img.naturalWidth === 0 && img.currentSrc) {
+        handleImageError(Number(img.dataset.idx), img.dataset.kind === 'thumb' ? 'thumb' : 'main', img.dataset.optimized === 'true');
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleImageError is re-created from exactly these values
+  }, [photoIdx, rawFallback, retryCount, failed]);
 
   // Keyboard navigation for lightbox (Escape, ArrowLeft, ArrowRight)
   useEffect(() => {
@@ -119,9 +170,11 @@ export default function ListingMediaGallery({
   }, [fullscreen, prevPhoto, nextPhoto]);
 
   const showPlaceholder = !hasImages || (failed.size === sortedImages.length);
+  const mainSrc = gallerySources('main', photoIdx, failed.has(photoIdx) ? PLACEHOLDER : (currentImage?.url ?? ''));
+  const fullSrc = fullscreen && currentImage ? gallerySources('full', photoIdx, currentImage.url) : null;
 
   return (
-    <section className="bg-stone-100">
+    <section ref={rootRef} className="bg-stone-100">
       <div className="max-w-[1600px] mx-auto">
         {/* Tab bar */}
         {availableTabs.length > 1 && (
@@ -165,12 +218,18 @@ export default function ListingMediaGallery({
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   key={`${photoIdx}-${retryCount[photoIdx] || 0}`}
-                  src={failed.has(photoIdx) ? PLACEHOLDER : currentImage.url}
+                  data-gallery-photo
+                  data-kind="main"
+                  data-idx={photoIdx}
+                  data-optimized={Boolean(mainSrc.srcSet)}
+                  src={mainSrc.src}
+                  srcSet={mainSrc.srcSet}
+                  sizes={mainSrc.srcSet ? GALLERY_SIZES.main : undefined}
                   alt={currentImage.caption || alt}
                   loading="eager"
                   decoding="sync"
                   fetchPriority="high"
-                  onError={() => handleImageError(photoIdx)}
+                  onError={() => handleImageError(photoIdx, 'main', Boolean(mainSrc.srcSet))}
                   onClick={() => setFullscreen(true)}
                   className="absolute inset-0 w-full h-full object-cover cursor-zoom-in"
                 />
@@ -228,7 +287,9 @@ export default function ListingMediaGallery({
             {/* Thumbnail strip — desktop only */}
             {sortedImages.length > 1 && (
               <div className="hidden md:flex gap-1.5 px-4 py-3 overflow-x-auto bg-white/80 backdrop-blur-sm">
-                {sortedImages.map((img, i) => (
+                {sortedImages.map((img, i) => {
+                  const thumb = gallerySources('thumb', i, failed.has(i) ? PLACEHOLDER : (img.thumbUrl || img.url));
+                  return (
                   <button
                     key={i}
                     onClick={() => setPhotoIdx(i)}
@@ -242,14 +303,22 @@ export default function ListingMediaGallery({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       key={`thumb-${i}-${retryCount[i] || 0}`}
-                      src={failed.has(i) ? PLACEHOLDER : (img.thumbUrl || img.url)}
+                      data-gallery-photo
+                      data-kind="thumb"
+                      data-idx={i}
+                      data-optimized={Boolean(thumb.srcSet)}
+                      src={thumb.src}
+                      srcSet={thumb.srcSet}
+                      sizes={thumb.srcSet ? GALLERY_SIZES.thumb : undefined}
                       alt={img.caption || `Photo ${i + 1}`}
                       className="absolute inset-0 w-full h-full object-cover"
                       loading="lazy"
-                      onError={() => handleImageError(i)}
+                      decoding="async"
+                      onError={() => handleImageError(i, 'thumb', Boolean(thumb.srcSet))}
                     />
                   </button>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -338,16 +407,18 @@ export default function ListingMediaGallery({
             {photoIdx + 1} / {sortedImages.length}
           </span>
 
-          {/* Photo — the UNOPTIMIZED highest-available display URL, no
-              cropping. Deliberately not routed through /_next/image, so
-              the card optimizer never downsizes the lightbox.
-              "Highest-available" is the accurate claim, not "original
-              camera resolution": listing-media-resolver picks per row
-              between the Cotality asset, an R2 mirror and a generated
-              hero variant, so which one this is varies by listing. */}
+          {/* Photo — no cropping. Asked of the optimizer on the gallery's FULLSCREEN ladder (never the card
+              ladder): 100vw at quality 90, up to 3840px, so it is never served fewer pixels than the
+              screen shows (a 1170px phone gets the 1280 rung instead of a 3MB original; a retina desktop
+              gets up to the source). If a candidate fails the raw URL is retried once.
+              "Highest-available" still applies to the SOURCE: listing-media-resolver picks per row
+              between the Cotality asset, an R2 mirror and a generated hero variant. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={currentImage.url}
+            src={fullSrc?.src ?? currentImage.url}
+            srcSet={fullSrc?.srcSet}
+            sizes={fullSrc?.srcSet ? GALLERY_SIZES.fullscreen : undefined}
+            onError={() => { if (fullSrc?.srcSet) setRawFallback(prev => new Set(prev).add(`full:${photoIdx}`)); }}
             alt={currentImage.caption || alt}
             className="max-w-[95vw] max-h-[92vh] object-contain select-none"
             decoding="sync"

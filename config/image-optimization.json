@@ -132,5 +132,31 @@
     "next.config.js has exactly one place to read remote patterns from.",
     "The card helper does NOT trust these."
   ],
-  "otherRemoteHosts": ["images.unsplash.com", "picsum.photos"]
+  "otherRemoteHosts": ["images.unsplash.com", "picsum.photos"],
+
+  "$comment_gallery": [
+    "LISTING-DETAIL GALLERY (2026-11-02). Measured on an emulated 820px tablet,",
+    "Slow 4G, a 17-photo listing: 6.9 MB transferred (5.9 MB images), LCP 27.8s.",
+    "R2 stores ONE full-resolution file per synced photo and the DTO's thumbUrl",
+    "equals url, so the strip's 88px thumbnails each downloaded the original.",
+    "",
+    "Every width below is already in deviceSizes / imageSizes, every quality is",
+    "already in qualities, and no host is added: this changes WHO asks the",
+    "optimizer, not what the optimizer admits.",
+    "",
+    "galleryImageWidths — the main viewer, full-bleed on phones, 1600px max above.",
+    "  390px @3x needs 1170  -> 1280 rung (1.09x)   820px @2x needs 1640 -> 1920",
+    "  1440px @2x needs 2880 -> 3840. The optimizer never upscales past the",
+    "  source, so the top rung returns at most the original: never worse than the",
+    "  raw URL it replaces. (Premium standard, 2026-08-01: never under-resolve.)",
+    "galleryThumbWidths — 88 CSS px thumbnails: 3x needs 264 -> 384 rung.",
+    "galleryFullscreenWidths — the lightbox (<=95vw, <=92vh), asked at 100vw so",
+    "  it never under-resolves; quality 90, as the heroes use."
+  ],
+  "galleryImageWidths": [640, 828, 1080, 1280, 1920, 2048, 3840],
+  "galleryImageQuality": 85,
+  "galleryThumbWidths": [128, 256, 384],
+  "galleryThumbQuality": 75,
+  "galleryFullscreenWidths": [1080, 1280, 1920, 2048, 3840],
+  "galleryFullscreenQuality": 90
 }

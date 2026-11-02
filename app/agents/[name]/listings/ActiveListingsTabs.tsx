@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
+import IDXImage from '@/app/components/IDXImage';
 import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
 import OpenHouseBanner from '@/app/components/OpenHouseBanner';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
@@ -60,12 +60,16 @@ function ActiveListingCard({ listing, isRental }: { listing: ListingDTO; isRenta
       className="group block rounded-xl border border-gray-200 bg-white overflow-hidden hover:shadow-lg transition-shadow"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
-        <Image
+        {/* IDXImage, not next/image: a Cotality photo reaches this card as `/api/media/proxy?url=…`, which
+            next/image rejects at render time (production, 2026-11-02: "Image with src … is using a query string
+            which is not configured in images.localPatterns", on /agents/[name]/listings). IDXImage unwraps the
+            proxy for the optimizer and falls back to the raw URL if a candidate fails. */}
+        <IDXImage
           src={photoUrl}
           alt={addr}
-          fill
-          className="object-cover group-hover:scale-105 transition-transform duration-300"
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          aspect="card"
+          sizeProfile="grid"
+          className="group-hover:scale-105 transition-transform duration-300"
         />
         {/* Status badge — single source-of-truth render so we never show two
             badges or mislabel a status. UCBA Art. I §16(C) Coming Soon takes

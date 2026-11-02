@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ComingSoonBadge } from './ComingSoonBadge';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { shouldShowPhotoCount } from '@/lib/media/listing-card-media';
+import { buildImageSources, CARD_SIZES } from '@/lib/media/responsive-image';
 
 interface SimilarListing {
   id: string;
@@ -48,11 +49,16 @@ function formatPrice(price: number, isRental: boolean): string {
 }
 
 /** Card — enclosed card with white background, border, shadow, fixed height */
-function SimilarCard({ item, isRental }: { item: SimilarListing; isRental: boolean }) {
+export function SimilarCard({ item, isRental }: { item: SimilarListing; isRental: boolean }) {
   // A photo that fails to load (the provider answers 404 for the photos of some listings) leaves the
   // placeholder, and the photo count goes with it: "12" over a placeholder promises what the card cannot show.
   const [photoFailed, setPhotoFailed] = useState(false);
   const photoUrl = photoFailed ? null : item.photoUrl;
+  // A 260-280px card was downloading the full-resolution original (the same defect the search cards had, fixed
+  // 2026-08-01). The optimizer's candidates for sources it may be handed; the raw URL for everything else and
+  // once, after an optimizer failure, before the placeholder.
+  const [rawPhoto, setRawPhoto] = useState(false);
+  const photoSources = photoUrl && !rawPhoto ? buildImageSources(photoUrl) : { src: photoUrl ?? '' };
   return (
     <Link
       href={buildCanonicalListingPath({ slug: item.slug || item.mlsId, id: item.mlsId || item.id })}
@@ -63,10 +69,13 @@ function SimilarCard({ item, isRental }: { item: SimilarListing; isRental: boole
         {photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={photoUrl}
+            src={photoSources.src}
+            srcSet={photoSources.srcSet}
+            sizes={photoSources.srcSet ? CARD_SIZES.similar : undefined}
             alt={item.address}
             loading="lazy"
-            onError={() => setPhotoFailed(true)}
+            decoding="async"
+            onError={() => (photoSources.srcSet ? setRawPhoto(true) : setPhotoFailed(true))}
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           />
         ) : (

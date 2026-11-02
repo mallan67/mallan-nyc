@@ -342,6 +342,7 @@ describe('optimization is OPT-IN — only audited surfaces change', () => {
       'app/components/SearchListingCard.tsx',
       'app/components/FeaturedListings.tsx',
       'app/components/CompareProperties.tsx',
+      'app/agents/[name]/listings/ActiveListingsTabs.tsx',
     ];
     const found: Array<{ file: string; hasProfile: boolean }> = [];
     for (const f of files) {
@@ -350,31 +351,31 @@ describe('optimization is OPT-IN — only audited surfaces change', () => {
         found.push({ file: f, hasProfile: /sizeProfile=/.test(block) });
       }
     }
-    // 3 search cards + 1 featured gallery + 1 compare tile = 5.
-    expect(found).toHaveLength(5);
-    // All five are audited card surfaces, so all five opt in.
+    // 3 search cards + 1 featured gallery + 1 compare tile + 1 agent listings card = 6
+    // (the agent card replaced a next/image that production rejected for proxied photos, 2026-11-02).
+    expect(found).toHaveLength(6);
+    // All six are audited card surfaces, so all six opt in.
     expect(found.filter((f) => !f.hasProfile)).toEqual([]);
   });
 
-  it('the detail viewer and lightbox are never routed through the optimizer', () => {
-    // Precise claim: they render the UNOPTIMIZED highest-available
-    // display URL. Not "original camera resolution" — the resolver picks
-    // per row between the Cotality asset, an R2 mirror and a generated
-    // hero variant. What this pins is that the CARD optimizer never
-    // downsizes them.
-    // Strip comments first — the file explains in prose that it is NOT
-    // routed through the optimizer, and that explanation must not itself
-    // trip the assertion.
+  it('the detail viewer and lightbox use the gallery\'s OWN ladders — never the CARD optimizer ladder', () => {
+    // REVISED 2026-11-02 (deliberate, reviewed move; see tests/runtime/listing-photo-delivery.test.ts).
+    // The earlier pin was "never routed through the optimizer" so the CARD optimizer could not downsize the
+    // detail photos. That intent is kept: the gallery now asks for GALLERY_* ladders sized to what it shows
+    // (up to 3840px, quality 85/90), and may never use the card ladder, the card quality or a card profile.
+    // Strip comments first — the file explains its choices in prose.
     const gallery = readFileSync(
       resolve(__dirname, '../../app/components/ListingMediaGallery.tsx'),
       'utf8',
     )
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/\/\/[^\n]*/g, '');
+    expect(gallery).toMatch(/buildImageSources/);
+    expect(gallery).toMatch(/GALLERY_IMAGE_WIDTHS/);
+    expect(gallery).toMatch(/GALLERY_FULLSCREEN_WIDTHS/);
+    expect(gallery).not.toMatch(/CARD_IMAGE_WIDTHS|CARD_IMAGE_QUALITY|CARD_SIZES|sizeProfile/);
+    // It builds optimizer URLs only through the shared helper (which trusts exact hosts only).
     expect(gallery).not.toMatch(/_next\/image/);
-    expect(gallery).not.toMatch(/buildImageSources|sizeProfile/);
-    // The lightbox renders the resolver's URL directly.
-    expect(gallery).toMatch(/src=\{currentImage\.url\}/);
   });
 
   it('the listing-detail hero and gallery do NOT use IDXImage at all', () => {
