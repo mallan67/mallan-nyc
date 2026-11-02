@@ -1955,7 +1955,7 @@ body { font-family: Manrope, sans-serif; }
                     <input type="radio" name="saleGarageSpaces" value="Yes" class="w-4 h-4"> Yes
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleGarageSpaces" value="No" class="w-4 h-4" checked> No
+                    <input type="radio" name="saleGarageSpaces" value="No" class="w-4 h-4"> No
                 </label>
             </div>
             <div class="max-w-xs">
@@ -7883,7 +7883,10 @@ function collectSaleFormData() {
     data.TaxBlock = data.saleBldgTaxBlock || '';
     // Cotality canonical is `TaxLot` (not BuildingTaxLot, which is not in
     // Cotality $metadata). (Audit F2, 2026-05-30 — Cotality-only.)
-    data.TaxLot = data.saleUnitTaxLot || data.saleBldgTaxLot || '';                            // Property.TaxLot: the UNIT's lot; a co-op or a house has the building's
+    // A condominium unit's TaxLot is NOT its building's CustomFields.BuildingTaxLot.
+    // Never silently substitute the building's lot into the unit identifier.
+    var _saleCondoUnit = data.salePropertyType === 'Condo' || data.CommonInterest === 'Condominium';
+    data.TaxLot = String(data.saleUnitTaxLot || (_saleCondoUnit ? '' : data.saleBldgTaxLot) || '').trim();
     data.BuildingTaxLot = data.saleBldgTaxLot || '';                                          // the building's own lot: REBNY custom key (live: it differs from TaxLot on 17 of 100 Active listings)
     data.AssociationName = data.saleBldgAssociationName || '';
     // Land lease — a building fact (live Property fields): the townhouse tab's own answer when the listing is a townhouse / house, else the Building panel's; the Essentials Yes/No mirrors it.
@@ -8801,6 +8804,24 @@ const REBNY_ACTIVE_STATUSES = ['Active', 'ComingSoon', 'BackOnMarket', 'OfferOut
 
 // Check if a field has a value (works for radio, select, input, textarea)
 function fieldHasValue(field) {
+    if (field.verifiedAgent) {
+        const agent = document.getElementById('saleUpdatingAgent');
+        const mlsId = document.getElementById('saleUpdatingAgentMlsId');
+        return !!(agent && String(agent.value || '').trim() && mlsId && String(mlsId.value || '').trim());
+    }
+    if (field.id === 'saleUnitTaxLot') {
+        const type = document.querySelector('input[name="salePropertyType"]:checked');
+        const common = document.getElementById('saleCommonInterest');
+        if ((type && type.value === 'Condo') || (common && common.value === 'Condominium')) {
+            const unit = document.getElementById('saleUnitTaxLot');
+            return !!(unit && String(unit.value || '').trim());
+        }
+    }
+    if (field.name === 'saleGarageSpaces') {
+        const restored = document.getElementById('saleTHGarageYN');
+        const savedAnswer = restored && (restored.value === 'Yes' || restored.value === 'No');
+        return !!savedAnswer || !!(window._saleGarageAnswered && document.querySelector('input[name="saleGarageSpaces"]:checked'));
+    }
     // A group of boxes is answered when at least one is ticked
     if (field.type === 'checkboxGroup') return !!document.querySelector('input[name="' + field.name + '"]:checked');
     // A value the form takes from either of two boxes (Structure Type: the main tab or the Building window)
@@ -8835,7 +8856,7 @@ function fieldHasValue(field) {
 const SALE_REQUIRED_FIELDS = [
     // Tab 1: Listing Information / Essentials
     { id: 'saleUpdatingCompany', label: 'Updating Company', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
-    { id: 'saleUpdatingAgent', label: 'Updating Agent', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
+    { id: 'saleUpdatingAgent', label: 'Updating Agent (verified REBNY MLS ID)', type: 'select', tab: 1, section: 'Listing Information/Essentials', verifiedAgent: true },
     { id: 'saleCoBrokeAgreementType', label: 'CoBroke Agreement Type', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
     { name: 'salePropertyType', label: 'Property Type', type: 'radio', tab: 1, section: 'Listing Information/Essentials' },
     { name: 'saleBuildingStatus', label: 'Building Status', type: 'radio', tab: 1, section: 'Listing Information/Essentials' },
@@ -8847,6 +8868,8 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleContractSignedDate', label: 'Contract Signed Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['ContractSigned','ContractSignedThruUs','Sold','SoldThruUs'] },
     { id: 'salePrice', label: 'Price', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleMaintCC', label: 'Maint/CC', type: 'input', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDO','CONDOP','COMMERCIAL_CONDO','COMMERCIAL_COOP'] },
+    { id: 'saleMaintCCFreq', label: 'Maint/CC Frequency', type: 'select', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDO','CONDOP','COMMERCIAL_CONDO','COMMERCIAL_COOP'], feePositiveOnly: true },
+    { id: 'saleRETaxes', label: 'Annual Real Estate Taxes', type: 'input', tab: 1, section: 'Listing Information/Essentials', conditional: ['CONDO','COMMERCIAL_CONDO'] },
     { id: 'saleUnitShares', label: 'Shares', type: 'input', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDOP','COMMERCIAL_COOP'] },
     { id: 'saleFlipTaxAmount', label: 'Flip Tax Amount', type: 'input', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDO','CONDOP','COMMERCIAL_CONDO','COMMERCIAL_COOP'] },
     { id: 'saleExclusiveCommission', label: 'Exclusive Agent Commission', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
@@ -8862,7 +8885,8 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleFullBaths', label: 'Full Bathrooms', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
     { id: 'saleHalfBaths', label: 'Half Bathrooms', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
     { id: 'saleFloorInBuilding', label: 'Floor in Building', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
-    { name: 'saleGarageSpaces', label: 'Garage Spaces Assigned', type: 'radio', tab: 2, section: 'Unit Information/Essentials' },
+    { name: 'saleGarageSpaces', label: 'Garage Spaces Assigned', type: 'radio', tab: 2, section: 'Unit Information/Essentials', garageScope: 'unit' },
+    { id: 'saleTHGarageYN', label: 'Garage Yes/No', type: 'select', tab: 3, section: 'Townhouse-Building/Essentials', garageScope: 'house' },
     { name: 'saleHasViews', label: 'Views', type: 'radio', orCheckboxName: 'saleViewList', tab: 2, section: 'Unit Information/Essentials' },
     // Tab 2: Features
     { name: 'saleWasherDryerAllowed', label: 'Washer/Dryer Allowed', type: 'radio', tab: 2, section: 'Unit Information/Features' },
@@ -8886,7 +8910,7 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleZipCode', label: 'Zip Code', type: 'input', tab: 1, section: 'Listing Information/Address' },
     { id: 'saleNeighborhoodFromAddress', orIds: ['saleBldgNeighborhood'], label: 'Neighborhood', type: 'input', tab: 1, section: 'Listing Information/Address' },
     { id: 'saleStructureType', orIds: ['saleBldgType'], label: 'Structure Type', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
-    { id: 'saleCommonInterest', label: 'Ownership Type', type: 'select', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDO','CONDOP','COMMERCIAL_CONDO','COMMERCIAL_COOP'] },
+    { id: 'saleCommonInterest', label: 'Ownership Type', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleConcessions', label: 'Concessions', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleShowingInstructions', label: 'Showing Instructions', type: 'input', tab: 1, section: 'Listing Information/Description' },
     { id: 'saleTotalRooms', label: 'Total Rooms', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
@@ -8895,11 +8919,21 @@ const SALE_REQUIRED_FIELDS = [
     // In the Building window (not a numbered tab): the jump opens that window and the sub-tab
     { id: 'saleBldgYearBuilt', label: 'Year Built', type: 'input', tab: 'B', section: 'Building window/Essentials' },
     { id: 'saleBldgTotalFloors', label: 'Total Floors', type: 'input', tab: 'B', section: 'Building window/Essentials' },
+    { id: 'saleBldgTotalUnits', orIds: ['saleTHUnitsTotal'], label: 'Total Building Units', type: 'input', tab: 'B', section: 'Building window/Essentials' },
     { id: 'saleBldgTaxBlock', label: 'Tax Block', type: 'input', tab: 'B', section: 'Building window/Financials' },
 ];
 
 // Check if a conditional field is relevant based on current property type
 function isFieldRelevant(field) {
+    if (field.garageScope) {
+        const isUnit = typeof shouldSkipTab3 === 'function' && shouldSkipTab3('sale');
+        if (field.garageScope === 'unit' && !isUnit) return false;
+        if (field.garageScope === 'house' && isUnit) return false;
+    }
+    if (field.feePositiveOnly) {
+        const fee = document.getElementById('saleMaintCC');
+        if (!fee || !(Number(fee.value) > 0)) return false;
+    }
     if (!field.conditional) return true;
     const ptEl = document.querySelector('input[name="salePropertyType"]:checked');
     if (!ptEl) return false;
