@@ -10,13 +10,14 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { JSDOM } from 'jsdom';
 import { buildMallanTwinContext, EMPTY_TWIN_CONTEXT } from '@/lib/listings/mallan-twin-context';
 import { describeListingControl } from '@/lib/listings/listing-control';
 import { bootAddForm } from './add-form-harness';
 
 jest.setTimeout(240000);
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { JSDOM } = require('jsdom');
 
 const addr = (over: Record<string, unknown> = {}) => ({
   StreetNumber: '333', StreetDirPrefix: 'E', StreetName: '46th', StreetSuffix: 'Street', UnitNumber: '2G', City: 'New York', PostalCode: '10017', ...over,
