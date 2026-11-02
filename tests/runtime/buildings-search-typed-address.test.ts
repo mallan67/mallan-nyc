@@ -129,15 +129,15 @@ describe('the stored row met first is an old closed record', () => {
 });
 
 describe('a numbered street is spelled out or in digits (live: "1030 Fifth Avenue" and "16 5TH Avenue" are both served)', () => {
-  const urlsAsked = () => (global.fetch as unknown as jest.Mock).mock.calls.map((c) => decodeURIComponent(String(c[0])));
+  const urlsAsked = () => (global.fetch as unknown as jest.Mock).mock.calls.map((c) => decodeURIComponent(String(c[0]).replace(/\+/g, ' ')));
 
   it('"800 Second Avenue" finds 800 2ND Avenue (it found nothing before)', async () => {
     queryRaw.mockResolvedValue([storedRow({ ...STORED_800_2ND, SubdivisionName: 'Turtle Bay' })]);
     stubCotality([liveRecord({}), ...NEIGHBOURS]);
     const { buildings } = await search('800 Second Avenue');
     expect(buildings.map((b) => b.address)).toEqual(['800 2ND Avenue']);
-    // the stored rows are searched under both spellings
-    expect(queryRaw.mock.calls[0].slice(1)).toEqual(['800', '%2%', '%second%']);
+    // the stored rows are searched for the whole street under both spellings (also with the direction inside the name: "E 2ND")
+    expect(queryRaw.mock.calls[0].slice(1)).toEqual(['800', '2nd', '% 2nd', 'second', '% second']);
   });
 
   it('asks Cotality for both spellings and accepts either, never 15TH for 5th', async () => {
@@ -148,17 +148,61 @@ describe('a numbered street is spelled out or in digits (live: "1030 Fifth Avenu
       liveRecord({ StreetNumber: '1030', StreetName: '15TH', StreetSuffix: 'Street', CityRegion: 'Brooklyn', PostalCode: '11230' }),
     ]);
     const { buildings } = await search('1030 5th Avenue');
-    const asked = urlsAsked().join('\n');
-    expect(asked).toContain("contains(tolower(StreetName),'5')");
-    expect(asked).toContain("contains(tolower(StreetName),'fifth')");
+    expect(urlsAsked().join('\n')).toContain("(tolower(StreetName) eq '5th' or tolower(StreetName) eq 'fifth')");
     expect(buildings.map((b) => b.streetName).sort()).toEqual(['5TH', 'Fifth']);
   });
 
-  it('a street with no spelled-out form is asked for once', async () => {
+  it('a numbered street with no spelled-out form is asked for by its exact ordinal only', async () => {
     queryRaw.mockResolvedValue([]);
     stubCotality([liveRecord({ StreetNumber: '10', StreetName: '21st' })]);
     await search('10 21st Street');
-    expect(urlsAsked().filter((u) => u.includes('/odata/Property?') && u.includes('tolower(StreetName)')).some((u) => u.includes("'second'"))).toBe(false);
+    const asked = urlsAsked().join('\n');
+    expect(asked).toContain("tolower(StreetName) eq '21st'");
+    expect(asked).not.toContain("tolower(StreetName) eq '21st' or");
+  });
+});
+
+// Codex P1 on #676: a filter applied AFTER Cotality's top-20 cap can drop the building ("1 5th Avenue" is 12,673 rows by prefix/contains, 89 exact: live 2026-11-02).
+describe('the exact number and the exact street are asked of Cotality, not filtered after its 20-row cap', () => {
+  const asked = () => (global.fetch as unknown as jest.Mock).mock.calls.map((c) => decodeURIComponent(String(c[0]).replace(/\+/g, ' ')));
+
+  it('asks for StreetNumber eq (never startswith) with the exact numbered street, in one request', async () => {
+    queryRaw.mockResolvedValue([]);
+    stubCotality([liveRecord({})]);
+    await search('800 2nd Ave');
+    const property = asked().filter((u) => u.includes('/odata/Property?') && u.includes('$top=20&'));
+    expect(property).toHaveLength(1);
+    expect(property[0]).toContain("StreetNumber eq '800'");
+    expect(property[0]).toContain("(tolower(StreetName) eq '2nd' or tolower(StreetName) eq 'second')");
+    expect(property[0]).not.toContain('startswith(StreetNumber');
+    expect(property[0]).not.toContain('contains(tolower(StreetName)');
+  });
+
+  it('a street that is not a numbered one is still asked for by name', async () => {
+    queryRaw.mockResolvedValue([]);
+    stubCotality([liveRecord({ StreetNumber: '400', StreetName: 'PARK', PostalCode: '10022' })]);
+    await search('400 Park Avenue');
+    const u = asked().find((x) => x.includes('/odata/Property?') && x.includes('$top=20&'))!;
+    expect(u).toContain("StreetNumber eq '400'");
+    expect(u).toContain("contains(tolower(StreetName),'park')");
+  });
+});
+
+// Maya, 2026-11-02: "use the one Cotality uses as the true address". Live: every past listing of 800 2nd Avenue is StreetName "2ND", StreetSuffix "Avenue", no direction.
+describe('the address is the one Cotality holds', () => {
+  it('a building stored with an agent\'s spelling takes the street atoms and address line of its Cotality record', async () => {
+    queryRaw.mockResolvedValue([storedRow({ ...STORED_800_2ND, StreetName: '2nd', StreetSuffix: 'Ave' })]);
+    stubCotality([liveRecord({ StreetName: '2ND', StreetSuffix: 'Avenue' })]);
+    const { buildings } = await search('800 Second Ave');
+    expect(buildings).toHaveLength(1);
+    expect(buildings[0]).toMatchObject({ address: '800 2ND Avenue', streetNumber: '800', streetDirPrefix: '', streetName: '2ND', streetSuffix: 'Avenue', streetDirSuffix: '' });
+  });
+
+  it('a building with no Cotality record keeps its stored address', async () => {
+    queryRaw.mockResolvedValue([storedRow({ ...STORED_800_2ND, StreetName: '2nd' })]);
+    stubCotality([]);
+    const { buildings } = await search('800 2nd Ave');
+    expect(buildings[0]).toMatchObject({ address: '800 2nd Avenue', streetName: '2nd' });
   });
 });
 

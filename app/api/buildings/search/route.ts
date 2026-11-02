@@ -142,11 +142,27 @@ function cleanText(v: unknown): string {
 // The live feed spells some numbered streets out ("1030 Fifth Avenue") and others in digits ("16 5TH Avenue", "800 2ND Avenue"), and an agent types either
 // ("800 Second Ave", "800 2nd Ave"), so a numbered street is asked for, and accepted, in both spellings.
 const ORDINAL_WORDS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth'];
-function ordinalStreetForms(typedStreetName: string | undefined): { digits: string; word?: string } | null {
+function ordinalSuffix(n: number): string {
+  const t = n % 100;
+  if (t >= 11 && t <= 13) return 'th';
+  return ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
+}
+function ordinalStreetForms(typedStreetName: string | undefined): { digits: string; ordinal: string; word?: string } | null {
   const t = (typedStreetName ?? '').trim().toLowerCase();
-  if (/^\d+$/.test(t)) return { digits: String(Number(t)), word: ORDINAL_WORDS[Number(t) - 1] };
+  if (/^\d+$/.test(t)) { const n = Number(t); return { digits: String(n), ordinal: `${n}${ordinalSuffix(n)}`, word: ORDINAL_WORDS[n - 1] }; }
   const i = ORDINAL_WORDS.indexOf(t);
-  return i >= 0 ? { digits: String(i + 1), word: t } : null;
+  return i >= 0 ? { digits: String(i + 1), ordinal: `${i + 1}${ordinalSuffix(i + 1)}`, word: t } : null;
+}
+
+// The address is Cotality's: the street atoms and the address line of a building come from its Cotality record as Cotality holds them (live: every past listing of
+// 800 2nd Avenue, Maya's included, is StreetName "2ND", StreetSuffix "Avenue"), not from how an agent once typed it into a Mallan listing ("333 46Th").
+function applyCotalityAddress(b: Record<string, unknown>, r: Record<string, unknown>): void {
+  b.address = formatAddress(r);
+  b.streetNumber = String(r.StreetNumber || '');
+  b.streetDirPrefix = String(r.StreetDirPrefix || '');
+  b.streetName = String(r.StreetName || '');
+  b.streetSuffix = String(r.StreetSuffix || '');
+  b.streetDirSuffix = String(r.StreetDirSuffix || '');
 }
 function servedStreetMatchesTyped(typedStreetName: string | undefined, servedStreetName: unknown): boolean {
   const forms = ordinalStreetForms(typedStreetName);
@@ -639,10 +655,20 @@ export async function GET(request: NextRequest) {
       }
       if (parsed.streetName) {
         const forms = ordinalStreetForms(parsed.streetName);
-        const likes = forms ? [forms.digits, forms.word].filter((v): v is string => !!v) : [parsed.streetName];
-        conditions.push(`(${likes.map((_, i) => `LOWER(address->>'StreetName') LIKE $${paramIdx + i}`).join(' OR ')})`);
-        for (const v of likes) params.push(`%${v}%`);
-        paramIdx += likes.length;
+        if (forms) {
+          // A numbered street is matched whole ("5th", and "E 5TH" with the direction inside the name), so "1 5th" never meets 15th and the 20-row cap cannot cut the building out.
+          const sqls: string[] = [];
+          for (const n of [forms.ordinal, forms.word].filter((v): v is string => !!v)) {
+            sqls.push(`LOWER(address->>'StreetName') = $${paramIdx}`, `LOWER(address->>'StreetName') LIKE $${paramIdx + 1}`);
+            params.push(n, `% ${n}`);
+            paramIdx += 2;
+          }
+          conditions.push(`(${sqls.join(' OR ')})`);
+        } else {
+          conditions.push(`LOWER(address->>'StreetName') LIKE $${paramIdx}`);
+          params.push(`%${parsed.streetName}%`);
+          paramIdx++;
+        }
       }
       // The current listing speaks first: an Active one, then the most recently modified (live: Active RLS20123633 says "Turtle Bay"; the older Closed RLS10612741 says "Midtown East").
       const sql = `SELECT address, features, raw_data, custom_fields, property_type, property_sub_type FROM listings WHERE ${conditions.join(' AND ')} ORDER BY (status = 'Active') DESC, modification_timestamp DESC LIMIT 20`;
@@ -933,14 +959,22 @@ export async function GET(request: NextRequest) {
           'LotSizeArea', 'LotSizeUnits', 'LotSizeDimensions', 'LotSizeSquareFeet',
         ].join(',');
 
-        const filterParts = [`startswith(StreetNumber,'${cleanNum}')`];
+        // Exact number and exact numbered street IN the Cotality filter (live 2026-11-02: `StreetNumber eq` and `tolower(StreetName) eq … or …` answer HTTP 200; "1 5th Avenue" is 12,673
+        // rows by prefix/contains and 89 exact): filtering after the 20-row cap could drop the building the agent typed.
+        const filterParts = [`StreetNumber eq '${cleanNum}'`];
         if (parsed.streetDirPrefix) {
           const cleanDir = sanitizeOData(parsed.streetDirPrefix);
           filterParts.push(`StreetDirPrefix eq '${cleanDir}'`);
         }
         if (parsed.streetName) {
-          const cleanName = sanitizeOData(ordinalStreetForms(parsed.streetName)?.digits ?? parsed.streetName).toLowerCase();
-          filterParts.push(`contains(tolower(StreetName),'${cleanName}')`);
+          const forms = ordinalStreetForms(parsed.streetName);
+          if (forms) {
+            // the feed spells a numbered street "2ND" (every Second Avenue listing) and, for a few avenues, out ("Fifth"): both are asked for
+            const names = [forms.ordinal, forms.word].filter((v): v is string => !!v).map((n) => `tolower(StreetName) eq '${sanitizeOData(n)}'`);
+            filterParts.push(names.length > 1 ? `(${names.join(' or ')})` : names[0]);
+          } else {
+            filterParts.push(`contains(tolower(StreetName),'${sanitizeOData(parsed.streetName).toLowerCase()}')`);
+          }
         }
         if (parsed.streetDirSuffix) {
           filterParts.push(`StreetDirSuffix eq '${sanitizeOData(parsed.streetDirSuffix)}'`);
@@ -967,18 +1001,9 @@ export async function GET(request: NextRequest) {
 
         if (res.ok) {
           const data = await res.json();
-          let records: CotalityRecord[] = data.value || [];
-          // A numbered street is spelled out on some records ("Fifth") and in digits on others ("5TH"): the filter above asks for the digits, this asks for the word.
-          const wordForm = ordinalStreetForms(parsed.streetName)?.word;
-          if (wordForm) {
-            const wordParams = new URLSearchParams(odataParams);
-            wordParams.set('$filter', filter.replace(/contains\(tolower\(StreetName\),'[^']*'\)/, `contains(tolower(StreetName),'${sanitizeOData(wordForm)}')`));
-            const wordRes = await fetch(`${COTALITY_URL}/odata/Property?${wordParams}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, next: { revalidate: 3600 } });
-            if (wordRes.ok) {
-              const seen = new Set(records.map((r) => String(r.ListingId ?? '')));
-              records = records.concat((((await wordRes.json()).value || []) as CotalityRecord[]).filter((r) => !seen.has(String(r.ListingId ?? ''))));
-            }
-          }
+          const records: CotalityRecord[] = data.value || [];
+          // The buildings whose address line and atoms already come from a Cotality record.
+          const addressFromCotality = new Set<object>();
           // Every Cotality listing of a building is evidence for its type: the building is classified from all of them after the loop (lib/buildings/classify-building.ts),
           // not from the first one seen (a condop's listings are tagged StockCooperative on most units and Condop on the rest).
           const evidence = new Map<object, CotalityRecord[]>();
@@ -1020,6 +1045,7 @@ export async function GET(request: NextRequest) {
               // different one, and the BK identity sticks once known.
               promoteIdentity(existing, String(r.CityRegion ?? ''), String(r.PostalCode ?? ''), _bkKey);
               fillBlankNameAndArea(existing, r.BuildingName, r.SubdivisionName);
+              if (!addressFromCotality.has(existing)) { applyCotalityAddress(existing, r); addressFromCotality.add(existing); }
               // Re-register so any newly-known key (BK / fuller address) also
               // resolves to this object on a later row.
               registerBuilding(buildingByKey, buildingByAddrOnly, existing, _bkKey, _addrKey, _aoKey);
@@ -1100,6 +1126,7 @@ export async function GET(request: NextRequest) {
             });
             registerBuilding(buildingByKey, buildingByAddrOnly, buildings[buildings.length - 1], _bkKey, _addrKey, _aoKey);
             addEvidence(buildings[buildings.length - 1], r);
+            addressFromCotality.add(buildings[buildings.length - 1]);
           }
           // The display query above returns the 20 highest-priced listings: too few to say what a building is. The type is read from every listing of the building, asked for
           // with only the fields that decide it.
