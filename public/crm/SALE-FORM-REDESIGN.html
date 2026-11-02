@@ -8383,7 +8383,25 @@ function _saleSubmitFailed(err, creating) {
     }
 }
 
+// A Cotality record (RLS...) is read-only: the server refuses to save over it. Say so at the top of the form and stop every save and autosave, so it cannot be filled in for nothing.
+function _saleApplyReadOnlyGuard(listing) {
+    var control = listing && listing._control;
+    if (!control || control.editable !== false) { window._saleReadOnlyRecord = ''; return; }
+    window._saleReadOnlyRecord = String(listing.listing_id || 'This record');
+    clearTimeout(autoSaveTimer);
+    var bar = document.getElementById('saleReadOnlyBanner');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'saleReadOnlyBanner';
+        bar.setAttribute('role', 'alert');
+        bar.style.cssText = 'position:sticky;top:0;z-index:9998;background:#7f1d1d;color:#fff;padding:10px 16px;font-size:14px;font-weight:600;line-height:1.4;';
+        document.body.insertBefore(bar, document.body.firstChild);
+    }
+    bar.textContent = control.label + ' \u2014 ' + control.detail + ' Nothing typed here can be saved. Open the listing marked "YOU CONTROL THIS ONE" in My Listings.';
+}
+
 function _saleRefuseWhileLoading() {
+    if (window._saleReadOnlyRecord) { showToast(window._saleReadOnlyRecord + ' is a Cotality record: read-only, it cannot be saved. Nothing was sent.', 'error', 8000); return true; }
     if (window._saleEditLoad === 'loading') { showToast('The saved listing is still loading — nothing was sent. Try again in a moment.', 'warning'); return true; }
     if (window._saleEditLoad === 'failed') { showToast('The saved listing did not load — nothing was sent, so a blank form cannot replace it. Reload the page.', 'error'); return true; }
     return false;
@@ -8637,7 +8655,7 @@ window._saleAutoSaveReady = false;
 window._salePopulateInProgress = false;
 
 function autoSaveDraft() {
-    if (!window._saleAutoSaveReady || window._salePopulateInProgress) return;
+    if (!window._saleAutoSaveReady || window._salePopulateInProgress || window._saleReadOnlyRecord) return;
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(() => {
         performAutoSave();
@@ -8645,7 +8663,7 @@ function autoSaveDraft() {
 }
 
 function performAutoSave() {
-    if (!window._saleAutoSaveReady || window._salePopulateInProgress) return;
+    if (!window._saleAutoSaveReady || window._salePopulateInProgress || window._saleReadOnlyRecord) return;
     const indicator = document.getElementById('saleAutoSaveIndicator');
     const textEl = document.getElementById('saleAutoSaveText');
     if (indicator) {
@@ -10526,6 +10544,7 @@ function _restoreSaleOwnership(raw) {
 }
 
 function _populateSaleFormFromApi(listing) {
+    _saleApplyReadOnlyGuard(listing);
     _pendingMediaFiles = [];
     window._saleTouched = {};                         // the controls a table row sets (the by-key pass leaves them alone)
     var raw = listing.raw_data || {};

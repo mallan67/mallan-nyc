@@ -21,6 +21,8 @@ import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
 import { MALLAN_LIST_OFFICE_MLS_IDS } from "@/lib/listings/mallan-source-identity";
+import { loadMallanTwinContext } from "@/lib/listings/mallan-twin-context";
+import { describeListingControl } from "@/lib/listings/listing-control";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -185,6 +187,8 @@ export async function GET(req: NextRequest) {
   //
   // `listing_media` and `_count` are query inputs, not response fields — they
   // are destructured out so the response contract stays exactly as it was.
+  // Which record is which: the Mallan listing the agent controls, or Cotality's read-only copy (same proof the public site uses).
+  const twin = await loadMallanTwinContext();
   const serialized = listings.map((l) => {
     const { listing_media, _count, ...rest } = l;
     const { media } = composeDbPublicMedia({
@@ -205,6 +209,7 @@ export async function GET(req: NextRequest) {
       list_price: l.list_price.toString(),
       living_area: l.living_area?.toString() ?? null,
       media,
+      _control: describeListingControl(l, twin),
     };
   });
 
