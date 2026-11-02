@@ -5436,9 +5436,37 @@ function selectBuildingFromIDX(prefix, picked) {
     parseSaleAddress();
     updateSaleAddressDerived();
 
-    // 2. Auto-detect property type
+    // 2. Building CommonInterest describes OWNERSHIP, not the use of this
+    // specific unit. An Office/Retail/Commercial listing (including a medical
+    // office condominium) must not be reset to residential "Condo" merely
+    // because another unit in the building is a condominium. This is also a
+    // save/reload invariant: a building lookup must not erase the agent's
+    // explicitly selected commercial listing type.
+    var selectedListingType = document.querySelector('input[name="' + prefix + 'PropertyType"]:checked');
+    var commercialUseSelected = selectedListingType &&
+        ['Office', 'Retail', 'Commercial'].indexOf(selectedListingType.value) !== -1;
     var typeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
-    if (typeRadio) { typeRadio.checked = true; applySalesFieldRules(); }
+    if (typeRadio && !commercialUseSelected && !building.classification_unverified) {
+        typeRadio.checked = true;
+        applySalesFieldRules();
+    }
+    if (commercialUseSelected && building.commonInterestRaw) {
+        var officeOwnership = document.querySelector('input[name="' + prefix + 'OfficeRetailOwnership"]:checked');
+        var officeOwnershipValue = _commonInterestToFormType(building.commonInterestRaw);
+        if (!officeOwnership && (selectedListingType.value === 'Office' || selectedListingType.value === 'Retail')) {
+            var ownershipRadio = document.querySelector('input[name="' + prefix + 'OfficeRetailOwnership"][value="' + officeOwnershipValue + '"]');
+            if (ownershipRadio) { ownershipRadio.checked = true; applySalesFieldRules(); }
+        }
+        if (selectedListingType.value === 'Commercial' &&
+            !document.querySelector('input[name="' + prefix + 'CommercialOwnership"]:checked')) {
+            var commercialMap = { Condo: 'CommercialCondo', Coop: 'CommercialCoop', Condop: 'CommercialCondop' };
+            var mappedOwnership = commercialMap[officeOwnershipValue];
+            if (mappedOwnership) {
+                var commercialRadio = document.querySelector('input[name="' + prefix + 'CommercialOwnership"][value="' + mappedOwnership + '"]');
+                if (commercialRadio) { commercialRadio.checked = true; applySalesFieldRules(); }
+            }
+        }
+    }
     // Ownership Type is the building's own Cotality CommonInterest (the value its type was read from): written only while the agent has not chosen one, and only when the box offers it.
     var _ownEl = document.getElementById(prefix + 'CommonInterest');
     if (_ownEl && building.commonInterestRaw && !_ownEl.value && Array.prototype.some.call(_ownEl.options, function (o) { return o.value === building.commonInterestRaw; })) { _ownEl.value = building.commonInterestRaw; _ownEl.dataset.autoDerived = 'building'; }
