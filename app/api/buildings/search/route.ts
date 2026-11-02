@@ -139,10 +139,31 @@ function cleanText(v: unknown): string {
 
 // The Cotality filter matches the street NAME by `contains`, so the typed "2nd" (parsed to "2") also returned 8001 12TH Avenue and 8002 21st Avenue: three
 // candidates, none applied. For a numbered street the served StreetName must carry the SAME number ("2ND", "E 46TH", "46" all match; "12TH", "21st", "22ND" do not).
+// The live feed spells some numbered streets out ("1030 Fifth Avenue") and others in digits ("16 5TH Avenue", "800 2ND Avenue"), and an agent types either
+// ("800 Second Ave", "800 2nd Ave"), so a numbered street is asked for, and accepted, in both spellings.
+const ORDINAL_WORDS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth'];
+function ordinalStreetForms(typedStreetName: string | undefined): { digits: string; word?: string } | null {
+  const t = (typedStreetName ?? '').trim().toLowerCase();
+  if (/^\d+$/.test(t)) return { digits: String(Number(t)), word: ORDINAL_WORDS[Number(t) - 1] };
+  const i = ORDINAL_WORDS.indexOf(t);
+  return i >= 0 ? { digits: String(i + 1), word: t } : null;
+}
 function servedStreetMatchesTyped(typedStreetName: string | undefined, servedStreetName: unknown): boolean {
-  if (!typedStreetName || !/^\d+$/.test(typedStreetName)) return true;
-  const served = String(servedStreetName ?? '').match(/\d+/);
-  return served !== null && Number(served[0]) === Number(typedStreetName);
+  const forms = ordinalStreetForms(typedStreetName);
+  if (!forms) return true;
+  const served = String(servedStreetName ?? '');
+  const digits = served.match(/\d+/);
+  if (digits) return Number(digits[0]) === Number(forms.digits);
+  return !!forms.word && served.toLowerCase().split(/\s+/).includes(forms.word);
+}
+
+// A building is built from the first stored row met, and that can be an old closed record with no area and the text "null" as its name (live: 800 2nd Avenue, whose
+// Active record carries SubdivisionName "Turtle Bay"). A later row or the live record fills a BLANK name / neighborhood; a value already there is never replaced.
+function fillBlankNameAndArea(b: Record<string, unknown>, name: unknown, area: unknown): void {
+  const n = cleanText(name);
+  const a = cleanText(area);
+  if (a && !cleanText(b.neighborhood)) { b.neighborhood = a; b.subdivisionName = a; }
+  if (n && !cleanText(b.name)) b.name = n;
 }
 
 // `startswith(StreetNumber,'800')` also returns 8001 and 8002. A number followed by a street is a whole number: it must equal the served StreetNumber.
@@ -617,9 +638,11 @@ export async function GET(request: NextRequest) {
         paramIdx++;
       }
       if (parsed.streetName) {
-        conditions.push(`LOWER(address->>'StreetName') LIKE $${paramIdx}`);
-        params.push(`%${parsed.streetName}%`);
-        paramIdx++;
+        const forms = ordinalStreetForms(parsed.streetName);
+        const likes = forms ? [forms.digits, forms.word].filter((v): v is string => !!v) : [parsed.streetName];
+        conditions.push(`(${likes.map((_, i) => `LOWER(address->>'StreetName') LIKE $${paramIdx + i}`).join(' OR ')})`);
+        for (const v of likes) params.push(`%${v}%`);
+        paramIdx += likes.length;
       }
       const sql = `SELECT address, features, raw_data, custom_fields, property_type, property_sub_type FROM listings WHERE ${conditions.join(' AND ')} LIMIT 20`;
       const dbResults = await prisma.$queryRawUnsafe<Array<{
@@ -654,6 +677,7 @@ export async function GET(request: NextRequest) {
         );
         if (_existing) {
           mergeMissingExtras(_existing, buildingExtras(feat));
+          fillBlankNameAndArea(_existing, addr.BuildingName, addr.SubdivisionName);
           // Merge saved profile values from this additional unit of the same
           // building — first non-empty value per key wins. (Building merge.)
           mergeMissingExtras(_existing, savedProfile);
@@ -767,6 +791,7 @@ export async function GET(request: NextRequest) {
         );
         if (_existing) {
           mergeMissingExtras(_existing, buildingExtras(feat));
+          fillBlankNameAndArea(_existing, addr.BuildingName, addr.SubdivisionName);
           // Merge saved profile values across units of the same building —
           // first non-empty value per key wins. (Building merge.)
           mergeMissingExtras(_existing, savedProfile);
@@ -912,7 +937,7 @@ export async function GET(request: NextRequest) {
           filterParts.push(`StreetDirPrefix eq '${cleanDir}'`);
         }
         if (parsed.streetName) {
-          const cleanName = sanitizeOData(parsed.streetName).toLowerCase();
+          const cleanName = sanitizeOData(ordinalStreetForms(parsed.streetName)?.digits ?? parsed.streetName).toLowerCase();
           filterParts.push(`contains(tolower(StreetName),'${cleanName}')`);
         }
         if (parsed.streetDirSuffix) {
@@ -940,7 +965,18 @@ export async function GET(request: NextRequest) {
 
         if (res.ok) {
           const data = await res.json();
-          const records: CotalityRecord[] = data.value || [];
+          let records: CotalityRecord[] = data.value || [];
+          // A numbered street is spelled out on some records ("Fifth") and in digits on others ("5TH"): the filter above asks for the digits, this asks for the word.
+          const wordForm = ordinalStreetForms(parsed.streetName)?.word;
+          if (wordForm) {
+            const wordParams = new URLSearchParams(odataParams);
+            wordParams.set('$filter', filter.replace(/contains\(tolower\(StreetName\),'[^']*'\)/, `contains(tolower(StreetName),'${sanitizeOData(wordForm)}')`));
+            const wordRes = await fetch(`${COTALITY_URL}/odata/Property?${wordParams}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, next: { revalidate: 3600 } });
+            if (wordRes.ok) {
+              const seen = new Set(records.map((r) => String(r.ListingId ?? '')));
+              records = records.concat((((await wordRes.json()).value || []) as CotalityRecord[]).filter((r) => !seen.has(String(r.ListingId ?? ''))));
+            }
+          }
           // Every Cotality listing of a building is evidence for its type: the building is classified from all of them after the loop (lib/buildings/classify-building.ts),
           // not from the first one seen (a condop's listings are tagged StockCooperative on most units and Condop on the rest).
           const evidence = new Map<object, CotalityRecord[]>();
@@ -979,11 +1015,7 @@ export async function GET(request: NextRequest) {
               // existing building so the address-only guard can reject a later
               // different one, and the BK identity sticks once known.
               promoteIdentity(existing, String(r.CityRegion ?? ''), String(r.PostalCode ?? ''), _bkKey);
-              // The stored copy can lack the name / neighborhood the live record carries: fill a blank, never replace a value.
-              const liveArea = cleanText(r.SubdivisionName);
-              if (liveArea && !cleanText(existing.neighborhood)) { existing.neighborhood = liveArea; existing.subdivisionName = liveArea; }
-              const liveName = cleanText(r.BuildingName);
-              if (liveName && !cleanText(existing.name)) existing.name = liveName;
+              fillBlankNameAndArea(existing, r.BuildingName, r.SubdivisionName);
               // Re-register so any newly-known key (BK / fuller address) also
               // resolves to this object on a later row.
               registerBuilding(buildingByKey, buildingByAddrOnly, existing, _bkKey, _addrKey, _aoKey);

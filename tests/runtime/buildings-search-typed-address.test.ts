@@ -28,8 +28,9 @@ const storedRow = (address: Record<string, unknown>) => ({
   address, features: {}, raw_data: {}, custom_fields: {}, property_type: 'Residential', property_sub_type: 'Condominium',
 });
 
+let seq = 0;
 const liveRecord = (over: Record<string, unknown>) => ({
-  StreetNumber: '800', StreetName: '2ND', StreetSuffix: 'Avenue', City: 'New York City', StateOrProvince: 'NY',
+  ListingId: `L${++seq}`, StreetNumber: '800', StreetName: '2ND', StreetSuffix: 'Avenue', City: 'New York City', StateOrProvince: 'NY',
   CityRegion: 'Manhattan', PostalCode: '10017', StandardStatus: 'Active', SubdivisionName: '', BuildingName: '', ...over,
 });
 
@@ -110,5 +111,53 @@ describe('other typed addresses are unchanged', () => {
     ]);
     const { buildings } = await search('400 Park Avenue');
     expect(buildings.map((b) => b.streetNumber)).toEqual(['400']);
+  });
+});
+
+// Live stored rows of 800 2nd Avenue #806 (CRM, 2026-11-02): the OLD Closed record (RLS10612741) has no area and BuildingName "null"; the Active one (RLS20123633) carries SubdivisionName "Turtle Bay".
+describe('the stored row met first is an old closed record', () => {
+  const CLOSED_FIRST = storedRow({ ...STORED_800_2ND, BuildingName: 'null' });
+  const ACTIVE_SECOND = storedRow({ ...STORED_800_2ND, BuildingName: '', SubdivisionName: 'Turtle Bay' });
+
+  it('takes the neighborhood from the Active stored row, even if Cotality returns nothing', async () => {
+    queryRaw.mockResolvedValue([CLOSED_FIRST, ACTIVE_SECOND]);
+    stubCotality([]);
+    const { buildings } = await search('800 2nd Ave');
+    expect(buildings).toHaveLength(1);
+    expect(buildings[0]).toMatchObject({ neighborhood: 'Turtle Bay', subdivisionName: 'Turtle Bay', name: '' });
+  });
+});
+
+describe('a numbered street is spelled out or in digits (live: "1030 Fifth Avenue" and "16 5TH Avenue" are both served)', () => {
+  const urlsAsked = () => (global.fetch as unknown as jest.Mock).mock.calls.map((c) => decodeURIComponent(String(c[0])));
+
+  it('"800 Second Avenue" finds 800 2ND Avenue (it found nothing before)', async () => {
+    queryRaw.mockResolvedValue([storedRow({ ...STORED_800_2ND, SubdivisionName: 'Turtle Bay' })]);
+    stubCotality([liveRecord({}), ...NEIGHBOURS]);
+    const { buildings } = await search('800 Second Avenue');
+    expect(buildings.map((b) => b.address)).toEqual(['800 2ND Avenue']);
+    // the stored rows are searched under both spellings
+    expect(queryRaw.mock.calls[0].slice(1)).toEqual(['800', '%2%', '%second%']);
+  });
+
+  it('asks Cotality for both spellings and accepts either, never 15TH for 5th', async () => {
+    queryRaw.mockResolvedValue([]);
+    stubCotality([
+      liveRecord({ StreetNumber: '1030', StreetName: 'Fifth', StreetSuffix: 'Avenue', PostalCode: '10028' }),
+      liveRecord({ StreetNumber: '1030', StreetName: '5TH', StreetSuffix: 'Avenue', PostalCode: '10028' }),
+      liveRecord({ StreetNumber: '1030', StreetName: '15TH', StreetSuffix: 'Street', CityRegion: 'Brooklyn', PostalCode: '11230' }),
+    ]);
+    const { buildings } = await search('1030 5th Avenue');
+    const asked = urlsAsked().join('\n');
+    expect(asked).toContain("contains(tolower(StreetName),'5')");
+    expect(asked).toContain("contains(tolower(StreetName),'fifth')");
+    expect(buildings.map((b) => b.streetName).sort()).toEqual(['5TH', 'Fifth']);
+  });
+
+  it('a street with no spelled-out form is asked for once', async () => {
+    queryRaw.mockResolvedValue([]);
+    stubCotality([liveRecord({ StreetNumber: '10', StreetName: '21st' })]);
+    await search('10 21st Street');
+    expect(urlsAsked().filter((u) => u.includes('/odata/Property?') && u.includes('tolower(StreetName)')).some((u) => u.includes("'second'"))).toBe(false);
   });
 });
