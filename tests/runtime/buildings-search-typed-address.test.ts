@@ -161,3 +161,36 @@ describe('a numbered street is spelled out or in digits (live: "1030 Fifth Avenu
     expect(urlsAsked().filter((u) => u.includes('/odata/Property?') && u.includes('tolower(StreetName)')).some((u) => u.includes("'second'"))).toBe(false);
   });
 });
+
+// Live Cotality rows of 800 2nd Avenue #806 (read directly 2026-11-02): the listing agent's current Active RLS20123633 says "Turtle Bay"; her older Closed rental RLS10612741 says "Midtown East".
+describe('the current listing names the neighborhood, not an older record of the same building', () => {
+  const OLD_CLOSED = { ListingId: 'RLS10612741', StandardStatus: 'Closed', SubdivisionName: 'Midtown East', ModificationTimestamp: '2026-08-05T18:00:47.463-00:00' };
+  const ACTIVE = { ListingId: 'RLS20123633', StandardStatus: 'Active', SubdivisionName: 'Turtle Bay', ModificationTimestamp: '2026-11-02T06:17:29.450-00:00' };
+
+  it('Active "Turtle Bay" wins over the older Closed "Midtown East", whichever order Cotality answers in', async () => {
+    for (const records of [[liveRecord(OLD_CLOSED), liveRecord(ACTIVE)], [liveRecord(ACTIVE), liveRecord(OLD_CLOSED)]]) {
+      queryRaw.mockResolvedValue([]);
+      stubCotality(records);
+      const { buildings } = await search('800 2nd Ave');
+      expect(buildings).toHaveLength(1);
+      expect(buildings[0].neighborhood).toBe('Turtle Bay');
+    }
+  });
+
+  it('with no Active record, the most recently modified one wins', async () => {
+    queryRaw.mockResolvedValue([]);
+    stubCotality([
+      liveRecord({ ...OLD_CLOSED, SubdivisionName: 'Older Area', ModificationTimestamp: '2026-05-14T17:28:04.523-00:00' }),
+      liveRecord({ ...OLD_CLOSED, ListingId: 'RLS-NEWER', SubdivisionName: 'Newer Area', ModificationTimestamp: '2026-08-05T18:00:47.463-00:00' }),
+    ]);
+    const { buildings } = await search('800 2nd Ave');
+    expect(buildings[0].neighborhood).toBe('Newer Area');
+  });
+
+  it('the stored rows are read Active first, then newest first', async () => {
+    queryRaw.mockResolvedValue([]);
+    stubCotality([]);
+    await search('800 2nd Ave');
+    expect(String(queryRaw.mock.calls[0][0])).toContain("ORDER BY (status = 'Active') DESC, modification_timestamp DESC");
+  });
+});

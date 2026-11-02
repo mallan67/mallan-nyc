@@ -644,7 +644,8 @@ export async function GET(request: NextRequest) {
         for (const v of likes) params.push(`%${v}%`);
         paramIdx += likes.length;
       }
-      const sql = `SELECT address, features, raw_data, custom_fields, property_type, property_sub_type FROM listings WHERE ${conditions.join(' AND ')} LIMIT 20`;
+      // The current listing speaks first: an Active one, then the most recently modified (live: Active RLS20123633 says "Turtle Bay"; the older Closed RLS10612741 says "Midtown East").
+      const sql = `SELECT address, features, raw_data, custom_fields, property_type, property_sub_type FROM listings WHERE ${conditions.join(' AND ')} ORDER BY (status = 'Active') DESC, modification_timestamp DESC LIMIT 20`;
       const dbResults = await prisma.$queryRawUnsafe<Array<{
         address: unknown; features: unknown; raw_data: unknown; custom_fields: unknown; property_type: string | null; property_sub_type: string | null;
       }>>(sql, ...params);
@@ -881,6 +882,7 @@ export async function GET(request: NextRequest) {
           'NumberOfUnitsInCommunity', 'NumberOfUnitsTotal', 'CommonInterest', 'OwnershipType',
           'PropertyType', 'PropertySubType', 'StructureType', 'StandardStatus',
           'StreetNumber', 'StreetName', 'StreetSuffix', 'StreetDirPrefix', 'StreetDirSuffix',
+          'ModificationTimestamp', // declared on Property (live $metadata 2026-11-02): orders the records, the current one first
           'PostalCode', 'UnitNumber', 'SubdivisionName',
           'City', 'StateOrProvince',
           'CityRegion', 'CountyOrParish',
@@ -981,6 +983,8 @@ export async function GET(request: NextRequest) {
           // not from the first one seen (a condop's listings are tagged StockCooperative on most units and Condop on the rest).
           const evidence = new Map<object, CotalityRecord[]>();
           const addEvidence = (b: object, rec: CotalityRecord) => { const list = evidence.get(b); if (list) list.push(rec); else evidence.set(b, [rec]); };
+          // The building's name and neighborhood come from the current record first: an Active listing, then the most recently modified.
+          records.sort((a, b) => (Number(b.StandardStatus === 'Active') - Number(a.StandardStatus === 'Active')) || String(b.ModificationTimestamp ?? '').localeCompare(String(a.ModificationTimestamp ?? '')));
           diag.cotality.resultCount = records.length;
           diag.cotality.firstThreeAddresses = records.slice(0, 3).map(formatAddress);
 
