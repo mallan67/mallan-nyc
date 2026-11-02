@@ -52,6 +52,7 @@ const LOCAL_TWIN = {
   list_office_mls_id: null,
   address: addr(),
   slug: '333-east-46th-street-2g',
+  status: 'Active',
 };
 
 describe('exactly one proven local twin — redirect', () => {
@@ -160,11 +161,13 @@ describe('only return-copies are canonicalized', () => {
     expect(resolveReturnCopyCanonicalTarget(own, [], { returnCopyIds: [], agentsByMlsId: {} }).kind).toBe('not-applicable');
   });
 
-  it('a Draft local row is not a twin (it is not public): the redirect target must be published', () => {
-    const draft = { ...LOCAL_TWIN, status: 'Draft' };
-    const out = resolveReturnCopyCanonicalTarget(RETURN_COPY, [draft]);
-    expect(out.kind).toBe('fail-closed');
-    if (out.kind !== 'fail-closed') throw new Error('expected fail-closed');
-    expect(out.reason).toBe('no-local-twin');
-  });
+  it.each(['Draft', 'Closed', 'Withdrawn', 'Expired', 'Canceled'])(
+    'a %s local row is not a twin (not public, or an earlier listing episode): never a redirect target',
+    (status) => {
+      const out = resolveReturnCopyCanonicalTarget(RETURN_COPY, [{ ...LOCAL_TWIN, status }]);
+      expect(out.kind).toBe('fail-closed');
+      if (out.kind !== 'fail-closed') throw new Error('expected fail-closed');
+      expect(out.reason).toBe('no-local-twin');
+    },
+  );
 });

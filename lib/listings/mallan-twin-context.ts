@@ -10,14 +10,15 @@
  * number; it returns null without a unit, so different units and partial addresses never merge). Address alone is not enough for a different
  * building or a missing unit; a Mallan-office row with the same physical unit as a Mallan-authored row is the same unit listed twice.
  *
- * A local row still in `Draft` is not a twin: it is not public, so it must not hide a live Cotality listing.
+ * Both rows must be in the CURRENT listing episode (live: Active, Active Under Contract, Coming Soon, Pending). A Draft, Closed, Withdrawn, Expired or
+ * Canceled local row is history (or not public): it can never make a later Cotality listing of the same unit a "duplicate", so a relisting is shown, not hidden.
  *
  * The context is computed from the database (two small queries) and cached for 60 s, so the public identity reconciles on its own when a
  * Mallan-authored listing for the same unit is created: no deploy, no data edit.
  */
 import prisma from '@/lib/prisma';
 import { buildAddressKeyFromDbRow } from '@/lib/listings/dedupe-crm-vs-idx';
-import { MALLAN_LIST_OFFICE_MLS_IDS } from '@/lib/listings/mallan-source-identity';
+import { MALLAN_LIST_OFFICE_MLS_IDS, isLiveListingStatus } from '@/lib/listings/mallan-source-identity';
 
 /** A Mallan agent, verified from the agent roster by REBNY MLS member id. Public profile fields only. */
 export interface MallanVerifiedAgent {
@@ -42,7 +43,7 @@ export const EMPTY_TWIN_CONTEXT: MallanTwinContext = Object.freeze({ returnCopyI
 
 type RowWithAddress = { listing_id: string; address: unknown };
 type LocalRow = RowWithAddress & { status?: string | null };
-type OfficeRow = RowWithAddress & { list_office_mls_id?: string | null };
+type OfficeRow = RowWithAddress & { list_office_mls_id?: string | null; status?: string | null };
 type AgentRow = {
   trestle_mls_id: string | null;
   full_name: string | null;
@@ -66,19 +67,20 @@ export function buildMallanTwinContext(
 ): MallanTwinContext {
   const officeIds = new Set<string>(MALLAN_LIST_OFFICE_MLS_IDS);
 
-  // The physical units Mallan has authored and published (not Draft).
+  // The physical units Mallan has authored and has live now (the current listing episode only).
   const localKeys = new Set<string>();
   for (const row of localRows) {
     if (!isLocalId(row.listing_id)) continue;
-    if (String(row.status ?? '').toLowerCase() === 'draft') continue;
+    if (!isLiveListingStatus(row.status)) continue;
     const key = buildAddressKeyFromDbRow({ address: row.address });
     if (key) localKeys.add(key);
   }
 
-  // A Mallan-office Cotality row is a duplicate only when it is the same physical unit as one of those.
+  // A Mallan-office Cotality row is a duplicate only when it is live too, and the same physical unit as one of those.
   const returnCopyIds: string[] = [];
   for (const row of officeRows) {
     if (isLocalId(row.listing_id)) continue;
+    if (!isLiveListingStatus(row.status)) continue;
     const office = typeof row.list_office_mls_id === 'string' ? row.list_office_mls_id.trim() : '';
     if (!office || !officeIds.has(office)) continue;
     const key = buildAddressKeyFromDbRow({ address: row.address });
@@ -117,7 +119,7 @@ async function fetchContext(): Promise<MallanTwinContext> {
     }),
     prisma.listing.findMany({
       where: { list_office_mls_id: { in: officeIds }, NOT: [{ listing_id: { startsWith: 'SL-' } }, { listing_id: { startsWith: 'RL-' } }] },
-      select: { listing_id: true, address: true, list_office_mls_id: true },
+      select: { listing_id: true, address: true, list_office_mls_id: true, status: true },
     }),
     prisma.agent.findMany({
       where: { status: 'active', trestle_mls_id: { not: null } },

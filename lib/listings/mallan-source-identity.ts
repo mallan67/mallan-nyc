@@ -101,8 +101,21 @@ export function isMallanRlsReturnCopy(row: MallanSourceIdentityRow, context: Mal
   return id !== '' && context.returnCopyIds.includes(id);
 }
 
-/** The agreement types that make a Mallan-listed Cotality row a Mallan EXCLUSIVE (the Sale form's own options, without Co-Exclusive). */
-export const MALLAN_LISTED_AGREEMENT_TYPES = ['ExclusiveRightToSell', 'ExclusiveAgency', 'ExclusiveRightWithException'] as const;
+/**
+ * The agreement types that make a Mallan-listed Cotality row a Mallan EXCLUSIVE: the Sale form's own options plus the rental `ExclusiveRightToLease`
+ * (rentals sourced only from Cotality). Co-Exclusive and open agreements are deliberately absent.
+ */
+export const MALLAN_LISTED_AGREEMENT_TYPES = ['ExclusiveRightToSell', 'ExclusiveAgency', 'ExclusiveRightWithException', 'ExclusiveRightToLease'] as const;
+
+/**
+ * TRUE while a listing is in the CURRENT listing episode: live on the market, or about to be (Active, Active Under Contract, Coming Soon, Pending).
+ * Closed / Withdrawn / Expired / Canceled / Draft rows belong to an earlier episode or to none, so they can never prove that a NEW Cotality listing for
+ * the same unit is their duplicate (Master 4.4: address alone is not enough; a relisting is a different episode).
+ */
+export function isLiveListingStatus(status: unknown): boolean {
+  const s = String(status ?? '').toLowerCase().replace(/[\s_-]/g, '');
+  return s === 'active' || s === 'activeundercontract' || s === 'comingsoon' || s === 'pending';
+}
 
 /**
  * TRUE when the row is Mallan's OWN listing, sourced from Cotality and read-only: it carries Mallan's list-side office id, its list agent is a

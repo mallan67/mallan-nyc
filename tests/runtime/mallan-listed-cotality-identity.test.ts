@@ -33,8 +33,8 @@ const OTHER_BROKER = { ...MAYA, trestle_mls_id: '55555', full_name: 'Other Broke
 
 const LOCAL_SL0004 = { listing_id: 'SL-0004', address: addr(), status: 'Active' };
 const OFFICE_ROWS = [
-  { listing_id: 'RLS20093870', address: addr(), list_office_mls_id: '7041' },
-  { listing_id: 'RLS20123633', address: addr806(), list_office_mls_id: '7041' },
+  { listing_id: 'RLS20093870', address: addr(), list_office_mls_id: '7041', status: 'Active' },
+  { listing_id: 'RLS20123633', address: addr806(), list_office_mls_id: '7041', status: 'Active' },
 ];
 
 const CTX = buildMallanTwinContext([LOCAL_SL0004], OFFICE_ROWS, [MAYA]);
@@ -63,6 +63,24 @@ describe('the identity context is built from proof, not from the office id', () 
   it('a Draft local row is not a twin (it is not public)', () => {
     const ctx = buildMallanTwinContext([{ ...LOCAL_SL0004, status: 'Draft' }], OFFICE_ROWS, [MAYA]);
     expect(ctx.returnCopyIds).toEqual([]);
+  });
+
+  it.each(['Closed', 'Withdrawn', 'Expired', 'Canceled'])(
+    'a %s local row is an EARLIER episode: it never makes a later Cotality listing of the same unit a duplicate (a relisting is shown)',
+    (status) => {
+      const ctx = buildMallanTwinContext([{ ...LOCAL_SL0004, status }], OFFICE_ROWS, [MAYA]);
+      expect(ctx.returnCopyIds).toEqual([]);
+    },
+  );
+
+  it.each(['Active', 'ActiveUnderContract', 'Active Under Contract', 'ComingSoon', 'Pending'])('a %s local row is the current episode (a live twin)', (status) => {
+    const ctx = buildMallanTwinContext([{ ...LOCAL_SL0004, status }], OFFICE_ROWS, [MAYA]);
+    expect(ctx.returnCopyIds).toEqual(['RLS20093870']);
+  });
+
+  it('a Cotality row that is no longer live is not flagged as a duplicate either', () => {
+    const closedCotality = [{ listing_id: 'RLS20093870', address: addr(), list_office_mls_id: '7041', status: 'Closed' }];
+    expect(buildMallanTwinContext([LOCAL_SL0004], closedCotality, [MAYA]).returnCopyIds).toEqual([]);
   });
 
   it('a different unit in the same building is never merged', () => {
@@ -133,10 +151,17 @@ describe('a Cotality row earns the Mallan mark only when every fact is verified'
     ['an agent that is not on the Mallan roster', { list_agent_mls_id: '55555' }],
     ['no list agent', { list_agent_mls_id: null }],
     ['an open or missing agreement', { raw_data: { ListingAgreement: 'OpenListing' } }],
+    ['a co-exclusive agreement', { raw_data: { ListingAgreement: 'CoExclusive' } }],
     ['no agreement', { raw_data: {} }],
   ])('%s -> NOT Mallan-listed (no mark, no Mallan agent card)', (_label, over) => {
     expect(isVerifiedMallanListedRow(row(over as Partial<DbListing>), CTX)).toBe(false);
     expect(classifyDbListing(row(over as Partial<DbListing>), CTX)).toBe('third-party-idx');
+  });
+
+  it('a rental sourced only from Cotality (ExclusiveRightToLease) is recognised as Mallan exclusive', () => {
+    const rental = row({ listing_type: 'rent', raw_data: { ListingAgreement: 'ExclusiveRightToLease' } });
+    expect(isVerifiedMallanListedRow(rental, CTX)).toBe(true);
+    expect(classifyDbListing(rental, CTX)).toBe('mallan-listed-cotality');
   });
 
   it('agent_id on the row is NEVER identity (a sync stamps it on third-party rows)', () => {
@@ -154,7 +179,7 @@ describe('a Cotality row earns the Mallan mark only when every fact is verified'
     expect(where.list_office_mls_id).toEqual({ in: ['7041'] });
     expect(where.list_agent_mls_id).toEqual({ in: ['39361'] });
     expect(where.NOT).toEqual(expect.arrayContaining([{ listing_id: { in: ['RLS20093870'] } }]));
-    expect(where.OR).toHaveLength(3);
+    expect(where.OR).toHaveLength(4);
   });
 });
 

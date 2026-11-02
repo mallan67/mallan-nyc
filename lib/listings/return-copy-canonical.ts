@@ -24,6 +24,7 @@
  */
 
 import {
+  isLiveListingStatus,
   isMallanLocalListing,
   isMallanRlsReturnCopy,
   type MallanSourceIdentityRow,
@@ -72,10 +73,11 @@ export function resolveReturnCopyCanonicalTarget(
   if (!key) return { kind: 'fail-closed', reason: 'no-address-key' };
 
   const twins = candidates.filter(
-    // a Draft local row is not public and is not a twin (the proof in mallan-twin-context.ts ignores it too)
+    // only a local row in the CURRENT listing episode is a twin: a Draft or a Closed/Withdrawn/Expired row is not (the proof in mallan-twin-context.ts
+    // applies the same rule)
     (c) =>
       isMallanLocalListing(c) &&
-      String(c.status ?? '').toLowerCase() !== 'draft' &&
+      isLiveListingStatus(c.status) &&
       buildAddressKeyFromDbRow({ address: c.address }) === key,
   );
 
