@@ -258,3 +258,44 @@ describe('the building\'s own tax lot', () => {
     expect(buildings[0].building_tax_lot).toBe('');
   });
 });
+
+
+describe('typed address including an explicit apartment number', () => {
+  it.each(['800 Second Avenue #806', '800 Second Avenue Unit 806', '800 2nd Ave, Apt 806'])(
+    'treats %s as a building address, not as a street named after the unit', async (q) => {
+      queryRaw.mockResolvedValue([]);
+      stubCotality([liveRecord({ UnitNumber: '806' })]);
+      const { buildings } = await search(q);
+      expect(buildings).toHaveLength(1);
+      expect(buildings[0].address).toBe('800 2ND Avenue');
+      const asked = (global.fetch as unknown as jest.Mock).mock.calls.map((c) => decodeURIComponent(String(c[0]).replace(/\+/g, ' ')));
+      expect(asked.some((url) => url.includes("StreetNumber eq '800'") && url.includes("tolower(StreetName) eq '2nd'"))).toBe(true);
+      expect(asked.some((url) => url.includes("StreetName),'806'"))).toBe(false);
+    },
+  );
+});
+
+describe('building lookup survives a local Neon cache failure', () => {
+  it('queries Cotality after the DB read rejects, keeping authenticated matching and provenance', async () => {
+    queryRaw.mockRejectedValueOnce(new Error('test: database connection pool exhausted'));
+    stubCotality([liveRecord({ UnitNumber: '806', SubdivisionName: 'Turtle Bay' })]);
+    const response = await GET(new NextRequest('http://localhost/api/buildings/search?q=800%20Second%20Avenue&debug=1'));
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.buildings).toHaveLength(1);
+    expect(data.buildings[0]).toMatchObject({ address: '800 2ND Avenue', source: 'cotality', neighborhood: 'Turtle Bay' });
+    expect(data._debug.authenticated).toBe(true);
+    expect(data._debug.errorClass).toBe('db_error');
+    expect((global.fetch as unknown as jest.Mock).mock.calls.length).toBeGreaterThan(0);
+  });
+
+  it('never represents a DB failure plus no provider records as a confirmed missing address', async () => {
+    queryRaw.mockRejectedValueOnce(new Error('test: Neon unavailable'));
+    stubCotality([]);
+    const response = await GET(new NextRequest('http://localhost/api/buildings/search?q=800%20Second%20Avenue'));
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.buildings).toHaveLength(0);
+    expect(data._errorHint).toBe('Building lookup temporarily unavailable.');
+  });
+});
