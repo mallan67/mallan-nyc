@@ -32,6 +32,7 @@ export type AddFormOpts = {
   buildings?: Record<string, unknown>[] | ((query: string) => Record<string, unknown>[]);   // what GET /api/buildings/search answers (the building index)
   buildingsStatus?: number | ((query: string, call: number) => number);   // the HTTP status it answers with (default 200); a function is asked per request (1, 2, ...)
   unitLots?: (query: string, unit: string, zip: string) => Record<string, unknown> | null;   // what GET /api/buildings/search?q=&unit=&zip= answers as `unit` (the unit's own tax lot, pulled live from Cotality)
+  rlsPull?: (rlsId: string) => { status?: number; body: unknown };   // what GET /api/crm/rls-pull?rlsId= answers (the RLS ID = the listing's Cotality ListingId)
   unitDelay?: (unit: string) => number;              // ms before that answer
   buildingsHint?: string;                            // the _errorHint it carries
   buildingsDelay?: number | ((query: string, call: number) => number);    // ms before it answers; a function is asked per request
@@ -58,7 +59,7 @@ export type AddFormOpts = {
   settle?: number;                                   // ms to let page init finish
 };
 export type Request = { url: string; method: string; body: string };
-export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; requests: Request[]; saved: Record<string, unknown>[]; unitLookups: string[]; statusCalls: [unknown, unknown][]; dropped: string[]; calls: string[]; close: () => void };
+export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; requests: Request[]; saved: Record<string, unknown>[]; unitLookups: string[]; rlsPulls: string[]; statusCalls: [unknown, unknown][]; dropped: string[]; calls: string[]; close: () => void };
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function until(cond: () => boolean, ms = 8000): Promise<void> {
@@ -87,6 +88,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
   const saved: Record<string, unknown>[] = [];
   const statusCalls: [unknown, unknown][] = [];          // every listings.updateStatus(id, status) the page made
   const searched: string[] = [];                       // the queries sent to /api/buildings/search
+  const rlsPulls: string[] = [];                       // the RLS IDs asked of /api/crm/rls-pull
   const unitLookups: string[] = [];                    // the per-unit tax lot asks (`address|unit|zip`), kept apart from the building queries
   const requests: Request[] = [];                      // every fetch() the page made, with its method and body
   const dropped: string[] = [];                        // the answers that were not delivered because the window had been closed while the request was out
@@ -123,6 +125,13 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
           const method = init?.method ?? 'GET';
           const body = method === 'GET' ? { showings: o.showings ?? [] } : method === 'POST' ? { showing: { id: 'S-1' } } : {};
           return { ok: true, status: method === 'POST' ? 201 : 200, json: async () => body, text: async () => '' };
+        }
+        if (u.startsWith('/api/crm/rls-pull')) {
+          const rlsId = new URLSearchParams(u.split('?')[1] ?? '').get('rlsId') ?? '';
+          rlsPulls.push(rlsId);
+          const a = o.rlsPull ? o.rlsPull(rlsId) : { status: 404, body: { error: 'no stub' } };
+          const st = a.status ?? 200;
+          return { ok: st < 400, status: st, json: async () => a.body, text: async () => '' };
         }
         if (u.startsWith('/api/buildings/search') && /[?&]unit=/.test(u)) {
           const sp = new URLSearchParams(u.split('?')[1] ?? '');
@@ -185,7 +194,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
     },
   });
   await sleep(o.settle ?? 1200);
-  return { w: dom.window, d: dom.window.document, errors, fetched, searched, requests, saved, unitLookups, statusCalls, dropped, calls, close: () => dom.window.close() };
+  return { w: dom.window, d: dom.window.document, errors, fetched, searched, requests, saved, unitLookups, rlsPulls, statusCalls, dropped, calls, close: () => dom.window.close() };
 }
 
 export const val = (d: Document, id: string): string => ((d.getElementById(id) as HTMLInputElement | null)?.value) ?? '';

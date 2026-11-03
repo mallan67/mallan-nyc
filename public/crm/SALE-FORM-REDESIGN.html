@@ -186,6 +186,7 @@ body { font-family: Manrope, sans-serif; }
             <span><strong>Address:</strong> <span id="saleAddressDisplay">[Enter Address]</span></span>
             <span><strong>Unit:</strong> <span id="saleUnitDisplay">[Unit]</span></span>
             <span><strong>ID:</strong> <span id="saleListingIdDisplay">New</span></span>
+            <span title="The listing's Cotality ListingId. Not the ListingKey, and not Mallan's own SL ID."><strong>RLS ID:</strong> <span id="saleRlsIdDisplay">not linked</span></span>
             <span><strong>Updated:</strong> <span id="saleLastUpdated">--</span></span>
             <span id="saleAutoSaveIndicator" class="hidden text-xs" role="status" aria-live="polite"><i class="fas fa-cloud"></i> <span id="saleAutoSaveText"></span></span>
             <span id="saleDraftBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300"><i class="fas fa-file-alt"></i> DRAFT</span>
@@ -318,6 +319,21 @@ body { font-family: Manrope, sans-serif; }
                 <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
             </div>
             <div id="saleBuildingSearchResults" class="hidden mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50 relative"></div>
+            <!-- RLS ID = the listing's Cotality ListingId (e.g. RLS20123633), assigned by the provider. It is never typed here: Pull from Cotality (type an RLS ID in the box above) fills it.
+                 The Cotality ListingKey (e.g. 1194314473) is a different identifier. This listing keeps its own SL ID. -->
+            <div class="mt-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="field-label" for="saleRlsId">RLS ID (Cotality ListingId)</label>
+                        <input type="text" id="saleRlsId" class="field-input bg-gray-100" readonly placeholder="Not linked" data-concept-disposition="mallan-internal" title="Filled only by Pull from Cotality. Never typed.">
+                    </div>
+                    <div>
+                        <label class="field-label" for="saleRlsListingKey">Cotality ListingKey</label>
+                        <input type="text" id="saleRlsListingKey" class="field-input bg-gray-100" readonly placeholder="--" data-concept-disposition="mallan-internal" title="A different Cotality identifier from the RLS ID.">
+                    </div>
+                </div>
+                <p id="saleRlsLinkState" class="text-xs mt-2 text-gray-600">RLS link not verified. To link this listing, type its RLS ID (like RLS20123633) in the box above and choose Pull from Cotality.</p>
+            </div>
             <!-- IDX Match Indicator -->
             <div id="saleIdxMatchBanner" class="hidden mt-2 warning-banner bg-green-50 border border-green-200 text-green-800">
                 <i class="fas fa-check-circle text-green-500 mt-0.5"></i>
@@ -5361,10 +5377,113 @@ function _saleBuildingCandidateRow(b, subtitle, onPick) {
 }
 
 // Building search — auto-detect property type and populate building data
+// ── Pull from Cotality by RLS ID ────────────────────────────────────────────────────────────────────────────────────────────────────────
+// RLS ID = the listing's Cotality `ListingId` (RLS20123633), assigned by the provider; Mallan never invents or types one. The Cotality `ListingKey` (1194314473) is a different identifier
+// and is never used in its place; the listing keeps its own SL ID. Pulling asks the server (GET /api/crm/rls-pull), which checks the listing office (ListOfficeMlsId, Mallan = 7041) and
+// returns the listing's PROPERTY FACTS under the Cotality names the form already restores from a saved listing. Provider-owned data (identity, status, permissions, agent/office,
+// media) is not copied; the new listing starts as a Draft. It pulls only into a blank listing, so nothing the agent typed is replaced.
+const SALE_RLS_ID = /^RLS\d{6,12}$/i;
+
+function saleRefreshRlsLink() {
+    var id = (document.getElementById('saleRlsId') || {}).value || '';
+    var key = (document.getElementById('saleRlsListingKey') || {}).value || '';
+    var disp = document.getElementById('saleRlsIdDisplay');
+    if (disp) disp.textContent = id || 'not linked';
+    var st = document.getElementById('saleRlsLinkState');
+    if (st) st.textContent = id
+        ? 'Linked: the facts of this listing were pulled from Cotality RLS ID ' + id + (key ? ' (ListingKey ' + key + ')' : '') + '. The RLS ID is Cotality\'s; this listing keeps its own SL ID.'
+        : 'RLS link not verified. To link this listing, type its RLS ID (like RLS20123633) in the box above and choose Pull from Cotality.';
+}
+
+function _saleRlsPullRow(results, rlsId) {
+    results.textContent = '';
+    results.className = 'mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 relative';
+    var row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'w-full text-left p-3 text-sm hover:bg-gray-50';
+    row.setAttribute('data-rls-pull', rlsId);
+    var strong = document.createElement('strong');
+    strong.textContent = 'Pull RLS ID ' + rlsId + ' from Cotality';
+    var sub = document.createElement('div');
+    sub.className = 'text-xs text-gray-500';
+    sub.textContent = 'Fills this blank listing with its facts from Cotality. Nothing is copied that belongs to the provider (status, permissions, media).';
+    row.appendChild(strong); row.appendChild(sub);
+    row.addEventListener('click', function () { pullFromCotalityByRlsId(rlsId); });
+    results.appendChild(row);
+}
+
+// The listing description comes from Cotality as HTML; the form's description is plain text.
+function _saleHtmlToText(html) {
+    return String(html || '')
+        .replace(/<\s*br\s*\/?>/gi, '\n').replace(/<\/\s*(p|div|li|h[1-6])\s*>/gi, '\n\n').replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#39;/g, '\'')
+        .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+async function pullFromCotalityByRlsId(rlsId) {
+    if (_saleRefuseWhileLoading()) return;
+    var results = document.getElementById('saleBuildingSearchResults');
+    var street = (document.getElementById('saleStreetAddress') || {}).value || '';
+    var price = Number(((document.getElementById('salePrice') || {}).value || '').replace(/[^0-9.]/g, '')) || 0;
+    if (street.trim() || price > 0) {
+        showToast('This listing already has an address or a price. Pull into a blank listing so nothing you typed is replaced.', 'warning');
+        return;
+    }
+    var existingId = (document.getElementById('saleRlsId') || {}).value || '';
+    if (existingId) { showToast('This listing is already linked to RLS ID ' + existingId + '.', 'info'); return; }
+    if (results) { results.textContent = 'Pulling ' + rlsId + ' from Cotality...'; results.className = 'mt-1 p-3 text-sm text-gray-500'; }
+    try {
+        var resp = await fetch('/api/crm/rls-pull?rlsId=' + encodeURIComponent(rlsId), { credentials: 'same-origin' });
+        var body = {};
+        try { body = await resp.json(); } catch (e) { body = {}; }
+        if (!resp.ok) { showToast(body.error || ('Cotality did not answer (' + resp.status + ').'), 'error'); if (results) results.classList.add('hidden'); return; }
+        if (body.existing) {
+            if (results) {
+                results.textContent = '';
+                var a = document.createElement('a');
+                a.href = window.location.pathname + '?id=' + encodeURIComponent(body.existing.id);
+                a.className = 'block p-3 text-sm text-blue-700 underline';
+                a.textContent = 'RLS ID ' + rlsId + ' is already linked to ' + body.existing.listing_id + '. Open it instead.';
+                results.appendChild(a);
+            }
+            return;
+        }
+        var rec = body.record || {};
+        if (rec.PublicRemarks) rec.PublicRemarks = _saleHtmlToText(rec.PublicRemarks);
+        var addr = {};
+        ['StreetNumber', 'StreetDirPrefix', 'StreetName', 'StreetSuffix', 'StreetDirSuffix', 'UnitNumber', 'City', 'StateOrProvince', 'PostalCode', 'CityRegion', 'CountyOrParish', 'PostalCity', 'SubdivisionName'].forEach(function (k) { if (rec[k] !== undefined) addr[k] = rec[k]; });
+        // A saved listing keeps price, beds, baths, areas... in database columns; the form's own field map says which column feeds which control (src 'listing'), so the pulled value
+        // is handed over under that column name: one mapping, the form's, not a second one.
+        var pulled = { raw_data: rec, address: addr, features: {}, agent_info: {}, media: [] };
+        SALE_FIELD_MAP.forEach(function (f) { if (f.src === 'listing' && f.listingKey && rec[f.rls] !== undefined) pulled[f.listingKey] = rec[f.rls]; });
+        window._salePopulateInProgress = true;
+        try { _populateSaleFormFromApi(pulled); }
+        finally { window._salePopulateInProgress = false; }
+        // First Date To Co-Broke is the date the listing went active on the market (Maya's rule): Cotality's OnMarketDate.
+        var firstCo = document.getElementById('saleFirstCoBroke');
+        if (firstCo && !firstCo.value && rec.OnMarketDate) {
+            firstCo.value = String(rec.OnMarketDate).slice(0, 10);
+            firstCo.title = 'The date the listing went active on the market (Cotality OnMarketDate).';
+        }
+        document.getElementById('saleRlsId').value = body.rls.listing_id;
+        document.getElementById('saleRlsListingKey').value = body.rls.listing_key || '';
+        saleRefreshRlsLink();
+        if (results) results.classList.add('hidden');
+        updateListingHeaderBar('sale');
+        saleAddressBlurLookup();    // the address is now in: the normal building lookup fills the building's facts (units, floors, amenities) exactly as when an address is picked
+        showToast('Pulled from Cotality RLS ID ' + body.rls.listing_id + '. Review it, then Save. It starts as a Draft.', 'success');
+        if (typeof autoSaveDraft === 'function') autoSaveDraft();
+    } catch (e) {
+        showToast('Cotality could not be reached right now. Try again in a minute.', 'error');
+        if (results) results.classList.add('hidden');
+    }
+}
+
 function searchBuildingForListing(query, prefix) {
     const results = document.getElementById(prefix + 'BuildingSearchResults');
     if (!results) return;
     if (query.length < 3) { results.classList.add('hidden'); return; }
+    if (prefix === 'sale' && SALE_RLS_ID.test(query.trim())) { clearTimeout(_buildingSearchTimeout); _saleRlsPullRow(results, query.trim().toUpperCase()); return; }   // an RLS ID, not an address
 
     // Debounce API calls
     clearTimeout(_buildingSearchTimeout);
@@ -9961,6 +10080,7 @@ var SALE_FIELD_MAP = [
   { rls: 'BathroomsFull', form: 'saleFullBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_full' },
   { rls: 'BathroomsHalf', form: 'saleHalfBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_half' },
   { rls: 'LivingArea', form: 'saleUnitSqFt', type: 'number', src: 'listing', listingKey: 'living_area' },
+  { rls: 'LivingArea', form: 'saleLivingArea', type: 'number', src: 'raw' },   // the Condo Details box the Active checklist asks for: the same fact, restored from the record too
   { rls: 'RoomsTotal', form: 'saleTotalRooms', type: 'number', src: 'raw' },
   { rls: 'EntryLevel', form: 'saleFloorInBuilding', type: 'text', src: 'raw' },
 
@@ -10945,6 +11065,7 @@ function _populateSaleFormFromApi(listing) {
         setRadio(r.name, val);
     });
     _saleRestoreByKey(raw);   // every other control the agent filled in: by its own id or name
+    saleRefreshRlsLink();     // the RLS ID this listing was pulled from, beside its SL ID
     // A listing saved before the unit / building split has the old single box (saleBldgTaxLot) in its payload and no saleUnitTaxLot: the one lot it kept under TaxLot was the BUILDING's,
     // so it must not satisfy the unit's lot. A listing saved after the split always carries saleUnitTaxLot, even empty.
     if (Object.prototype.hasOwnProperty.call(raw, 'saleBldgTaxLot') && !Object.prototype.hasOwnProperty.call(raw, 'saleUnitTaxLot')) {
@@ -11249,6 +11370,16 @@ function _populateSaleFormFromApi(listing) {
     // Derive the monthly RE-tax display from the loaded annual value (saleTaxMonthly is
     // data-rls-ignore and has no SALE_FIELD_MAP restore, so it would otherwise show blank
     // on edit-load even when an annual tax exists). (2026-06-23)
+    // A record that carries only the MONTHLY tax (Cotality keeps it as the REBNY custom key TaxMonthlyAmount while TaxAnnualAmount is empty): the form's own monthly-to-annual
+    // sync (monthly x 12) fills the annual box FIRST. Without it the line below re-derives the monthly display from the empty annual and blanks the figure that was just loaded.
+    (function () {
+        var annualBox = document.getElementById('saleRETaxes');
+        var monthlyBox = document.getElementById('saleTaxMonthly');
+        if (annualBox && monthlyBox && !annualBox.value && parseFloat(monthlyBox.value) > 0 && typeof syncSaleAnnualFromMonthly === 'function') {
+            syncSaleAnnualFromMonthly();
+            annualBox.title = 'Calculated from the monthly real estate tax of $' + monthlyBox.value + ' x 12 (the record carries the monthly figure only).';
+        }
+    })();
     if (typeof autoCalcTaxMonthly === 'function') autoCalcTaxMonthly();
     if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
     _restoreSaleOwnership(raw.CommonInterest === undefined && raw.saleCommonInterest ? { CommonInterest: raw.saleCommonInterest } : raw);   // the record's CommonInterest (an older row: the control's own key); window._saleTouched.saleCommonInterest = true;

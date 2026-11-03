@@ -62,6 +62,7 @@
     { rls: 'BathroomsFull', form: 'saleFullBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_full' },
     { rls: 'BathroomsHalf', form: 'saleHalfBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_half' },
     { rls: 'LivingArea', form: 'saleUnitSqFt', type: 'number', src: 'listing', listingKey: 'living_area' },
+    { rls: 'LivingArea', form: 'saleLivingArea', type: 'number', src: 'raw' },
     { rls: 'RoomsTotal', form: 'saleTotalRooms', type: 'number', src: 'raw' },
     { rls: 'EntryLevel', form: 'saleFloorInBuilding', type: 'text', src: 'raw' },
   
