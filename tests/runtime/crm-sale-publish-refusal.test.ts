@@ -6,8 +6,8 @@
  * "Saved as Draft. Publish failed: <one line>" and send the agent back to the list 1.5 seconds later, so the reason (which fields) was never read. Now the refusal is said in words, each
  * field named, in a message that waits to be dismissed, and the agent stays on the form with the listing open for editing.
  */
-import { bootAddForm, sleep, type BootedForm } from "./add-form-harness";
-import { completeForm, waitUntil } from "./sale-form-filler";
+import { bootAddForm, sleep, storedListing, type BootedForm } from "./add-form-harness";
+import { completeForm, saveDraft, loaded, waitUntil } from "./sale-form-filler";
 
 jest.setTimeout(300000);
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -69,6 +69,22 @@ describe("the server refuses to publish a new listing", () => {
       await sleep(5200);
       const toasts = [...f.d.querySelectorAll(".mallan-toast")].map((t) => t.textContent ?? "");
       expect(toasts.some((t) => /Publish failed/.test(t))).toBe(true);
+    } finally { f.close(); }
+  });
+
+  it("an Active listing whose move to another status is refused is still Active: the panel says so, not that it is a Draft and not live", async () => {
+    const a = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600 });
+    let payload: Record<string, any>;
+    try { await completeForm(a, { type: "Condo", garage: "No" }); payload = await saveDraft(a); } finally { a.close(); }
+    const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 300, search: "?id=1", listing: { ...storedListing(payload, "sale"), status: "Active" }, updated: { status: "Active" }, ...refusal });
+    try {
+      await loaded(f);
+      await submitAs(f, "Pending");
+      const text = panel(f)!.textContent ?? "";
+      expect(text).toMatch(/still Active/);
+      expect(text).not.toMatch(/NOT live/);
+      expect(text).not.toMatch(/Saved as a Draft/);
+      expect(text).toContain("Required field missing: Heating");
     } finally { f.close(); }
   });
 

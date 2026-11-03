@@ -8477,6 +8477,9 @@ function collectSaleFormData() {
       ? (data.saleCommSubtype[0] || '')
       : (data.saleCommSubtype || '');
     data.commercial_ownership = data.saleCommercialOwnership || '';
+    // A Condo / Co-op / Condop is not a commercial listing: the Commercial section may still hold what was ticked before the agent switched back, and it must not classify or name the listing.
+    var _unitTypeNow = document.querySelector('input[name="salePropertyType"]:checked');
+    if (_unitTypeNow && ['Condo', 'Coop', 'Condop'].indexOf(_unitTypeNow.value) >= 0) { data.commercial_ownership = ''; data.commercial_sub_type = ''; }
 
     // Living area source
     data.LivingAreaSource = data.saleLivingAreaSource || '';
@@ -8622,7 +8625,7 @@ function _saleRefuseWhileLoading() {
     return false;
 }
 // The refusal stays on the page until the agent closes it: a toast lasts seconds and this page used to leave for the list before the reason could be read.
-function _saleShowPublishRefusal(lid, message, lines) {
+function _saleShowPublishRefusal(lid, message, lines, stillStatus) {
     var old = document.getElementById('salePublishRefusal');
     if (old) old.remove();
     var box = document.createElement('div');
@@ -8630,8 +8633,14 @@ function _saleShowPublishRefusal(lid, message, lines) {
     box.setAttribute('role', 'alertdialog');
     box.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:100000;max-width:640px;width:92%;max-height:70vh;overflow:auto;background:#fff;border:2px solid #dc2626;border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.3);padding:18px 20px;font-family:Manrope,sans-serif;font-size:14px;color:#111827';
     function line(text, css) { var d = document.createElement('div'); d.style.cssText = css || 'margin-bottom:8px'; d.textContent = text; return d; }
-    box.appendChild(line('Saved as a Draft. It is NOT live.', 'font-weight:700;color:#b91c1c;font-size:16px;margin-bottom:8px'));
-    box.appendChild(line('Listing ' + lid + ' is saved, but the server refused to publish it: ' + message));
+    // stillStatus: the status the listing keeps. A listing that is already live (Active ...) stays live when the server refuses to move it; only a Draft is "not live".
+    if (stillStatus) {
+        box.appendChild(line('The status change was refused. The listing is still ' + stillStatus + '.', 'font-weight:700;color:#b91c1c;font-size:16px;margin-bottom:8px'));
+        box.appendChild(line('Listing ' + lid + ' is saved, but the server refused the status you chose: ' + message));
+    } else {
+        box.appendChild(line('Saved as a Draft. It is NOT live.', 'font-weight:700;color:#b91c1c;font-size:16px;margin-bottom:8px'));
+        box.appendChild(line('Listing ' + lid + ' is saved, but the server refused to publish it: ' + message));
+    }
     if (lines && lines.length) {
         box.appendChild(line('Fix these, then Submit again:', 'font-weight:600;margin:10px 0 4px'));
         var ul = document.createElement('ul');
@@ -8828,7 +8837,7 @@ function submitSalesListing() {
                 showSalePublishedPanel(lid, publicUrl, realPlusUrl);
             } else if (_publishRefusal) {
                 // The listing IS saved (as a Draft) and stays open here: the agent reads WHY it is not live, fixes it, and submits again. Nothing redirects before the reason is read.
-                _saleShowPublishRefusal(lid, _publishRefusal.message, _publishRefusal.lines);
+                _saleShowPublishRefusal(lid, _publishRefusal.message, _publishRefusal.lines, _saleStatusAdvertises(currentCanonical) ? currentCanonical : '');
             } else {
                 showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
                 setTimeout(function() { window.location.href = '/crm/dashboard#/ops/listings'; }, 1500);

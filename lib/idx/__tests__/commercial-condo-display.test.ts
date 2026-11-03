@@ -56,6 +56,11 @@ describe('dbListingToPublicDTO · the card of 800 2nd Avenue #806', () => {
     expect(cleared.propertyType).toBe('Condo');                          // the broker took the commercial classification away
   });
 
+  it('a listing switched back to a residential Condo is a Condo again even when the commercial ownership is still in its record', () => {
+    const back = { ...BASE, property_type: 'Residential', commercial_ownership: 'CommercialCondo', raw_data: { commercial_ownership: 'CommercialCondo' } } as unknown as DbListing;
+    expect(dbListingToPublicDTO(back).propertyType).toBe('Condo');
+  });
+
   it('a listing with no commercial classification still reads Condo', () => {
     const dto = dbListingToPublicDTO({ ...BASE, property_type: 'Residential', raw_data: {} } as unknown as DbListing);
     expect(dto.propertyType).toBe('Condo');

@@ -193,6 +193,18 @@ describe("pulling RLS20123633 into a blank listing", () => {
     } finally { b.close(); }
   });
 
+  it("switched back to a Condo, it sends no commercial ownership or office kinds, even though the hidden Commercial section still has them ticked", async () => {
+    const f = await pulled();
+    try {
+      (f.d.querySelector('input[name="salePropertyType"][value="Condo"]') as HTMLInputElement).click();
+      expect((f.d.querySelector('input[name="saleCommercialOwnership"]:checked') as HTMLInputElement | null)?.value).toBe("CommercialCondo");   // still ticked, out of sight
+      const p = await saveDraft(f);
+      expect(p.PropertyType).not.toBe("Commercial");
+      expect(p.commercial_ownership).toBe("");
+      expect(p.commercial_sub_type).toBe("");
+    } finally { f.close(); }
+  });
+
   it("a use the form does not know as commercial changes nothing: Investment, or no Current Use, stays a residential Condo", async () => {
     for (const use of ["Investment", undefined]) {
       const answer: any = serverAnswer();
