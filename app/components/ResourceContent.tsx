@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useClientOnly } from '@/lib/hooks/useClientOnly';
+import AntiDiscriminationNotice from '@/app/components/AntiDiscriminationNotice';
 
 interface Section {
   title: string;
@@ -52,27 +53,6 @@ function guideTypeFromSlug(slug: string): 'buyer' | 'seller' {
   return slug === 'sellers-guide' ? 'seller' : 'buyer';
 }
 
-/* ---- What's Inside bullet data ---- */
-const WHATS_INSIDE: Record<string, string[]> = {
-  'buyers-guide': [
-    'Understanding Co-ops vs Condos',
-    'The Buying Process Step by Step',
-    'Financing and Pre-Approval',
-    'Board Package Preparation',
-    'Closing Costs Breakdown',
-    'Neighborhood Selection Guide',
-  ],
-  'sellers-guide': [
-    'Preparing Your Home for Market',
-    'Pricing Strategy',
-    'Marketing Your Property',
-    'Open Houses and Showings',
-    'Offers and Negotiation',
-    'The Closing Process',
-    'Understanding Your Net Proceeds',
-  ],
-};
-
 function CheckIcon() {
   return (
     <svg className="w-5 h-5 text-[#C4A052] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -108,9 +88,12 @@ function BookIcon() {
 /* ---- Email Gate Form ---- */
 function EmailGateForm({
   slug,
+  sectionTitles,
   onUnlocked,
 }: {
   slug: string;
+  /** The guide's own section titles: "What's Inside" lists these and promises nothing else. */
+  sectionTitles: string[];
   onUnlocked: () => void;
 }) {
   const [name, setName] = useState('');
@@ -120,7 +103,6 @@ function EmailGateForm({
   const [error, setError] = useState('');
 
   const guideType = guideTypeFromSlug(slug);
-  const bullets = WHATS_INSIDE[slug] || [];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -173,7 +155,7 @@ function EmailGateForm({
               What&apos;s Inside
             </h2>
             <ul className="space-y-4 mb-8">
-              {bullets.map((item) => (
+              {sectionTitles.map((item) => (
                 <li key={item} className="flex items-start gap-3 text-brand-dark/90">
                   <CheckIcon />
                   <span className="text-[15px] leading-snug">{item}</span>
@@ -255,6 +237,8 @@ function EmailGateForm({
                   I can unsubscribe at any time.
                 </span>
               </label>
+
+              <AntiDiscriminationNotice />
 
               {error && (
                 <p className="text-sm text-red-600">{error}</p>
@@ -346,7 +330,7 @@ export default function ResourceContent({ slug, data }: { slug: string; data: Re
       {/* Gated: show email form + preview */}
       {isGated && !unlocked && (
         <>
-          <EmailGateForm slug={slug} onUnlocked={handleUnlock} />
+          <EmailGateForm slug={slug} sectionTitles={data.sections.map((s) => s.title)} onUnlocked={handleUnlock} />
 
           {/* Preview — show first section only with fade-out */}
           <section className="pb-4">

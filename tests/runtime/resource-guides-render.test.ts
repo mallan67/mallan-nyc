@@ -77,13 +77,30 @@ describe('a gated guide still gates: hero, email form and the first section only
     expect(headings).toContain(escaped(data.sections[0].title)); // the preview
     expect(markup).toContain('type="email"'); // the email form
     for (const later of data.sections.slice(1)) {
-      // Not as a heading, and none of its text. (A static "What's Inside" bullet may repeat a title as a
-      // phrase, so the headings and the body text are compared, not substrings of the whole page.)
+      // Not as a heading, and none of its text. (The "What's Inside" list repeats the section titles as
+      // bullets, so the headings and the body text are compared, not substrings of the whole page.)
       expect(headings).not.toContain(escaped(later.title));
       const sentence = later.content.split('\n').map((l) => l.replace(/^[#*\-\s]+/, '').trim()).find((l) => l.length > 25);
       expect(markup).not.toContain(escaped(sentence as string));
     }
     expect(markup).not.toContain('In This Guide'); // the table of contents belongs to the unlocked view
+  });
+
+  // The list used to be typed by hand and promised "Board Package Preparation" and "Neighborhood Selection
+  // Guide" (buyers) and "Understanding Your Net Proceeds" (sellers), none of which is a section of the guide
+  // (compliance review of this PR). It is now the guide's own section titles, so it cannot promise more.
+  it.each(GATED)('%s: "What\'s Inside" lists the guide\'s real sections and nothing else', (slug) => {
+    const markup = html(slug);
+    const bullets = [...markup.matchAll(/<span class="text-\[15px\] leading-snug">([\s\S]*?)<\/span>/g)].map((m) => m[1]);
+    expect(bullets).toEqual(GUIDES[slug].sections.map((s) => escaped(s.title)));
+    for (const promised of ['Board Package Preparation', 'Neighborhood Selection Guide', 'Understanding Your Net Proceeds']) {
+      expect(markup).not.toContain(promised);
+    }
+  });
+
+  it.each(GATED)('%s: the email form carries the NYS anti-discrimination disclosure', (slug) => {
+    // NY DOS 175.28 first-substantive-contact notice, on every public lead-capture form (compliance index).
+    expect(html(slug)).toContain('NYS Housing Anti-Discrimination Disclosure');
   });
 });
 
