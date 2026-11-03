@@ -5440,6 +5440,8 @@ function _saleEnteredFields() {
         } else changed = el.value !== el.defaultValue;
         if (changed) found.push(id || el.name);
     });
+    // Photos, floor plans and documents the agent has chosen but not yet uploaded wait in _pendingMediaFiles, and filling the form empties that queue: they count as entered.
+    if (typeof _pendingMediaFiles !== 'undefined' && _pendingMediaFiles.some(function (m) { return !m.uploaded && !m._removed; })) found.push('queuedMedia');
     return found;
 }
 

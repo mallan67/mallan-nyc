@@ -292,6 +292,47 @@ describe("what the pull will not do", () => {
     } finally { f.close(); }
   });
 
+  it("queued photos, floor plans and documents count as entered: the pull is refused, Cotality is not asked, and the queue is still there", async () => {
+    for (const type of ["photo", "floorplan", "document"]) {
+      const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }) });
+      try {
+        const queue = (f.w as any)._pendingMediaFiles as any[];
+        queue.push({ file: new f.w.File(["x"], "a.bin"), type, order: 0, uploaded: false, url: null });
+        expect((f.w as any)._saleEnteredFields()).toContain("queuedMedia");
+        await typeRlsId(f, "RLS20123633");
+        pullRow(f)!.click();
+        await sleep(250);
+        expect(f.rlsPulls).toEqual([]);
+        expect((f.w as any)._pendingMediaFiles.length).toBe(1);
+        expect(val(f, "saleRlsId")).toBe("");
+      } finally { f.close(); }
+    }
+  });
+
+  it("a queued file the agent removed, or one already uploaded, is not in the way", async () => {
+    const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }) });
+    try {
+      const queue = (f.w as any)._pendingMediaFiles as any[];
+      queue.push({ file: new f.w.File(["x"], "a.jpg"), type: "photo", order: 0, uploaded: false, url: null, _removed: true });
+      queue.push({ file: new f.w.File(["y"], "b.jpg"), type: "photo", order: 1, uploaded: true, url: "https://example.test/b.jpg" });
+      expect((f.w as any)._saleEnteredFields()).toEqual([]);
+    } finally { f.close(); }
+  });
+
+  it("files queued while Cotality is answering are not dropped by the answer", async () => {
+    const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }), rlsPullDelay: 400 });
+    try {
+      await typeRlsId(f, "RLS20123633");
+      pullRow(f)!.click();
+      await waitUntil(() => f.rlsPulls.length === 1);
+      (f.w as any)._pendingMediaFiles.push({ file: new f.w.File(["x"], "a.jpg"), type: "photo", order: 0, uploaded: false, url: null });
+      await sleep(700);
+      expect((f.w as any)._pendingMediaFiles.length).toBe(1);
+      expect(val(f, "saleRlsId")).toBe("");
+      expect(val(f, "salePrice")).toBe("");
+    } finally { f.close(); }
+  });
+
   it("a choice counts too: a ticked radio the page did not tick is the agent's, and stops the pull", async () => {
     const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }) });
     try {
