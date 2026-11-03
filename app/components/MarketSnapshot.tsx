@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useInView } from '@/lib/hooks/useInView';
 import Link from 'next/link';
 import { marketRequestType, snapshotFromMarket, type SnapshotData } from '@/lib/market/market-snapshot-data';
 
@@ -28,8 +29,11 @@ export default function MarketSnapshot({
   listingType: 'sale' | 'rent';
 }) {
   const [data, setData] = useState<SnapshotData | null>(null);
+  // /api/market reads the database and, on a fallback path, live Cotality: it waits until the card is about to be seen.
+  const [sentinelRef, inView] = useInView<HTMLDivElement>();
 
   useEffect(() => {
+    if (!inView) return;
     const params = new URLSearchParams({ type: marketRequestType(listingType) });
     if (borough) params.set('borough', borough);
     // Try neighborhood first, fall back to borough-level
@@ -41,9 +45,12 @@ export default function MarketSnapshot({
         if (next) setData(next);
       })
       .catch(() => {});
-  }, [neighborhood, borough, listingType]);
+  }, [inView, neighborhood, borough, listingType]);
 
-  if (!data || !data.medianPrice) return null;
+  // Nothing to show (yet): a zero-size marker at the card's place, so the request can wait for the visitor to get near it.
+  if (!data || !data.medianPrice) {
+    return inView ? null : <div ref={sentinelRef} aria-hidden="true" className="absolute" />;
+  }
 
   const priceDiff = data.medianPrice ? ((listPrice - data.medianPrice) / data.medianPrice) * 100 : null;
   const isBelow = priceDiff !== null && priceDiff < 0;

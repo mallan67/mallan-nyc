@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
+import { useInView } from '@/lib/hooks/useInView';
 
 interface POIItem {
   id: number;
@@ -118,7 +119,10 @@ export default function NeighborhoodExplorer({
     [],
   );
 
-  const { data: categoriesData, loading } = useAsyncResource(fetchKey, fetcher);
+  // The POI request waits until the section is about to be seen: most visits never scroll this far, and every request is a lookup on a
+  // public OpenStreetMap server.
+  const [sectionRef, inView] = useInView<HTMLElement>();
+  const { data: categoriesData, loading } = useAsyncResource(inView ? fetchKey : null, fetcher);
   const categories = categoriesData ?? [];
 
   const selectedItems = selectedCategory
@@ -161,7 +165,7 @@ export default function NeighborhoodExplorer({
 
   if (!loading && !hasData) {
     return (
-      <section className="border-t border-black/10 py-6">
+      <section ref={sectionRef} className="border-t border-black/10 py-6">
         <div className="flex items-center gap-3 mb-4">
           <h2 className="text-[15px] font-semibold tracking-tight">Neighborhood</h2>
         </div>
@@ -181,7 +185,7 @@ export default function NeighborhoodExplorer({
   }
 
   return (
-    <section>
+    <section ref={sectionRef}>
       {/* Tab bar */}
       <div className="flex items-center border-b border-black/10 mb-0">
         <button
