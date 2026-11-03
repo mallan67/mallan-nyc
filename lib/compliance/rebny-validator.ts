@@ -591,10 +591,9 @@ function validateNYCSpecific(listing: ListingData): {
       Object.values(nycBoroughs).some((b) => b.county === county);
 
     if (isNYC) {
-      // Validate tax lot is present. H1 (2026-05-30): the canonical Cotality
-      // field is TaxLot (BuildingTaxLot is a phantom — absent from live
-      // $metadata). Accept canonical TaxLot first; keep BuildingTaxLot /
-      // buildingTaxLot as legacy fallback so already-saved rows still validate.
+      // Validate tax lot is present. The canonical Cotality Property field is TaxLot (BuildingTaxLot is a REBNY custom key in CustomFields, not a Property column). Accept
+      // canonical TaxLot first; BuildingTaxLot / buildingTaxLot stay as a legacy fallback here so already-saved rows still pass THIS NYC check. The stricter required-field rule
+      // above still demands TaxLot itself, so a building lot alone never publishes a condo.
       if (!listing.TaxLot && !listing.BuildingTaxLot && !listing.buildingTaxLot) {
         errors.push('[NYC] TaxLot is required for NYC properties');
       }

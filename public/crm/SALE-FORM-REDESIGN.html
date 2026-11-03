@@ -43,6 +43,11 @@ window.alert = function(msg) { showToast(String(msg)); };
 </script>
 <style>
 body { font-family: Manrope, sans-serif; }
+/* A required field that is still empty when a listing is made live: boxed in red, with the tab's count on the tab button */
+.sale-missing-field { outline: 2px solid #ef4444 !important; outline-offset: 2px; border-radius: 6px; background-color: #fef2f2; }
+.sale-missing-pulse { animation: saleMissingPulse 0.8s ease-in-out 2; }
+@keyframes saleMissingPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } 50% { box-shadow: 0 0 0 6px rgba(239,68,68,.35); } }
+.sale-tab-missing { background: #ef4444; color: #fff; border-radius: 9999px; font-size: 10px; font-weight: 700; padding: 0 6px; margin-left: auto; line-height: 16px; }
 /* Sidebar */
 .sidebar-tab { transition: all 0.2s ease; border-left: 3px solid transparent; }
 .sidebar-tab:hover { background: #f8fafc; border-left-color: #d1d5db; }
@@ -182,6 +187,7 @@ body { font-family: Manrope, sans-serif; }
             <span><strong>Unit:</strong> <span id="saleUnitDisplay">[Unit]</span></span>
             <span><strong>ID:</strong> <span id="saleListingIdDisplay">New</span></span>
             <span><strong>Updated:</strong> <span id="saleLastUpdated">--</span></span>
+            <span id="saleAutoSaveIndicator" class="hidden text-xs" role="status" aria-live="polite"><i class="fas fa-cloud"></i> <span id="saleAutoSaveText"></span></span>
             <span id="saleDraftBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300"><i class="fas fa-file-alt"></i> DRAFT</span>
         </div>
         <div class="flex items-center gap-2">
@@ -329,7 +335,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Unit / Apt</label>
-                    <input type="text" id="saleUnitNumber" placeholder="e.g., 15A" oninput="updateListingHeaderBar('sale')" class="field-input" data-concept="UnitNumber">
+                    <input type="text" id="saleUnitNumber" placeholder="e.g., 15A" oninput="updateListingHeaderBar('sale')" onchange="saleUnitLotLookup()" class="field-input" data-concept="UnitNumber">
                     <p class="text-[10px] text-gray-400">RLS: UnitNumber</p>
                 </div>
                 <div>
@@ -661,7 +667,7 @@ body { font-family: Manrope, sans-serif; }
                     </div>
                     <p class="text-xs text-red-600 mb-2">The following fields are required by REBNY RLS before this listing can be set to Active:</p>
                     <ul id="saleMissingFieldsList" class="text-xs text-red-700 space-y-1 ml-4 list-disc"></ul>
-                    <p class="text-xs text-gray-600 mt-2 italic">Status has been reverted to Draft. Complete all required fields to activate.</p>
+                    <p id="saleValidationNote" class="text-xs text-gray-600 mt-2 italic">Status has been reverted to Draft. Complete all required fields to activate.</p>
                 </div>
             </div>
 
@@ -1929,6 +1935,11 @@ body { font-family: Manrope, sans-serif; }
                     <input type="text" id="saleFloorInBuilding" placeholder="e.g., 26" class="field-input" required data-concept="EntryLevel">
                 </div>
                 <div>
+                    <!-- Property.TaxLot is the UNIT's own lot (a condo unit's is 1xxx, e.g. 1218); the building's lot is the Building window's box (REBNY custom key BuildingTaxLot). A co-op shares the building's. -->
+                    <label class="field-label">Tax Lot (unit)</label>
+                    <input type="text" id="saleUnitTaxLot" placeholder="e.g., 1218" class="field-input" data-concept="TaxLot" title="The unit's own tax lot (Cotality Property.TaxLot). A co-op or a house has the building's lot: leave this blank and fill the Building Tax Lot.">
+                </div>
+                <div>
                     <!-- REBNY I15: UnitNumber (Floor + Line = Apt #, e.g., 26B) -->
                     <label class="field-label">Line in Building</label>
                     <input type="text" id="saleLineInBuilding" placeholder="e.g., B" class="field-input" data-concept="UnitNumber">
@@ -1942,7 +1953,7 @@ body { font-family: Manrope, sans-serif; }
             <label class="field-label">Garage Spaces Assigned <span class="text-red-500">*</span></label>
             <div class="flex items-center gap-6 mb-3">
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleGarageSpaces" value="Yes" class="w-4 h-4" data-concept="GarageSpaces"> Yes
+                    <input type="radio" name="saleGarageSpaces" value="Yes" class="w-4 h-4"> Yes
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
                     <input type="radio" name="saleGarageSpaces" value="No" class="w-4 h-4" checked> No
@@ -4734,8 +4745,8 @@ body { font-family: Manrope, sans-serif; }
                                 <input type="text" id="saleBldgTaxBlock" placeholder="1234" class="field-input" data-concept="TaxBlock">
                             </div>
                             <div>
-                                <label class="field-label">Tax Lot</label>
-                                <input type="text" id="saleBldgTaxLot" placeholder="56" class="field-input" data-concept="BuildingTaxLot">
+                                <label class="field-label">Building Tax Lot</label>
+                                <input type="text" id="saleBldgTaxLot" placeholder="e.g., 7501" class="field-input" data-concept="BuildingTaxLot" title="The building's own tax lot (REBNY custom key BuildingTaxLot). The unit's lot is on the Unit tab.">
                             </div>
                             <div>
                                 <label class="field-label">Annual RE Taxes</label>
@@ -5430,6 +5441,7 @@ function selectBuildingFromIDX(prefix, picked) {
 
     // 6. Populate building modal fields based on model
     populateBuildingFromIDX(prefix, building);
+    if (globalThis.saleUnitLotLookup) globalThis.saleUnitLotLookup();       // the building's lot came with the address; the unit's follows from the unit number
 }
 
 // Populate building modal fields from IDX data
@@ -5491,6 +5503,57 @@ async function loadCotalityNeighborhoodsIntoDropdown(prefix) {
     } catch (err) {
         // Network error / 5xx — keep static fallback options
         console.warn('[neighborhoods] Cotality dropdown load failed, using static fallback:', err);
+    }
+}
+
+// The UNIT's own tax lot (Property.TaxLot) is pulled live from the Cotality API once the unit is known (the building's street address + the unit number): GET
+// /api/buildings/search?q=<address>&unit=<unit>&zip=<zip> asks Cotality for that exact unit. The BUILDING's lot arrives with the address (populateBuildingFromIDX). A number the agent typed
+// is never replaced; one the lookup put there is replaced (or cleared) when the unit changes, since it belonged to the other unit. A unit Cotality has no lot for stays empty, and the
+// Active checklist asks for it.
+var _saleUnitLotSeq = 0;
+async function saleUnitLotLookup() {
+    var seq = ++_saleUnitLotSeq;                                    // a newer ask (another unit) makes an older answer void
+    var box = document.getElementById('saleUnitTaxLot');
+    var unitEl = document.getElementById('saleUnitNumber');
+    var streetEl = document.getElementById('saleStreetAddress');
+    if (!box || !unitEl || !streetEl) return;
+    var pulled = box.dataset.autofilled || '';
+    var mine = !!pulled && box.value === pulled;                    // still exactly what the lookup put there
+    if (box.value.trim() && !mine) return;                          // the agent's own number
+    var forget = function () {                                      // the earlier unit's lot does not belong to this one
+        if (!mine) return;
+        box.value = ''; delete box.dataset.autofilled; delete box.dataset.autofilledFor; box.title = box.dataset.origTitle || '';
+        box.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    var unit = unitEl.value.trim();
+    var street = streetEl.value.trim();
+    if (!unit || street.length < 3 || !saleHasOwnUnitLot()) { forget(); return; }
+    // The lot pulled for the PREVIOUS unit is cleared the moment the unit changes, not when the new answer arrives: while a slow request is on its way, a save or autosave must not store
+    // the old unit's lot under the new unit.
+    if (mine && box.dataset.autofilledFor !== unit) { forget(); mine = false; pulled = ''; }
+    var zipEl = document.getElementById('saleZipCode');
+    var zip = zipEl ? zipEl.value.trim() : '';
+    try {
+        var resp = await fetch('/api/buildings/search?q=' + encodeURIComponent(street) + '&unit=' + encodeURIComponent(unit) + (zip ? '&zip=' + encodeURIComponent(zip) : ''), { credentials: 'same-origin' });
+        if (seq !== _saleUnitLotSeq) return;
+        if (!resp.ok) { forget(); return; }
+        var body = await resp.json();
+        if (seq !== _saleUnitLotSeq) return;
+        if (box.value.trim() && !(pulled && box.value === pulled)) return;      // the agent typed one while the answer was on its way
+        var found = body && body.unit;
+        if (found && found.tax_lot && !found.same_as_building) {
+            if (box.dataset.origTitle === undefined) box.dataset.origTitle = box.title || '';
+            box.value = found.tax_lot;
+            box.dataset.autofilled = found.tax_lot;
+            box.dataset.autofilledFor = unit;
+            box.title = 'Pulled from Cotality: unit ' + (found.unit_number || unit) + (found.source_listing_id ? ' on ' + found.source_listing_id : '') + '. Change it if it is wrong.';
+            box.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+            forget();
+        }
+    } catch (e) {
+        console.warn('[unit tax lot] Cotality lookup failed:', e && e.message);   // never blocks the listing
+        if (seq === _saleUnitLotSeq) forget();                                     // the earlier unit's pulled lot is not this unit's: it must not be saved under it
     }
 }
 
@@ -5621,7 +5684,7 @@ function populateBuildingFromIDX(prefix, building) {
 
     // ── 5. Tax + association ─────────────────────────────────────────
     setIfPresent(prefix + 'BldgTaxBlock', pick('tax_block', 'taxBlock'));
-    setIfPresent(prefix + 'BldgTaxLot', pick('tax_lot', 'taxLot'));
+    setIfPresent(prefix + 'BldgTaxLot', pick('building_tax_lot', 'buildingTaxLot'));      // not tax_lot: a record's TaxLot is one UNIT's lot
     setIfPresent(prefix + 'BldgAnnualTaxes', pick('tax_annual_amount', 'taxAnnualAmount'));
     setIfPresent(prefix + 'BldgAssociationName', pick('association_name', 'associationName'));
     // AssociationFee / AssociationFeeFrequency are real Cotality fields returned
@@ -5650,7 +5713,9 @@ function populateBuildingFromIDX(prefix, building) {
     checkIf(prefix + 'BldgElevator', building.elevator);
     checkIf(prefix + 'BldgGym', building.gym);
     checkIf(prefix + 'BldgPool', building.pool);
-    checkIf(prefix + 'BldgParking', building.parking || pick('garage_yn', 'garageYN') || pick('attached_garage_yn', 'attachedGarageYN')); // GarageYN/AttachedGarageYN real Cotality (Track 1)
+    // The building's garage fills itself from the address: only the BUILDING's own garage / parking amenity (ParkingFeatures Garage, ParkingGarage ... across the building) ticks it.
+    // The selected record's GarageYN / AttachedGarageYN is that UNIT's garage (the Unit tab's Yes/No), so it never ticks the building's.
+    checkIf(prefix + 'BldgParking', building.parking);
     checkIf(prefix + 'BldgSpa', pick('spa', 'spa'));
     checkIf(prefix + 'BldgRoofDeck', pick('roof_deck', 'roofDeck'));
     checkIf(prefix + 'BldgStorage', pick('storage', 'storage'));
@@ -7873,7 +7938,8 @@ function collectSaleFormData() {
     data.TaxBlock = data.saleBldgTaxBlock || '';
     // Cotality canonical is `TaxLot` (not BuildingTaxLot, which is not in
     // Cotality $metadata). (Audit F2, 2026-05-30 — Cotality-only.)
-    data.TaxLot = data.saleBldgTaxLot || '';
+    data.TaxLot = saleHasOwnUnitLot() ? (data.saleUnitTaxLot || '') : (data.saleUnitTaxLot || data.saleBldgTaxLot || '');                            // Property.TaxLot: the UNIT's lot; a co-op or a house has the building's
+    data.BuildingTaxLot = data.saleBldgTaxLot || '';                                          // the building's own lot: REBNY custom key (live: it differs from TaxLot on 17 of 100 Active listings)
     data.AssociationName = data.saleBldgAssociationName || '';
     // Land lease — a building fact (live Property fields): the townhouse tab's own answer when the listing is a townhouse / house, else the Building panel's; the Essentials Yes/No mirrors it.
     var _thLandYN = (document.getElementById('saleTHLandLeaseYN') || {}).value || ''; var _bldgLandYN = (document.getElementById('saleBldgLandLeaseYN') || {}).value || '';
@@ -8129,6 +8195,28 @@ function collectSaleFormData() {
     if (data.saleTHLevels) data.Levels = [data.saleTHLevels]; else delete data.Levels;   // the townhouse tab's levels; else the unit's floors radio (Levels) through the claim pass
     data.ZoningDescription = data.saleTHZoning || '';
     data.GarageSpaces = _saleInt(data.saleTHGarageSpaces);
+    // A garage assigned to the unit (some condos and co-ops): the Unit tab's answer fills Cotality's GarageYN / GarageSpaces when the townhouse tab (a house's own
+    // garage) has none. A building's garage is the "Parking Garage" amenity (ParkingFeatures). Before, only the townhouse tab reached GarageYN / GarageSpaces.
+    // Only a Yes is an answer: the Unit tab's No is its default and asserts nothing (a listing opened with GarageYN true keeps it).
+    if (data.saleGarageSpaces === 'Yes') {
+        var _unitGarageCount = _saleInt(data.saleGarageSpacesCount);
+        if (shouldSkipTab3('sale')) {                       // a unit: the townhouse tab is locked, so the Unit tab is the answer, and a count changed here wins
+            data.GarageYN = true;
+            if (_unitGarageCount != null) data.GarageSpaces = _unitGarageCount;
+        } else {                                            // a house keeps its own answer; the Unit tab fills only what the townhouse tab left blank
+            if (data.GarageYN === undefined) data.GarageYN = true;
+            if (data.GarageSpaces == null && _unitGarageCount != null) data.GarageSpaces = _unitGarageCount;
+        }
+    } else if (data.saleGarageSpaces === 'No' && window._saleGarageAnswered) {
+        if (shouldSkipTab3('sale')) {                       // a unit whose agent chose No: no garage is assigned (a saved Yes is taken back)
+            data.GarageYN = false;
+            data.GarageSpaces = 0;                          // zero spaces: a number that is set is not refilled by the tagging pass
+        } else if (data.GarageYN === undefined) {           // a house whose townhouse tab was left blank: the No is its answer
+            data.GarageYN = false;
+            data.GarageSpaces = 0;
+        }
+    }
+    if (data.GarageYN === false) data.GarageSpaces = 0;   // no garage means no spaces, whichever tab said No (a count left in a box from an earlier Yes is not sent)
     data.ParkingTotal = _saleInt(data.saleTHParkingTotal);
     data.FoundationArea = _saleNum(data.saleTHFoundationArea);
     data.BasementYN = data.saleTHBasementYN === true || data.saleTHBasementYN === 'true' || data.saleTHBasementYN === 'Yes';
@@ -8393,9 +8481,7 @@ function submitSalesListing() {
     if (!isInHouseListing && !_submitIsDraft) {
         const saleMissing = validateREBNYRequired('sale');
         if (saleMissing.length > 0) {
-            const summaryEl = document.getElementById('saleValidationSummary');
-            if (summaryEl) summaryEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            alert('Cannot submit: ' + saleMissing.length + ' required REBNY field(s) missing.');
+            showSaleMissingRequired('save');          // the list (tab + field, each one jumps to it), the red boxes, the counts on the tabs
             return;
         }
     }
@@ -8466,6 +8552,7 @@ function submitSalesListing() {
         var _savedId = '';                                            // set once the server has taken the listing: a later failure is not a failed submit
         apiCall.then(async function(result) {
             _saleSetSending(false);
+            _saleServerSaved();
             var lid = result.listing_id || _saleEditListingId || formData.listingId;
             _savedId = lid || (result && result.id ? String(result.id) : 'the listing');
             _saleShowServerWording(result);
@@ -8652,30 +8739,71 @@ function performAutoSave() {
     var updateId = _saleEditDbId || _saleEditListingId || displayId;
     var isRealId = updateId && updateId !== '--' && updateId !== 'New' && /^(SL-|RL-|\d)/.test(String(updateId));
     if (isRealId && typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
-        var resoData = collectSaleFormData();
-        MallanAPI.listings.update(updateId, resoData).catch(function(err) {
-            console.warn('[AutoSave] Server save failed (id=' + updateId + '):', err.message);
-        });
+        _saleServerAutoSave(updateId);                  // the indicator is set by the server's answer, never by a timer
+        return;
     }
+    // A new listing has no CRM record yet: this copy lives in this browser only, and the indicator says so (it must not read as saved)
+    _saleSetAutoSaveState('browser', 'Kept in this browser only, not in the CRM yet. Press Save Draft to save it.');
 
-    // Update indicator
-    setTimeout(() => {
-        if (textEl) {
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            textEl.textContent = 'Draft saved ' + timeStr;
-            if (indicator) {
-                indicator.classList.remove('text-gray-400');
-                indicator.classList.add('text-green-600');
-            }
-        }
-        // Update last updated display
-        const lastUpdated = document.getElementById('saleLastUpdated');
-        if (lastUpdated) {
-            lastUpdated.textContent = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        }
-    }, 500);
+    // Last updated display
+    const lastUpdated = document.getElementById('saleLastUpdated');
+    if (lastUpdated) lastUpdated.textContent = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
+
+// What the autosave indicator says is what happened: saving; saved to the CRM; kept in this browser only (a new listing has no CRM record); or NOT saved (the server refused
+// or did not answer). Before, every case read "Draft saved" after a timer, so a refused save looked safe while the typed values were not in the CRM.
+function _saleSetAutoSaveState(kind, text) {
+    var indicator = document.getElementById('saleAutoSaveIndicator');
+    var textEl = document.getElementById('saleAutoSaveText');
+    if (!indicator || !textEl) return;
+    indicator.classList.remove('hidden');
+    indicator.style.color = kind === 'saved' ? '#16a34a' : (kind === 'saving' ? '#9ca3af' : (kind === 'browser' ? '#b45309' : '#dc2626'));
+    indicator.style.fontWeight = kind === 'failed' ? '600' : '';
+    indicator.setAttribute('role', kind === 'failed' ? 'alert' : 'status');
+    indicator.dataset.autosaveState = kind;
+    textEl.textContent = text;
+}
+function _saleClock() { return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
+var _saleServerSaveInFlight = false, _saleServerSavePending = false, _saleServerSaveFailure = '', _saleServerRetryTimer = null, _saleServerFailCount = 0;
+// One request at a time: two saves in flight can land out of order, and the older, smaller form state would replace the newer one. A change made meanwhile is sent once
+// the request in flight is answered. A refusal is shown, kept, and tried again; leaving the page while it stands asks first.
+function _saleServerAutoSave(updateId) {
+    if (_saleSendInFlight) { clearTimeout(autoSaveTimer); autoSaveTimer = setTimeout(performAutoSave, 3000); return; }   // a Save in progress is already sending this
+    if (_saleServerSaveInFlight) { _saleServerSavePending = true; return; }
+    _saleServerSaveInFlight = true;
+    _saleSetAutoSaveState('saving', 'Saving to the CRM...');
+    var payload = collectSaleFormData();
+    Promise.resolve().then(function () { return MallanAPI.listings.update(updateId, payload); }).then(function () {
+        _saleServerSaveFailure = '';
+        _saleSetAutoSaveState('saved', 'Saved to the CRM ' + _saleClock());
+        var lastUpdated = document.getElementById('saleLastUpdated');
+        if (lastUpdated) lastUpdated.textContent = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }, function (err) {
+        _saleServerSaveFailure = (err && err.message) ? err.message : 'no answer from the server';
+        console.warn('[AutoSave] Server save failed (id=' + updateId + '):', _saleServerSaveFailure);
+        _saleServerFailCount++;
+        clearTimeout(_saleServerRetryTimer);
+        var code = err && err.status;
+        if (code === 401 || code === 403) {            // an ended session or no access is not cured by waiting: say so and stop asking the server
+            _saleSetAutoSaveState('failed', 'NOT saved to the CRM: ' + _saleServerSaveFailure + '. Your changes are still on this page. Sign in again (another tab is fine), then press Save Draft here.');
+        } else {                                       // anything else may pass: try again, a little later each time (15 s, 30 s, 60 s, then every 2 minutes)
+            _saleSetAutoSaveState('failed', 'NOT saved to the CRM: ' + _saleServerSaveFailure + '. Your changes are still on this page. Keep it open (it tries again) or press Save Draft.');
+            _saleServerRetryTimer = setTimeout(performAutoSave, Math.min(15000 * Math.pow(2, _saleServerFailCount - 1), 120000));
+        }
+    }).then(function () {
+        _saleServerSaveInFlight = false;
+        if (_saleServerSavePending) { _saleServerSavePending = false; performAutoSave(); }
+    });
+}
+// A Save the server accepted clears an earlier autosave refusal
+function _saleServerSaved() {
+    _saleServerSaveFailure = '';
+    clearTimeout(_saleServerRetryTimer);
+    _saleSetAutoSaveState('saved', 'Saved to the CRM ' + _saleClock());
+}
+window.addEventListener('beforeunload', function (e) {
+    if (_saleServerSaveFailure || _saleServerSaveInFlight) { e.preventDefault(); e.returnValue = ''; return ''; }   // typed values not yet in the CRM
+});
 
 async function manualSaveDraft() {
     if (_saleRefuseWhileLoading()) return;
@@ -8711,6 +8839,7 @@ async function manualSaveDraft() {
                 _saleEditListingId = listingId;
             }
             _saleShowServerWording(result);
+            _saleServerSaved();
 
             var idDisplay = document.getElementById('saleListingIdDisplay');
             if (idDisplay) idDisplay.textContent = listingId;
@@ -8775,7 +8904,23 @@ async function manualSaveDraft() {
 const REBNY_ACTIVE_STATUSES = ['Active', 'ComingSoon', 'BackOnMarket', 'OfferOut', 'OfferThruUs', 'OfferAccepted', 'OAThruUs', 'ContractOut', 'COThruUs', 'ContractSigned', 'ContractSignedThruUs', 'BoardApproved', 'Sold', 'SoldThruUs'];
 
 // Check if a field has a value (works for radio, select, input, textarea)
+// The backend REQUIRES GarageYN to publish (rebny-validator getRequiredFields; not one of the 5 fields the system writes). The Unit tab's question defaults to No, and an
+// untouched default is not an answer. Answered = the townhouse tab's box has an answer (also what opening a saved listing restores), a Yes, or a No the agent chose.
+function saleGarageAnswered() {
+    const th = document.getElementById('saleTHGarageYN');
+    if (th && th.value) return true;
+    const yes = document.querySelector('input[name="saleGarageSpaces"][value="Yes"]');
+    return !!(yes && yes.checked) || window._saleGarageAnswered === true;
+}
+
 function fieldHasValue(field) {
+    if (field.type === 'garage') return saleGarageAnswered();
+    // The Condition list's hidden legacy 'Fair' is never sent (PropertyCondition is omitted), so the backend would refuse Active: it is not an answer
+    if (field.id === 'saleCondition') { const c = document.getElementById('saleCondition'); return !!(c && c.value && c.value !== 'Fair'); }
+    // A group of boxes is answered when at least one is ticked
+    if (field.type === 'checkboxGroup') return !!document.querySelector('input[name="' + field.name + '"]:checked');
+    // A value the form takes from either of two boxes (Structure Type: the main tab or the Building window)
+    if (field.orIds && field.orIds.some(function (oid) { const e = document.getElementById(oid); return e && e.value && String(e.value).trim() !== ''; })) return true;
     if (field.type === 'radio') {
         if (field.name) {
             if (document.querySelector('input[name="' + field.name + '"]:checked')) return true;
@@ -8803,6 +8948,9 @@ function fieldHasValue(field) {
 }
 
 // SALE required fields — matches REBNY/Trestle Exhibit A mandatory fields
+// Types whose units are separate tax lots (a condo unit's lot is 1xxx, the building's 75xx). A co-op or a house has the building's lot.
+const SALE_UNIT_LOT_SUBTYPES = ['CONDO', 'CONDOP', 'COMMERCIAL_CONDO', 'OFFICE_CONDO', 'OFFICE_CONDOP', 'RETAIL_CONDO', 'RETAIL_CONDOP'];
+
 const SALE_REQUIRED_FIELDS = [
     // Tab 1: Listing Information / Essentials
     { id: 'saleUpdatingCompany', label: 'Updating Company', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
@@ -8814,6 +8962,7 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleExclusiveStart', label: 'Exclusive Start Date', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleExclusiveExpires', label: 'Exclusive Expires', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleFirstCoBroke', label: 'First Date To Co-Broke', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
+    { id: 'saleActivationDate', label: 'Coming Soon Activation Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['ComingSoon'], createdByStatus: true },
     { id: 'saleOffMarketDate', label: 'Off Market Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['PermOffMarket','TempOffMarket','Expired','Withdrawn'] },
     { id: 'saleContractSignedDate', label: 'Contract Signed Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['ContractSigned','ContractSignedThruUs','Sold','SoldThruUs'] },
     { id: 'salePrice', label: 'Price', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
@@ -8833,7 +8982,7 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleFullBaths', label: 'Full Bathrooms', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
     { id: 'saleHalfBaths', label: 'Half Bathrooms', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
     { id: 'saleFloorInBuilding', label: 'Floor in Building', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
-    { name: 'saleGarageSpaces', label: 'Garage Spaces Assigned', type: 'radio', tab: 2, section: 'Unit Information/Essentials' },
+    { name: 'saleGarageSpaces', label: 'Garage Spaces Assigned (answer Yes or No)', type: 'garage', tab: 2, section: 'Unit Information/Essentials' },
     { name: 'saleHasViews', label: 'Views', type: 'radio', orCheckboxName: 'saleViewList', tab: 2, section: 'Unit Information/Essentials' },
     // Tab 2: Features
     { name: 'saleWasherDryerAllowed', label: 'Washer/Dryer Allowed', type: 'radio', tab: 2, section: 'Unit Information/Features' },
@@ -8841,23 +8990,69 @@ const SALE_REQUIRED_FIELDS = [
     { name: 'saleHeatingYN', label: 'Heating', type: 'radio', orCheckboxName: 'saleHeating', tab: 2, section: 'Unit Information/Features' },
     { name: 'fireplace', label: 'Fireplace', type: 'radio', tab: 2, section: 'Unit Information/Features' },
     // Tab 1: Conditional
-    { id: 'saleLivingArea', label: 'Living Area (Sq Ft)', type: 'input', tab: 1, section: 'Listing Information/Condo Details', conditional: ['CONDO','COMMERCIAL_CONDO'] },
+    { id: 'saleLivingArea', label: 'Living Area (Sq Ft)', type: 'input', tab: 1, section: 'Listing Information/Condo Details', orOwnership: 'Condominium', conditional: ['CONDO','COMMERCIAL_CONDO'] },
     // Tab 3: Townhouse/Building — only required for whole-building property types
     { id: 'saleTHStories', label: 'Stories (Property)', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING'] },
     { id: 'saleTHUnitsTotal', label: '# Residential Units', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['MULTI_FAMILY_TOWNHOUSE','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING'] },
     { id: 'saleTHLotSize', label: 'Lot Size', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING','LAND'] },
     { id: 'saleTHLotSizeUnits', label: 'Lot Size Units', type: 'select', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING','LAND'] },
     { id: 'saleTHLotDimensions', label: 'Lot Dimensions', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING','LAND'] },
-    { id: 'saleTHBuildingArea', label: 'Building Area Total', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING'] },
+    { id: 'saleTHBuildingArea', label: 'Building Area Total', type: 'input', tab: 3, section: 'Townhouse-Building/Essentials', conditional: ['SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING','LAND'] },
+    // Required by the REBNY server rules (lib/compliance/rebny-validator.ts, getRequiredFields for a residential sale) and filled in by the agent. The form used to leave
+    // these to the server, which refused an Active listing without saying which field. Not here on purpose: the building's garage (a building fact, not required to publish; the
+    // unit's own garage answer IS above) and the values the form sets itself (agent, status, display flags, syndication). Tax Lot is Property.TaxLot (the unit's lot); the
+    // building's lot is the REBNY custom key BuildingTaxLot.
+    { id: 'saleStreetAddress', label: 'Street Address', type: 'input', tab: 1, section: 'Listing Information/Address' },
+    { id: 'saleBorough', label: 'Borough', type: 'select', tab: 1, section: 'Listing Information/Address' },
+    { id: 'saleZipCode', label: 'Zip Code', type: 'input', tab: 1, section: 'Listing Information/Address' },
+    { id: 'saleNeighborhoodFromAddress', orIds: ['saleBldgNeighborhood'], label: 'Neighborhood', type: 'input', tab: 1, section: 'Listing Information/Address' },
+    { id: 'saleStructureType', orIds: ['saleBldgType'], label: 'Structure Type', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
+    { id: 'saleCommonInterest', label: 'Ownership Type', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
+    { id: 'saleConcessions', label: 'Concessions', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
+    { id: 'saleShowingInstructions', label: 'Showing Instructions', type: 'input', tab: 1, section: 'Listing Information/Description' },
+    { id: 'saleTotalRooms', label: 'Total Rooms', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
+    // Found by posting the real form's payload to the real validator (tests/runtime/crm-sale-publish-contract.test.ts): the backend refused these with the form satisfied.
+    { id: 'saleUnitNumber', label: 'Unit / Apt Number', type: 'input', tab: 1, section: 'Listing Information/Address', conditional: ['COOP','CONDO','CONDOP','COMMERCIAL_CONDO','COMMERCIAL_COOP','LOFT','DEEDED_PARKING'] },
+    { id: 'saleRETaxes', label: 'Annual RE Taxes', type: 'input', tab: 1, section: 'Listing Information/Essentials', orOwnership: 'Condominium', conditional: ['CONDO','CONDOP','COMMERCIAL_CONDO','SINGLE_FAMILY_TOWNHOUSE','MULTI_FAMILY_TOWNHOUSE','SINGLE_FAMILY','MULTI_FAMILY','MIXED_USE','DUPLEX_BUILDING','TRIPLEX_BUILDING','QUADRUPLEX_BUILDING','LAND'] },
+    // A condo unit has its own lot: the building's lot cannot answer for it. A co-op or a house has the building's lot: either box answers.
+    { id: 'saleUnitTaxLot', label: 'Tax Lot (unit)', type: 'input', tab: 2, section: 'Unit Information/Essentials', unitLot: true, conditional: SALE_UNIT_LOT_SUBTYPES },
+    { id: 'saleUnitTaxLot', orIds: ['saleBldgTaxLot'], label: 'Tax Lot', type: 'input', tab: 2, section: 'Unit Information/Essentials', unitLot: false, unlessSubtype: SALE_UNIT_LOT_SUBTYPES },
+    { name: 'salePetsAllowed', label: 'Pets Allowed', type: 'checkboxGroup', tab: 2, section: 'Unit Information/Features' },
+    // In the Building window (not a numbered tab): the jump opens that window and the sub-tab
+    { id: 'saleBldgYearBuilt', label: 'Year Built', type: 'input', tab: 'B', section: 'Building window/Essentials' },
+    { id: 'saleBldgTotalFloors', label: 'Total Floors', type: 'input', tab: 'B', section: 'Building window/Essentials' },
+    { id: 'saleBldgTotalUnits', orIds: ['saleTHUnitsTotal'], label: 'Total Units in Building', type: 'input', tab: 'B', section: 'Building window/Essentials' },
+    { id: 'saleBldgTaxBlock', label: 'Tax Block', type: 'input', tab: 'B', section: 'Building window/Financials' },
 ];
 
 // Check if a conditional field is relevant based on current property type
-function isFieldRelevant(field) {
-    if (!field.conditional) return true;
+function saleCurrentSubtype() {
     const ptEl = document.querySelector('input[name="salePropertyType"]:checked');
-    if (!ptEl) return false;
-    const subtype = resolveListingSubtype(ptEl.value, (document.querySelector('input[name="saleCommercialOwnership"]:checked') || {}).value || null, (document.querySelector('input[name="saleBuildingStatus"]:checked') || {}).value || 'Resale');
-    return field.conditional.includes(subtype);
+    if (!ptEl) return null;
+    return resolveListingSubtype(ptEl.value, (document.querySelector('input[name="saleCommercialOwnership"]:checked') || {}).value || null, (document.querySelector('input[name="saleBuildingStatus"]:checked') || {}).value || 'Resale');
+}
+
+// The unit has its own tax lot (Property.TaxLot): the building's lot (BuildingTaxLot) cannot stand in for it.
+function saleOwnership() {
+    const el = document.getElementById('saleCommonInterest');
+    return el ? el.value : '';
+}
+
+// The server's rules switch on the Ownership Type (CommonInterest) as well as the Property Type: a unit that says Condominium has its own lot, living area and taxes whatever the
+// Property Type radio says, so either answer makes the unit's own boxes required.
+function saleHasOwnUnitLot() {
+    const subtype = saleCurrentSubtype();
+    return (!!subtype && SALE_UNIT_LOT_SUBTYPES.includes(subtype)) || saleOwnership() === 'Condominium';
+}
+
+function isFieldRelevant(field) {
+    if (field.unitLot !== undefined) return saleHasOwnUnitLot() === field.unitLot;
+    if (field.orOwnership && saleOwnership() === field.orOwnership) return true;
+    if (!field.conditional && !field.unlessSubtype) return true;
+    const subtype = saleCurrentSubtype();
+    if (!subtype) return !!field.unlessSubtype && !field.conditional;       // no type chosen yet: only an "every type except ..." field applies
+    if (field.unlessSubtype && field.unlessSubtype.includes(subtype)) return false;
+    return field.conditional ? field.conditional.includes(subtype) : true;
 }
 
 // Check if a status-conditional field is relevant
@@ -8865,7 +9060,7 @@ function isStatusRelevant(field) {
     if (!field.statusOnly) return true;
     const statusEl = document.getElementById('saleStatus');
     if (!statusEl) return true;
-    return field.statusOnly.includes(statusEl.value);
+    return field.statusOnly.includes(window._saleGateStatus || statusEl.value);       // while a refused change is on screen: the status that was asked for
 }
 
 // Dynamic validation summary — updates panel, tab stars, field-level errors
@@ -8876,44 +9071,71 @@ function updateSaleValidationSummary() {
     // Don't show errors until agent has attempted Next/Submit
     if (!window._saleValidationActivated) return;
 
+    const missing = _isInHouseListingType('sale') ? [] : collectSaleMissingRequired();   // an InHouse listing is not on RLS: nothing is required of it
+    window._saleMissingNow = missing;
+    if (missing.length === 0) window._saleGateStatus = null;
     const missingBySection = {};
     const missingByTab = {};
 
-    SALE_REQUIRED_FIELDS.forEach(function(field) {
-        if (!isFieldRelevant(field)) return;
-        if (!isStatusRelevant(field)) return;
-
-        const empty = !fieldHasValue(field);
-
-        // Update field-level red border
-        if (field.id) {
-            const el = document.getElementById(field.id);
-            if (el) {
-                if (empty) el.classList.add('border-red-400');
-                else el.classList.remove('border-red-400');
-            }
-        }
-
-        if (empty) {
-            if (!missingBySection[field.section]) missingBySection[field.section] = [];
-            missingBySection[field.section].push(field.label);
-            missingByTab[field.tab] = true;
-        }
+    // The boxes: clear what an earlier pass painted, then paint what is still empty (a radio group is boxed as a row)
+    document.querySelectorAll('.sale-missing-field').forEach(function (n) { n.classList.remove('sale-missing-field'); });
+    SALE_REQUIRED_FIELDS.forEach(function (field) {
+        if (!field.id) return;
+        const el = document.getElementById(field.id);
+        if (el && !missing.some(function (m) { return m.field === field; })) el.classList.remove('border-red-400');
+    });
+    missing.forEach(function (m) {
+        const els = saleFieldElements(m.field);
+        if (m.field.id && els[0]) els[0].classList.add('border-red-400');
+        if (els[0]) saleMissingTarget(els[0]).classList.add('sale-missing-field');
+        if (!missingBySection[m.section]) missingBySection[m.section] = [];
+        missingBySection[m.section].push(m.label);
+        missingByTab[m.tab] = (missingByTab[m.tab] || 0) + 1;
     });
 
-    // Update tab stars in sidebar
+    // Each tab: its dot, and the number of required fields still empty on it
     ['1','2','3','4','5','6'].forEach(function(t) {
+        const n = missingByTab[parseInt(t, 10)] || 0;
         const dot = document.getElementById('saleTabDot' + t);
         if (dot) {
-            if (missingByTab[parseInt(t)]) {
-                dot.classList.remove('bg-green-400');
-                dot.classList.add('bg-red-400');
-            } else {
-                dot.classList.remove('bg-red-400');
-                dot.classList.add('bg-green-400');
-            }
+            dot.classList.toggle('bg-red-400', n > 0);
+            dot.classList.toggle('bg-green-400', n === 0);
         }
+        [document.getElementById('sidebarTab' + t), document.querySelectorAll('.mobile-tab')[parseInt(t, 10) - 1]].forEach(function (btn) {
+            if (!btn) return;
+            const old = btn.querySelector('.sale-tab-missing');
+            if (old) old.remove();
+            if (n > 0) {
+                const badge = document.createElement('span');
+                badge.className = 'sale-tab-missing';
+                badge.textContent = String(n);
+                badge.title = n + ' required field' + (n === 1 ? '' : 's') + ' missing on ' + (SALE_TAB_NAMES[t] || ('tab ' + t));
+                btn.appendChild(badge);
+            }
+        });
     });
+
+    // The list under the status: the tab and the field, each one jumps to its field (text only: nothing here is markup)
+    const listEl = document.getElementById('saleMissingFieldsList');
+    const panelEl = document.getElementById('saleValidationPanel');
+    if (listEl) {
+        listEl.textContent = '';
+        missing.forEach(function (m, idx) {
+            const li = document.createElement('li');
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'underline text-left hover:text-red-900';
+            btn.setAttribute('data-sale-missing', String(idx));
+            btn.textContent = m.tabName + ' \u2014 ' + m.label;
+            li.appendChild(btn);
+            const where = document.createElement('span');
+            where.className = 'text-gray-500';
+            where.textContent = ' (' + m.section + ')';
+            li.appendChild(where);
+            listEl.appendChild(li);
+        });
+    }
+    if (panelEl) panelEl.classList.toggle('hidden', missing.length === 0);
 
     // Build summary HTML
     const sections = Object.keys(missingBySection);
@@ -8939,6 +9161,26 @@ function updateSaleValidationSummary() {
 window._saleValidationActivated = false;
 
 function initSaleValidation() {
+    // A click on a missing field in the list opens its tab and points at it
+    const missingList = document.getElementById('saleMissingFieldsList');
+    if (missingList) missingList.addEventListener('click', function (e) {
+        const b = e.target.closest && e.target.closest('[data-sale-missing]');
+        const m = b && (window._saleMissingNow || [])[parseInt(b.getAttribute('data-sale-missing'), 10)];
+        if (m) revealSaleField(m);
+    });
+    // The status the listing had before the agent changes it (so a move into Active is told from a move between live statuses)
+    // The Unit tab's garage question defaults to No. A No the agent has chosen (a change OR a click, since a click on the already-checked No fires no change; opening a saved listing sets it without either) is an answer.
+    document.querySelectorAll('input[name="salePropertyType"]').forEach(function (r) { r.addEventListener('change', function () { saleUnitLotLookup(); }); });
+    var _ownEl = document.getElementById('saleCommonInterest');
+    if (_ownEl) _ownEl.addEventListener('change', function () { saleUnitLotLookup(); });
+    document.querySelectorAll('input[name="saleGarageSpaces"]').forEach(function (r) { ['change', 'click'].forEach(function (ev) { r.addEventListener(ev, function () { window._saleGarageAnswered = true; }); }); });   // a click on the already-checked No fires no change
+    const statusBox = document.getElementById('saleStatus');
+    if (statusBox) ['focus', 'mousedown'].forEach(function (ev) { statusBox.addEventListener(ev, function () { statusBox.dataset.prevStatus = statusBox.value; }); });
+    const buildingWindow = document.getElementById('saleBuildingModal');
+    if (buildingWindow) {
+        buildingWindow.addEventListener('input', function() { updateSaleValidationSummary(); });
+        buildingWindow.addEventListener('change', function() { updateSaleValidationSummary(); });
+    }
     const container = document.querySelector('.flex-1');
     if (!container) return;
     // Wire real-time listeners — they check the gate inside updateSaleValidationSummary
@@ -8953,16 +9195,72 @@ function activateSaleValidation() {
 
 // Validate required fields for submission
 function validateREBNYRequired(formType) {
-    const fields = SALE_REQUIRED_FIELDS;
-    const missing = [];
-    fields.forEach(function(field) {
+    return collectSaleMissingRequired().map(function (m) { return m.label; });
+}
+
+// ── The required fields that are empty, each with the tab it is on ──────────────────────────────────────────────
+const SALE_TAB_NAMES = { 1: 'Listing Info', 2: 'Unit Info', 3: 'TH/Building', 4: 'Distribution', 5: 'Preview', 6: 'History', B: 'Building window' };
+
+function collectSaleMissingRequired() {
+    const out = [];
+    SALE_REQUIRED_FIELDS.forEach(function (field) {
         if (!isFieldRelevant(field)) return;
         if (!isStatusRelevant(field)) return;
-        if (!fieldHasValue(field)) {
-            missing.push(field.label);
-        }
+        if (!fieldHasValue(field)) out.push({ field: field, label: field.label, tab: field.tab, tabName: SALE_TAB_NAMES[field.tab] || ('Tab ' + field.tab), section: field.section });
     });
-    return missing;
+    return out;
+}
+
+// The controls of a required field: one box, or every button of a radio group.
+function saleFieldElements(field) {
+    if (field.id) { const el = document.getElementById(field.id); return el ? [el] : []; }
+    if (field.name) return Array.prototype.slice.call(document.querySelectorAll('[name="' + field.name + '"]'));
+    return [];
+}
+
+// What gets the red box: the control itself, or the row that holds a radio group.
+function saleMissingTarget(el) {
+    if (el.type === 'radio' || el.type === 'checkbox') { const lab = el.closest('label'); return (lab && lab.parentElement) || el.parentElement || el; }
+    return el;
+}
+
+// Opens the tab (and the sub-tab inside it) that holds a missing field, and points at it.
+function revealSaleField(m) {
+    const els = saleFieldElements(m.field);
+    const el = els[0];
+    if (el && el.closest && el.closest('#saleBuildingModal')) {
+        // a Building window field: open the window, then the sub-tab that holds it
+        showSaleBuildingInfo();
+        const bsub = el.closest('.sale-bldg-sub-tab-content');
+        const bm = bsub && /^saleBldgSubTabContent(\d+)_(\d+)$/.exec(bsub.id);
+        if (bm) showSaleBldgSubTab(parseInt(bm[1], 10), parseInt(bm[2], 10));
+    } else {
+        showSaleMainTab(m.tab);
+        const sub = el && el.closest('.sale-sub-tab');
+        const mm = sub && /^saleSubTabContent(\d+)_(\d+)$/.exec(sub.id);
+        if (mm) showSaleSubTab(parseInt(mm[1], 10), parseInt(mm[2], 10));
+    }
+    if (!el) return;
+    const target = saleMissingTarget(el);
+    if (target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (el.focus) el.focus({ preventScroll: true });
+    target.classList.add('sale-missing-pulse');
+    setTimeout(function () { target.classList.remove('sale-missing-pulse'); }, 1700);
+}
+
+// Shows what is missing and why the listing did not go live: the list (tab + field, each one jumps to its field), the red boxes, the counts on the tabs.
+function showSaleMissingRequired(mode) {
+    window._saleValidationActivated = true;
+    updateSaleValidationSummary();
+    const panel = document.getElementById('saleValidationPanel');
+    if (!panel) return;
+    const note = document.getElementById('saleValidationNote');
+    if (note) note.textContent = mode === 'status' ? 'The status was not changed. Complete these fields, then set it to Active.'
+        : mode === 'save' ? 'Not saved as a live listing. Complete these fields, or Save as Draft.' : 'Complete these fields.';
+    if (!panel.offsetParent) showSaleMainTab(1);                      // the list lives on Listing Info
+    if (panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const n = (window._saleMissingNow || []).length;
+    if (n) showToast(n + ' required field' + (n === 1 ? ' is' : 's are') + ' missing. They are listed and boxed in red.', 'error');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -9076,7 +9374,7 @@ function validateStatusChange(formType) {
     const draftBadge = document.getElementById('saleDraftBadge');
     if (!statusEl) return;
 
-    const newStatus = statusEl.value;
+    let newStatus = statusEl.value;
     const prevStatus = statusEl.dataset.prevStatus || 'Draft';
 
     // Check valid transition per STATUS_TRANSITIONS state machine.
@@ -9090,22 +9388,30 @@ function validateStatusChange(formType) {
         }
     }
 
-    // Show warning for active/live statuses with missing required fields
+    // Becoming live (Draft / Future / Withdrawn / Expired -> Active, ComingSoon, ...) needs every required field: the change is refused, the status goes back,
+    // and the missing fields are listed with their tab and boxed in red. A move between statuses that are already live is not "becoming active" and is not held
+    // back by it. (An InHouse listing is not on RLS: the same exemption the Save check has.)
+    // The status box has two change handlers: the second one hears the echo of the revert above. While a refused change is on screen, leave its list as it is.
+    if (window._saleGateStatus && newStatus === prevStatus) return;
+    window._saleGateStatus = null;                        // the status a list was built for: set only while a refused change is on screen
     if (REBNY_ACTIVE_STATUSES.includes(newStatus)) {
-        const missing = validateREBNYRequired('sale');
-        if (missing.length > 0) {
-            if (panelEl) {
-                panelEl.classList.remove('hidden');
-                if (listEl) listEl.innerHTML = missing.map(m => '<li>' + m + '</li>').join('');
-            }
-        } else {
-            if (panelEl) panelEl.classList.add('hidden');
+        // A box the status change itself brings (the Coming Soon activation date appears once the status is Coming Soon) cannot hold the change back before it exists; Save and Submit ask for it.
+        const missing = _isInHouseListingType('sale') ? [] : collectSaleMissingRequired().filter(function (m) { return !(m.field.createdByStatus && !saleFieldElements(m.field).length); });   // an InHouse listing is not on RLS: nothing is required of it, so nothing is shown
+        const wasLive = REBNY_ACTIVE_STATUSES.includes(prevStatus);
+        if (missing.length > 0 && !wasLive) {
+            window._saleGateStatus = newStatus;           // the list stays the one for the status that was asked for, after the box goes back
+            statusEl.value = (prevStatus && prevStatus !== newStatus && !wasLive) ? prevStatus : 'Draft';
+            newStatus = statusEl.value;
+            showSaleMissingRequired('status');
+        } else if (missing.length > 0) {
+            showSaleMissingRequired('warn');              // already live: say what is missing, do not hold the change
+        } else if (window._saleValidationActivated) {
+            updateSaleValidationSummary();                // nothing missing any more: clear the list and the boxes
         }
     }
 
     // Update previous status tracking
     statusEl.dataset.prevStatus = newStatus;
-    if (panelEl) panelEl.classList.add('hidden');
 
     // Update draft badge
     if (draftBadge) {
@@ -9603,6 +9909,7 @@ function _checkSaleEditMode() {
         Promise.resolve().then(function() {
             clearTimeout(autoSaveTimer);
             window._saleAutoSaveReady = true;
+            if (globalThis.saleUnitLotLookup) globalThis.saleUnitLotLookup();   // a saved listing whose unit's lot is still empty asks Cotality once
         });
         // Only release the blocking overlay once the correct record is loaded.
         if (String(_saleEditListingId) !== String(id) && String(listing.id) !== String(id)) {
@@ -9701,7 +10008,8 @@ var SALE_FIELD_MAP = [
   { rls: 'saleBldgNumElevators', form: 'saleBldgNumElevators', type: 'number', src: 'raw', fallbackRls: 'ElevatorsTotal' }, // internal; ElevatorsTotal not in Cotality
   { rls: 'CrossStreet', form: 'saleBldgCrossStreet1', type: 'text', src: 'raw' },
   { rls: 'TaxBlock', form: 'saleBldgTaxBlock', type: 'text', src: 'raw' },
-  { rls: 'TaxLot', form: 'saleBldgTaxLot', type: 'text', src: 'raw', fallbackRls: 'BuildingTaxLot' },
+  { rls: 'TaxLot', form: 'saleUnitTaxLot', type: 'text', src: 'raw' },
+  { rls: 'BuildingTaxLot', form: 'saleBldgTaxLot', type: 'text', src: 'raw' },   // never falls back to TaxLot: after the split TaxLot is the UNIT's lot (a condo with only a unit lot must not show it as the building's)
   { rls: 'AssociationName', form: 'saleBldgAssociationName', type: 'text', src: 'raw' },
   { rls: 'NewConstructionYN', form: 'saleBldgNewConstruction', type: 'bool', src: 'raw' },
   // SponsorUnitYN restores the Essentials Sponsor Unit Yes/No (SALE_RADIO_MAP below), not a building box.
@@ -10642,6 +10950,30 @@ function _populateSaleFormFromApi(listing) {
         setRadio(r.name, val);
     });
     _saleRestoreByKey(raw);   // every other control the agent filled in: by its own id or name
+    // A listing saved before the unit / building split has the old single box (saleBldgTaxLot) in its payload and no saleUnitTaxLot: the one lot it kept under TaxLot was the BUILDING's,
+    // so it must not satisfy the unit's lot. A listing saved after the split always carries saleUnitTaxLot, even empty.
+    if (Object.prototype.hasOwnProperty.call(raw, 'saleBldgTaxLot') && !Object.prototype.hasOwnProperty.call(raw, 'saleUnitTaxLot')) {
+        var _unitLot = document.getElementById('saleUnitTaxLot');
+        if (_unitLot) _unitLot.value = '';
+    }
+    // A saved GarageYN (true or false) is the garage ANSWER: opening the listing must not ask again, and a No the agent chose must stay a No when it is saved again. The two
+    // controls keep their own saved values (restored above); this fills what a listing synced from Cotality (no control keys) or an older save left blank.
+    (function () {
+        var gy = raw.GarageYN === 'true' ? true : (raw.GarageYN === 'false' ? false : raw.GarageYN);
+        if (gy !== true && gy !== false) return;
+        window._saleGarageAnswered = true;
+        var gs = raw.GarageSpaces;
+        var hasCount = gs !== undefined && gs !== null && gs !== '' && Number(gs) > 0;
+        var thYN = document.getElementById('saleTHGarageYN');
+        if (thYN && !thYN.value) thYN.value = gy ? 'Yes' : 'No';
+        var thSp = document.getElementById('saleTHGarageSpaces');
+        if (thSp && !thSp.value && hasCount) thSp.value = String(gs);
+        if (raw.saleGarageSpaces === undefined || raw.saleGarageSpaces === null || raw.saleGarageSpaces === '') {   // the Unit tab's own answer was never saved
+            setRadio('saleGarageSpaces', gy ? 'Yes' : 'No');
+            var unitCount = document.getElementById('saleGarageSpacesCount');
+            if (unitCount && !unitCount.value && gy && hasCount) unitCount.value = String(gs);
+        }
+    })();
     _saleBuildingFactsFromRecord(raw);     // the building facts a synced listing carries (blanks only)
     _saleTourSlotsToBoxes(raw);            // the tour / video slots of a listing that has no box values
 

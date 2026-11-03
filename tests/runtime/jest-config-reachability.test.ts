@@ -29,7 +29,9 @@ import fs from 'fs';
 import path from 'path';
 
 const ROOT = path.resolve(__dirname, '../..');
-const SKIP_DIRS = ['node_modules', '.next', '.git', 'archive'];
+// `.claude` holds the coding tools' own state, including full copies of the repo (agent worktrees) made while a session works: none of it is product code, and CI's checkout
+// never has it. Before this, one such copy made this test fail locally for every config it carried.
+const SKIP_DIRS = ['node_modules', '.next', '.git', 'archive', '.claude'];
 
 /** Every jest.config.* in the repo, excluding the root aggregator itself. */
 function findJestConfigs(dir: string, out: string[] = []): string[] {

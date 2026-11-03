@@ -75,12 +75,9 @@ export const REBNY_FIELD_TABLES = {
       // them to the features bucket for internal use. Phantom fields cannot be
       // mandatory. (PetsAllowed IS a live Cotality field and stays required.)
       'PetsAllowed',
-      // H1 (2026-05-30): TaxLot is the live Cotality field; BuildingTaxLot is a
-      // PHANTOM (absent from live $metadata). The sales form emits canonical
-      // TaxLot (audit F2) — the mandatory list must require TaxLot, not the
-      // phantom, or an rls-eligible residential POST 422s even with a filled
-      // tax lot. Legacy raw_data.BuildingTaxLot still reloads via SALE_FIELD_MAP
-      // fallbackRls; it is NOT the mandatory authority.
+      // TaxLot is the live Cotality Property field and, for a condo, the UNIT's own lot (1xxx); the mandatory list requires it, so an rls-eligible residential POST 422s without one.
+      // BuildingTaxLot is not a Property column (absent from Property $metadata) but IS a REBNY custom key inside CustomProperty.CustomFields, served on live listings: the BUILDING's
+      // lot. The Sale form keeps the two in separate boxes and never lets one stand in for the other; BuildingTaxLot is NOT the mandatory authority.
       'TaxLot',
       'TaxBlock',
       // ElevatorsTotal and NewDevelopmentYN were reclassified the same way (2026-10-09): neither is in live Cotality $metadata (the Sale form already
@@ -920,7 +917,7 @@ export const REBNY_FIELD_TABLES = {
     BuildingPetsAllowedComments: { features: true, raw: true },
     PetsAllowed: { features: true, raw: true },
     PetsAllowedComments: { features: true, raw: true },
-    BuildingTaxLot: { features: true, raw: true }, // LEGACY/compatibility only — canonical Cotality field is TaxLot (below). Routes old raw_data.BuildingTaxLot on reload; NOT mandatory authority (see requiredFields H1 note).
+    BuildingTaxLot: { features: true, raw: true }, // the BUILDING's own tax lot: a REBNY custom key served on live listings (7501, 7502 ...); Property.TaxLot (below) is the UNIT's (1218, 1258 ...). Maya, 2026-11-02.
     TaxBlock: { features: true, raw: true },
     TaxLot: { features: true, raw: true },
     ElevatorsTotal: { features: true, raw: true },
