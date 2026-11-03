@@ -1,4 +1,13 @@
 import { MetadataRoute } from 'next';
+import {
+  ADMIN_PATHS,
+  AI_SEARCH_FETCHERS,
+  BRAND_ALLOW,
+  MLS_CATEGORY_ONLY_BLOCK_TRAINING,
+  MLS_LISTING_PATHS,
+  MLS_SEARCH_PATHS,
+  UNCLASSIFIED_DATA_PATHS,
+} from '@/lib/seo/crawler-policy';
 
 const BASE_URL = 'https://mallan.nyc';
 
@@ -18,11 +27,14 @@ const BASE_URL = 'https://mallan.nyc';
  *      repo-stated policy: "MLS/IDX data must not be used for AI/LLM
  *      training." Now blocked from any page that renders listing data.
  *
- *   3. AI SEARCH bots (ChatGPT-User, PerplexityBot) are user-triggered —
- *      they fetch pages in real time to answer a specific user question.
- *      This is fair use, not training. They keep access to category pages
- *      for brand visibility, but are blocked from individual listing URLs
- *      (granular address data per REBNY UCBA Art. III §2(C)).
+ *   3. AI SEARCH fetchers (AI_SEARCH_FETCHERS in lib/seo/crawler-policy.ts) read a
+ *      page to answer a person's question or build an answer-engine index; each
+ *      provider documents them apart from its training crawler. They keep access
+ *      to brand and category pages for brand visibility, but are blocked from
+ *      individual listing URLs (granular address data per REBNY UCBA Art. III
+ *      §2(C)). The path lists live in lib/seo/crawler-policy.ts and the server
+ *      enforces the same split (lib/middleware/bot-blocker.ts), because some of
+ *      these fetchers do not obey robots.txt.
  *
  * POLICY MATRIX
  *                          BRAND  MLS_CATEGORY  MLS_LISTING  MLS_SEARCH  ADMIN
@@ -33,91 +45,19 @@ const BASE_URL = 'https://mallan.nyc';
  *   SEO scrapers             ✗        ✗              ✗             ✗         ✗
  */
 
-// ── Path sets ─────────────────────────────────────────────────────────────
-
-// Always blocked — admin, API, internal tooling, private client surfaces.
-// No bot has any business touching these.
-const ADMIN_PATHS = [
-  '/admin/', '/admin',
-  '/agent/', '/agent',
-  '/leads/', '/leads',
-  '/api/', '/api',
-  '/sign-in', '/sign-up',
-  '/portal/', '/portal',
-  '/reset-password',
-  '/offer-status',
-  '/saved-searches',
-  '/favorites',
-  '/compare',
-  '/unsubscribe',
-  '/crm/',
-  '/demo/', '/demo',
-  '/style-preview/', '/style-preview',
-];
-
-// Individual listing pages with full address + price + agent attribution.
-// Google/Bing CAN crawl these (they're public, legal to display, and the
-// sitemap points here). AI bots of any flavor MUST NOT crawl these — too
-// granular for training, too specific for fair-use search.
-const MLS_LISTING_PATHS = ['/listing/'];
-
-// Search results page. Parameterless URL — Google doesn't need to index
-// it as a canonical page (the listing-detail URLs in the sitemap serve
-// that purpose). Blocked for everyone including Google to avoid thin-
-// content / duplicate-content SEO issues.
-const MLS_SEARCH_PATHS = ['/search'];
-
-// Category/neighborhood pages — render listing cards aggregating MLS data.
-// Google/Bing: crawl (SEO is the point). AI search: crawl (user-triggered
-// queries benefit from neighborhood-level answers). AI training: block
-// (MLS data not for training corpus).
-const MLS_CATEGORY_ONLY_BLOCK_TRAINING = [
-  '/buy',
-  '/rent',
-  '/neighborhoods',
-  '/manhattan', '/manhattan/',
-  '/brooklyn', '/brooklyn/',
-  '/queens', '/queens/',
-  '/bronx', '/bronx/',
-  '/staten-island', '/staten-island/',
-  '/market',
-  '/open-houses',
-];
-
-// Brand / expertise pages. No MLS data. Everyone welcome (except malicious
-// scrapers).
-//
-// `/buy/international` and `/sell/international` are intentionally listed
-// here even though their parent `/buy` falls under
-// MLS_CATEGORY_ONLY_BLOCK_TRAINING. These two pages render zero MLS data —
-// they are brand/expertise pages targeting non-resident clients. The Allow
-// rule must be more specific than the Disallow rule for AI training bots to
-// crawl them; robots-protocol longest-match-wins handles this.
-const BRAND_ALLOW = [
-  '/about',
-  '/agents', '/agents/',
-  '/contact',
-  '/sell',
-  '/sell/international',
-  '/buy/international',
-  '/fair-housing',
-  '/sop',
-  '/terms',
-  '/privacy',
-  '/reasonable-accommodations',
-];
-
 // Combined disallow sets per policy tier
 // (BLOCK_ADMIN was an alias for ADMIN_PATHS; callers now reference ADMIN_PATHS directly.)
 const BLOCK_ADMIN_AND_LISTINGS = [
   ...ADMIN_PATHS,
   ...MLS_LISTING_PATHS,
   ...MLS_SEARCH_PATHS,
+  ...UNCLASSIFIED_DATA_PATHS,
 ];
 const BLOCK_ALL_MLS = [
   ...ADMIN_PATHS,
   ...MLS_LISTING_PATHS,
   ...MLS_SEARCH_PATHS,
+  ...UNCLASSIFIED_DATA_PATHS,
   ...MLS_CATEGORY_ONLY_BLOCK_TRAINING,
 ];
 
@@ -144,9 +84,8 @@ function aiTrainingBot(userAgent: string) {
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
-      // ── AI SEARCH (user-triggered real-time fetches) ──
-      aiSearchBot('ChatGPT-User'),
-      aiSearchBot('PerplexityBot'),
+      // ── AI SEARCH (answer engines and assistants: one group each, same rules) ──
+      ...AI_SEARCH_FETCHERS.map(aiSearchBot),
 
       // ── AI TRAINING (corpus crawlers) ──
       // All of these index pages for model training / knowledge bases.
