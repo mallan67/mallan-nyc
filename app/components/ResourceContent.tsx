@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 import { useClientOnly } from '@/lib/hooks/useClientOnly';
+import AntiDiscriminationNotice from '@/app/components/AntiDiscriminationNotice';
 
 interface Section {
   title: string;
@@ -18,7 +18,7 @@ interface CTA {
   buttonLink: string;
 }
 
-interface ResourceData {
+export interface ResourceData {
   slug: string;
   title: string;
   subtitle: string;
@@ -52,27 +52,6 @@ const GATED_SLUGS = ['buyers-guide', 'sellers-guide'];
 function guideTypeFromSlug(slug: string): 'buyer' | 'seller' {
   return slug === 'sellers-guide' ? 'seller' : 'buyer';
 }
-
-/* ---- What's Inside bullet data ---- */
-const WHATS_INSIDE: Record<string, string[]> = {
-  'buyers-guide': [
-    'Understanding Co-ops vs Condos',
-    'The Buying Process Step by Step',
-    'Financing and Pre-Approval',
-    'Board Package Preparation',
-    'Closing Costs Breakdown',
-    'Neighborhood Selection Guide',
-  ],
-  'sellers-guide': [
-    'Preparing Your Home for Market',
-    'Pricing Strategy',
-    'Marketing Your Property',
-    'Open Houses and Showings',
-    'Offers and Negotiation',
-    'The Closing Process',
-    'Understanding Your Net Proceeds',
-  ],
-};
 
 function CheckIcon() {
   return (
@@ -109,9 +88,12 @@ function BookIcon() {
 /* ---- Email Gate Form ---- */
 function EmailGateForm({
   slug,
+  sectionTitles,
   onUnlocked,
 }: {
   slug: string;
+  /** The guide's own section titles: "What's Inside" lists these and promises nothing else. */
+  sectionTitles: string[];
   onUnlocked: () => void;
 }) {
   const [name, setName] = useState('');
@@ -121,7 +103,6 @@ function EmailGateForm({
   const [error, setError] = useState('');
 
   const guideType = guideTypeFromSlug(slug);
-  const bullets = WHATS_INSIDE[slug] || [];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -174,7 +155,7 @@ function EmailGateForm({
               What&apos;s Inside
             </h2>
             <ul className="space-y-4 mb-8">
-              {bullets.map((item) => (
+              {sectionTitles.map((item) => (
                 <li key={item} className="flex items-start gap-3 text-brand-dark/90">
                   <CheckIcon />
                   <span className="text-[15px] leading-snug">{item}</span>
@@ -257,6 +238,8 @@ function EmailGateForm({
                 </span>
               </label>
 
+              <AntiDiscriminationNotice />
+
               {error && (
                 <p className="text-sm text-red-600">{error}</p>
               )}
@@ -281,21 +264,13 @@ function EmailGateForm({
 }
 
 /* ---- Main Component ---- */
-export default function ResourceContent({ slug }: { slug: string }) {
+/**
+ * The guide arrives as a prop. app/resources/[slug]/page.tsx reads data/resources/*.json on the server, so the
+ * guide is in the HTML a crawler receives. This component used to fetch /api/resources/<slug>; that route was
+ * deleted on 2026-03-15 and every guide said "Resource Not Found" from then on.
+ */
+export default function ResourceContent({ slug, data }: { slug: string; data: ResourceData }) {
   const isGated = GATED_SLUGS.includes(slug);
-
-  // Resource fetch via state-machine hook. `loading` and `error` are
-  // derived from status; no setState-in-effect.
-  const fetcher = useCallback(
-    async (key: string | number, signal: AbortSignal): Promise<ResourceData> => {
-      const res = await fetch(`/api/resources/${key}`, { signal });
-      if (!res.ok) throw new Error('Not found');
-      return res.json();
-    },
-    [],
-  );
-  const { data, loading, error: fetchError, status } = useAsyncResource(slug, fetcher);
-  const error = status === 'error' && !!fetchError;
 
   // Mount-only localStorage hydration for the unlock flag. Non-gated
   // slugs short-circuit to unlocked (no read needed).
@@ -316,47 +291,6 @@ export default function ResourceContent({ slug }: { slug: string }) {
     } catch {
       // localStorage unavailable
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="py-16">
-        <div className="max-w-3xl mx-auto px-4">
-          <div className="animate-pulse">
-            <div className="h-10 bg-black/5 rounded w-2/3 mb-4"></div>
-            <div className="h-6 bg-black/5 rounded w-1/2 mb-8"></div>
-            <div className="space-y-4">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="space-y-2">
-                  <div className="h-6 bg-black/5 rounded w-1/3"></div>
-                  <div className="h-4 bg-black/5 rounded"></div>
-                  <div className="h-4 bg-black/5 rounded w-5/6"></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <div className="py-16 text-center">
-        <div className="max-w-xl mx-auto px-4">
-          <h1 className="text-2xl font-display font-semibold mb-4">Resource Not Found</h1>
-          <p className="text-brand-dark/90 mb-8">
-            The resource you&apos;re looking for doesn&apos;t exist.
-          </p>
-          <Link
-            href="/"
-            className="inline-block px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90"
-          >
-            Return Home
-          </Link>
-        </div>
-      </div>
-    );
   }
 
   // Determine hero title override for gated guides
@@ -396,7 +330,7 @@ export default function ResourceContent({ slug }: { slug: string }) {
       {/* Gated: show email form + preview */}
       {isGated && !unlocked && (
         <>
-          <EmailGateForm slug={slug} onUnlocked={handleUnlock} />
+          <EmailGateForm slug={slug} sectionTitles={data.sections.map((s) => s.title)} onUnlocked={handleUnlock} />
 
           {/* Preview — show first section only with fade-out */}
           <section className="pb-4">
