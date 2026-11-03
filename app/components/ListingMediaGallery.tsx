@@ -28,6 +28,25 @@ interface ListingMediaGalleryProps {
   badges?: React.ReactNode;
 }
 
+/** The most position dots a phone shows. For 17 photos or 50 the indicator is this wide and no wider. */
+export const MAX_PHOTO_DOTS = 7;
+
+/**
+ * Which photo positions to draw as dots: at most `max`, contiguous, centred on the current photo and
+ * pinned at either end. The row used to be one dot per photo, and `@media (pointer: coarse)` in
+ * app/globals.css gives every <button> a 44×44px minimum, so a 17-photo listing drew an 812px-wide row
+ * inside a 390px phone and the page's layout width grew to ~601px
+ * (tests/runtime/listing-gallery-mobile-indicators.test.ts).
+ */
+export function photoDotWindow(count: number, active: number, max: number = MAX_PHOTO_DOTS): number[] {
+  if (!Number.isFinite(count) || count < 2) return [];
+  const total = Math.floor(count);
+  const size = Math.min(total, max);
+  const current = Math.min(Math.max(Math.round(Number.isFinite(active) ? active : 0), 0), total - 1);
+  const start = Math.min(Math.max(current - Math.floor(size / 2), 0), total - size);
+  return Array.from({ length: size }, (_, i) => start + i);
+}
+
 export default function ListingMediaGallery({
   images,
   floorPlanUrl,
@@ -162,7 +181,7 @@ export default function ListingMediaGallery({
 
               {/* Photo counter — small pill, top right */}
               {sortedImages.length > 1 && (
-                <span className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg z-10">
+                <span aria-live="polite" className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg z-10">
                   {photoIdx + 1}/{sortedImages.length}
                 </span>
               )}
@@ -187,15 +206,19 @@ export default function ListingMediaGallery({
                 </>
               )}
 
-              {/* Dot indicators on mobile only */}
+              {/* Position indicator on phones: decorative and non-interactive (swipe, the arrows and the
+                  counter navigate), bounded to MAX_PHOTO_DOTS. Not buttons: the 44px touch-target rule would
+                  inflate each one and widen the page. */}
               {sortedImages.length > 1 && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1 z-10 md:hidden">
-                  {sortedImages.map((_, i) => (
-                    <button
+                <div
+                  data-photo-dots
+                  aria-hidden="true"
+                  className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1 z-10 md:hidden"
+                >
+                  {photoDotWindow(sortedImages.length, photoIdx).map((i) => (
+                    <span
                       key={i}
-                      onClick={() => setPhotoIdx(i)}
                       className={`rounded-full transition-all ${i === photoIdx ? 'bg-white w-4 h-1.5' : 'bg-white/50 w-1.5 h-1.5'}`}
-                      aria-label={`Photo ${i + 1}`}
                     />
                   ))}
                 </div>

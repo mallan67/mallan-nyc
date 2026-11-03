@@ -132,7 +132,7 @@ export default function SocialShareBar({ title, description }: SocialShareBarPro
       <div className="border-t bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <p className="text-sm text-gray-500 text-center mb-3">Share this page</p>
-          <div className="flex justify-center items-center gap-3">
+          <div className="flex flex-wrap justify-center items-center gap-3">
             {shareLinks.map((link) => (
               <a
                 key={link.name}

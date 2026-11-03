@@ -70,6 +70,38 @@ function setCache(key: string, data: unknown): void {
   marketCache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
 }
 
+// ── The cache boundary ──────────────────────────────────────────────────────
+// `cachedPublicRead` is Next's `unstable_cache`, and what it stores is JSON. A cache MISS hands the
+// caller the live row (real Date objects); a cache HIT hands back the JSON round-trip of that row, where
+// every Date is an ISO string. The route used to call `.getTime()` on the sample as if its dates were
+// always Dates, so a request served from the cache threw (Vercel runtime errors from 2026-07-24: 2,923 + 936) and the
+// listing page's market card did not appear for it. The cached read below returns ONE JSON-safe shape — dates
+// already ISO strings — on a hit and on a miss; `MarketActiveRow` is that shape and `wholeDaysSince` is
+// the only place its dates are read.
+interface MarketActiveRow {
+  list_price: number;
+  living_area: number | null;
+  days_on_market: number | null;
+  first_active_date: string | null;
+  created_at: string | null;
+}
+
+/** An ISO string for a real instant, null for anything else (null, a bad string, an Invalid Date). */
+function isoOrNull(value: Date | string | null | undefined): string | null {
+  if (value == null) return null;
+  const ms = value instanceof Date ? value.getTime() : Date.parse(value);
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/** Whole days from an ISO instant to `now`; null when there is no usable date. */
+function wholeDaysSince(iso: string | null, now: Date): number | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? Math.floor((now.getTime() - ms) / MS_PER_DAY) : null;
+}
+
 function getPeriodStart(period: string): Date {
   const now = new Date();
   switch (period) {
@@ -147,8 +179,8 @@ export async function GET(request: Request) {
     // bounded sample is never presented as complete. COUNTS are taken exactly
     // via count() below — they never depend on this cap.
     const activeListings = await cachedPublicRead(
-      () =>
-        prisma.listing.findMany({
+      async (): Promise<MarketActiveRow[]> => {
+        const rows = await prisma.listing.findMany({
           where: activeWhere,
           select: {
             list_price: true,
@@ -161,7 +193,16 @@ export async function GET(request: Request) {
           },
           orderBy: { modification_timestamp: 'desc' },
           take: MARKET_STATS_ROW_CAP,
-        }),
+        });
+        // The serialization boundary: only JSON-safe values leave this function (see MarketActiveRow).
+        return rows.map((r) => ({
+          list_price: Number(r.list_price),
+          living_area: r.living_area == null ? null : Number(r.living_area),
+          days_on_market: r.days_on_market,
+          first_active_date: isoOrNull(r.first_active_date),
+          created_at: isoOrNull(r.created_at),
+        }));
+      },
       ['api-market-active', cacheKey],
       { tags: [SEARCH_CACHE_TAG] },
     )();
@@ -272,13 +313,13 @@ export async function GET(request: Request) {
     ];
 
     const allActiveDom = [
-      ...activeListings.map(l => {
-        if (l.days_on_market > 0) return l.days_on_market;
-        if (l.first_active_date) return Math.floor((now.getTime() - l.first_active_date.getTime()) / (1000 * 60 * 60 * 24));
-        return Math.floor((now.getTime() - l.created_at.getTime()) / (1000 * 60 * 60 * 24));
+      ...activeListings.map((l): number | null => {
+        if ((l.days_on_market ?? 0) > 0) return l.days_on_market;
+        // No usable date at all is "unknown" and is left out of the median — never NaN, never a 500.
+        return wholeDaysSince(l.first_active_date, now) ?? wholeDaysSince(l.created_at, now);
       }),
       ...cotalityActive.map(r => Number(r.DaysOnMarket || 0)),
-    ].filter(d => d >= 0 && d < 3650);
+    ].filter((d): d is number => d !== null && d >= 0 && d < 3650);
 
     const totalActiveCount = dbActiveCount + cotalityActive.length;
 

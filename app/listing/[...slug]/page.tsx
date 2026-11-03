@@ -1316,14 +1316,15 @@ export default async function ListingPage({ params }: Props) {
 
       {/* ═══ Mobile CTA Bar (sticky, visible on mobile/tablet only) ═══ */}
       <div className="lg:hidden sticky top-[60px] z-30 bg-white/95 backdrop-blur-xl border-b border-black/5 px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 max-[339px]:gap-2">
           <div className="min-w-0">
-            <p className="font-display font-bold text-lg text-brand-dark truncate">
+            {/* The price is an advertised fact: it is never ellipsised or clipped. The address gives way instead. */}
+            <p className="font-display font-bold text-lg text-brand-dark whitespace-nowrap">
               {formatPrice(listing.listPrice, isRental)}
             </p>
             <p className="text-[12px] text-brand-dark/70 truncate">{fullAddress}</p>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1.5 min-[400px]:gap-2 max-[339px]:gap-1 flex-shrink-0">
             <DetailFavoriteButton
               id={listing.id}
               slug={listing.slug}
@@ -1336,7 +1337,7 @@ export default async function ListingPage({ params }: Props) {
             />
             <a
               href="tel:646-258-4460"
-              className="btn-liquid px-5 py-2.5 bg-brand-gold text-white text-sm font-medium rounded-full hover:bg-brand-gold-deep"
+              className="btn-liquid px-4 min-[400px]:px-5 max-[339px]:px-3 py-2.5 bg-brand-gold text-white text-sm font-medium rounded-full hover:bg-brand-gold-deep"
             >
               Call
             </a>
@@ -1348,7 +1349,7 @@ export default async function ListingPage({ params }: Props) {
                 mailto: bypass produced none of those. */}
             <a
               href="#inquiry"
-              className="btn-liquid px-5 py-2.5 bg-brand-dark text-white text-sm font-medium rounded-full hover:bg-brand-dark/90"
+              className="btn-liquid px-4 min-[400px]:px-5 max-[339px]:px-3 py-2.5 bg-brand-dark text-white text-sm font-medium rounded-full hover:bg-brand-dark/90"
             >
               Inquire
             </a>
