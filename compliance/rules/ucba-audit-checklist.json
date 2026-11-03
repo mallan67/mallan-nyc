@@ -727,12 +727,11 @@
           "requirement": "Must disclose: Broker commissions are not set by law and are fully negotiable",
           "verdict": "PASS",
           "verifyFiles": [
-            "public/crm/SALE-FORM-REDESIGN.html",
             "public/crm/RENTAL-FORM-REDESIGN.html",
             "app/search/page.tsx"
           ],
           "verifyPattern": "negotiable|not set by law",
-          "verifyDescription": "Check disclosure checkbox on CRM forms AND disclosure text on public pages",
+          "verifyDescription": "Check disclosure checkbox on the Rental CRM form AND disclosure text on public pages (the Sale form no longer carries the checkbox: Maya, 2026-11-03; the Sale listing agreement itself must still carry the sentence)",
           "validation_v2": {
             "validation_mode": "workflow",
             "ci_policy": "must_pass",
@@ -743,8 +742,7 @@
             ],
             "evidence": {
               "ui_form": [
-                "public/crm/SALE-FORM-REDESIGN.html",
-                "public/crm/RENTAL-FORM-REDESIGN.html"
+                    "public/crm/RENTAL-FORM-REDESIGN.html"
               ],
               "frontend_display": [
                 "app/search/page.tsx"

@@ -51,7 +51,8 @@ export const REBNY_FIELD_TABLES = {
       // from live Cotality $metadata (REBNY-internal concept, no Cotality field).
       // Not mandatory — the form still emits it to raw_data for internal use.
       // Phantom fields cannot be mandatory (authority = live $metadata).
-      'Concessions',
+      // Concessions is NOT here: Maya (2026-11-03) - a concession is a RENTAL term (usually one month free rent), not a sale one. It is required of rentals by CONCESSIONS-RENTAL-001
+      // below. REBNY's LMP.RLS Data Rules sheet defines it for sale and lease alike (Property tab, row 150): a future RLS feed of SALE listings must map it explicitly.
 
       // Address (live Cotality names — CityRegion, not Borough; UnparsedAddress with a lowercase p)
       'StreetNumber',
@@ -542,6 +543,16 @@ export const REBNY_FIELD_TABLES = {
         MlsStatus: ['Canceled', 'Closed', 'Expired', 'Hold', 'Incomplete', 'Pending', 'Withdrawn'],
       },
       requireFields: ['OffMarketDate'],
+    },
+
+    // ── Concessions: a rental field (Maya, 2026-11-03) ──
+    {
+      code: 'CONCESSIONS-RENTAL-001',
+      description: 'A rental states whether concessions are offered (usually one month free rent)',
+      appliesWhen: {
+        PropertyType: ['ResidentialLease'],
+      },
+      requireFields: ['Concessions'],
     },
 
     // ── Concessions sub-conditionals ──

@@ -307,6 +307,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
   if (body.PropertyType !== undefined) update.property_type = String(body.PropertyType);
   if (body.PropertySubType !== undefined) update.property_sub_type = String(body.PropertySubType);
+  // The Commercial section of the Sale form (website-only listings): the form sends both on every save, and the typed columns follow it, as the create route stores them, so the CRM list
+  // and the public card read what the form says now (an edit used to leave them as the create wrote them).
+  if (body.commercial_ownership !== undefined) update.commercial_ownership = String(body.commercial_ownership) || null;
+  if (body.commercial_sub_type !== undefined) update.commercial_sub_type = String(body.commercial_sub_type) || null;
   if (body.ListPrice !== undefined) update.list_price = Number(body.ListPrice);
   if (body.BedroomsTotal !== undefined) update.bedrooms_total = Number(body.BedroomsTotal);
   if (body.BathroomsFull !== undefined) update.bathrooms_full = Number(body.BathroomsFull);

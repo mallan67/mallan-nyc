@@ -50,6 +50,7 @@ export type AddFormOpts = {
   mediaRows?: unknown;                               // what GET /api/crm/listings/:id/media answers as its list of media rows (anything: the rows are the server's)
   created?: Record<string, unknown>;                 // what MallanAPI.listings.create answers, over the default { id, listing_id, status: 'Draft' } (the server's ids and addresses are the server's)
   updated?: Record<string, unknown>;                 // what MallanAPI.listings.update answers (default {}: the real route answers with the record's status, which is the server's)
+  statusDetails?: Record<string, unknown>;           // the body of the server's refusal that goes with statusError (the API client keeps it as err.details)
   statusAnswer?: Record<string, unknown>;            // what MallanAPI.listings.updateStatus answers (default {})
   statusError?: string;                              // make MallanAPI.listings.updateStatus fail with this message (the status route refuses the change)
   createError?: string;                              // make MallanAPI.listings.create fail with this message (the server refuses the listing)
@@ -61,7 +62,7 @@ export type AddFormOpts = {
   settle?: number;                                   // ms to let page init finish
 };
 export type Request = { url: string; method: string; body: string };
-export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; requests: Request[]; saved: Record<string, unknown>[]; unitLookups: string[]; rlsPulls: string[]; statusCalls: [unknown, unknown][]; dropped: string[]; calls: string[]; close: () => void };
+export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; requests: Request[]; saved: Record<string, unknown>[]; unitLookups: string[]; rlsPulls: string[]; alerts: string[]; statusCalls: [unknown, unknown][]; dropped: string[]; calls: string[]; close: () => void };
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function until(cond: () => boolean, ms = 8000): Promise<void> {
@@ -88,6 +89,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
   const errors: string[] = [];
   const fetched: string[] = [];
   const saved: Record<string, unknown>[] = [];
+  const alerts: string[] = [];                           // every alert() the page raised
   const statusCalls: [unknown, unknown][] = [];          // every listings.updateStatus(id, status) the page made
   const searched: string[] = [];                       // the queries sent to /api/buildings/search
   const rlsPulls: string[] = [];                       // the RLS IDs asked of /api/crm/rls-pull
@@ -107,7 +109,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
     virtualConsole,
     beforeParse(w: any) {
       w.tailwind = { config: {} };
-      w.alert = () => undefined; w.confirm = () => true; w.scrollTo = () => undefined; w.print = () => undefined;
+      w.alert = (m: unknown) => { alerts.push(String(m)); }; w.confirm = () => true; w.scrollTo = () => undefined; w.print = () => undefined;
       w.Element.prototype.scrollIntoView = function () {};                 // jsdom has none; a browser has (the page scrolls to the first field a refused Next found missing)
       w.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
       // An answer to a request whose window was closed meanwhile is never delivered (a closed window has no document): the page's code would throw on it (showToast, getElementById) in whichever
@@ -180,7 +182,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
           get: async () => { await later('listings.get', o.getDelay ?? 10); await held(o.getGate); if (o.getError) throw new Error(o.getError); return o.listing ?? {}; },
           create: async (payload: Record<string, unknown>) => { calls.push('create'); await held(o.createGate); if (o.createError) throw failure(o.createError, o.createErrorStatus); saved.push(payload); return { id: '1', listing_id: 'L-1', status: 'Draft', ...(o.created ?? {}) }; },
           update: async (id: string, payload: Record<string, unknown>) => { calls.push(`update ${id}`); await held(o.updateGate); if (o.updateError) throw failure(o.updateError, o.updateErrorStatus); saved.push(payload); return { ...(o.updated ?? {}) }; },
-          updateStatus: async (id: unknown, status: unknown) => { statusCalls.push([id, status]); if (o.statusError) throw new Error(o.statusError); return { ...(o.statusAnswer ?? {}) }; },
+          updateStatus: async (id: unknown, status: unknown) => { statusCalls.push([id, status]); if (o.statusError) { const e: any = new Error(o.statusError); e.details = o.statusDetails; e.data = o.statusDetails; throw e; } return { ...(o.statusAnswer ?? {}) }; },
         },
         idx: { search: async () => ({ results: [] }) },
         _fetch: async (path: string) => {
@@ -200,7 +202,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
     },
   });
   await sleep(o.settle ?? 1200);
-  return { w: dom.window, d: dom.window.document, errors, fetched, searched, requests, saved, unitLookups, rlsPulls, statusCalls, dropped, calls, close: () => dom.window.close() };
+  return { w: dom.window, d: dom.window.document, errors, fetched, searched, requests, saved, unitLookups, rlsPulls, statusCalls, alerts, dropped, calls, close: () => dom.window.close() };
 }
 
 export const val = (d: Document, id: string): string => ((d.getElementById(id) as HTMLInputElement | null)?.value) ?? '';
@@ -221,7 +223,8 @@ const NOT_ENTERED = /^(sale|rental)(ListingAgentSearch|ListingCompanySearch|Stre
 // "None of these" values switch the rest of their group off when the agent picks them; they are left unchecked so the group is coherent.
 const EXCLUSIVE = /^(None|BuildingNo|No)$/;
 // Choices that switch other controls off (opt-out listing types, tenant-pays, a commercial classification): the first option is neutral.
-const FIRST_OF = /ListingType$|FareAct|PropertyType$/;
+// saleBuyerAgentOption / saleBuyerAgentPays: the first choices (Enter Buyer Agent Comm Info, Owner Pays) keep the buyer-agent offer the filler types live; the last ones withdraw it, and a withdrawn offer is not saved
+const FIRST_OF = /ListingType$|FareAct|PropertyType$|^saleBuyerAgent(Option|Pays)$/;
 
 /**
  * Fills every writable control in the form's saved area (the main container its save sweeps, the building modal, the media modal) with a distinctive value and

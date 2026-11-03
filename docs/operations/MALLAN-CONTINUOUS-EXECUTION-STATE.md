@@ -1170,6 +1170,10 @@ Still open, in frozen public search and Maya's to decide (see "Decisions that ar
 
 ## Known held defect — Concessions shown only for rentals (frozen tool)
 
+- **SUPERSEDED 2026-11-03 for the Mallan CRM Sale form and the sale publish gate** - see "Maya decision 2026-11-03 - Concessions is a rental field" below. The statements here about the
+  unconditional `requiredFields.agentSubmitted` entry and about showing concessions for sales describe the state BEFORE that decision; `Concessions` is now required of rentals only
+  (`CONCESSIONS-RENTAL-001`). The frozen search tool's behaviour (concessions only for rent) is now the intended one.
+
 - REBNY's own public Compliance page (`rebny.com/compliance/`) links the LMP.RLS Data Rules sheet,
   which defines `Concessions`/`ConcessionsAmount`/`ConcessionsComments` as applying to sale AND
   lease listings, unconditionally for `Concessions` — confirmed by fetching that sheet directly
@@ -1185,6 +1189,36 @@ Still open, in frozen public search and Maya's to decide (see "Decisions that ar
   at all. Both are frozen (`index-built.html` bundle inputs).
 - Not modified during this cleanup phase (frozen tool). Correct it when `index-built.html` is
   unfrozen for its Cotality conversion.
+
+## Maya decision 2026-11-03 — Concessions is a rental field, not a sale field
+
+- Maya (owner/broker), stated repeatedly on 2026-11-03 and confirmed after being shown REBNY's own row: a concession is a **rental** term, usually one month of free rent; it does not belong
+  on a sale listing.
+- Applied: the Sale form (`SALE-FORM-REDESIGN.html`) and its read-only viewer no longer carry Concessions / Concession Amount / Concession Comments, and Concessions is no longer in
+  `requiredFields.agentSubmitted`. It is required of rentals instead (`CONCESSIONS-RENTAL-001`, PropertyType `ResidentialLease`); `CONCESSIONS-001` (Amount/Comments when Yes) is unchanged.
+- **Recorded difference, not a defect to chase:** REBNY's LMP.RLS Data Rules sheet reads, for Property.Concessions: "Are there concessions included in the sales/lease agreement? Yes, No or
+  Call Listing Agent", LMP Add/Edit = Yes, Search = Yes, Requirements = Yes. Source: the Google Sheet linked from rebny.com/compliance/ (spreadsheet id
+  `1-dQevFjHgZmE3fo-EmAcbr_4HHt6oXMuhypGSwhbmBU`, tab "Property"; read as a CSV export 2026-11-03; the link text on that page is not "LMP.RLS Data Rules"). The four closed-only sub-fields
+  (`ConcessionsBuyerBrokerFee`, `ConcessionsClosingCosts`, `ConcessionsOtherCosts`, `ConcessionsPropertyImprovementCosts`: "entered only when MLSStatus is changed to Closed") are the open
+  item under "Open - remaining convergence work" and are sale-closing concepts.
+- **RLS feed prerequisite (search this document for it when a feed is scoped):** no code path sends listings to the RLS/Cotality today (checked 2026-11-03: no outbound write beyond the
+  auth-token request). If Mallan ever submits SALE listings to the RLS, the feed must map `Concessions` explicitly (an owner decision at that time); do not read the Sale form's silence as a
+  REBNY-compliant value. Until then `validateListing` reports one fewer REBNY blocker for sales.
+- For rentals Maya also stated the compensation should be the landlord/owner's (open, rental form).
+
+## Maya decision 2026-11-03 - Commission Negotiability tick removed from the Sale form; owner-offered buyer's-agent compensation added
+
+- Removed: the Sale form's "Commission Negotiability Disclosure" confirmation checkbox (`saleCommNegotiabilityAck`), at Maya's instruction: it is not required there because the agreements
+  are in place (Maya: "there are agreements in place"). The rental, tenant and buyer forms keep theirs. The UCBA audit rule C16 no longer lists the Sale form as evidence. The public statement
+  (`IDXDisclaimer`, search page) is separate and unchanged. The CRM tick is no longer a record that the agreement carries the sentence; the executed agreements are the record (outside the repo).
+- The Sale form's buyer side follows RealPlus's own "Buyer Agent Side" (Maya pasted it, 2026-11-03): Options (Enter Buyer Agent Comm Info / Contact Agent, `saleBuyerAgentOption`), Commission
+  Type (Owner Pays (to Buyer's Agent) / Collect Your Own Fee, `saleBuyerAgentPays`; the old "Buyer Pays" answer reads as Collect Your Own Fee), Buyer Agent Compensation Type (% / $,
+  `saleBuyerCompType`, Percent by default), Buyer Agent Commission (the number, `saleBuyerComp`) and Commission Comments. The owner offers the buyer's agent a compensation (Maya: e.g. 2%, 2.5% or
+  3%); blank means none is offered. RealPlus marks Commission Type, the Compensation Type and the Commission required (red marks; Maya: "so they are required for Cotality"): here Commission Type is always required, and the Compensation Type and the number are required when the agent ENTERS the info and the OWNER pays; "Contact Agent" or "Collect Your Own Fee" means the owner offers none and the number stays blank (Maya). Internal only (Maya: "not shared via the
+  system"): mallan-internal keys, not a Cotality/RLS field, never published (pinned by a negative-proof test); the NAR-settlement `removedFields` stay removed. No derived figures and no warnings (Maya: internal,
+  agents know what they are doing). It is **interim intake, not the Master s.19.5 record**: no none/offered state, source agreement/version or effective date, and an edit overwrites it (s.19.5:
+  "history is never overwritten"). Showing it publicly is NOT decided: it would need its own compliance decision (s.19.5 requires the disclosure/documentation language to be verified against current
+  NY law/DOS and REBNY/RLS/UCBA first; that check has not been done).
 
 ## Known held defect — owner opt-out derivation inert against live Cotality — RESOLVED 2026-10-02
 

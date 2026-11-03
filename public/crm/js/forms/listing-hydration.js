@@ -82,7 +82,6 @@
     { rls: 'AssociationFee', form: 'saleMaintCC', type: 'number', src: 'raw' },
     { rls: 'AssociationFeeFrequency', form: 'saleMaintCCFreq', type: 'text', src: 'raw' },
     { rls: 'ClosePrice', form: 'saleSoldPrice', type: 'number', src: 'raw' },
-    { rls: 'Concessions', form: 'saleConcessions', type: 'text', src: 'raw' },
   
     // ── Dates ──
     { rls: 'OnMarketDate', form: 'saleDateListed', type: 'date', src: 'raw' },
@@ -196,8 +195,6 @@
     { rls: 'saleCommonInterest', form: 'saleCommonInterest', type: 'text', src: 'raw', fallbackRls: 'CommonInterest' },
   
     // ── Financial additional ──
-    { rls: 'saleConcessionAmount', form: 'saleConcessionAmount', type: 'number', src: 'raw' },
-    { rls: 'saleConcessionComments', form: 'saleConcessionComments', type: 'text', src: 'raw' },
     { rls: 'saleExclusiveCommission', form: 'saleExclusiveCommission', type: 'text', src: 'raw' },
     // %/$ type select — Cotality CompensationType enum (Percent/Dollars), internal.
     // Renamed from saleCommissionType (which collided with the payer radios and
@@ -361,7 +358,6 @@
     // saleInternetConsumerCommentYN (RESO canonical, per-row opt-out,
     // fail-CLOSED per REBNY compliance §7 — the canonical write is in
     // collectSaleFormData below mirroring the AVM pattern).
-    { rls: 'saleCommNegotiabilityAck', form: 'saleCommNegotiabilityAck', type: 'bool', src: 'raw' },
     { rls: 'saleFairHousingAck', form: 'saleFairHousingAck', type: 'bool', src: 'raw' },
     // saleInternetConsumerCommentYN: form key. Canonical RESO is
     // `InternetConsumerCommentYN` (per-row opt-out, fail-CLOSED per
@@ -490,11 +486,6 @@
 
   var SALE_RADIO_MAP = [
     { rls: 'saleListingType', name: 'saleListingType', src: 'raw', rawKey: 'saleListingType', fallback: 'ListingAgreement', valueMap: { CoExclusive: 'CoExclusiveAgency' } },   // the stored legacy word loads as the live member
-    // Buyer-agent payer radios (OwnerPays/BuyerPays). Renamed from saleCommissionType
-    // to break the key collision with the %/$ type select. Legacy rows stored the
-    // payer under the old saleCommissionType key (the radio clobbered the type), so
-    // fall back to it on reload. Internal — never emitted to the IDX/feed. (Track 1.)
-    { rls: 'saleBuyerAgentPays', name: 'saleBuyerAgentPays', src: 'raw', rawKey: 'saleBuyerAgentPays', fallback: 'saleCommissionType' },
     // PropertyType radio uses CRM-specific values (Condo/Coop/Condop/...) that
     // do NOT match RESO PropertySubType ("Apartment" for all three). Restore
     // from the form's own saved salePropertyType field first, falling back to
@@ -508,6 +499,8 @@
     { rls: 'saleWasherDryerAllowed', name: 'saleWasherDryerAllowed', src: 'raw' },
     { rls: 'saleHasViews', name: 'saleHasViews', src: 'raw' },
     { rls: 'saleGarageSpaces', name: 'saleGarageSpaces', src: 'raw' },
+    { rls: 'saleBuyerAgentOption', name: 'saleBuyerAgentOption', src: 'raw' },
+    { rls: 'saleBuyerAgentPays', name: 'saleBuyerAgentPays', src: 'raw', rawKey: 'saleBuyerAgentPays', valueMap: { BuyerPays: 'CollectOwnFee' }, fallback: 'saleCommissionType' },
     { rls: 'fireplace', name: 'fireplace', src: 'raw' },
     { rls: 'saleCommercialOwnership', name: 'saleCommercialOwnership', src: 'raw' },
     // ── Class A additions (2026-05-28) — see

@@ -24,7 +24,7 @@ tailwind.config = {
 </script>
 <script>
 // ── Global Toast — replaces native alert() ──
-function showToast(message, type) {
+function showToast(message, type, duration) {
     if (typeof document === 'undefined' || !document || !document.body) return;   // a page that is gone
     var toast = document.createElement('div');
     toast.className = 'mallan-toast';                 // the page's own toasts, findable by class
@@ -37,7 +37,7 @@ function showToast(message, type) {
     toast.textContent = icon + message;
     document.body.appendChild(toast);
     requestAnimationFrame(function() { toast.style.opacity = '1'; });
-    setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 300); }, 4000);
+    setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 300); }, (typeof duration === 'number' && duration > 0) ? duration : 4000);
 }
 window.alert = function(msg) { showToast(String(msg)); };
 </script>
@@ -590,15 +590,6 @@ body { font-family: Manrope, sans-serif; }
                     <option value="Ucba">REBNY Universal Co-broke (UCBA)</option>
                     <option value="Rundba">RUNDBA</option>
                 </select>
-            </div>
-            <!-- Commission Negotiability -->
-            <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div class="flex items-start gap-2">
-                    <input type="checkbox" id="saleCommNegotiabilityAck" class="w-4 h-4 mt-0.5" required data-concept-disposition="mallan-internal">
-                    <label class="text-sm text-gray-700">
-                        <span class="text-red-500">*</span> <strong>Commission Negotiability Disclosure:</strong> I confirm that the listing agreement includes a disclosure that commissions and fees are negotiable and not set by law. <span class="text-xs text-gray-500">(Required per REBNY UCBA 2026 and NAR settlement.)</span>
-                    </label>
-                </div>
             </div>
             <!-- Buyer Representative Agreement acknowledgment removed (2026-05-30):
                  UCBA 2026 Art. II §16 places the executed Buyer Representation
@@ -1319,62 +1310,50 @@ body { font-family: Manrope, sans-serif; }
             <div class="form-card-header"><i class="fas fa-percent"></i> Commission Information</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
-                    <p class="text-sm font-medium text-gray-700 mb-3">Exclusive Agent Commission <span class="text-red-500 sale-req-star hidden">*</span></p>
-                    <div class="flex gap-2 mb-3">
-                        <!-- Cotality CompensationType enum (value), display %/$ (label).
-                             Renamed from the old saleCommissionType key to stop the
-                             collision with the payer radios below — both used the
-                             same key, so the checked payer radio clobbered the
-                             %/$ type on every save. (Track 1 commission fix.) -->
-                        <select id="saleExclusiveCommissionType" class="field-input w-20" data-concept-disposition="mallan-internal">
-                            <option value="Percent" selected>%</option>
-                            <option value="Dollars">$</option>
-                        </select>
-                        <input type="number" id="saleExclusiveCommission" placeholder="0" class="field-input flex-1" required data-concept-disposition="mallan-internal">
+                    <p class="text-sm font-medium text-gray-700 mb-3">Exclusive Agent Side</p>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div>
+                            <label class="field-label" for="saleExclusiveCommissionType">Exclusive Agent Compensation Type <span class="text-red-500">*</span></label>
+                            <select id="saleExclusiveCommissionType" class="field-input" data-concept-disposition="mallan-internal">
+                                <option value="Percent" selected>%</option>
+                                <option value="Dollars">$</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label" for="saleExclusiveCommission">Exclusive Agent Commission <span class="text-red-500">*</span></label>
+                            <input type="number" id="saleExclusiveCommission" placeholder="0" class="field-input" required data-concept-disposition="mallan-internal">
+                        </div>
                     </div>
                 </div>
                 <div>
-                    <p class="text-sm font-medium text-gray-700 mb-3">Buyer Agent Commission</p>
-                    <div class="space-y-2 mb-3">
-                        <!-- Renamed from the old saleCommissionType key to saleBuyerAgentPays:
-                             distinct key from the %/$ type select above. (Track 1.) -->
+                    <p class="text-sm font-medium text-gray-700 mb-3">Buyer Agent Side</p>
+                    <p class="field-label">Options</p>
+                    <div class="space-y-2 mb-4">
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuyerAgentOption" value="EnterCommInfo" class="w-4 h-4" data-concept-disposition="mallan-internal" checked> Enter Buyer Agent Comm Info</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuyerAgentOption" value="ContactAgent" class="w-4 h-4" data-concept-disposition="mallan-internal"> Contact Agent</label>
+                    </div>
+                    <p class="field-label">Commission Type <span class="text-red-500">*</span></p>
+                    <div class="space-y-2 mb-4">
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuyerAgentPays" value="OwnerPays" class="w-4 h-4" data-concept-disposition="mallan-internal" checked> Owner Pays (to Buyer's Agent)</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuyerAgentPays" value="BuyerPays" class="w-4 h-4" data-concept-disposition="mallan-internal"> Buyer Pays</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuyerAgentPays" value="CollectOwnFee" class="w-4 h-4" data-concept-disposition="mallan-internal"> Collect Your Own Fee</label>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div>
+                            <label class="field-label" for="saleBuyerCompType">Buyer Agent Compensation Type <span class="text-red-500">*</span></label>
+                            <select id="saleBuyerCompType" class="field-input" data-concept-disposition="mallan-internal">
+                                <option value="Percent" selected>%</option>
+                                <option value="Dollars">$</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label" for="saleBuyerComp">Buyer Agent Commission <span class="text-red-500">*</span></label>
+                            <input type="number" id="saleBuyerComp" step="any" placeholder="0" class="field-input" data-concept-disposition="mallan-internal">
+                        </div>
                     </div>
                     <label class="field-label">Commission Comments</label>
                     <textarea id="saleCommissionComments" data-concept-disposition="mallan-internal" oninput="checkDescriptionCompliance('saleCommissionComments','saleCommissionCommentsFlags')" rows="2" placeholder="Commission details..." class="field-input"></textarea>
                     <div id="saleCommissionCommentsFlags" class="hidden mt-2"></div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Concessions (RLS/RESO/IDX: Concessions — REQ) -->
-        <div class="form-card">
-            <div class="form-card-header"><i class="fas fa-percentage"></i> Concessions</div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                <div>
-                    <!-- RLS/RESO/IDX: Concessions (REQ) -->
-                    <label class="field-label">Concessions <span class="text-xs text-gray-400">(RLS/RESO/IDX: Concessions)</span></label>
-                    <select id="saleConcessions" class="field-input" data-concept="Concessions">
-                        <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                        <option value="CallListingAgent">Call Listing Agent</option>
-                    </select>
-                </div>
-                <div>
-                    <!-- RLS/RESO/IDX: ConcessionsAmount (Conditional: if Concessions=Yes) -->
-                    <label class="field-label">Concession Amount <span class="text-xs text-gray-400">(RLS/RESO/IDX: ConcessionsAmount)</span></label>
-                    <input type="number" id="saleConcessionAmount" placeholder="$0" class="field-input" data-concept="ConcessionsAmount">
-                </div>
-                <div>
-                    <!-- RLS/RESO/IDX: ConcessionsComments (Conditional: if Concessions=Yes) -->
-                    <label class="field-label">Concession Comments <span class="text-xs text-gray-400">(RLS/RESO/IDX: ConcessionsComments)</span></label>
-                    <input type="text" id="saleConcessionComments" placeholder="Describe concessions..." class="field-input" data-concept="ConcessionsComments">
-                </div>
-            </div>
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p class="text-xs text-blue-800"><i class="fas fa-info-circle mr-1"></i> If Concessions = Yes, Amount and Comments are required per RLS rules. Closed-status fields (BuyerBrokerFee, ClosingCosts, PropertyImprovementCosts, OtherCosts) are captured at closing.</p>
             </div>
         </div>
 
@@ -5383,6 +5362,8 @@ function _saleBuildingCandidateRow(b, subtitle, onPick) {
 // returns the listing's PROPERTY FACTS under the Cotality names the form already restores from a saved listing. Provider-owned data (identity, status, permissions, agent/office,
 // media) is not copied; the new listing starts as a Draft. It pulls only into a blank listing, so nothing the agent typed is replaced.
 const SALE_RLS_ID = /^RLS\d{6,12}$/i;
+// What was typed or pasted, without the stray punctuation or spaces around it ("RLS20123633.", " RLS20123633, ", "(RLS20123633)"): an RLS ID is letters and digits only.
+function saleRlsIdFromTyped(text) { return String(text || '').replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, '').toUpperCase(); }
 
 function saleRefreshRlsLink() {
     var id = (document.getElementById('saleRlsId') || {}).value || '';
@@ -5443,6 +5424,27 @@ function _saleEnteredFields() {
     // Photos, floor plans and documents the agent has chosen but not yet uploaded wait in _pendingMediaFiles, and filling the form empties that queue: they count as entered.
     if (typeof _pendingMediaFiles !== 'undefined' && _pendingMediaFiles.some(function (m) { return !m.uploaded && !m._removed; })) found.push('queuedMedia');
     return found;
+}
+
+// Cotality files a medical or professional office condominium as Residential / Apartment, but its Current Use says what it is. A listing whose Current Use is a commercial one
+// (MedicalDental, Office) is a Commercial listing in this form: the Commercial type, the ownership its Cotality CommonInterest names (Condominium = Commercial Condo) and the
+// office kinds its Current Use names. Nothing else is guessed: a use the form does not know as commercial (Investment, none) changes nothing.
+var SALE_PULL_COMMERCIAL_USE = { MedicalDental: ['MedicalOffice', 'DentalOffice'], Office: ['ProfessionalOffice'] };
+var SALE_PULL_COMMERCIAL_OWNERSHIP = { Condominium: 'CommercialCondo', Condop: 'CommercialCondop', StockCooperative: 'CommercialCoop' };
+function _saleApplyCommercialFromPull(rec) {
+    var uses = [].concat(rec.CurrentUse === undefined || rec.CurrentUse === null ? [] : rec.CurrentUse).map(function (u) { return String(u).trim(); });
+    var commercial = uses.filter(function (u) { return Object.prototype.hasOwnProperty.call(SALE_PULL_COMMERCIAL_USE, u); });
+    if (!commercial.length) return false;
+    var type = document.querySelector('input[name="salePropertyType"][value="Commercial"]');
+    if (!type) return false;
+    type.checked = true;
+    var ownership = SALE_PULL_COMMERCIAL_OWNERSHIP[String(rec.CommonInterest || '').trim()];
+    if (ownership) { var o = document.querySelector('input[name="saleCommercialOwnership"][value="' + ownership + '"]'); if (o) o.checked = true; }
+    commercial.forEach(function (use) {
+        SALE_PULL_COMMERCIAL_USE[use].forEach(function (v) { var cb = document.querySelector('input[name="saleCommSubtype"][value="' + v + '"]'); if (cb) cb.checked = true; });
+    });
+    if (typeof toggleSaleCommercialOwnership === 'function') toggleSaleCommercialOwnership();
+    return true;
 }
 
 async function pullFromCotalityByRlsId(rlsId) {
@@ -5510,6 +5512,7 @@ async function pullFromCotalityByRlsId(rlsId) {
             firstCo.value = String(rec.OnMarketDate).slice(0, 10);
             firstCo.title = 'The date the listing went active on the market (Cotality OnMarketDate).';
         }
+        _saleApplyCommercialFromPull(rec);
         document.getElementById('saleRlsId').value = body.rls.listing_id;
         document.getElementById('saleRlsListingKey').value = body.rls.listing_key || '';
         saleRefreshRlsLink();
@@ -5528,7 +5531,7 @@ function searchBuildingForListing(query, prefix) {
     const results = document.getElementById(prefix + 'BuildingSearchResults');
     if (!results) return;
     if (query.length < 3) { results.classList.add('hidden'); return; }
-    if (prefix === 'sale' && SALE_RLS_ID.test(query.trim())) { clearTimeout(_buildingSearchTimeout); _saleRlsPullRow(results, query.trim().toUpperCase()); return; }   // an RLS ID, not an address
+    if (prefix === 'sale' && SALE_RLS_ID.test(saleRlsIdFromTyped(query))) { clearTimeout(_buildingSearchTimeout); _saleRlsPullRow(results, saleRlsIdFromTyped(query)); return; }   // an RLS ID, not an address
 
     // Debounce API calls
     clearTimeout(_buildingSearchTimeout);
@@ -5582,8 +5585,10 @@ function selectBuildingFromIDX(prefix, picked) {
     updateSaleAddressDerived();
 
     // 2. Auto-detect property type
+    // (A listing the agent or the pull has already made Commercial stays Commercial: a commercial condo sits in a condominium building.)
     var typeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
-    if (typeRadio) { typeRadio.checked = true; applySalesFieldRules(); }
+    var _typeNow = document.querySelector('input[name="' + prefix + 'PropertyType"]:checked');
+    if (typeRadio && !(_typeNow && _typeNow.value === 'Commercial')) { typeRadio.checked = true; applySalesFieldRules(); }
     // Ownership Type is the building's own Cotality CommonInterest (the value its type was read from): written only while the agent has not chosen one, and only when the box offers it.
     var _ownEl = document.getElementById(prefix + 'CommonInterest');
     if (_ownEl && building.commonInterestRaw && !_ownEl.value && Array.prototype.some.call(_ownEl.options, function (o) { return o.value === building.commonInterestRaw; })) { _ownEl.value = building.commonInterestRaw; _ownEl.dataset.autoDerived = 'building'; }
@@ -7282,7 +7287,14 @@ function shouldSkipTab3(formType) {
     const val = selected.value;
     // Only skip Tab 3 for managed building unit types (they use Building Modal, not Tab 3)
     const skipTypes = ['Coop', 'Condo', 'Condop', 'CommercialCoop', 'CommercialCondo', 'RentalBuilding', 'Loft', 'DeededParking'];
-    return skipTypes.includes(val);
+    if (skipTypes.includes(val)) return true;
+    // The Sale form's Commercial listing is the type "Commercial" and its ownership is a separate choice: a commercial condo / condop / co-op is a unit in a managed building, like a residential one,
+    // and uses the Building window, not the TH / Building tab (Maya, 2026-11-03: "it should lock the TH when it is condo").
+    if (formType === 'sale' && val === 'Commercial') {
+        const own = document.querySelector('input[name="saleCommercialOwnership"]:checked');
+        return !!own && ['CommercialCondo', 'CommercialCondop', 'CommercialCoop'].includes(own.value);
+    }
+    return false;
 }
 
 // Next from Tab 2 last sub-tab (2.3 Features) → Tab 3 if applicable, else Tab 4
@@ -8295,7 +8307,6 @@ function collectSaleFormData() {
     data.CountyOrParish = data.saleCountyOrParish || '';
     data.PostalCity = data.salePostalCity || '';
     data.RoomsTotal = _saleInt(data.saleTotalRooms);
-    data.Concessions = data.saleConcessions || '';
     // New Development (Building Status, Essentials) IS new construction — Cotality NewConstructionYN; the
     // building-tab "New Construction" box mirrors it. Sponsor Unit is independent (REBNY SponsorUnitYN).
     data.NewConstructionYN = data.saleBuildingStatus === 'NewDevelopment' || data.saleBldgNewConstruction === true || data.saleBldgNewConstruction === 'true';
@@ -8466,6 +8477,9 @@ function collectSaleFormData() {
       ? (data.saleCommSubtype[0] || '')
       : (data.saleCommSubtype || '');
     data.commercial_ownership = data.saleCommercialOwnership || '';
+    // A Condo / Co-op / Condop is not a commercial listing: the Commercial section may still hold what was ticked before the agent switched back, and it must not classify or name the listing.
+    var _unitTypeNow = document.querySelector('input[name="salePropertyType"]:checked');
+    if (_unitTypeNow && ['Condo', 'Coop', 'Condop'].indexOf(_unitTypeNow.value) >= 0) { data.commercial_ownership = ''; data.commercial_sub_type = ''; }
 
     // Living area source
     data.LivingAreaSource = data.saleLivingAreaSource || '';
@@ -8508,6 +8522,9 @@ function collectSaleFormData() {
     if (data.saleTHLandmark === 'Yes' || data.saleTHLandmark === 'No') data.LandmarkStatusYN = data.saleTHLandmark === 'Yes'; else if (data.saleBldgLandmark === true) data.LandmarkStatusYN = true;
     // the building's units: the Building panel first, the townhouse tab when the panel is blank
     if (data.NumberOfUnitsTotal == null && _saleInt(data.saleTHUnitsTotal) != null) data.NumberOfUnitsTotal = _saleInt(data.saleTHUnitsTotal);
+    // The owner offers the buyer's agent nothing here (Contact Agent / Collect Your Own Fee): a number typed before the switch stays in the box on screen (switching back brings it back)
+    // but is NOT saved as an offer, so the saved listing never says both "none" and "3%".
+    if (saleBuyerOfferWithdrawn()) { data.saleBuyerComp = ''; data.saleBuyerCompType = 'Percent'; }
     _saleEmitClaims(data);
     return data;
 }
@@ -8607,6 +8624,49 @@ function _saleRefuseWhileLoading() {
     if (window._saleEditLoad === 'failed') { showToast('The saved listing did not load — nothing was sent, so a blank form cannot replace it. Reload the page.', 'error'); return true; }
     return false;
 }
+// The refusal stays on the page until the agent closes it: a toast lasts seconds and this page used to leave for the list before the reason could be read.
+function _saleShowPublishRefusal(lid, message, lines, stillStatus) {
+    var old = document.getElementById('salePublishRefusal');
+    if (old) old.remove();
+    var box = document.createElement('div');
+    box.id = 'salePublishRefusal';
+    box.setAttribute('role', 'alertdialog');
+    box.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:100000;max-width:640px;width:92%;max-height:70vh;overflow:auto;background:#fff;border:2px solid #dc2626;border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.3);padding:18px 20px;font-family:Manrope,sans-serif;font-size:14px;color:#111827';
+    function line(text, css) { var d = document.createElement('div'); d.style.cssText = css || 'margin-bottom:8px'; d.textContent = text; return d; }
+    // stillStatus: the status the listing keeps. A listing that is already live (Active ...) stays live when the server refuses to move it; only a Draft is "not live".
+    if (stillStatus) {
+        box.appendChild(line('The status change was refused. The listing is still ' + stillStatus + '.', 'font-weight:700;color:#b91c1c;font-size:16px;margin-bottom:8px'));
+        box.appendChild(line('Listing ' + lid + ' is saved, but the server refused the status you chose: ' + message));
+    } else {
+        box.appendChild(line('Saved as a Draft. It is NOT live.', 'font-weight:700;color:#b91c1c;font-size:16px;margin-bottom:8px'));
+        box.appendChild(line('Listing ' + lid + ' is saved, but the server refused to publish it: ' + message));
+    }
+    if (lines && lines.length) {
+        box.appendChild(line('Fix these, then Submit again:', 'font-weight:600;margin:10px 0 4px'));
+        var ul = document.createElement('ul');
+        ul.style.cssText = 'margin:0 0 12px 20px;list-style:disc';
+        lines.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+        box.appendChild(ul);
+    }
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = 'Close';
+    close.style.cssText = 'background:#1e293b;color:#fff;border:0;border-radius:8px;padding:8px 18px;font-weight:600;cursor:pointer';
+    close.onclick = function () { box.remove(); };
+    box.appendChild(close);
+    document.body.appendChild(box);
+}
+
+// The server's refusal to publish, in words: the REBNY fields it says are missing and the wording / rule blockers it names (the body of the 422, kept by the API client as err.details).
+function _salePublishRefusalLines(err) {
+    var d = (err && (err.details || err.data)) || {};
+    var out = [];
+    ((d.validation && d.validation.errors) || []).forEach(function (e) { out.push(String(e).replace(/^\[REBNY\]\s*/, '')); });
+    (d.blockers || []).forEach(function (b) { out.push(typeof b === 'string' ? b : [b && b.field, b && b.message].filter(Boolean).join(': ')); });
+    if (!out.length && d.field) out.push(String(d.field));
+    return out.slice(0, 25);
+}
+
 function submitSalesListing() {
     if (_saleSendInFlight) { showToast('Still sending the last save — please wait.', 'info'); return; }
     if (_saleRefuseWhileLoading()) return;
@@ -8753,13 +8813,15 @@ function submitSalesListing() {
                 } catch (e) { /* non-critical — workflow status is supplementary */ }
             }
             var finalStatus = currentCanonical;
+            var _publishRefusal = null;                    // set when the server refused the move to the status the agent chose
             if (targetCanonical && currentCanonical !== targetCanonical && dbId && !isInternalOnly && targetCanonical !== 'Draft') {
                 try {
                     statusResult = await MallanAPI.listings.updateStatus(dbId, targetCanonical);
                     finalStatus = statusResult.status || targetCanonical;
                 } catch (statusErr) {
                     console.warn('[Submit] Status transition failed:', statusErr.message);
-                    showToast('Saved as Draft. Publish failed: ' + statusErr.message, 'warning');
+                    _publishRefusal = { message: statusErr.message, lines: _salePublishRefusalLines(statusErr) };
+                    showToast('Saved as Draft. Publish failed: ' + statusErr.message, 'warning', 15000);
                 }
             }
             try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
@@ -8773,6 +8835,9 @@ function submitSalesListing() {
                 showToast('Listing ' + lid + ' published — Status: Active', 'success');
                 // Show RealPlus URL panel
                 showSalePublishedPanel(lid, publicUrl, realPlusUrl);
+            } else if (_publishRefusal) {
+                // The listing IS saved (as a Draft) and stays open here: the agent reads WHY it is not live, fixes it, and submits again. Nothing redirects before the reason is read.
+                _saleShowPublishRefusal(lid, _publishRefusal.message, _publishRefusal.lines, (currentCanonical && currentCanonical !== 'Draft' && currentCanonical !== 'Incomplete') ? currentCanonical : '');   // only a Draft is "not live"; any other status is the one the listing keeps
             } else {
                 showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
                 setTimeout(function() { window.location.href = '/crm/dashboard#/ops/listings'; }, 1500);
@@ -9134,6 +9199,9 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleUnitShares', label: 'Shares', type: 'input', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDOP','COMMERCIAL_COOP'] },
     { id: 'saleFlipTaxAmount', label: 'Flip Tax Amount', type: 'input', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDO','CONDOP','COMMERCIAL_CONDO','COMMERCIAL_COOP'] },
     { id: 'saleExclusiveCommission', label: 'Exclusive Agent Commission', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
+    { name: 'saleBuyerAgentPays', label: 'Buyer Agent Commission Type', type: 'radio', tab: 1, section: 'Listing Information/Essentials' },
+    { id: 'saleBuyerCompType', label: 'Buyer Agent Compensation Type', type: 'select', tab: 1, section: 'Listing Information/Essentials', buyerOffer: true },
+    { id: 'saleBuyerComp', label: 'Buyer Agent Commission', type: 'input', tab: 1, section: 'Listing Information/Essentials', buyerOffer: true },
     { id: 'saleCondition', label: 'Condition of Apartment', type: 'select', tab: 2, section: 'Unit Information/Essentials' },
     // Tab 1: Description
     { id: 'saleDescription', label: 'Listing Description', type: 'textarea', tab: 1, section: 'Listing Information/Description' },
@@ -9172,7 +9240,6 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleNeighborhoodFromAddress', orIds: ['saleBldgNeighborhood'], label: 'Neighborhood', type: 'input', tab: 1, section: 'Listing Information/Address' },
     { id: 'saleStructureType', orIds: ['saleBldgType'], label: 'Structure Type', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleCommonInterest', label: 'Ownership Type', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
-    { id: 'saleConcessions', label: 'Concessions', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleShowingInstructions', label: 'Showing Instructions', type: 'input', tab: 1, section: 'Listing Information/Description' },
     { id: 'saleTotalRooms', label: 'Total Rooms', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
     // Found by posting the real form's payload to the real validator (tests/runtime/crm-sale-publish-contract.test.ts): the backend refused these with the form satisfied.
@@ -9209,7 +9276,23 @@ function saleHasOwnUnitLot() {
     return (!!subtype && SALE_UNIT_LOT_SUBTYPES.includes(subtype)) || saleOwnership() === 'Condominium';
 }
 
+// The buyer's agent commission is asked of a listing that ENTERS buyer-agent commission info where the OWNER pays (RealPlus's Buyer Agent Side). "Contact Agent" or "Collect Your Own Fee"
+// means the owner offers nothing here, so the number is left blank.
+function saleBuyerOfferExpected() {
+    const o = document.querySelector('input[name="saleBuyerAgentOption"]:checked');
+    const p = document.querySelector('input[name="saleBuyerAgentPays"]:checked');
+    return !!o && !!p && o.value === 'EnterCommInfo' && p.value === 'OwnerPays';
+}
+
+// The agent has chosen that the owner offers no compensation here: Contact Agent, or Collect Your Own Fee.
+function saleBuyerOfferWithdrawn() {
+    const o = document.querySelector('input[name="saleBuyerAgentOption"]:checked');
+    const p = document.querySelector('input[name="saleBuyerAgentPays"]:checked');
+    return (!!o && o.value === 'ContactAgent') || (!!p && p.value === 'CollectOwnFee');
+}
+
 function isFieldRelevant(field) {
+    if (field.buyerOffer) return saleBuyerOfferExpected();
     if (field.unitLot !== undefined) return saleHasOwnUnitLot() === field.unitLot;
     if (field.orOwnership && saleOwnership() === field.orOwnership) return true;
     if (!field.conditional && !field.unlessSubtype) return true;
@@ -10150,7 +10233,6 @@ var SALE_FIELD_MAP = [
   { rls: 'AssociationFee', form: 'saleMaintCC', type: 'number', src: 'raw' },
   { rls: 'AssociationFeeFrequency', form: 'saleMaintCCFreq', type: 'text', src: 'raw' },
   { rls: 'ClosePrice', form: 'saleSoldPrice', type: 'number', src: 'raw' },
-  { rls: 'Concessions', form: 'saleConcessions', type: 'text', src: 'raw' },
 
   // ── Dates ──
   { rls: 'OnMarketDate', form: 'saleDateListed', type: 'date', src: 'raw' },
@@ -10264,8 +10346,6 @@ var SALE_FIELD_MAP = [
   { rls: 'saleCommonInterest', form: 'saleCommonInterest', type: 'text', src: 'raw', fallbackRls: 'CommonInterest' },
 
   // ── Financial additional ──
-  { rls: 'saleConcessionAmount', form: 'saleConcessionAmount', type: 'number', src: 'raw' },
-  { rls: 'saleConcessionComments', form: 'saleConcessionComments', type: 'text', src: 'raw' },
   { rls: 'saleExclusiveCommission', form: 'saleExclusiveCommission', type: 'text', src: 'raw' },
   // %/$ type select — Cotality CompensationType enum (Percent/Dollars), internal.
   // Renamed from saleCommissionType (which collided with the payer radios and
@@ -10429,7 +10509,6 @@ var SALE_FIELD_MAP = [
   // saleInternetConsumerCommentYN (RESO canonical, per-row opt-out,
   // fail-CLOSED per REBNY compliance §7 — the canonical write is in
   // collectSaleFormData below mirroring the AVM pattern).
-  { rls: 'saleCommNegotiabilityAck', form: 'saleCommNegotiabilityAck', type: 'bool', src: 'raw' },
   { rls: 'saleFairHousingAck', form: 'saleFairHousingAck', type: 'bool', src: 'raw' },
   // saleInternetConsumerCommentYN: form key. Canonical RESO is
   // `InternetConsumerCommentYN` (per-row opt-out, fail-CLOSED per
@@ -10602,7 +10681,6 @@ var SALE_RADIO_MAP = [
   // to break the key collision with the %/$ type select. Legacy rows stored the
   // payer under the old saleCommissionType key (the radio clobbered the type), so
   // fall back to it on reload. Internal — never emitted to the IDX/feed. (Track 1.)
-  { rls: 'saleBuyerAgentPays', name: 'saleBuyerAgentPays', src: 'raw', rawKey: 'saleBuyerAgentPays', fallback: 'saleCommissionType' },
   // PropertyType radio uses CRM-specific values (Condo/Coop/Condop/...) that
   // do NOT match RESO PropertySubType ("Apartment" for all three). Restore
   // from the form's own saved salePropertyType field first, falling back to
@@ -10616,6 +10694,8 @@ var SALE_RADIO_MAP = [
   { rls: 'saleWasherDryerAllowed', name: 'saleWasherDryerAllowed', src: 'raw' },
   { rls: 'saleHasViews', name: 'saleHasViews', src: 'raw' },
   { rls: 'saleGarageSpaces', name: 'saleGarageSpaces', src: 'raw' },
+  { rls: 'saleBuyerAgentOption', name: 'saleBuyerAgentOption', src: 'raw' },
+  { rls: 'saleBuyerAgentPays', name: 'saleBuyerAgentPays', src: 'raw', rawKey: 'saleBuyerAgentPays', valueMap: { BuyerPays: 'CollectOwnFee' }, fallback: 'saleCommissionType' },
   { rls: 'fireplace', name: 'fireplace', src: 'raw' },
   { rls: 'saleCommercialOwnership', name: 'saleCommercialOwnership', src: 'raw' },
   // ── Class A additions (2026-05-28) — see

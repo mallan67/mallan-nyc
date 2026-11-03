@@ -66,6 +66,28 @@ describe("typing an RLS ID in the Building Lookup box", () => {
     } finally { f.close(); }
   });
 
+  it.each(["RLS20123633.", " RLS20123633 ", "RLS20123633,", "(RLS20123633)", "rls20123633", "\"RLS20123633\""])("%j (stray punctuation, spaces or lower case around it) is still the RLS ID: Pull from Cotality is offered for RLS20123633", async (typed) => {
+    const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }) });
+    try {
+      await typeRlsId(f, typed);
+      expect(pullRow(f)).not.toBeNull();
+      expect(pullRow(f)!.textContent).toMatch(/RLS20123633/);
+      pullRow(f)!.click();
+      await waitUntil(() => f.rlsPulls.length === 1);
+      expect(f.rlsPulls).toEqual(["RLS20123633"]);
+    } finally { f.close(); }
+  });
+
+  it("an address that happens to end in a number is still searched as an address, and a ListingKey with a full stop is still not an RLS ID", async () => {
+    const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }) });
+    try {
+      await typeRlsId(f, "1194314473.");
+      expect(pullRow(f)).toBeNull();
+      await typeRlsId(f, "800 2nd Avenue 806");
+      expect(pullRow(f)).toBeNull();
+    } finally { f.close(); }
+  });
+
   it("a ListingKey is not an RLS ID: nothing is offered for it", async () => {
     const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }) });
     try {
@@ -121,6 +143,76 @@ describe("pulling RLS20123633 into a blank listing", () => {
       try {
         expect(val(f, "saleStreetAddress")).toBe("800 2ND Avenue");
         expect(val(f, "saleUnitNumber")).toBe("806");
+      } finally { f.close(); }
+    }
+  });
+
+  it("800 2nd Avenue is a Commercial Condo: Current Use MedicalDental + Condominium select the Commercial listing, Commercial Condo and the Medical and Dental office kinds, and the building lookup that follows does not turn it back into a residential condo", async () => {
+    const f = await pulled();
+    try {
+      const on = (name: string) => (f.d.querySelector(`input[name="${name}"]:checked`) as HTMLInputElement | null)?.value ?? null;
+      expect(on("salePropertyType")).toBe("Commercial");
+      expect(on("saleCommercialOwnership")).toBe("CommercialCondo");
+      expect([...f.d.querySelectorAll('input[name="saleCommSubtype"]:checked')].map((e: any) => e.value).sort()).toEqual(["DentalOffice", "MedicalOffice"]);
+      expect(on("saleCurrentUse")).toBe("MedicalDental");
+      expect(val(f, "saleCommonInterest")).toBe("Condominium");
+    } finally { f.close(); }
+  });
+
+  it("a Commercial Condo uses the Building window: the TH / Building tab is locked, as it is for a residential condo", async () => {
+    const f = await pulled();
+    try {
+      const tab = f.d.getElementById("sidebarTab3") as HTMLElement;
+      expect(tab.style.pointerEvents).toBe("none");
+      expect(tab.style.opacity).toBe("0.4");
+      expect((f.w as any).shouldSkipTab3("sale")).toBe(true);
+      // and only for a condo / condop / co-op: a commercial WHOLE BUILDING keeps the tab
+      (f.d.querySelector('input[name="saleCommercialOwnership"][value="WholeBuilding"]') as HTMLInputElement).click();
+      expect((f.w as any).shouldSkipTab3("sale")).toBe(false);
+      (f.d.querySelector('input[name="saleCommercialOwnership"][value="CommercialCoop"]') as HTMLInputElement).click();
+      expect((f.w as any).shouldSkipTab3("sale")).toBe(true);
+    } finally { f.close(); }
+  });
+
+  it("saved, it is a Commercial Condo in what the server stores (property type, ownership, office kinds), and it comes back the same on reopening", async () => {
+    const a = await pulled();
+    let p: Record<string, any>;
+    try { p = await saveDraft(a); } finally { a.close(); }
+    expect(p.PropertyType).toBe("Commercial");
+    expect(p.commercial_ownership).toBe("CommercialCondo");
+    expect(p.commercial_sub_type).toBe("MedicalOffice");
+    expect(p.saleCommSubtype).toEqual(["MedicalOffice", "DentalOffice"]);
+    const b = await bootAddForm("SALE-FORM-REDESIGN", { search: "?id=1", listing: storedListing(p, "sale"), settle: 300 });
+    try {
+      await loaded(b);
+      const on = (name: string) => (b.d.querySelector(`input[name="${name}"]:checked`) as HTMLInputElement | null)?.value ?? null;
+      expect(on("salePropertyType")).toBe("Commercial");
+      expect(on("saleCommercialOwnership")).toBe("CommercialCondo");
+      expect([...b.d.querySelectorAll('input[name="saleCommSubtype"]:checked')].map((e: any) => e.value).sort()).toEqual(["DentalOffice", "MedicalOffice"]);
+      expect((b.d.getElementById("sidebarTab3") as HTMLElement).style.pointerEvents).toBe("none");
+    } finally { b.close(); }
+  });
+
+  it("switched back to a Condo, it sends no commercial ownership or office kinds, even though the hidden Commercial section still has them ticked", async () => {
+    const f = await pulled();
+    try {
+      (f.d.querySelector('input[name="salePropertyType"][value="Condo"]') as HTMLInputElement).click();
+      expect((f.d.querySelector('input[name="saleCommercialOwnership"]:checked') as HTMLInputElement | null)?.value).toBe("CommercialCondo");   // still ticked, out of sight
+      const p = await saveDraft(f);
+      expect(p.PropertyType).not.toBe("Commercial");
+      expect(p.commercial_ownership).toBe("");
+      expect(p.commercial_sub_type).toBe("");
+    } finally { f.close(); }
+  });
+
+  it("a use the form does not know as commercial changes nothing: Investment, or no Current Use, stays a residential Condo", async () => {
+    for (const use of ["Investment", undefined]) {
+      const answer: any = serverAnswer();
+      if (use) answer.record.CurrentUse = use; else delete answer.record.CurrentUse;
+      const f = await pulled({ rlsPull: () => ({ body: answer }) });
+      try {
+        expect((f.d.querySelector('input[name="salePropertyType"]:checked') as HTMLInputElement).value).toBe("Condo");
+        expect([...f.d.querySelectorAll('input[name="saleCommSubtype"]:checked')]).toEqual([]);
       } finally { f.close(); }
     }
   });
@@ -205,10 +297,10 @@ describe("pulling RLS20123633 into a blank listing", () => {
   it("what Cotality really does not hold for this listing stays for the broker: named, never defaulted", async () => {
     const f = await pulled();
     try {
-      // Live (1,982 active Cotality listings sampled 2026-11-03): ExpirationDate, ShowingInstructions, Concessions, PropertyCondition and every compensation field are never populated for
-      // this license, there is no co-broke field in any section, and this listing has no Heating. The broker enters them; nothing is defaulted.
+      // Live (1,982 active Cotality listings sampled 2026-11-03): ExpirationDate, ShowingInstructions, PropertyCondition and every compensation field are never populated for
+      // this license (Concessions is a rental field and no longer on the Sale form), there is no co-broke field in any section, and this listing has no Heating. The broker enters them; nothing is defaulted.
       expect(missingLabels(f).sort()).toEqual([
-        "CoBroke Agreement Type", "Concessions", "Condition of Apartment", "Exclusive Agent Commission", "Exclusive Expires", "Heating", "Showing Instructions",
+        "Buyer Agent Commission", "CoBroke Agreement Type", "Condition of Apartment", "Exclusive Agent Commission", "Exclusive Expires", "Heating", "Showing Instructions",
       ].sort());
     } finally { f.close(); }
   });

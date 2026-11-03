@@ -543,6 +543,9 @@ export function dbListingToPublicDTO(
       features.CommonInterest as string | undefined,
       listing.property_sub_type,
       listing.property_type || 'Residential',
+      // the Sale form's Commercial section: the newest save is in raw_data (an edit writes it there first), the typed column is what the create stored
+      // only a listing saved as Commercial is named by it: a hidden leftover under a Condo must not label the card
+      listing.property_type === 'Commercial' ? (typeof rawData.commercial_ownership === 'string' ? rawData.commercial_ownership : listing.commercial_ownership) : null,
     ),
     propertySubType: listing.property_sub_type,
     bedroomsTotal: listing.bedrooms_total || 0,
