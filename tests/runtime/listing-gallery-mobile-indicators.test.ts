@@ -2,7 +2,7 @@
 /**
  * Listing gallery — the photo position dots must never widen the page.
  *
- * Found 2026-11-02 (emulated 390px touch phone against mallan.nyc, a 17-photo listing): the layout viewport
+ * Found 2026-11-02 (emulated 390px touch phone against a local seeded 17-photo listing): the layout viewport
  * grew from 390px to ~601px. Cause: ListingMediaGallery drew one <button> per photo as a 6px dot, and
  * app/globals.css gives every button on a touch device (`@media (pointer: coarse)`) a 44×44px minimum.
  * 17 dots × 44px = an 812px-wide, centred, unclipped container. A 50-photo listing is 2,200px. The old

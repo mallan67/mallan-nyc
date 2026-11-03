@@ -74,8 +74,8 @@ function setCache(key: string, data: unknown): void {
 // `cachedPublicRead` is Next's `unstable_cache`, and what it stores is JSON. A cache MISS hands the
 // caller the live row (real Date objects); a cache HIT hands back the JSON round-trip of that row, where
 // every Date is an ISO string. The route used to call `.getTime()` on the sample as if its dates were
-// always Dates, so every warm request answered 500 (production 2026-07-24 onward: ~3,900 errors) and the
-// listing page's market card never appeared. The cached read below returns ONE JSON-safe shape — dates
+// always Dates, so a request served from the cache threw (Vercel runtime errors from 2026-07-24: 2,923 + 936) and the
+// listing page's market card did not appear for it. The cached read below returns ONE JSON-safe shape — dates
 // already ISO strings — on a hit and on a miss; `MarketActiveRow` is that shape and `wholeDaysSince` is
 // the only place its dates are read.
 interface MarketActiveRow {

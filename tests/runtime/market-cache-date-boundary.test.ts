@@ -6,8 +6,8 @@
  * function` ×2,923 and `e.created_at.getTime is not a function` ×936. The route reads the active
  * sample through `cachedPublicRead` (Next `unstable_cache`). On a cache MISS the caller gets the live
  * row, with real Date objects; on a cache HIT the same value has been through JSON and the Dates are ISO
- * strings. The route called `.getTime()` on them, so every warm request answered 500 and the listing
- * page's market card never appeared (it is a console `500 /api/market` on every listing view).
+ * strings. The route called `.getTime()` on them, so a request served from the cache threw, and the listing
+ * page's market card did not appear for it.
  *
  * The fix lives AT the boundary: the cached read hands back one JSON-safe shape (dates as ISO strings)
  * on a hit AND on a miss, and the route parses that shape in one place. These tests run the REAL route

@@ -2,7 +2,7 @@
 /**
  * Listing detail — phone layout contract (360 / 390 / 412 px).
  *
- * Found 2026-11-02 on mallan.nyc with an emulated touch phone (the only kind of browser where
+ * Found 2026-11-02 on a local seeded listing with an emulated touch phone (the only kind of browser where
  * `@media (pointer: coarse)` in app/globals.css applies its 44×44px minimum to every button and link):
  *
  *  1. The sticky bar showed the price as "$3,295,…" (and "$3,29…" at 360px). The price `<p>` was `truncate`
