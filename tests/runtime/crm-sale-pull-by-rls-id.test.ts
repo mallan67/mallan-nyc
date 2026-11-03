@@ -203,6 +203,11 @@ describe("the building the pull looks up (live shape for 800 2ND Avenue)", () =>
     try { expect(staff(f)).toEqual([]); } finally { f.close(); }
   });
 
+  it("800 2nd Avenue as Cotality really holds it: the new listing says None but the building's other listing says doorman + lobby attendant, so both boxes are ticked", async () => {
+    const f = await pulled({ buildings: [{ ...BUILDING, attendance_type: "DoormanFullTime,LobbyAttendantFullTime" }] });   // the live record carries AttendanceType = None
+    try { expect(staff(f).sort()).toEqual(["DoormanFullTime", "LobbyAttendantFullTime"]); } finally { f.close(); }
+  });
+
   it("a real value fills it: a full-time doorman on the listing, or on the building", async () => {
     const a = await pulled({ rlsPull: withAttendance("DoormanFullTime") });
     try { expect(staff(a)).toEqual(["DoormanFullTime"]); } finally { a.close(); }
