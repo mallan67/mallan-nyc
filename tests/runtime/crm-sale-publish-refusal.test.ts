@@ -88,6 +88,20 @@ describe("the server refuses to publish a new listing", () => {
     } finally { f.close(); }
   });
 
+  it.each(["ActiveUnderContract", "ComingSoon", "Pending", "Hold"])("a listing that is %s keeps that status when the change is refused: the panel names it and does not say Draft or not live", async (status) => {
+    const a = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600 });
+    let payload: Record<string, any>;
+    try { await completeForm(a, { type: "Condo", garage: "No" }); payload = await saveDraft(a); } finally { a.close(); }
+    const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 300, search: "?id=1", listing: { ...storedListing(payload, "sale"), status }, updated: { status }, ...refusal });
+    try {
+      await loaded(f);
+      await submitAs(f, "Withdrawn");
+      const text = panel(f)!.textContent ?? "";
+      expect(text).toContain(`still ${status}`);
+      expect(text).not.toMatch(/NOT live|Saved as a Draft/);
+    } finally { f.close(); }
+  });
+
   it("a refusal that carries no list still says what the server said", async () => {
     const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, statusError: "Invalid status transition: Draft → Active" });
     try {

@@ -8837,7 +8837,7 @@ function submitSalesListing() {
                 showSalePublishedPanel(lid, publicUrl, realPlusUrl);
             } else if (_publishRefusal) {
                 // The listing IS saved (as a Draft) and stays open here: the agent reads WHY it is not live, fixes it, and submits again. Nothing redirects before the reason is read.
-                _saleShowPublishRefusal(lid, _publishRefusal.message, _publishRefusal.lines, _saleStatusAdvertises(currentCanonical) ? currentCanonical : '');
+                _saleShowPublishRefusal(lid, _publishRefusal.message, _publishRefusal.lines, (currentCanonical && currentCanonical !== 'Draft' && currentCanonical !== 'Incomplete') ? currentCanonical : '');   // only a Draft is "not live"; any other status is the one the listing keeps
             } else {
                 showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
                 setTimeout(function() { window.location.href = '/crm/dashboard#/ops/listings'; }, 1500);
