@@ -54,10 +54,10 @@ const townhouseFaqSchema = {
     },
     {
       '@type': 'Question',
-      name: 'Should I sell my townhouse as a single-family or multi-family?',
+      name: 'Should I sell my townhouse as a single-unit or multi-unit?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'It depends on the current configuration, zoning, and market demand. Multi-family townhouses (2-4 units) appeal to investors and owner-occupants seeking rental income. Single-family conversions appeal to end-users wanting a full-house experience. We analyze both scenarios to determine which configuration maximizes your sale price.',
+        text: 'It depends on the current configuration, zoning, and market demand. Multi-unit townhouses (2-4 units) appeal to investors and owner-occupants seeking rental income. Single-unit conversions appeal to end-users wanting a full-house experience. We analyze both scenarios to determine which configuration maximizes your sale price.',
       },
     },
     {
@@ -99,9 +99,9 @@ const TOWNHOUSE_FAQS = [
       'Properties in LPC designated historic districts have restrictions on exterior modifications, which can affect buyer renovation plans. However, landmark status preserves neighborhood character and can be a strong selling point. We advise on how to position it as an asset.',
   },
   {
-    question: 'Should I sell as single-family or multi-family?',
+    question: 'Should I sell as single-unit or multi-unit?',
     answer:
-      'It depends on configuration, zoning, and demand. Multi-family (2-4 units) appeals to investors and owner-occupants seeking rental income. Single-family appeals to end-users wanting the full-house experience. We analyze both scenarios to maximize your price.',
+      'It depends on configuration, zoning, and demand. Multi-unit (2-4 units) appeals to investors and owner-occupants seeking rental income. Single-unit appeals to end-users wanting the full-house experience. We analyze both scenarios to maximize your price.',
   },
   {
     question: 'What is FAR and how does it affect my value?',
@@ -165,7 +165,7 @@ const NEIGHBORHOODS = [
   { name: 'West Village', borough: 'Manhattan', style: 'Federal & Greek Revival', href: '/manhattan' },
   { name: 'Greenwich Village', borough: 'Manhattan', style: 'Historic brownstones', href: '/manhattan' },
   { name: 'Chelsea', borough: 'Manhattan', style: 'Row houses & carriage houses', href: '/manhattan' },
-  { name: 'Harlem', borough: 'Manhattan', style: 'Brownstone renaissance', href: '/manhattan' },
+  { name: 'Harlem', borough: 'Manhattan', style: 'Historic brownstones', href: '/manhattan' },
   { name: 'Brooklyn Heights', borough: 'Brooklyn', style: 'Landmarked brownstones', href: '/brooklyn' },
   { name: 'Park Slope', borough: 'Brooklyn', style: 'Victorian brownstones', href: '/brooklyn' },
   { name: 'Carroll Gardens', borough: 'Brooklyn', style: 'Wide-stoop brownstones', href: '/brooklyn' },
@@ -189,7 +189,7 @@ const SELLING_ADVANTAGES = [
   },
   {
     title: 'Development Potential',
-    description: 'Unused FAR, lot assembly opportunities, and conversion potential (SRO, multi-family, single-family) all add premium value.',
+    description: 'Unused FAR, lot assembly opportunities, and conversion potential (SRO, multi-unit, single-unit) all add premium value.',
   },
 ];
 

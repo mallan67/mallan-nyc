@@ -102,11 +102,17 @@ describe('sitemap-style slug == live page canonical (parity lock)', () => {
 
 describe('wiring — both call sites share the helper (SUPPORTING source-grep)', () => {
   const sitemapSrc = readFileSync(path.resolve(__dirname, '../../app/sitemap.ts'), 'utf8');
+  const populationSrc = readFileSync(path.resolve(__dirname, '../../lib/sitemap/population.ts'), 'utf8');
   const pageSrc = readFileSync(path.resolve(__dirname, '../../app/listing/[...slug]/page.tsx'), 'utf8');
 
-  it('app/sitemap.ts composes the street via composeSlugStreetName (not bare StreetName)', () => {
-    expect(sitemapSrc).toMatch(/streetName:\s*composeSlugStreetName\(/);
-    expect(sitemapSrc).not.toMatch(/streetName:\s*addr\.StreetName\s*\|\|\s*addr\.streetName\s*\|\|\s*''/);
+  it('the sitemap takes its listing URLs from buildListingSlugFromDbRow, the same owner as the page DTO (not a street of its own)', () => {
+    // MOVED (2026-10-30). The sitemap used to compose the street inline with composeSlugStreetName(). It now asks the ONE DB-row slug
+    // owner, which composes the street with that helper and also encodes the website-only address bypass, so a Mallan listing's URL
+    // equals the canonical its page declares. The output-level parity is asserted in sitemap-coverage-and-lastmod.test.ts.
+    expect(populationSrc).toMatch(/buildListingSlugFromDbRow\(/);
+    expect(sitemapSrc).toMatch(/sitemapListingPath\(/);
+    expect(sitemapSrc).not.toMatch(/generateListingSlug\(/);
+    expect(populationSrc).not.toMatch(/streetName:\s*addr\.StreetName\s*\|\|\s*addr\.streetName\s*\|\|\s*''/);
   });
 
   it('listing page composes the street via composeSlugStreetName (both DTO paths)', () => {

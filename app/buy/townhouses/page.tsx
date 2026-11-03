@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     'Upper West Side townhouse',
     'Park Slope brownstone',
     'Harlem townhouse',
-    'NYC multi-family townhouse',
+    'NYC multi-unit townhouse',
   ],
   openGraph: {
     title: 'Buy a NYC Townhouse | Mallan Real Estate',
@@ -38,7 +38,7 @@ const townhouseBuyerFaqSchema = {
       name: 'How much does a townhouse cost in NYC?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'NYC townhouse prices range widely: $1.5M-$4M in emerging neighborhoods like Bed-Stuy and Harlem, $4M-$12M on the Upper West Side and Park Slope, and $10M-$30M+ in the West Village and Upper East Side. Price depends on width (16-25ft typical), lot size, condition, number of units, and location.',
+        text: 'NYC townhouse prices range widely: $1.5M-$4M in neighborhoods like Bed-Stuy and Harlem, $4M-$12M on the Upper West Side and Park Slope, and $10M-$30M+ in the West Village and Upper East Side. Price depends on width (16-25ft typical), lot size, condition, number of units, and location.',
       },
     },
     {
@@ -54,7 +54,7 @@ const townhouseBuyerFaqSchema = {
       name: 'How is financing a townhouse different from a condo?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Townhouse mortgages typically require 20-30% down payment (vs. 10-20% for condos). Lenders treat townhouses as unique properties requiring individual appraisals. Multi-family townhouses (2-4 units) can qualify for FHA or investment property loans where rental income offsets carrying costs. Jumbo loans are common given NYC prices.',
+        text: 'Townhouse mortgages typically require 20-30% down payment (vs. 10-20% for condos). Lenders treat townhouses as unique properties requiring individual appraisals. Multi-unit townhouses (2-4 units) can qualify for FHA or investment property loans where rental income offsets carrying costs. Jumbo loans are common given NYC prices.',
       },
     },
     {
@@ -70,15 +70,15 @@ const townhouseBuyerFaqSchema = {
       name: 'What is a certificate of occupancy and why does it matter?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'The Certificate of Occupancy (C of O) from the NYC Department of Buildings defines the legal use of the property — how many units, residential vs. commercial, and occupancy type. If a townhouse is being used differently than its C of O allows (e.g., 3 units but C of O says 2-family), the buyer inherits that liability. Always verify the C of O before purchasing.',
+        text: 'The Certificate of Occupancy (C of O) from the NYC Department of Buildings defines the legal use of the property — how many units, residential vs. commercial, and occupancy type. If a townhouse is being used differently than its C of O allows (e.g., 3 units but C of O says 2-unit), the buyer inherits that liability. Always verify the C of O before purchasing.',
       },
     },
     {
       '@type': 'Question',
-      name: 'Can I convert a multi-family townhouse to single-family?',
+      name: 'Can I convert a multi-unit townhouse to single-unit?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Yes, but it requires filing with the NYC Department of Buildings for an amended Certificate of Occupancy. If tenants are present, NYC tenant protection laws apply — you cannot simply evict rent-stabilized tenants. The conversion may also require LPC approval if in a historic district. Budget $100K-$500K+ for a full single-family conversion depending on scope.',
+        text: 'Yes, but it requires filing with the NYC Department of Buildings for an amended Certificate of Occupancy. If tenants are present, NYC tenant protection laws apply — you cannot simply evict rent-stabilized tenants. The conversion may also require LPC approval if in a historic district. Budget $100K-$500K+ for a full single-unit conversion depending on scope.',
       },
     },
   ],
@@ -98,7 +98,7 @@ const FAQS = [
   {
     question: 'How is financing different from a condo?',
     answer:
-      'Townhouse mortgages typically need 20-30% down. Lenders require individual appraisals. Multi-family (2-4 units) can qualify for FHA or investment loans where rental income offsets costs. Jumbo loans are common at NYC price points.',
+      'Townhouse mortgages typically need 20-30% down. Lenders require individual appraisals. Multi-unit (2-4 units) can qualify for FHA or investment loans where rental income offsets costs. Jumbo loans are common at NYC price points.',
   },
   {
     question: 'Do I need a specialized inspection?',
@@ -111,7 +111,7 @@ const FAQS = [
       'The C of O defines legal use — how many units and what type. If the townhouse is used differently than its C of O allows, you inherit that liability. Always verify before purchasing.',
   },
   {
-    question: 'Can I convert multi-family to single-family?',
+    question: 'Can I convert multi-unit to single-unit?',
     answer:
       'Yes, but it requires a DOB filing for an amended C of O. Rent-stabilized tenants cannot be evicted. LPC approval may be needed in historic districts. Budget $100K-$500K+ depending on scope.',
   },
@@ -161,14 +161,14 @@ const TOWNHOUSE_NEIGHBORHOODS = [
     name: 'Upper West Side',
     borough: 'Manhattan',
     priceRange: '$4M - $15M',
-    character: 'Classic brownstones between Central Park and Riverside Park. Cultural institutions, museums, and Lincoln Center within walking distance.',
+    character: 'Classic brownstones between Central Park and Riverside Park. Cultural institutions, museums, and Lincoln Center a short distance away.',
     href: '/sell/townhouses/upper-west-side',
   },
   {
     name: 'Upper East Side',
     borough: 'Manhattan',
     priceRange: '$5M - $30M+',
-    character: 'Limestone and brownstone on museum mile. The most prestigious townhouse addresses in NYC.',
+    character: 'Limestone and brownstone on museum mile. Among the best-known townhouse addresses in NYC.',
     href: '/manhattan',
   },
   {
@@ -182,7 +182,7 @@ const TOWNHOUSE_NEIGHBORHOODS = [
     name: 'Harlem',
     borough: 'Manhattan',
     priceRange: '$1.5M - $5M',
-    character: 'Renaissance Revival brownstones. Strong value with significant upside as the neighborhood evolves.',
+    character: 'Renaissance Revival brownstones. Strong value with significant upside.',
     href: '/manhattan',
   },
   {
@@ -393,7 +393,7 @@ export default function BuyTownhousesPage() {
                 NYC&apos;s Best Townhouse Neighborhoods
               </h2>
               <p className="mt-4 text-brand-dark/60 text-[15px] font-light max-w-2xl mx-auto">
-                From historic brownstone blocks to emerging neighborhoods with strong upside.
+                From historic brownstone blocks to neighborhoods with strong upside.
               </p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -445,14 +445,14 @@ export default function BuyTownhousesPage() {
                 {[
                   {
                     title: 'Down Payment',
-                    detail: '20-30% typical. Some lenders require 25%+ for multi-family. All-cash offers are common and competitive.',
+                    detail: '20-30% typical. Some lenders require 25%+ for multi-unit. All-cash offers are common and competitive.',
                   },
                   {
                     title: 'Mortgage Types',
                     detail: 'Jumbo loans (most common at NYC prices), FHA 203(k) for renovation, portfolio loans for non-traditional income.',
                   },
                   {
-                    title: 'Multi-Family Advantage',
+                    title: 'Multi-Unit Advantage',
                     detail: '2-4 unit townhouses let you use projected rental income to qualify for a larger loan. Lenders count 75% of market rent.',
                   },
                   {

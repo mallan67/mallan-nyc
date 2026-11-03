@@ -1,10 +1,6 @@
 import { MetadataRoute } from 'next';
 import prisma from '@/lib/prisma';
-import { dedupeRawDbRows } from '@/lib/listings/dedupe-crm-vs-idx';
-import { generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
-import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
-import { ACTIVE_DISPLAY_VALUES } from '@/lib/compliance/status';
-import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
+import { loadSitemapListingRows, neighbourhoodGuidePaths, sitemapListingPath } from '@/lib/sitemap/population';
 
 const BASE_URL = 'https://mallan.nyc';
 
@@ -32,119 +28,71 @@ export const revalidate = 300;
  * Only includes safe-to-index public routes.
  * Excludes: admin, client-access, demo, agent-only routes.
  *
- * COMPLIANCE:
- * - Only includes listings that pass all distribution gates
- * - Suppressed-address listings use MLS-ID-based slugs (no address leak)
- * - Closed listings excluded (24-hour removal rule)
- * - Owner opt-out / participant-only excluded
+ * Neighbourhood guides are offered since their copy was cleaned of school, family and protected-class wording (Master 23.10 / 21.12; the
+ * word-level guard test fails if it returns). NOT offered, on purpose (independent compliance review 2026-10-30; recorded in the State
+ * document): building pages, whose data layer has open gate questions. That is not a decision this file may make.
+ *
+ * COMPLIANCE: which listings are offered, and why, is lib/sitemap/population.ts: only listings that pass the distribution gates,
+ * suppressed-address listings use MLS-ID-based slugs (no address leak), closed listings are excluded (24-hour removal rule), owner
+ * opt-out / participant-only are excluded, Mallan's own RLS return-copies are suppressed in favour of the local canonical listing,
+ * and Mallan's own website-only listings are offered through gates of their own.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
+  // No lastmod on static or legal pages: they have no per-page modification time, and stamping "now" on every
+  // request teaches Google to ignore lastmod, including on the listing and agent entries below where it IS accurate.
   // Core public pages - always indexed
   const staticPages: MetadataRoute.Sitemap = [
-    { url: BASE_URL, lastModified: now, changeFrequency: 'daily', priority: 1.0 },
-    { url: `${BASE_URL}/buy`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
-    { url: `${BASE_URL}/buy/international`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${BASE_URL}/rent`, lastModified: now, changeFrequency: 'daily', priority: 0.9 },
-    { url: `${BASE_URL}/sell`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
-    { url: `${BASE_URL}/sell/international`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${BASE_URL}/agents`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
-    { url: `${BASE_URL}/about`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${BASE_URL}/open-houses`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
+    { url: BASE_URL, changeFrequency: 'daily', priority: 1.0 },
+    { url: `${BASE_URL}/buy`, changeFrequency: 'daily', priority: 0.9 },
+    { url: `${BASE_URL}/buy/international`, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE_URL}/rent`, changeFrequency: 'daily', priority: 0.9 },
+    { url: `${BASE_URL}/sell`, changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${BASE_URL}/sell/international`, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE_URL}/agents`, changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${BASE_URL}/about`, changeFrequency: 'monthly', priority: 0.6 },
+    { url: `${BASE_URL}/open-houses`, changeFrequency: 'daily', priority: 0.8 },
     // /search is NOT in the sitemap — it's a parameterless thin-content page.
     // The canonical indexable listing URLs are /listing/{slug} (included below).
     // robots.ts blocks /search for all bots; listing these here would create
     // a mixed signal that previously confused Google crawling.
-    { url: `${BASE_URL}/contact`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${BASE_URL}/neighborhoods`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
-    { url: `${BASE_URL}/market`, lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
-    { url: `${BASE_URL}/manhattan`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
-    { url: `${BASE_URL}/brooklyn`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
-    { url: `${BASE_URL}/queens`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
-    { url: `${BASE_URL}/bronx`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
-    { url: `${BASE_URL}/staten-island`, lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${BASE_URL}/contact`, changeFrequency: 'monthly', priority: 0.6 },
+    { url: `${BASE_URL}/neighborhoods`, changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${BASE_URL}/market`, changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${BASE_URL}/manhattan`, changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${BASE_URL}/brooklyn`, changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${BASE_URL}/queens`, changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${BASE_URL}/bronx`, changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${BASE_URL}/staten-island`, changeFrequency: 'weekly', priority: 0.6 },
   ];
+
+  // Neighbourhood guides (/{borough}/{neighbourhood}), no lastmod: they have no per-page modification time.
+  const neighbourhoodPages: MetadataRoute.Sitemap = neighbourhoodGuidePaths().map((p) => ({
+    url: `${BASE_URL}${p}`,
+    changeFrequency: 'weekly' as const,
+    priority: 0.6,
+  }));
 
   // Legal/compliance pages - required for indexing
   const legalPages: MetadataRoute.Sitemap = [
-    { url: `${BASE_URL}/privacy`, lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
-    { url: `${BASE_URL}/terms`, lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
-    { url: `${BASE_URL}/fair-housing`, lastModified: now, changeFrequency: 'yearly', priority: 0.4 },
-    { url: `${BASE_URL}/sop`, lastModified: now, changeFrequency: 'yearly', priority: 0.2 },
-    { url: `${BASE_URL}/reasonable-accommodations`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${BASE_URL}/privacy`, changeFrequency: 'monthly', priority: 0.3 },
+    { url: `${BASE_URL}/terms`, changeFrequency: 'monthly', priority: 0.3 },
+    { url: `${BASE_URL}/fair-housing`, changeFrequency: 'yearly', priority: 0.4 },
+    { url: `${BASE_URL}/sop`, changeFrequency: 'yearly', priority: 0.2 },
+    { url: `${BASE_URL}/reasonable-accommodations`, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
-  // Dynamic listing pages — only IDX-displayable, non-suppressed listings
+  // Dynamic listing pages — third-party RLS listings and Mallan's own website-only listings, each through its own gates.
   let listingPages: MetadataRoute.Sitemap = [];
   try {
-    const listingsRaw = await prisma.listing.findMany({
-      where: {
-        // Distribution gates — all must pass for sitemap inclusion
-        idx_display_yn: true,
-        internet_entire_listing_display_yn: true,
-        owner_opt_out: false,
-        participant_only: false,
-        // Only active listings (closed removed per 24h rule).
-        // Canonical values from lib/compliance/status.ts — was
-        // `['Active', 'Coming Soon']` which never matched because DB
-        // stores `ComingSoon` (no space). Sitemap excluded every Coming
-        // Soon listing as a result. Fixed here.
-        status: { in: [...ACTIVE_DISPLAY_VALUES] },
-        // MALLAN RLS RETURN-COPY SUPPRESSION — Master §4.4.
-        //
-        // Mallan's own listing returns through Cotality as an `RLS*` row.
-        // Without this the sitemap emitted a SECOND canonical URL for the same
-        // physical listing — a duplicate-content/SEO defect — and the returned
-        // copy is not Mallan's public canonical listing; the local `SL-`/`RL-`
-        // row is. This route builds its gate inline rather than through
-        // `buildSearchDisplayWhere`, so the exclusion is applied explicitly
-        // from the SAME single owner.
-        AND: [excludeMallanRlsReturnCopies()],
-      },
-      select: {
-        listing_id: true,
-        mls_id: true,
-        address: true,
-        internet_address_display_yn: true,
-        modification_timestamp: true,
-      },
-    });
-
-    // Public-surface dedupe (2026-05-28): when a Mallan CRM exclusive
-    // (SL-/RL-) and a Cotality-synced IDX duplicate exist for the same
-    // physical unit, emit only the CRM canonical URL. Avoids
-    // duplicate-content SEO penalty for our own listings. See
-    // lib/listings/dedupe-crm-vs-idx.ts.
-    const listings = dedupeRawDbRows(listingsRaw);
-
-    listingPages = listings.map((l) => {
-      const addr = (l.address || {}) as Record<string, string>;
-      const slug = generateListingSlug({
-        address: {
-          streetNumber: addr.StreetNumber || addr.streetNumber || '',
-          // SEO-001 (2026-07-02): compose DirPrefix + Name + Suffix via the
-          // SHARED helper — passing StreetName alone made 10,069/10,239
-          // sitemap URLs diverge from the page canonicals (full-population
-          // audit 2026-07-01; e.g. "434-20th-…" vs "434-w-20th-street-…").
-          streetName: composeSlugStreetName(addr),
-          unitNumber: addr.UnitNumber || addr.unitNumber || null,
-          city: addr.City || addr.city || 'New York',
-          stateOrProvince: addr.StateOrProvince || addr.stateOrProvince || 'NY',
-          postalCode: addr.PostalCode || addr.postalCode || '',
-        },
-        id: l.listing_id,
-        mlsId: l.mls_id || l.listing_id,
-        internetAddressDisplayYN: l.internet_address_display_yn,
-      });
-
-      return {
-        url: `${BASE_URL}${buildCanonicalListingPath({ slug, id: l.listing_id })}`,
-        lastModified: l.modification_timestamp || now,
-        changeFrequency: 'daily' as const,
-        priority: 0.7,
-      };
-    });
+    const listings = await loadSitemapListingRows();
+    listingPages = listings.map((l) => ({
+      url: `${BASE_URL}${sitemapListingPath(l)}`,
+      lastModified: l.modification_timestamp || now,
+      changeFrequency: 'daily' as const,
+      priority: 0.7,
+    }));
   } catch (err) {
     // Non-fatal — sitemap still includes static pages
     console.error('[sitemap] Failed to fetch listings:', err);
@@ -169,47 +117,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Non-fatal
   }
 
-  // Building profile pages — from local DB (populated by silent upsert)
-  let buildingPages: MetadataRoute.Sitemap = [];
-  try {
-    const buildings = await prisma.building.findMany({
-      where: { active_listing_count: { gt: 0 } },
-      select: {
-        building_key: true,
-        name: true,
-        street_number: true,
-        street_name: true,
-        zip: true,
-        last_synced_at: true,
-      },
-      take: 500,
-      orderBy: { last_synced_at: 'desc' },
-    });
-    buildingPages = buildings
-      .filter((b) => b.street_number && b.street_name)
-      .map((b) => {
-        const slug = [b.name || '', b.street_number, b.street_name]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-|-$/g, '');
-        const sp = new URLSearchParams({
-          sn: b.street_number || '',
-          st: b.street_name || '',
-        });
-        if (b.zip) sp.set('z', b.zip);
-        if (b.name) sp.set('bn', b.name);
-        return {
-          url: `${BASE_URL}/buildings/${slug}?${sp.toString()}`,
-          lastModified: b.last_synced_at || now,
-          changeFrequency: 'weekly' as const,
-          priority: 0.6,
-        };
-      });
-  } catch {
-    // Non-fatal
-  }
-
-  return [...staticPages, ...legalPages, ...listingPages, ...agentPages, ...buildingPages];
+  return [...staticPages, ...neighbourhoodPages, ...legalPages, ...listingPages, ...agentPages];
 }

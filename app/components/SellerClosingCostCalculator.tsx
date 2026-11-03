@@ -11,7 +11,7 @@ const PROPERTY_TYPES: { label: string; value: PropertyType }[] = [
   { label: 'Condo', value: 'condo' },
   { label: 'Co-op', value: 'coop' },
   { label: 'Townhouse', value: 'townhouse' },
-  { label: 'Multi-family', value: 'multifamily' },
+  { label: 'Multi-unit', value: 'multifamily' },
   { label: 'Commercial', value: 'commercial' },
 ];
 

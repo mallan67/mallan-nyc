@@ -176,7 +176,7 @@ describe('every PUBLIC emitter applies the canonical exclusion', () => {
    * rather than a silent leak in production.
    */
   const DIRECT_APPLIERS = [
-    'app/sitemap.ts',                              // canonical URLs / SEO
+    'lib/sitemap/population.ts',                   // canonical URLs / SEO: the listing sitemap
     'app/api/agents/[slug]/listings/route.ts',     // agent page (pre-take)
     'app/api/listings/similar/route.ts',           // similar comps
     'lib/buildings/public-building-data.ts',       // building manifest

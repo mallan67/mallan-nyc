@@ -33,7 +33,7 @@ const hubFaqSchema = {
       name: 'What are the best neighborhoods to buy in Queens?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Queens offers excellent options at various price points. Long Island City features modern high-rises with Manhattan views. Forest Hills is known for Tudor homes and garden apartments. Astoria offers diverse dining and walkable streets. Bayside provides suburban living with city convenience.',
+        text: 'Queens offers excellent options at various price points. Long Island City features modern high-rises with Manhattan views. Forest Hills is known for Tudor homes and garden apartments. Astoria offers varied dining and walkable streets. Bayside provides suburban living with city convenience.',
       },
     },
     {
@@ -41,7 +41,7 @@ const hubFaqSchema = {
       name: 'Is Queens a good investment for real estate?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Queens offers strong investment potential with lower entry points than Manhattan or Brooklyn. Long Island City and Astoria have seen significant appreciation. The borough benefits from major transit connections, diverse economic drivers, and continued development. Many investors find attractive cap rates compared to other boroughs.',
+        text: 'Queens offers strong investment potential with lower entry points than Manhattan or Brooklyn. Long Island City and Astoria have seen significant appreciation. The borough benefits from major transit connections, varied economic drivers, and continued development. Many investors find attractive cap rates compared to other boroughs.',
       },
     },
     {

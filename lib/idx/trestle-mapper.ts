@@ -1198,6 +1198,24 @@ export function checkDistributionGates(raw: Record<string, unknown>): {
   return { displayable: false, reason: result.reason };
 }
 
+/**
+ * checkDistributionGates plus whether the listing's ADDRESS may be shown, for readers that print a unit under a street address
+ * (the building page). Same IDX Plus convention: a null InternetAddressDisplayYN passes, an explicit false does not.
+ */
+export function checkDistributionGatesWithAddress(raw: Record<string, unknown>): {
+  displayable: boolean;
+  addressDisplayable: boolean;
+  reason?: string;
+} {
+  const { evaluateDisplayGate } = require("@/lib/compliance/gates") as typeof import("@/lib/compliance/gates");
+  const result = evaluateDisplayGate(raw, { idxPlusPreFiltered: true });
+  return {
+    displayable: result.displayable,
+    addressDisplayable: result.displayable && result.addressDisplayable,
+    ...(result.displayable ? {} : { reason: result.reason }),
+  };
+}
+
 /** 41 required REBNY RLS fields that must be present for a valid listing. */
 export const REQUIRED_RLS_FIELDS = [
   // Absolute minimum to identify and store a listing.

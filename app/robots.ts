@@ -123,6 +123,29 @@ const BLOCK_ALL_MLS = [
 
 // ── Builders ──────────────────────────────────────────────────────────────
 
+/**
+ * SEARCH ENGINES (Google, Google Images, Bing): allowed to fetch listing photos through the media proxy,
+ * so the photos on listing pages can be indexed. Owner decision, Maya Allan, 2026-10-30 ("get the photos
+ * indexed"). Search Console had 10,189 of these photo addresses reported "Blocked by robots.txt".
+ *
+ * - Only `/api/media/proxy` is opened. Every other `/api/` path stays blocked for them, and the longest
+ *   matching rule wins in both Google's and Bing's robots parsers (`/api/media/proxy` beats `/api/`).
+ * - A crawler obeys only the most specific group that names it, so this group repeats everything the
+ *   default group blocks; naming Googlebot here removes it from the default group.
+ * - The proxy itself refuses non-images and caches 7 days at the CDN. Crawler requests that reach it
+ *   (CDN misses) are also rate limited, so a crawler cannot use up Cotality's shared media quota:
+ *   see app/api/media/proxy/route.ts. AI crawlers are NOT included and stay blocked from /api/.
+ */
+const SEARCH_ENGINE_BOTS = ['Googlebot', 'Googlebot-Image', 'Bingbot'];
+const MEDIA_PROXY_PATH = '/api/media/proxy';
+function searchEngineBot() {
+  return {
+    userAgent: SEARCH_ENGINE_BOTS,
+    allow: ['/', MEDIA_PROXY_PATH],
+    disallow: [...ADMIN_PATHS, ...MLS_SEARCH_PATHS],
+  };
+}
+
 /** AI SEARCH bot — user-triggered, answers specific queries. */
 function aiSearchBot(userAgent: string) {
   return {
@@ -175,7 +198,10 @@ export default function robots(): MetadataRoute.Robots {
       { userAgent: 'PetalBot', disallow: '/' },
       { userAgent: 'serpstatbot', disallow: '/' },
 
-      // ── DEFAULT (Google, Bing, etc.) ──
+      // ── SEARCH ENGINES: may also fetch listing photos (see searchEngineBot) ──
+      searchEngineBot(),
+
+      // ── DEFAULT (everyone else) ──
       // Allow crawl of category pages AND individual listing pages. The
       // listing pages are in the sitemap — blocking them here previously
       // created a mixed signal. Only admin/API/private surfaces are

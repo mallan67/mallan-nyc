@@ -49,7 +49,7 @@ const hubFaqSchema = {
       name: 'What are Staten Island home prices like?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Staten Island offers NYC\u2019s most affordable real estate. Median home prices range from $500,000-$600,000, with Todt Hill commanding premiums of $800,000-$2,000,000+. The borough offers significantly more space per dollar than other boroughs, with many detached single-family homes with yards.',
+        text: 'Staten Island offers NYC\u2019s most affordable real estate. Median home prices range from $500,000-$600,000, with Todt Hill commanding premiums of $800,000-$2,000,000+. The borough offers significantly more space per dollar than other boroughs, with many detached single-unit homes with yards.',
       },
     },
     {

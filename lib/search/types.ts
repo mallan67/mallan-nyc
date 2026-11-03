@@ -131,7 +131,7 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, AmenityFieldConfig> = {
   'sauna':         { field: 'BuildingFeatures', values: ['Sauna'], label: 'Sauna', group: 'Building Amenities' },
   'steam-room':    { field: 'BuildingFeatures', values: ['SteamRoom'], label: 'Steam Room', group: 'Building Amenities' },
   'roof-deck':     { field: 'ExteriorFeatures', values: ['RoofDeck', 'BuildingRoofDeck'], label: 'Roof Deck', group: 'Building Amenities' },
-  'playroom':      { field: 'BuildingFeatures', values: ['CommonPlayroom'], label: "Children's Playroom", group: 'Building Amenities' },
+  'playroom':      { field: 'BuildingFeatures', values: ['CommonPlayroom'], label: 'Playroom', group: 'Building Amenities' },
   'laundry-room':  { field: 'LaundryFeatures', values: ['LaundryRoom', 'OnCommonFloor', 'CommonOnFloor', 'CommonArea'], label: 'Laundry Room', group: 'Building Amenities' },
   'elevator':      { field: 'BuildingFeatures,InteriorFeatures', values: ['Elevators', 'Elevator'], label: 'Elevator', group: 'Building Amenities' },
   'lounge':        { field: 'BuildingFeatures', values: ['CommonLounge'], label: "Residents' Lounge", group: 'Building Amenities' },

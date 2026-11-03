@@ -31,7 +31,7 @@ export default function StreetGuidanceSection({
           {guidance.bestBlocksForParks.length > 0 && (
             <div className="bg-blue-50 rounded-2xl p-5">
               <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wide mb-3">
-                Near Parks &amp; Schools
+                Near Parks
               </h3>
               <ul className="space-y-1.5 text-sm text-blue-800">
                 {guidance.bestBlocksForParks.map((block) => (
