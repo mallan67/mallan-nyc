@@ -256,6 +256,12 @@ export interface PublicListingDTO {
   auction: AuctionPublic | null;
   // Compliance metadata
   _source: string;
+  /**
+   * True for Mallan's OWN listing that is sourced from Cotality and read-only (verified list office + verified Mallan agent + exclusive agreement, no
+   * authored twin). It is NOT `_source: 'exclusive'` (that is Mallan-authored and editable): the row keeps `_source: 'db+idx'` and its RLS attribution,
+   * and earns only the "Mallan Exclusive" mark and Mallan's agent card.
+   */
+  _mallanListed?: boolean;
   _displayCompliance: {
     requiresAttribution: boolean;
     attributionText: string;

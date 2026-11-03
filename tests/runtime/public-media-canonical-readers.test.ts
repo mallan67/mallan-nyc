@@ -22,6 +22,12 @@
  * derivation, because scenario (3) then emits the legacy URL.
  */
 
+// The identity context (lib/listings/mallan-twin-context.ts) is its own unit under test; here it is fixed to "nothing is a duplicate" so this suite's
+// prisma mock only sees the reads it is about.
+jest.mock('@/lib/listings/mallan-twin-context', () => ({
+  ...jest.requireActual('@/lib/listings/mallan-twin-context'),
+  loadMallanTwinContext: jest.fn(async () => ({ returnCopyIds: [], agentsByMlsId: {} })),
+}));
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {

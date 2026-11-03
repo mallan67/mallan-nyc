@@ -8,6 +8,7 @@ import OpenHouseBanner from '@/app/components/OpenHouseBanner';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import type { NextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
 import { getPrimaryPhoto } from '@/lib/media/listing-media-resolver';
+import MallanExclusiveBadge from '@/app/components/MallanExclusiveBadge';
 
 interface ListingDTO {
   id: string;
@@ -31,6 +32,7 @@ interface ListingDTO {
   // show "Exclusive listing by Mallan Real Estate Inc." (never the RLS courtesy
   // line, which would mislabel our own listing as a third-party RLS one).
   _source?: string;
+  _mallanListed?: boolean;
   _displayCompliance?: { attributionText?: string | null } | null;
   // UCBA Art. I §16(C) — Coming Soon badge requires status + date.
   status?: string | null;
@@ -144,6 +146,7 @@ function ActiveListingCard({ listing, isRental }: { listing: ListingDTO; isRenta
             ? listing._displayCompliance?.attributionText || 'Exclusive listing by Mallan Real Estate Inc.'
             : `RLS · Listing Courtesy of ${listing.listOfficeName || 'Mallan Real Estate Inc.'}`}
         </p>
+        <MallanExclusiveBadge listing={listing} />
       </div>
     </Link>
   );

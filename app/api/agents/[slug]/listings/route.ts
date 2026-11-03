@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
+import { loadMallanTwinContext } from "@/lib/listings/mallan-twin-context";
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
@@ -204,6 +205,7 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
   closed: PublicListingDTO[];
 }> {
   try {
+    const twin = await loadMallanTwinContext();
     const dbListings = await prisma.listing.findMany({
       where: {
         // `agent_id` here is a ROSTER/HISTORY association, NOT ownership —
@@ -218,7 +220,7 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
         // local row with its twin solely when BOTH survive the take, so a twin
         // sitting beyond the 100-row window would otherwise reach the page on
         // its own with no local row present to suppress it.
-        AND: [excludeMallanRlsReturnCopies()],
+        AND: [excludeMallanRlsReturnCopies(twin)],
       },
       orderBy: { updated_at: 'desc' },
       take: 100,
@@ -274,6 +276,10 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
         // Phase B: typed agent columns so dbListingToPublicDTO resolves office TYPED-FIRST
         // (otherwise this public agent-page surface silently always falls back to agent_info JSON).
         ...AGENT_TYPED_SELECT,
+        // the source fields that verify a Mallan-listed Cotality row (office, list agent, agreement): see isVerifiedMallanListedRow
+        list_office_mls_id: true,
+        list_agent_mls_id: true,
+        raw_data: true,
         idx_display_yn: true,
         internet_entire_listing_display_yn: true,
         internet_address_display_yn: true,
@@ -339,7 +345,7 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
     // Explicit arrows, NOT bare `.map(dbListingToPublicDTO)`: `Array.map` passes (value, index,
     // array), so a bare reference would hand the numeric INDEX to the options parameter.
     const toDto = (l: DbListing) =>
-      dbListingToPublicDTO(l, { hadFeedRelationalRows: feedAuthority.get(l.listing_id) });
+      dbListingToPublicDTO(l, { hadFeedRelationalRows: feedAuthority.get(l.listing_id), twin });
 
     return {
       active: preferCrmExclusiveOverIdxDuplicate(activeRows.map(toDto)),

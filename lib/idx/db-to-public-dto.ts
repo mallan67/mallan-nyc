@@ -19,6 +19,8 @@ import type { PublicListingDTO } from './public-dto';
 import { resolveMoveInFees } from './public-dto';
 import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { publicListOfficeName } from './public-attribution';
+import { isVerifiedMallanListedRow } from '@/lib/listings/mallan-source-identity';
+import type { MallanTwinContext } from '@/lib/listings/mallan-twin-context';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 import { composeSlugStreetName, buildListingSlugFromDbRow } from '@/lib/listing-slug';
@@ -283,6 +285,12 @@ const proxyDbMediaUrl = toPublicMediaUrl;
  *   whose listing it is.
  * - `website-only`: commercial / off-RLS listing (`rls_eligible === false`).
  *   Bypasses REBNY distribution gates; surfaced only on mallan.nyc.
+ * - `mallan-listed-cotality`: Mallan's OWN listing, sourced from Cotality and
+ *   read-only: list office is Mallan's, the list agent is a VERIFIED Mallan
+ *   agent, the agreement is exclusive, and it is not a duplicate of a
+ *   Mallan-authored listing (isVerifiedMallanListedRow). Keeps `_source:
+ *   "db+idx"` and the full REBNY attribution; earns the "Mallan Exclusive"
+ *   mark and Mallan's agent card. Needs the twin context to be recognised.
  * - `third-party-idx`: synced from REBNY RLS via Trestle/IDX Plus with no
  *   Mallan attribution. Must carry the full REBNY disclaimer and
  *   `_source: "db+idx"`.
@@ -290,6 +298,7 @@ const proxyDbMediaUrl = toPublicMediaUrl;
 export type DbListingProvenance =
   | 'mallan-exclusive'
   | 'website-only'
+  | 'mallan-listed-cotality'
   | 'third-party-idx';
 
 /**
@@ -310,12 +319,17 @@ export type DbListingProvenance =
  * listing is identified by its source fields, the same rule the emails, the
  * media authority and the search projection already use.
  */
-export function classifyDbListing(listing: Pick<DbListing, 'listing_id' | 'rls_eligible'>): DbListingProvenance {
+export function classifyDbListing(
+  listing: Pick<DbListing, 'listing_id' | 'rls_eligible'> & Partial<Pick<DbListing, 'list_office_mls_id' | 'list_agent_mls_id' | 'raw_data'>>,
+  twin?: MallanTwinContext,
+): DbListingProvenance {
   // A website-only exemption requires canonical Mallan authorship and
   // an explicit distribution opt-out; a legacy imported stub gets neither.
   if (isMallanWebsiteOnlyListing(listing)) return 'website-only';
   // A Mallan-authored local listing: the CRM's SL-/RL- listing id.
   if (isMallanLocalListing(listing)) return 'mallan-exclusive';
+  // Mallan's own listing that lives only in Cotality (no authored twin): verified from source fields, never from `agent_id`.
+  if (twin && isVerifiedMallanListedRow(listing, twin)) return 'mallan-listed-cotality';
   return 'third-party-idx';
 }
 
@@ -356,6 +370,8 @@ export function dbListingToPublicDTO(
      * unconditional third-party fallback — so an un-adopted caller cannot regress.
      */
     hadFeedRelationalRows?: boolean;
+    /** The identity context (lib/listings/mallan-twin-context.ts): lets a verified Mallan-listed Cotality row be recognised. Omit it and such a row is treated as third-party (no brand, no agent card). */
+    twin?: MallanTwinContext;
   },
 ): PublicListingDTO {
   const addr = (listing.address || {}) as DbAddress;
@@ -640,7 +656,7 @@ export function dbListingToPublicDTO(
     // labeled `_source: 'exclusive'` / `disclaimerRequired: false` regardless
     // of whether it was Mallan-authored or a 3rd-party Trestle sync. See
     // `classifyDbListing` above for the predicate.
-    ...buildSourceAndCompliance(listing, agentInfo, isComingSoon, comingSoonDate),
+    ...buildSourceAndCompliance(listing, agentInfo, isComingSoon, comingSoonDate, opts?.twin),
   };
 }
 
@@ -661,11 +677,46 @@ export function buildSourceAndCompliance(
   agentInfo: DbAgentInfo,
   isComingSoon: boolean,
   comingSoonDate: string | undefined,
-): Pick<PublicListingDTO, '_source' | '_displayCompliance' | '_assignedAgent'> {
-  const provenance = classifyDbListing(listing);
+  twin?: MallanTwinContext,
+): Pick<PublicListingDTO, '_source' | '_displayCompliance' | '_assignedAgent' | '_mallanListed'> {
+  const provenance = classifyDbListing(listing, twin);
   // Phase B: typed-first agent attribution (JSON fallback). Exposure rules unchanged.
   const resolved = resolveListingAgentInfo(listing);
   const officeName = publicListOfficeName(resolved.officeName);
+
+  // Mallan's own Cotality-sourced listing: RLS attribution and disclaimer stay (the data is Cotality's), `_source` stays 'db+idx' (it is NOT an authored
+  // exclusive), and it carries Mallan's VERIFIED agent card from the roster (name, license title, profile slug, photo, contact). Only a verified Mallan
+  // agent reaches this branch, so no other brokerage's contact field is ever published here.
+  if (provenance === 'mallan-listed-cotality' && twin) {
+    const verified = twin.agentsByMlsId[String(listing.list_agent_mls_id ?? '').trim()];
+    // The verified roster record comes first: it is the Mallan agent's own public contact; the row's value only fills a blank.
+    const email = verified?.email ?? resolved.agentEmail ?? undefined;
+    const phone = verified?.phone ?? resolved.agentDirectPhone ?? undefined;
+    return {
+      _source: 'db+idx',
+      _mallanListed: true,
+      _displayCompliance: {
+        requiresAttribution: true,
+        attributionText: `Listing courtesy of ${officeName}`,
+        disclaimerRequired: true,
+        comingSoon: isComingSoon || undefined,
+        comingSoonDate,
+      },
+      ...(verified
+        ? {
+            _assignedAgent: {
+              name: verified.name,
+              ...(email ? { email } : {}),
+              ...(phone ? { phone } : {}),
+              company: officeName,
+              ...(verified.title ? { title: verified.title } : {}),
+              ...(verified.slug ? { slug: verified.slug } : {}),
+              ...(verified.photo ? { photo: verified.photo } : {}),
+            },
+          }
+        : {}),
+    };
+  }
 
   if (provenance === 'third-party-idx') {
     return {

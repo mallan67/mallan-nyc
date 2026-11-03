@@ -75,6 +75,7 @@ interface FeaturedListing {
   activationDate?: string | null;
   _attribution?: string;
   _source?: string;
+  _mallanListed?: boolean;
   _displayCompliance?: { attributionText?: string };
   _lastUpdated?: string;
   /**

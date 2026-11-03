@@ -45,6 +45,8 @@ export interface FeaturedOrderable {
   mlsId?: string;
   listing_id?: string;
   _source?: string;
+  /** Mallan's own listing that lives in Cotality (verified server-side from the source fields): earns the Mallan mark, stays read-only. */
+  _mallanListed?: boolean;
   address?: DedupeAddressLike | null;
   _displayCompliance?: { attributionText?: string };
 }
@@ -56,10 +58,13 @@ const CRM_ID_PREFIX = /^(SL|RL)-/i;
  * `_source: 'exclusive'` (covers mallan-exclusive AND website-only) OR any of
  * its identifiers carries the SL-/RL- CRM prefix. The prefix is the definitive
  * CRM-authored signal and is checked on id / mlsId / listing_id so the match
- * holds whichever identifier the feed surfaced.
+ * holds whichever identifier the feed surfaced. A VERIFIED Mallan-listed Cotality listing (`_mallanListed`, set by the server from the list office, the
+ * verified Mallan agent and the exclusive agreement) counts too: it is Mallan's own listing even though it is read-only and `_source` stays 'db+idx'.
  */
-export function isMallanOwnedListing(l: Pick<FeaturedOrderable, '_source' | 'id' | 'mlsId' | 'listing_id'>): boolean {
-  if (l._source === 'exclusive') return true;
+export function isMallanOwnedListing(
+  l: Pick<FeaturedOrderable, '_source' | '_mallanListed' | 'id' | 'mlsId' | 'listing_id'>,
+): boolean {
+  if (l._source === 'exclusive' || l._mallanListed === true) return true;
   return [l.listing_id, l.id, l.mlsId].some((x) => typeof x === 'string' && CRM_ID_PREFIX.test(x));
 }
 
@@ -232,7 +237,7 @@ export const RLS_FEATURED_BADGE_TITLE = 'Featured listing — listed on REBNY RL
  * accidentally surface an RLS/syndication claim for a website-only exclusive.
  */
 export function featuredBadgeFor(
-  l: Pick<FeaturedOrderable, '_source' | 'id' | 'mlsId' | 'listing_id'>,
+  l: Pick<FeaturedOrderable, '_source' | '_mallanListed' | 'id' | 'mlsId' | 'listing_id'>,
   pinned: boolean,
 ): FeaturedBadge | null {
   if (isMallanOwnedListing(l)) {

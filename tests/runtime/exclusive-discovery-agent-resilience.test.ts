@@ -17,6 +17,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { buildPublicListingDbSearch } from '../../lib/search/public-listing-db';
+import { EMPTY_TWIN_CONTEXT } from '../../lib/listings/mallan-twin-context';
 import {
   filterDisplayableDbListings,
   dbListingToPublicDTO,
@@ -41,7 +42,7 @@ function makeDbListing(overrides: Partial<DbListing> = {}): DbListing {
 }
 
 describe('exclusive=mallan query includes Active website-only Mallan exclusives', () => {
-  const { where } = buildPublicListingDbSearch(new URLSearchParams({ exclusive: 'mallan', type: 'sale' }));
+  const { where } = buildPublicListingDbSearch(new URLSearchParams({ exclusive: 'mallan', type: 'sale' }), EMPTY_TWIN_CONTEXT);
 
   it('restricts to TRUE Mallan exclusives (SL-/RL-/website-only), NOT agent_id, and sale type', () => {
     // Updated 2026-06-23: agent_id is unsafe (syncAgentHistory stamps it onto
@@ -53,8 +54,13 @@ describe('exclusive=mallan query includes Active website-only Mallan exclusives'
       expect.arrayContaining([
         {
           OR: [
-            { listing_id: { startsWith: 'SL-' } },
-            { listing_id: { startsWith: 'RL-' } },
+            {
+              OR: [
+                { listing_id: { startsWith: 'SL-' } },
+                { listing_id: { startsWith: 'RL-' } },
+              ],
+            },
+            expect.objectContaining({ list_office_mls_id: { in: ['7041'] } }),
           ],
         },
       ]),

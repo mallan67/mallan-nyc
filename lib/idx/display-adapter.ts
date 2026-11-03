@@ -110,6 +110,7 @@ export interface DisplayListing {
   ongoingFees?: string;
   tenantPaysDescription?: string;
   _source?: string;
+  _mallanListed?: boolean;
   _displayCompliance: {
     comingSoon?: boolean;
     comingSoonDate?: string;
@@ -172,6 +173,7 @@ export function fromPublicDTO(dto: PublicListingDTO): DisplayListing {
     ongoingFees: dto.ongoingFees,
     tenantPaysDescription: dto.tenantPaysDescription,
     _source: dto._source,
+    _mallanListed: dto._mallanListed,
     _displayCompliance: dto._displayCompliance,
     // PR-FE.2 Option C — pass-through the API-layer annotation when present.
     _coListedCount: dto._coListedCount,

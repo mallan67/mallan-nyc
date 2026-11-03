@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { excludeMallanRlsReturnCopies, mallanWebsiteOnlyWhere } from "@/lib/listings/mallan-source-identity";
+import { lastKnownMallanTwinContext, type MallanTwinContext } from "@/lib/listings/mallan-twin-context";
 import {
   ACTIVE_DISPLAY_VALUES,
   normalizeStatus,
@@ -100,7 +101,12 @@ export function normalizeSearchStatuses(input: unknown): StatusValue[] {
   return [...new Set(statuses)];
 }
 
-export function buildSearchDisplayWhere(statusInput?: unknown): Prisma.ListingWhereInput {
+export function buildSearchDisplayWhere(
+  statusInput?: unknown,
+  // PUBLIC readers pass `await loadMallanTwinContext()`. A caller that cannot await (an internal scorer, a cache warmer) gets the last context this process
+  // loaded: nothing is hidden as a duplicate until a context exists (fail-closed on suppression).
+  context: MallanTwinContext = lastKnownMallanTwinContext(),
+): Prisma.ListingWhereInput {
   const statuses = normalizeSearchStatuses(statusInput);
 
   return {
@@ -120,7 +126,7 @@ export function buildSearchDisplayWhere(statusInput?: unknown): Prisma.ListingWh
     //
     // Fail-closed on SUPPRESSION, not on display — a row with unknown
     // provenance (no `list_office_mls_id`) keeps normal public treatment.
-    AND: [excludeMallanRlsReturnCopies()],
+    AND: [excludeMallanRlsReturnCopies(context)],
   };
 }
 

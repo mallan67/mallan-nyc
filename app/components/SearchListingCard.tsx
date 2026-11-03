@@ -4,6 +4,7 @@ import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import FavoriteButton from '@/app/components/FavoriteButton';
 import FareActFeeBadge from '@/app/components/FareActFeeBadge';
+import MallanExclusiveBadge from '@/app/components/MallanExclusiveBadge';
 import OpenHouseBanner from '@/app/components/OpenHouseBanner';
 import { CardPhotoNav, CardPhotoCounter } from '@/app/components/CardPhotoNav';
 import { type DisplayListing, listingHref, hasVirtualTour, hasVideo } from '@/lib/idx/display-adapter';
@@ -235,6 +236,7 @@ export function GridCard({ listing, isRental, isHighlighted, onHover, priority =
             ? (listing._displayCompliance?.attributionText || 'Mallan Real Estate Inc.')
             : `RLS · Listing Courtesy of ${listing.listOfficeName || 'listing broker'}`}
         </p>
+        <MallanExclusiveBadge listing={listing} />
         {formatCoListedBadge(listing) && (
           // PR-FE.2 Option C — co-listed siblings badge. See
           // formatCoListedBadge at the top of this file for the text
@@ -375,6 +377,7 @@ export function ListCard({ listing, isRental, isHighlighted, onHover, priority =
             ? (listing._displayCompliance?.attributionText || 'Mallan Real Estate Inc.')
             : `RLS · Listing Courtesy of ${listing.listOfficeName || 'listing broker'}`}
         </p>
+        <MallanExclusiveBadge listing={listing} />
         {formatCoListedBadge(listing) && (
           // PR-FE.2 Option C — co-listed siblings badge. See
           // formatCoListedBadge at the top of this file for the text
@@ -503,6 +506,7 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover, priority 
             ? (listing._displayCompliance?.attributionText || 'Mallan Real Estate Inc.')
             : `RLS · Listing Courtesy of ${listing.listOfficeName || 'listing broker'}`}
         </p>
+        <MallanExclusiveBadge listing={listing} />
         {formatCoListedBadge(listing) && (
           // PR-FE.2 Option C — co-listed siblings badge. See
           // formatCoListedBadge at the top of this file for the text

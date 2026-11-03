@@ -32,6 +32,14 @@ jest.mock('next/navigation', () => ({
   permanentRedirect: (u: string) => mockPermanentRedirect(u),
 }));
 
+// The identity context: RLS20000001 is a PROVEN duplicate of the Mallan-authored SL-0999 (the loader itself is covered by the twin-context tests).
+const PROVEN_DUPLICATE = { returnCopyIds: ['RLS20000001'], agentsByMlsId: {} };
+let mockTwin: { returnCopyIds: string[]; agentsByMlsId: Record<string, never> } = PROVEN_DUPLICATE;
+jest.mock('@/lib/listings/mallan-twin-context', () => ({
+  ...jest.requireActual('@/lib/listings/mallan-twin-context'),
+  loadMallanTwinContext: async () => mockTwin,
+}));
+
 const mockFindUnique = jest.fn<Promise<unknown>, [unknown]>();
 const mockFindMany = jest.fn<Promise<unknown[]>, [unknown]>();
 jest.mock('@/lib/prisma', () => ({
@@ -136,6 +144,7 @@ const LOCAL_TWIN = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockTwin = PROVEN_DUPLICATE;
   mockFindUnique.mockResolvedValue(RETURN_COPY);
   mockFindMany.mockResolvedValue([LOCAL_TWIN]);
 });
@@ -342,3 +351,23 @@ describe('type-safety: a redirect can never masquerade as a listing again', () =
 });
 
 export {};
+
+describe("a Mallan-office row with NO proven Mallan-authored twin is Mallan's own listing (800 Second Ave #806)", () => {
+  it('is never canonicalized to another row and is never a 404: it renders as itself', async () => {
+    mockTwin = { returnCopyIds: [], agentsByMlsId: {} };
+    mockFindMany.mockResolvedValue([LOCAL_TWIN]); // an unrelated local row at the same unit must not capture it without proof
+    const mod = await import('@/app/listing/[...slug]/page');
+    await (mod.default as PageFn)(PARAMS).catch(() => undefined);
+    expect(mockNotFound).not.toHaveBeenCalled();
+    const target = String(mockPermanentRedirect.mock.calls[0]?.[0] ?? '');
+    expect(target).not.toContain('sl-0999');
+  });
+
+  it('its metadata describes the listing itself', async () => {
+    mockTwin = { returnCopyIds: [], agentsByMlsId: {} };
+    const { generateMetadata } = await import('@/app/listing/[...slug]/page');
+    const json = JSON.stringify(await generateMetadata(PARAMS));
+    expect(json).not.toContain('sl-0999');
+    expect(json).toContain('333 E 46th Street');
+  });
+});

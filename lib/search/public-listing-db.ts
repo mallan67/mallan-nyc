@@ -1,4 +1,5 @@
-import { mallanLocalListingWhere } from '@/lib/listings/mallan-source-identity';
+import { mallanListedWhere, mallanLocalListingWhere } from '@/lib/listings/mallan-source-identity';
+import type { MallanTwinContext } from '@/lib/listings/mallan-twin-context';
 import { Prisma } from "@prisma/client";
 import { lookupNeighborhoodZips } from "@/lib/geo/neighborhood-zips";
 import {
@@ -67,6 +68,15 @@ export function mallanAuthoredWhere(): Prisma.ListingWhereInput {
   return mallanLocalListingWhere();
 }
 
+/**
+ * The listings that are Mallan's OWN exclusives for display ("Mallan Exclusive"): Mallan-AUTHORED rows (above) plus VERIFIED Mallan-listed Cotality rows
+ * (list office = Mallan, list agent a verified Mallan agent, exclusive agreement, not a duplicate of an authored row: mallanListedWhere). The second
+ * kind stays Cotality-owned and read-only; it only counts as ours because the source fields prove it, never because an `agent_id` is set.
+ */
+export function mallanExclusiveWhere(context: MallanTwinContext): Prisma.ListingWhereInput {
+  return { OR: [mallanAuthoredWhere(), mallanListedWhere(context) as Prisma.ListingWhereInput] };
+}
+
 function appendAndMany(where: Prisma.ListingWhereInput, conditions: Prisma.ListingWhereInput[]): void {
   if (conditions.length === 0) return;
   where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), ...conditions];
@@ -126,8 +136,38 @@ function streetNameCaseVariants(s: string): string[] {
   return [...new Set([s, s.toUpperCase(), title])].filter(Boolean);
 }
 
+const STREET_SUFFIX_WORDS = "street|st|avenue|ave|boulevard|blvd|place|pl|drive|dr|road|rd|lane|ln|way|court|ct|terrace|ter|parkway|pkwy|square|sq";
+const ORDINAL_WORDS: Record<string, string> = {
+  first: "1", second: "2", third: "3", fourth: "4", fifth: "5", sixth: "6", seventh: "7", eighth: "8", ninth: "9", tenth: "10",
+};
+
+/**
+ * Split a typed address into its street part and its unit: "333 East 46th Street 2G" -> { street: "333 East 46th Street", unit: "2G" },
+ * "800 2nd Ave #806" / "800 2nd Avenue, Apt 806" / "800 Second Avenue unit 806" -> unit "806". A unit is taken only from a NUMBERED address (a leading digit),
+ * and only when it is marked ("#", Apt, Unit, Suite, Floor) or is a short token with a digit that follows the street suffix ("Street 2G"). "425 Park Avenue South"
+ * has no unit ("South" carries no digit), and a street with no unit comes back unchanged.
+ */
+export function parseAddressQuery(address: string): { street: string; unit: string | null } {
+  const text = address.trim().replace(/\s+/g, " ");
+  if (!/^\d/.test(text)) return { street: text, unit: null };
+
+  const explicit = text.match(/^(.*?)[\s,]*(?:#|\b(?:apt|apartment|unit|ste|suite|fl|floor)\b\.?)\s*([A-Za-z0-9-]{1,8})\s*$/i);
+  if (explicit && explicit[1].trim()) {
+    return { street: explicit[1].trim().replace(/[,\s]+$/, ""), unit: explicit[2] };
+  }
+
+  const bare = text.match(new RegExp(`^(.*\\b(?:${STREET_SUFFIX_WORDS})\\b\\.?)[\\s,]+([A-Za-z0-9-]{1,8})$`, "i"));
+  if (bare && /\d/.test(bare[2])) {
+    return { street: bare[1].trim(), unit: bare[2] };
+  }
+
+  return { street: text, unit: null };
+}
+
 function addressConditions(address: string | null): Prisma.ListingWhereInput[] {
   if (!address) return [];
+
+  const { street: streetQuery, unit } = parseAddressQuery(address);
 
   const dirMap: Record<string, string> = {
     west: "w",
@@ -136,7 +176,7 @@ function addressConditions(address: string | null): Prisma.ListingWhereInput[] {
     south: "s",
   };
   const suffixRe = /\b(street|st|avenue|ave|boulevard|blvd|place|pl|drive|dr|road|rd|lane|ln|way|court|ct)\b\.?/gi;
-  const cleaned = address.trim()
+  const cleaned = streetQuery.trim()
     .replace(/\b(west|east|north|south)\b/gi, (match) => dirMap[match.toLowerCase()] || match)
     .replace(suffixRe, "")
     .replace(/\s+/g, " ")
@@ -149,6 +189,12 @@ function addressConditions(address: string | null): Prisma.ListingWhereInput[] {
   //      values (PARK, Park, Riverside, MAIN, etc.); a single
   //      case-sensitive `string_contains` against a lowercase user query
   //      returned 0 rows — that's the live "425 park avenue south" bug.
+  // A street NUMBER word ("Second Avenue") is looked up as its numeral too (Cotality stores "2ND" / "2nd"); the typed word is kept as a variant.
+  const streetVariants = (part: string): string[] => {
+    const numeric = part.replace(/\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\b/gi, (w) => ORDINAL_WORDS[w.toLowerCase()] ?? w);
+    const stripOrdinal = (s: string) => s.replace(/(\d+)(st|nd|rd|th)/gi, "$1");
+    return [...new Set([...streetNameCaseVariants(stripOrdinal(numeric)), ...(numeric !== part ? streetNameCaseVariants(stripOrdinal(part)) : [])])];
+  };
   const conditions: Prisma.ListingWhereInput[] = [];
   const numMatch = cleaned.match(/^(\d+[-\w]*)\s+(.*)/);
   if (numMatch) {
@@ -161,33 +207,40 @@ function addressConditions(address: string | null): Prisma.ListingWhereInput[] {
     });
     const streetPart = numMatch[2]
       .replace(/\b[ensw]\b/gi, "")
-      .trim()
-      .replace(/(\d+)(st|nd|rd|th)/gi, "$1");
+      .trim();
     if (streetPart) {
-      const variants = streetNameCaseVariants(streetPart);
       const orClauses: Prisma.ListingWhereInput[] = [];
-      for (const variant of variants) {
+      for (const variant of streetVariants(streetPart)) {
         orClauses.push({ address: { path: ["StreetName"], string_contains: variant } });
         orClauses.push({ address: { path: ["streetName"], string_contains: variant } });
       }
       conditions.push({ OR: orClauses });
     }
   } else if (cleaned) {
-    const streetPart = cleaned.replace(/(\d+)(st|nd|rd|th)/gi, "$1");
-    const variants = streetNameCaseVariants(streetPart);
     const orClauses: Prisma.ListingWhereInput[] = [];
-    for (const variant of variants) {
+    for (const variant of streetVariants(cleaned)) {
       orClauses.push({ address: { path: ["StreetName"], string_contains: variant } });
       orClauses.push({ address: { path: ["streetName"], string_contains: variant } });
     }
     conditions.push({ OR: orClauses });
   }
 
+  // The unit the agent typed ("2G", "806", "PH88"): stored as UnitNumber / unitNumber, in the case the feed used.
+  if (unit) {
+    const unitVariants = [...new Set([unit, unit.toUpperCase(), unit.toLowerCase()])];
+    conditions.push({
+      OR: unitVariants.flatMap((u) => [
+        { address: { path: ["UnitNumber"], equals: u } },
+        { address: { path: ["unitNumber"], equals: u } },
+      ]),
+    });
+  }
+
   return conditions;
 }
 
-export function buildPublicListingDbSearch(params: URLSearchParams): PublicListingDbSearch {
-  const displayWhere = buildSearchDisplayWhere();
+export function buildPublicListingDbSearch(params: URLSearchParams, context: MallanTwinContext): PublicListingDbSearch {
+  const displayWhere = buildSearchDisplayWhere(undefined, context);
   const where: Prisma.ListingWhereInput = {
     status: displayWhere.status,
     AND: displayWhere.AND,
@@ -235,7 +288,7 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
   // (see mallanAuthoredWhere), and the homepage Featured exclusives feed drops
   // the generic bed/price filters, so the identity check here MUST be airtight.
   const mallanOnly = params.get("exclusive") === "mallan";
-  if (mallanOnly) appendAnd(where, mallanAuthoredWhere());
+  if (mallanOnly) appendAnd(where, mallanExclusiveWhere(context));
 
   const minPrice = intParam(params, "minPrice");
   const maxPrice = intParam(params, "maxPrice");
@@ -337,7 +390,7 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
     case "exclusives":
       // "Exclusives" are Mallan-AUTHORED listings (mallanAuthoredWhere), not rows that carry an agent_id: syncAgentHistory stamps agent_id onto third-party
       // rows, so `agent_id != null` listed other firms' listings under our label. (exclusive=mallan, above, has already applied it.)
-      if (!mallanOnly) appendAnd(where, mallanAuthoredWhere());
+      if (!mallanOnly) appendAnd(where, mallanExclusiveWhere(context));
       orderBy = { modification_timestamp: "desc" };
       break;
     case "neighborhood":

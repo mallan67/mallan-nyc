@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { isMallanRlsReturnCopy } from "@/lib/listings/mallan-source-identity";
+import { loadMallanTwinContext } from "@/lib/listings/mallan-twin-context";
 import {
   classifySuggestQuery,
   isAddressDisplayablePerSuggest,
@@ -401,6 +402,7 @@ export async function GET(request: Request) {
             maxTotal: 20,
           });
 
+          const twin = await loadMallanTwinContext();
           const displayable = result.records.filter(
             (raw) =>
               checkDistributionGates(raw).displayable &&
@@ -413,7 +415,7 @@ export async function GET(request: Request) {
                 listing_id: raw.ListingId ? String(raw.ListingId) : null,
                 list_office_mls_id: raw.ListOfficeMlsId ? String(raw.ListOfficeMlsId) : null,
                 rls_eligible: true,
-              })
+              }, twin)
           );
 
           const seen = new Set<string>();

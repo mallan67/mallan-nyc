@@ -24,17 +24,20 @@
  */
 
 import {
+  isLiveListingStatus,
   isMallanLocalListing,
   isMallanRlsReturnCopy,
   type MallanSourceIdentityRow,
 } from '@/lib/listings/mallan-source-identity';
 import { buildAddressKeyFromDbRow } from '@/lib/listings/dedupe-crm-vs-idx';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
+import type { MallanTwinContext } from '@/lib/listings/mallan-twin-context';
 
 /** The row shape this decision needs. `address` is the raw Prisma JSON column. */
 export interface ReturnCopyCandidateRow extends MallanSourceIdentityRow {
   address?: unknown;
   slug?: string | null;
+  status?: string | null;
 }
 
 export type ReturnCopyCanonicalTarget =
@@ -58,17 +61,24 @@ export type ReturnCopyCanonicalTarget =
 export function resolveReturnCopyCanonicalTarget(
   requested: ReturnCopyCandidateRow,
   candidates: ReadonlyArray<ReturnCopyCandidateRow>,
+  context: MallanTwinContext,
 ): ReturnCopyCanonicalTarget {
   // Only a VERIFIED return-copy is canonicalized. A third-party row, a local
   // row, and a row of unknown provenance all render normally — suppression must
   // never be the default for unclassifiable data.
-  if (!isMallanRlsReturnCopy(requested)) return { kind: 'not-applicable' };
+  // (A Mallan-office row with NO proven local twin is Mallan's own Cotality listing, the only public record of it: it renders normally.)
+  if (!isMallanRlsReturnCopy(requested, context)) return { kind: 'not-applicable' };
 
   const key = buildAddressKeyFromDbRow({ address: requested.address });
   if (!key) return { kind: 'fail-closed', reason: 'no-address-key' };
 
   const twins = candidates.filter(
-    (c) => isMallanLocalListing(c) && buildAddressKeyFromDbRow({ address: c.address }) === key,
+    // only a local row in the CURRENT listing episode is a twin: a Draft or a Closed/Withdrawn/Expired row is not (the proof in mallan-twin-context.ts
+    // applies the same rule)
+    (c) =>
+      isMallanLocalListing(c) &&
+      isLiveListingStatus(c.status) &&
+      buildAddressKeyFromDbRow({ address: c.address }) === key,
   );
 
   if (twins.length === 0) return { kind: 'fail-closed', reason: 'no-local-twin' };

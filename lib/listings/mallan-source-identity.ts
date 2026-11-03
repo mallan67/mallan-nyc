@@ -51,6 +51,7 @@ import {
   isMallanExclusiveListing,
   MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES,
 } from '@/lib/listings/exclusive-agent-assignment';
+import type { MallanTwinContext } from '@/lib/listings/mallan-twin-context';
 
 /** TRUE when the row is a Mallan-authored LOCAL listing (canonical publicly). */
 export function isMallanLocalListing(row: MallanSourceIdentityRow): boolean {
@@ -78,21 +79,79 @@ export function mallanWebsiteOnlyWhere() {
 }
 
 /**
- * TRUE when the row is Mallan's own listing returned through Cotality/RLS.
+ * TRUE when the row is a Cotality/RLS COPY of a Mallan-authored listing.
  *
- * Requires BOTH:
+ * Requires ALL of:
  *   * a verified Mallan list-side office id, AND
- *   * NOT being a Mallan-authored local row (a local row is concept 1, not 2).
+ *   * NOT being a Mallan-authored local row (a local row is concept 1, not 2), AND
+ *   * PROOF that it duplicates one: its id is in `context.returnCopyIds`, i.e. it is the same physical unit (street number, name, zip AND unit) as a
+ *     published Mallan-authored SL-/RL- row (lib/listings/mallan-twin-context.ts).
  *
- * FAILS CLOSED: an absent/blank `list_office_mls_id` is NOT a return-copy, so an
- * unclassifiable row keeps its normal public treatment rather than vanishing.
- * Suppression must never be the default for unknown provenance.
+ * The office id alone is NOT proof. A Mallan-office row with no local twin is Mallan's own listing entered straight into Cotality: it is the only
+ * public record of that listing, so it is NOT a duplicate and is not suppressed (Master 4.4: suppress a duplicate, never the only copy).
+ *
+ * FAILS CLOSED on suppression: an absent/blank `list_office_mls_id`, or a unit with no proven twin, is never hidden as a duplicate.
  */
-export function isMallanRlsReturnCopy(row: MallanSourceIdentityRow): boolean {
+export function isMallanRlsReturnCopy(row: MallanSourceIdentityRow, context: MallanTwinContext): boolean {
   if (isMallanLocalListing(row)) return false;
   const office = typeof row.list_office_mls_id === 'string' ? row.list_office_mls_id.trim() : '';
   if (!office) return false;
-  return (MALLAN_LIST_OFFICE_MLS_IDS as readonly string[]).includes(office);
+  if (!(MALLAN_LIST_OFFICE_MLS_IDS as readonly string[]).includes(office)) return false;
+  const id = typeof row.listing_id === 'string' ? row.listing_id : '';
+  return id !== '' && context.returnCopyIds.includes(id);
+}
+
+/**
+ * The agreement types that make a Mallan-listed Cotality row a Mallan EXCLUSIVE: the Sale form's own options plus the rental `ExclusiveRightToLease`
+ * (rentals sourced only from Cotality). Co-Exclusive and open agreements are deliberately absent.
+ */
+export const MALLAN_LISTED_AGREEMENT_TYPES = ['ExclusiveRightToSell', 'ExclusiveAgency', 'ExclusiveRightWithException', 'ExclusiveRightToLease'] as const;
+
+/**
+ * TRUE while a listing is in the CURRENT listing episode: live on the market, or about to be (Active, Active Under Contract, Coming Soon, Pending).
+ * Closed / Withdrawn / Expired / Canceled / Draft rows belong to an earlier episode or to none, so they can never prove that a NEW Cotality listing for
+ * the same unit is their duplicate (Master 4.4: address alone is not enough; a relisting is a different episode).
+ */
+export function isLiveListingStatus(status: unknown): boolean {
+  const s = String(status ?? '').toLowerCase().replace(/[\s_-]/g, '');
+  return s === 'active' || s === 'activeundercontract' || s === 'comingsoon' || s === 'pending';
+}
+
+/**
+ * TRUE when the row is Mallan's OWN listing, sourced from Cotality and read-only: it carries Mallan's list-side office id, its list agent is a
+ * VERIFIED Mallan agent (the roster, by REBNY MLS member id), its agreement is exclusive, and it is NOT a duplicate of a Mallan-authored listing
+ * (that one is the canonical record and takes the brand). Never decided from `agent_id` (a roster association, set on third-party rows too).
+ *
+ * This is a distinct concept from `isMallanExclusiveListing` (Mallan-AUTHORED, editable): the row stays Cotality-owned and read-only, keeps its RLS
+ * attribution and `_source: 'db+idx'`; it only earns the "Mallan Exclusive" mark and Mallan's agent card.
+ */
+export function isVerifiedMallanListedRow(
+  row: MallanSourceIdentityRow & { list_agent_mls_id?: string | null; raw_data?: unknown },
+  context: MallanTwinContext,
+): boolean {
+  if (isMallanLocalListing(row)) return false;
+  const office = typeof row.list_office_mls_id === 'string' ? row.list_office_mls_id.trim() : '';
+  if (!office || !(MALLAN_LIST_OFFICE_MLS_IDS as readonly string[]).includes(office)) return false;
+  if (isMallanRlsReturnCopy(row, context)) return false;
+  const agentId = typeof row.list_agent_mls_id === 'string' ? row.list_agent_mls_id.trim() : '';
+  if (!agentId || !context.agentsByMlsId[agentId]) return false;
+  const raw = (row.raw_data && typeof row.raw_data === 'object' ? row.raw_data : {}) as Record<string, unknown>;
+  const agreement = typeof raw.ListingAgreement === 'string' ? raw.ListingAgreement : '';
+  return (MALLAN_LISTED_AGREEMENT_TYPES as readonly string[]).includes(agreement);
+}
+
+/** The same rule before pagination and count: Prisma `where` for verified Mallan-listed Cotality rows (no author prefix, not a duplicate). */
+export function mallanListedWhere(context: MallanTwinContext): Record<string, unknown> {
+  return {
+    list_office_mls_id: { in: [...MALLAN_LIST_OFFICE_MLS_IDS] },
+    list_agent_mls_id: { in: Object.keys(context.agentsByMlsId) },
+    NOT: [
+      { listing_id: { startsWith: 'SL-' } },
+      { listing_id: { startsWith: 'RL-' } },
+      ...(context.returnCopyIds.length > 0 ? [{ listing_id: { in: [...context.returnCopyIds] } }] : []),
+    ],
+    OR: MALLAN_LISTED_AGREEMENT_TYPES.map((type) => ({ raw_data: { path: ['ListingAgreement'], equals: type } })),
+  };
 }
 
 /**
@@ -106,7 +165,7 @@ export function isMallanRlsReturnCopy(row: MallanSourceIdentityRow): boolean {
  * Mallan-authored local rows are explicitly re-admitted by their canonical id.
  * A legacy false eligibility flag on a feed stub does not establish authorship.
  */
-export function excludeMallanRlsReturnCopies(): {
+export function excludeMallanRlsReturnCopies(context: MallanTwinContext): {
   OR: Array<Record<string, unknown>>;
 } {
   const officeIds = [...MALLAN_LIST_OFFICE_MLS_IDS];
@@ -120,6 +179,9 @@ export function excludeMallanRlsReturnCopies(): {
       { list_office_mls_id: null },
       // Everything else: any office OTHER than Mallan's is third-party.
       { list_office_mls_id: { notIn: officeIds } },
+      // A Mallan-office row is hidden ONLY when it is a proven duplicate of a Mallan-authored listing; otherwise it is Mallan's own listing and
+      // the only public record of it.
+      ...(context.returnCopyIds.length > 0 ? [{ listing_id: { notIn: [...context.returnCopyIds] } }] : [{ listing_id: { not: '' } }]),
     ],
   };
 }
@@ -136,9 +198,10 @@ export function excludeMallanRlsReturnCopies(): {
  * `(A or B)` form — "office is null OR office is not Mallan's" — instead of a
  * bare `ne`, so a null-office row cannot be silently dropped.
  */
-export function trestleExcludeMallanReturnCopiesClause(): string | null {
-  const ids = [...MALLAN_LIST_OFFICE_MLS_IDS];
+export function trestleExcludeMallanReturnCopiesClause(context: MallanTwinContext): string | null {
+  const ids = [...context.returnCopyIds];
   if (ids.length === 0) return null;
-  const notMallan = ids.map((id) => `ListOfficeMlsId ne '${id.replace(/'/g, "''")}'`).join(' and ');
-  return `(ListOfficeMlsId eq null or (${notMallan}))`;
+  // Only a PROVEN duplicate (a Mallan-office row that is the same physical unit as a Mallan-authored listing) is excluded; a null-office row and a
+  // Mallan-office row with no local twin both stay visible.
+  return `(${ids.map((id) => `ListingId ne '${id.replace(/'/g, "''")}'`).join(' and ')})`;
 }

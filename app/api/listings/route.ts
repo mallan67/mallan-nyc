@@ -14,8 +14,9 @@ import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE, ADDRESS_DISCLOSED_GATE } 
 import {
   applyPublicListingPostFilters,
   buildPublicListingDbSearch,
-  mallanAuthoredWhere,
+  mallanExclusiveWhere,
 } from '@/lib/search/public-listing-db';
+import { loadMallanTwinContext } from '@/lib/listings/mallan-twin-context';
 import { buildPublicListingTrestleFilter } from '@/lib/search/public-listing-trestle';
 import { allowsPets } from '@/lib/search/pet-policy';
 import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
@@ -333,7 +334,9 @@ export async function GET(request: Request) {
         {
           // Two display paths: RLS listings (must pass 6 distribution gates) OR
           // website-only listings (commercial, rls_eligible=false — bypass gates)
-          const { where: dbWhere, orderBy: dbOrderBy } = buildPublicListingDbSearch(searchParams);
+          // The proven Mallan duplicates (suppressed) and the verified Mallan agents (branding): cached for 60 s.
+          const twin = await loadMallanTwinContext();
+          const { where: dbWhere, orderBy: dbOrderBy } = buildPublicListingDbSearch(searchParams, twin);
           if (excludeUndisclosed) {
             // Canonical DB-side address-disclosure gate, ANDed BEFORE pagination.
             // This previously ORed in `listing_id startsWith 'SL-' | 'RL-'`, so a
@@ -475,7 +478,7 @@ export async function GET(request: Request) {
             // (value, index, array), so a bare reference would hand the INDEX to the options param.
             let publicListings = preferCrmExclusiveOverIdxDuplicate(
               displayable.map((l) =>
-                dbListingToPublicDTO(l, { hadFeedRelationalRows: feedAuthority.get(l.listing_id) }),
+                dbListingToPublicDTO(l, { hadFeedRelationalRows: feedAuthority.get(l.listing_id), twin }),
               ),
             );
 
@@ -1289,8 +1292,9 @@ async function fetchExclusiveListings(
   minBeds?: number,
 ): Promise<PublicListingDTO[]> {
   try {
+    const twin = await loadMallanTwinContext();
     const where: Prisma.ListingWhereInput = {
-      status: buildSearchDisplayWhere().status,
+      status: buildSearchDisplayWhere(undefined, twin).status,
       OR: [
         { rls_eligible: true, ...SEARCH_DISPLAY_GATE },
         { rls_eligible: false, list_price: { gt: 0 }, address: { not: { equals: null } } },
@@ -1327,7 +1331,7 @@ async function fetchExclusiveListings(
 
     const dbListings = await prisma.listing.findMany({
       // AND-ed here, after every filter above has been set (the neighborhood branch assigns where.AND): an "exclusive" is a Mallan-AUTHORED listing, never any row of the table
-      where: { AND: [where, mallanAuthoredWhere()] },
+      where: { AND: [where, mallanExclusiveWhere(twin)] },
       orderBy: { updated_at: 'desc' },
       take: 50,
       select: {
@@ -1412,7 +1416,7 @@ async function fetchExclusiveListings(
     //
     // No feed-authority signal here by design — this is the Mallan EXCLUSIVES path (SL-/RL-), and
     // Mallan-owned media keeps its existing `hadRelationalRows === false` rule untouched.
-    return displayable.map((l) => dbListingToPublicDTO(l));
+    return displayable.map((l) => dbListingToPublicDTO(l, { twin }));
   } catch (err) {
     console.warn('[/api/listings] Exclusive listings fetch failed:', err instanceof Error ? err.message : err);
     return [];
