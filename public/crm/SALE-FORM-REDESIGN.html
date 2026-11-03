@@ -260,14 +260,14 @@ body { font-family: Manrope, sans-serif; }
             <span id="saleAutoSaveIndicator" class="hidden text-xs" role="status" aria-live="polite"><i class="fas fa-cloud"></i> <span id="saleAutoSaveText"></span></span>
             <span id="saleDraftBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300"><i class="fas fa-file-alt"></i> DRAFT</span>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 shrink-0">
             <button onclick="showSaleMediaDocs()" class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium transition">
                 <i class="fas fa-images text-gray-900"></i> <span class="font-semibold text-gray-900">Media</span>
             </button>
             <button onclick="showSaleBuildingInfo()" class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium transition">
                 <i class="fas fa-building text-gray-900"></i> <span class="font-semibold text-gray-900">Building</span>
             </button>
-            <button onclick="manualSaveDraft('sale')" class="px-4 py-1.5 bg-brand-gold text-white rounded-lg text-xs font-semibold hover:opacity-90 transition">
+            <button onclick="manualSaveDraft('sale')" class="px-4 py-1.5 bg-brand-gold text-white rounded-lg text-xs font-semibold hover:opacity-90 transition whitespace-nowrap">
                 <i class="fas fa-save mr-1"></i> Save Draft
             </button>
             <button onclick="submitSalesListing()" class="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition">
@@ -316,6 +316,7 @@ body { font-family: Manrope, sans-serif; }
                 <span class="tab-dot"></span>
                 <i class="fas fa-home text-xs w-4 text-center"></i>
                 <span>TH / Building</span>
+                <i class="fas fa-lock text-[10px] ml-auto text-gray-400 hidden" id="saleTHTabLock"></i>
             </button>
             <button id="sidebarTab4" onclick="showSaleMainTab(4)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700">
                 <span class="tab-dot"></span>
@@ -339,6 +340,7 @@ body { font-family: Manrope, sans-serif; }
                 <i class="fas fa-lock text-[10px] ml-auto text-gray-300" id="saleCommTabLock"></i>
             </button>
         </div>
+        <p id="saleTHTabNote" class="hidden border-t px-4 py-2 text-[11px] leading-snug text-gray-500"></p>
         <!-- Validation toggle -->
         <div class="border-t px-4 py-3">
             <div class="flex items-center gap-2">
@@ -353,7 +355,7 @@ body { font-family: Manrope, sans-serif; }
         <!-- Validation summary -->
         <div class="border-t px-4 py-3">
             <div id="saleValidationSummary" class="text-xs">
-                <p class="text-green-600 font-medium"><i class="fas fa-check-circle mr-1"></i> All fields OK</p>
+                <p class="text-gray-500"><i class="fas fa-clipboard-list mr-1"></i> Required fields are checked when you press Next or Submit.</p>
             </div>
         </div>
     </aside>
@@ -379,7 +381,7 @@ body { font-family: Manrope, sans-serif; }
         <!-- IDX Address Search -->
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-search-location"></i> Property Address — Building Lookup</div>
-            <p class="text-xs text-gray-500 mb-3">Search by address to auto-detect property type and populate building data from Trestle/RLS reference.</p>
+            <p class="text-xs text-gray-500 mb-3">Search by address to auto-detect the property type and fill in the building's facts from Cotality.</p>
             <div class="mb-3 relative">
                 <input type="text" id="saleBuildingSearch"
                        placeholder="Start typing address (e.g., 200 East 66th, 15 Central Park West)..."
@@ -409,7 +411,7 @@ body { font-family: Manrope, sans-serif; }
                 <div class="text-xs">
                     <p class="font-semibold">Building Match Found</p>
                     <p>Property type: <strong id="saleIdxDetectedType">--</strong> | Building: <strong id="saleIdxDetectedBuilding">--</strong></p>
-                    <p class="mt-0.5 text-green-600">Building data populated from Trestle/RLS reference. Review and adjust if needed.</p>
+                    <p class="mt-0.5 text-green-600">Building facts filled in from Cotality. Review and adjust if needed.</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
@@ -5348,6 +5350,12 @@ function _commonInterestToFormType(ci) {
     return map[ci] || ci;
 }
 
+// The building index also says what KIND of building an address is (building_kind, read from every Cotality listing of it): a townhouse, a multi-family house, a single-family house or a
+// mixed-use building has no CommonInterest, so its ownership tag cannot name it. These are the kinds that are a Sale property type of their own; a kind the Sale form has no type for
+// (a rental building) names nothing here.
+var _SALE_BUILDING_TYPES = ['Condo', 'Coop', 'Condop', 'SingleFamilyTownhouse', 'MultiFamilyTownhouse', 'SingleFamily', 'MultiFamily', 'MixedUse'];
+function _saleBuildingKindToFormType(kind) { return _SALE_BUILDING_TYPES.indexOf(kind) >= 0 ? kind : ''; }
+
 // Fetch buildings from API by address query
 async function fetchBuildingsFromAPI(query) {
     if (!query || query.length < 3) return [];
@@ -5375,6 +5383,7 @@ async function fetchBuildingsFromAPI(query) {
             var ci = b.common_interest == null ? '' : b.common_interest;               // the building's Cotality CommonInterest; PropertyType is not an ownership
             ci = txt(ci);
             var formType = _commonInterestToFormType(ci);
+            if (_SALE_BUILDING_TYPES.indexOf(formType) < 0) formType = _saleBuildingKindToFormType(txt(b.building_kind)) || formType;   // no ownership tag the form knows: the kind of building decides (a townhouse is a townhouse)
             var rawAddr = txt(b.address || b.street_address);                      // the address as text (a list or an object is no value)
             var bldgName = txt(b.name) || txt(b.building_name) || '';
             var streetNum = rawAddr.match(/^\d+/);
@@ -5674,8 +5683,9 @@ function selectBuildingFromIDX(prefix, picked) {
     var banner = document.getElementById(prefix + 'IdxMatchBanner');
     if (banner) {
         banner.classList.remove('hidden');
-        document.getElementById(prefix + 'IdxDetectedType').textContent = building.model;
-        document.getElementById(prefix + 'IdxDetectedBuilding').textContent = building.name;
+        // the type as the form names it ("Co-op", "Single Family Townhouse"), not the code; a building Cotality does not classify says so, and a building with no name is named by its address
+        document.getElementById(prefix + 'IdxDetectedType').textContent = _salePropTypeLabel(building.type) || building.model || 'not named by Cotality: choose it below';
+        document.getElementById(prefix + 'IdxDetectedBuilding').textContent = building.name || building.address || '--';
     }
 
     // 4. Hide search results
@@ -7838,6 +7848,14 @@ function applySalesFieldRules() {
         tab3Mobile.style.display = '';
         tab3Mobile.style.opacity = skipTab3 ? '0.4' : '1';
         tab3Mobile.style.pointerEvents = skipTab3 ? 'none' : '';
+    }
+    // A tab that is greyed out says why (a hover hint cannot: a disabled tab takes no pointer events)
+    var tab3Lock = document.getElementById('saleTHTabLock'), tab3Note = document.getElementById('saleTHTabNote');
+    if (tab3Lock) tab3Lock.classList.toggle('hidden', !skipTab3);
+    if (tab3Note) {
+        var ownLabel = (commercialOwnershipEl && propertyType === 'Commercial') ? ('Commercial ' + (commercialOwnershipEl.closest('label') || commercialOwnershipEl.parentElement).textContent.replace(/\s+/g, ' ').trim().replace(/^Commercial\s*/i, '')) : _salePropTypeLabel(propertyType);
+        tab3Note.textContent = skipTab3 ? 'TH / Building is not used for ' + (ownLabel || 'this property type') + ': the building\'s facts are in the Building window (the Building button at the top).' : '';
+        tab3Note.classList.toggle('hidden', !skipTab3);
     }
 
 
