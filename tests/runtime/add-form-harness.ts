@@ -33,6 +33,7 @@ export type AddFormOpts = {
   buildingsStatus?: number | ((query: string, call: number) => number);   // the HTTP status it answers with (default 200); a function is asked per request (1, 2, ...)
   unitLots?: (query: string, unit: string, zip: string) => Record<string, unknown> | null;   // what GET /api/buildings/search?q=&unit=&zip= answers as `unit` (the unit's own tax lot, pulled live from Cotality)
   rlsPull?: (rlsId: string) => { status?: number; body: unknown };   // what GET /api/crm/rls-pull?rlsId= answers (the RLS ID = the listing's Cotality ListingId)
+  rlsPullDelay?: number;                             // ms before the RLS pull answers (Cotality takes a moment; the agent can type meanwhile)
   unitFail?: (unit: string) => 'throw' | number | undefined;   // that request fails: 'throw' = the network is down, a number = the HTTP status it answers with
   unitDelay?: (unit: string) => number;              // ms before that answer
   buildingsHint?: string;                            // the _errorHint it carries
@@ -130,6 +131,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
         if (u.startsWith('/api/crm/rls-pull')) {
           const rlsId = new URLSearchParams(u.split('?')[1] ?? '').get('rlsId') ?? '';
           rlsPulls.push(rlsId);
+          if (o.rlsPullDelay) await sleep(o.rlsPullDelay);
           const a = o.rlsPull ? o.rlsPull(rlsId) : { status: 404, body: { error: 'no stub' } };
           const st = a.status ?? 200;
           return { ok: st < 400, status: st, json: async () => a.body, text: async () => '' };
