@@ -625,7 +625,7 @@ async function unitTaxLotAnswer(parsed: ParsedAddress, unitRaw: string, zip: str
     if (!res.ok) return NextResponse.json({ unit: null, _errorHint: 'The unit tax lot could not be looked up in Cotality right now. Enter it by hand.' });
     const data = await res.json();
     const sameUnit = (v: unknown) => String(v ?? '').trim().toLowerCase() === unit.toLowerCase();
-    // The WHOLE street line must be the one typed: "800 2nd Avenue" and "800 2nd Street" in one ZIP are two buildings, and so are "333 East 46th" and "333 West 46th". A lot from
+    // The WHOLE street line must be the one typed: "800 2nd Avenue" and "800 2nd Street" in one ZIP are two buildings, and so are "100 East 10th" and "100 West 10th". A lot from
     // the wrong building is worse than no lot, so the direction and the street type are compared, not just number + street name + unit + ZIP.
     const typedSuffix = typedStreetSuffix(typedQuery);
     const dir = (v: unknown) => canonicalizeDirection(String(v ?? ''));
