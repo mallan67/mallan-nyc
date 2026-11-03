@@ -5522,12 +5522,15 @@ async function saleUnitLotLookup() {
     if (box.value.trim() && !mine) return;                          // the agent's own number
     var forget = function () {                                      // the earlier unit's lot does not belong to this one
         if (!mine) return;
-        box.value = ''; delete box.dataset.autofilled; box.title = box.dataset.origTitle || '';
+        box.value = ''; delete box.dataset.autofilled; delete box.dataset.autofilledFor; box.title = box.dataset.origTitle || '';
         box.dispatchEvent(new Event('change', { bubbles: true }));
     };
     var unit = unitEl.value.trim();
     var street = streetEl.value.trim();
     if (!unit || street.length < 3 || !saleHasOwnUnitLot()) { forget(); return; }
+    // The lot pulled for the PREVIOUS unit is cleared the moment the unit changes, not when the new answer arrives: while a slow request is on its way, a save or autosave must not store
+    // the old unit's lot under the new unit.
+    if (mine && box.dataset.autofilledFor !== unit) { forget(); mine = false; pulled = ''; }
     var zipEl = document.getElementById('saleZipCode');
     var zip = zipEl ? zipEl.value.trim() : '';
     try {
@@ -5542,6 +5545,7 @@ async function saleUnitLotLookup() {
             if (box.dataset.origTitle === undefined) box.dataset.origTitle = box.title || '';
             box.value = found.tax_lot;
             box.dataset.autofilled = found.tax_lot;
+            box.dataset.autofilledFor = unit;
             box.title = 'Pulled from Cotality: unit ' + (found.unit_number || unit) + (found.source_listing_id ? ' on ' + found.source_listing_id : '') + '. Change it if it is wrong.';
             box.dispatchEvent(new Event('change', { bubbles: true }));
         } else {

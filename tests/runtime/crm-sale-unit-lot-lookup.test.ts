@@ -97,6 +97,18 @@ describe("the unit's tax lot is pulled from Cotality when the unit is entered", 
     } finally { f.close(); }
   });
 
+  it("the moment the unit changes the old unit's pulled lot is gone from the box and from a save, while the new answer is still on its way (review on #677)", async () => {
+    const f = await condoWithAddress({ unitDelay: (u: string) => (u === "1203" ? 500 : 10) });
+    try {
+      await enterUnit(f, "806", "1025");
+      setValue(f, "saleUnitNumber", "1203");                    // the answer for 1203 takes half a second
+      await waitUntil(() => f.unitLookups.length === 2);
+      expect(unitLot(f)).toBe("");                              // 806's lot is already gone ...
+      expect((f.w as any).collectSaleFormData().TaxLot ?? "").toBe("");   // ... so a save or autosave now cannot store it under 1203
+      await waitUntil(() => unitLot(f) === "1099");             // and 1203's own lot arrives
+    } finally { f.close(); }
+  });
+
   it("a lot Cotality only repeats from the building is not the unit's: nothing is filled", async () => {
     const f = await condoWithAddress();
     try {
