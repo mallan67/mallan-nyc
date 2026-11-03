@@ -5667,7 +5667,8 @@ async function saleUnitLotLookup() {
             forget();
         }
     } catch (e) {
-        console.warn('[unit tax lot] Cotality lookup failed:', e && e.message);   // never blocks the listing: the box stays as it was
+        console.warn('[unit tax lot] Cotality lookup failed:', e && e.message);   // never blocks the listing
+        if (seq === _saleUnitLotSeq) forget();                                     // the earlier unit's pulled lot is not this unit's: it must not be saved under it
     }
 }
 

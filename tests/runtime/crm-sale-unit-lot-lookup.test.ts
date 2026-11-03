@@ -78,6 +78,25 @@ describe("the unit's tax lot is pulled from Cotality when the unit is entered", 
     } finally { f.close(); }
   });
 
+  it.each([["the network is down", "throw"], ["the server answers 503", 503]])("when the lookup for the NEW unit fails (%s), the previous unit's pulled lot is cleared, never saved under the new unit (review on #677)", async (_why, fail) => {
+    const f = await condoWithAddress({ unitFail: (u: string) => (u === "1203" ? fail : undefined) });
+    try {
+      await enterUnit(f, "806", "1025");
+      await enterUnit(f, "1203", "");                          // the failed ask clears the 806 lot
+      expect(unitLot(f)).toBe("");
+      expect(missing(f).map((m: any) => m.label)).toContain("Tax Lot (unit)");
+    } finally { f.close(); }
+  });
+
+  it("a failed lookup never touches a number the agent typed", async () => {
+    const f = await condoWithAddress({ unitFail: () => "throw" });
+    try {
+      setValue(f, "saleUnitTaxLot", "1999");
+      await enterUnit(f, "806");
+      expect(unitLot(f)).toBe("1999");
+    } finally { f.close(); }
+  });
+
   it("a lot Cotality only repeats from the building is not the unit's: nothing is filled", async () => {
     const f = await condoWithAddress();
     try {

@@ -597,7 +597,13 @@ function cotalityStreetFilterParts(parsed: ParsedAddress): string[] {
  * lot (a condo unit's is 1xxx); the building's lot is the REBNY custom key BuildingTaxLot. The newest record of THIS unit that carries a lot answers, with the record it came from,
  * so the agent can see where the number is from. A unit Cotality has no lot for answers null: nothing is guessed, and the agent types it.
  */
-async function unitTaxLotAnswer(parsed: ParsedAddress, unitRaw: string, zip: string | null): Promise<NextResponse> {
+/** The street type the agent typed ("Ave", "Street" ...) in the feed's canonical short form, or '' when none was typed. */
+function typedStreetSuffix(q: string): string {
+  const m = q.trim().match(DIR_SUFFIX_RE) ?? q.trim().match(STREET_SUFFIX_RE);
+  return m ? canonicalizeSuffix(m[1]) : '';
+}
+
+async function unitTaxLotAnswer(parsed: ParsedAddress, unitRaw: string, zip: string | null, typedQuery: string): Promise<NextResponse> {
   const unit = cleanText(unitRaw).slice(0, 25);
   if (!unit || !parsed.streetNumber || !(parsed.streetName || parsed.streetDirPrefix)) return NextResponse.json({ unit: null });
   try {
@@ -619,9 +625,20 @@ async function unitTaxLotAnswer(parsed: ParsedAddress, unitRaw: string, zip: str
     if (!res.ok) return NextResponse.json({ unit: null, _errorHint: 'The unit tax lot could not be looked up in Cotality right now. Enter it by hand.' });
     const data = await res.json();
     const sameUnit = (v: unknown) => String(v ?? '').trim().toLowerCase() === unit.toLowerCase();
-    const records: Array<Record<string, unknown>> = (data.value || []).filter((r: Record<string, unknown>) => recordIsTypedAddress(r, parsed) && sameUnit(r.UnitNumber));
-    const hit = records.find((r) => cleanText(r.TaxLot));
-    if (!hit) return NextResponse.json({ unit: null });
+    // The WHOLE street line must be the one typed: "800 2nd Avenue" and "800 2nd Street" in one ZIP are two buildings, and so are "333 East 46th" and "333 West 46th". A lot from
+    // the wrong building is worse than no lot, so the direction and the street type are compared, not just number + street name + unit + ZIP.
+    const typedSuffix = typedStreetSuffix(typedQuery);
+    const dir = (v: unknown) => canonicalizeDirection(String(v ?? ''));
+    const sameStreetLine = (r: Record<string, unknown>) =>
+      dir(r.StreetDirPrefix) === dir(parsed.streetDirPrefix) && dir(r.StreetDirSuffix) === dir(parsed.streetDirSuffix)
+      && (!typedSuffix || canonicalizeSuffix(String(r.StreetSuffix ?? '')) === typedSuffix);
+    const records: Array<Record<string, unknown>> = (data.value || []).filter((r: Record<string, unknown>) => recordIsTypedAddress(r, parsed) && sameStreetLine(r) && sameUnit(r.UnitNumber));
+    const withLot = records.filter((r) => cleanText(r.TaxLot));
+    if (!withLot.length) return NextResponse.json({ unit: null });
+    // No street type typed and more than one street line answers (an Avenue and a Street): refuse to pick, say what to add.
+    const lines = new Set(withLot.map((r) => `${dir(r.StreetDirPrefix)}|${canonicalizeSuffix(String(r.StreetSuffix ?? ''))}|${dir(r.StreetDirSuffix)}`));
+    if (lines.size > 1) return NextResponse.json({ unit: null, _errorHint: 'More than one street matches that address. Add the street type (Ave, St ...) so the unit\'s tax lot can be looked up.' });
+    const hit = withLot[0];
     const cf = parseCustomFields(hit);
     const buildingLot = cleanText(cf.BuildingTaxLot);
     const taxLot = cleanText(hit.TaxLot);
@@ -699,7 +716,7 @@ export async function GET(request: NextRequest) {
 
   // One unit's own tax lot (the form asks once the unit is known): answered from Cotality alone, no building list.
   const unitParam = request.nextUrl.searchParams.get('unit');
-  if (unitParam && unitParam.trim()) return unitTaxLotAnswer(parsed, unitParam, request.nextUrl.searchParams.get('zip'));
+  if (unitParam && unitParam.trim()) return unitTaxLotAnswer(parsed, unitParam, request.nextUrl.searchParams.get('zip'), q);
 
   const buildings: Array<Record<string, unknown>> = [];
   // building object indexed by BOTH its address key and BuildingKeyNumeric key,
