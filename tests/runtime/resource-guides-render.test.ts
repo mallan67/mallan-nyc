@@ -23,6 +23,7 @@
 import { createElement, isValidElement, type ReactNode } from 'react';
 import { renderToString } from 'react-dom/server';
 import ResourceContent, { type ResourceData } from '@/app/components/ResourceContent';
+import SocialShareBar from '@/app/components/SocialShareBar';
 import ResourcePage, { generateMetadata, generateStaticParams } from '@/app/resources/[slug]/page';
 import buyers from '@/data/resources/buyers-guide.json';
 import sellers from '@/data/resources/sellers-guide.json';
@@ -87,16 +88,20 @@ describe('a gated guide still gates: hero, email form and the first section only
 });
 
 describe('the page function', () => {
-  const findContent = (node: ReactNode): { slug: string; data: ResourceData } | null => {
+  const findElement = (node: ReactNode, type: unknown): { props: Record<string, unknown> } | null => {
     if (!isValidElement(node)) return null;
-    const props = node.props as { slug?: string; data?: ResourceData; children?: ReactNode };
-    if (node.type === ResourceContent) return { slug: props.slug as string, data: props.data as ResourceData };
+    const props = node.props as Record<string, unknown> & { children?: ReactNode };
+    if (node.type === type) return { props };
     const kids = Array.isArray(props.children) ? props.children : [props.children];
     for (const kid of kids) {
-      const found = findContent(kid);
+      const found = findElement(kid, type);
       if (found) return found;
     }
     return null;
+  };
+  const findContent = (node: ReactNode) => {
+    const found = findElement(node, ResourceContent);
+    return found ? { slug: found.props.slug as string, data: found.props.data as ResourceData } : null;
   };
 
   it.each(Object.keys(GUIDES))('hands %s its own text', async (slug) => {
@@ -105,6 +110,15 @@ describe('the page function', () => {
     expect(found?.slug).toBe(slug);
     expect(found?.data.slug).toBe(slug);
     expect(found?.data.sections.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['buyers-guide', 'Buyers Guide | Mallan Real Estate'],
+    ['sellers-guide', 'Sellers Guide | Mallan Real Estate'],
+    ['investors-guide', 'Investors Guide | Mallan Real Estate'],
+  ])('the share bar for %s offers a title-cased title', async (slug, title) => {
+    const el = await ResourcePage({ params: Promise.resolve({ slug }) });
+    expect(findElement(el, SocialShareBar)?.props.title).toBe(title);
   });
 
   it('answers 404 for a slug that is not a guide, instead of a 200 "not found" page', async () => {

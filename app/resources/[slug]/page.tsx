@@ -65,7 +65,7 @@ export default async function ResourcePage({ params }: Props) {
       <main className="pt-20">
         <ResourceContent slug={slug} data={data} />
       </main>
-      <SocialShareBar title={`${slug.replace(/-/g, ' ').replace(/w/g, c => c.toUpperCase())} | Mallan Real Estate`} />
+      <SocialShareBar title={`${slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} | Mallan Real Estate`} />
     </div>
   );
 }
