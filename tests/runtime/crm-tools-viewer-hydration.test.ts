@@ -70,7 +70,7 @@ const has = (doc: Document, key: string) => !!doc.getElementById(key) || doc.get
 const SALE_NOT_ON_VIEWER = [
   'saleStreetNumber', 'saleStreetName', 'saleStreetSuffix', 'saleStreetDirPrefix', 'saleCity', 'saleStateOrProvince', 'salePostalCity', 'saleCountyOrParish',
   'saleUnparsedAddress', 'saleUpdatingAgentMlsId', 'saleStructureType', 'saleExclusiveCommissionType', 'saleAuctionType', 'saleAuctionTermsUrl',
-  'saleAlsoAvailableForRent', 'saleSendToRls', 'saleSendToWebsite', 'saleBuyerAgentPays',
+  'saleAlsoAvailableForRent', 'saleSendToRls', 'saleSendToWebsite',
 ];
 const RENTAL_NOT_ON_VIEWER: string[] = ['rentalFirstShowingDate'];
 
@@ -78,9 +78,9 @@ const RENTAL_NOT_ON_VIEWER: string[] = ['rentalFirstShowingDate'];
 // the two pages; the test fails if the real drift is not exactly this, so a fix (or a new drift) cannot go unnoticed.
 const GROUP_DRIFT: Record<'sale' | 'rental', { lacking: string[]; differ: string[]; viewerOnly: string[] }> = {
   sale: {
-    lacking: ['checkbox:saleAlsoAvailableForRent', 'checkbox:saleSendToRls', 'checkbox:saleSendToWebsite', 'radio:saleBuyerAgentPays'],
+    lacking: ['checkbox:saleAlsoAvailableForRent', 'checkbox:saleSendToRls', 'checkbox:saleSendToWebsite'],
     differ: ['radio:saleListingType'], // the Add form splits In-House into InHouseInternal / InHouseWebOnly; the viewer still offers InHouse
-    viewerOnly: ['radio:saleCommissionType'], // the older payer radios the Add form replaced with saleBuyerAgentPays
+    viewerOnly: [],
   },
   rental: { lacking: [], differ: [], viewerOnly: [] },
 };
@@ -217,14 +217,14 @@ describe.each(['SALE-FORM-WITH-TOOLS', 'RENTAL-FORM-WITH-TOOLS'] as ViewerFile[]
   it('lists what has no control on the viewer in one "Other stored fields" card, not what is shown elsewhere, and is safe to run twice', async () => {
     const listing = {
       ...SYNCED,
-      raw_data: { ...SYNCED.raw_data, ...(sale ? { saleBuyerAgentPays: 'BuyerPays', saleStructureType: 'HighRise', saleAlsoAvailableForRent: true } : { FirstShowingDate: '2026-03-10' }) },
+      raw_data: { ...SYNCED.raw_data, ...(sale ? { saleStructureType: 'HighRise', saleAlsoAvailableForRent: true } : { FirstShowingDate: '2026-03-10' }) },
     };
     const b = bootViewer(file, { listing });
     try {
       await until(() => rendered(b.d));
       const lines = () => [...(b.d.getElementById('viewerStoredElsewhere')?.querySelectorAll('p') ?? [])].map((p) => p.textContent);
       if (sale) {
-        expect(lines()).toEqual(expect.arrayContaining(['saleBuyerAgentPays: BuyerPays', 'saleStructureType: HighRise', 'saleAlsoAvailableForRent: true', 'City: New York', 'StateOrProvince: NY']));
+        expect(lines()).toEqual(expect.arrayContaining(['saleStructureType: HighRise', 'saleAlsoAvailableForRent: true', 'City: New York', 'StateOrProvince: NY']));
       } else {
         expect(lines()).toEqual(['FirstShowingDate: 2026-03-10']); // the Rental viewer has no control for it
       }
@@ -467,7 +467,6 @@ const ABSENT_ON_VIEWER: Record<'sale' | 'rental', string[]> = {
   sale: [
     'value:salePostalCity', 'check:saleAlsoAvailableForRent', 'check:saleAuctionYn', 'value:saleAuctionType', 'value:saleAuctionStartDate',
     'value:saleAuctionEndDate', 'value:saleAuctionTermsUrl', 'value:saleStructureType', 'check:saleSendToRls', 'check:saleSendToWebsite', 'value:saleExclusiveCommissionType',
-    'radio:saleBuyerAgentPays',
   ],
   // The five last ones are the form of the Open Houses sub-tab (an open house is a showing of the listing, saved by its own button and not part of the listing's own save; the Sale viewer is a
   // copy of the Sale form and has the same controls, the Rental viewer has no Open Houses tab).

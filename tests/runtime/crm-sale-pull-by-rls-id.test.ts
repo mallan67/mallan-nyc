@@ -178,10 +178,10 @@ describe("pulling RLS20123633 into a blank listing", () => {
   it("what Cotality really does not hold for this listing stays for the broker: named, never defaulted", async () => {
     const f = await pulled();
     try {
-      // Live (1,982 active Cotality listings sampled 2026-11-03): ExpirationDate, ShowingInstructions, Concessions, PropertyCondition and every compensation field are never populated for
-      // this license, there is no co-broke field in any section, and this listing has no Heating. The broker enters them; nothing is defaulted.
+      // Live (1,982 active Cotality listings sampled 2026-11-03): ExpirationDate, ShowingInstructions, PropertyCondition and every compensation field are never populated for
+      // this license (Concessions is a rental field and no longer on the Sale form), there is no co-broke field in any section, and this listing has no Heating. The broker enters them; nothing is defaulted.
       expect(missingLabels(f).sort()).toEqual([
-        "CoBroke Agreement Type", "Concessions", "Condition of Apartment", "Exclusive Agent Commission", "Exclusive Expires", "Heating", "Showing Instructions",
+        "Buyer Agent Commission", "CoBroke Agreement Type", "Condition of Apartment", "Exclusive Agent Commission", "Exclusive Expires", "Heating", "Showing Instructions",
       ].sort());
     } finally { f.close(); }
   });

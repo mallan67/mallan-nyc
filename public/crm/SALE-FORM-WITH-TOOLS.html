@@ -48,6 +48,7 @@ body { font-family: Manrope, sans-serif; }
 .field-input { width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 12px; font-size: 14px; transition: border-color 0.15s, box-shadow 0.15s; }
 .field-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
 .field-input[readonly] { background: #f9fafb; }
+
 /* Toast */
 .toast-notification { position: fixed; bottom: 20px; right: 20px; z-index: 9999; background: #16a34a; color: #fff; padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.15); font-size: 14px; font-weight: 600; animation: slideInRight .3s ease, fadeOut .3s ease 2.7s forwards; }
 @keyframes slideInRight { from { transform: translateX(100%); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
@@ -542,15 +543,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <option value="Ucba">REBNY Universal Co-broke (UCBA)</option>
                     <option value="Rundba">REBNY Universal New Development Brokerage Agreement (RUNDBA)</option>
                 </select>
-            </div>
-            <!-- Commission Negotiability -->
-            <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div class="flex items-start gap-2">
-                    <input type="checkbox" id="saleCommNegotiabilityAck" class="w-4 h-4 mt-0.5" required data-concept-disposition="mallan-internal">
-                    <label class="text-sm text-gray-700">
-                        <span class="text-red-500">*</span> <strong>Commission Negotiability Disclosure:</strong> I confirm that the listing agreement includes a disclosure that commissions and fees are negotiable and not set by law. <span class="text-xs text-gray-500">(Required per REBNY UCBA 2026 and NAR settlement.)</span>
-                    </label>
-                </div>
             </div>
             <!-- Buyer Rep Acknowledgment -->
             <div class="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
@@ -1216,44 +1208,33 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     </div>
                 </div>
                 <div>
-                    <p class="text-sm font-medium text-gray-700 mb-3">Buyer Agent Commission</p>
-                    <div class="space-y-2 mb-3">
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleCommissionType" value="OwnerPays" class="w-4 h-4" checked> Owner Pays (to Buyer's Agent)</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleCommissionType" value="BuyerPays" class="w-4 h-4"> Buyer Pays</label>
+                    <p class="text-sm font-medium text-gray-700 mb-3">Buyer Agent Side</p>
+                    <p class="field-label">Options</p>
+                    <div class="space-y-2 mb-4">
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuyerAgentOption" value="EnterCommInfo" class="w-4 h-4" data-concept-disposition="mallan-internal" checked> Enter Buyer Agent Comm Info</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuyerAgentOption" value="ContactAgent" class="w-4 h-4" data-concept-disposition="mallan-internal"> Contact Agent</label>
+                    </div>
+                    <p class="field-label">Commission Type <span class="text-red-500">*</span></p>
+                    <div class="space-y-2 mb-4">
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuyerAgentPays" value="OwnerPays" class="w-4 h-4" data-concept-disposition="mallan-internal" checked> Owner Pays (to Buyer's Agent)</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuyerAgentPays" value="CollectOwnFee" class="w-4 h-4" data-concept-disposition="mallan-internal"> Collect Your Own Fee</label>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div>
+                            <label class="field-label" for="saleBuyerCompType">Buyer Agent Compensation Type <span class="text-red-500">*</span></label>
+                            <select id="saleBuyerCompType" class="field-input" data-concept-disposition="mallan-internal">
+                                <option value="Percent" selected>%</option>
+                                <option value="Dollars">$</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label" for="saleBuyerComp">Buyer Agent Commission <span class="text-red-500">*</span></label>
+                            <input type="number" id="saleBuyerComp" step="any" placeholder="0" class="field-input" data-concept-disposition="mallan-internal">
+                        </div>
                     </div>
                     <label class="field-label">Commission Comments</label>
                     <textarea id="saleCommissionComments" rows="2" placeholder="Commission details..." class="field-input"></textarea>
                 </div>
-            </div>
-        </div>
-
-        <!-- Concessions (RLS/RESO/IDX: Concessions — REQ) -->
-        <div class="form-card">
-            <div class="form-card-header"><i class="fas fa-percentage"></i> Concessions</div>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                <div>
-                    <!-- RLS/RESO/IDX: Concessions (REQ) -->
-                    <label class="field-label">Concessions</label>
-                    <select id="saleConcessions" class="field-input" data-concept="Concessions">
-                        <option value="">Select</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                        <option value="CallListingAgent">Call Listing Agent</option>
-                    </select>
-                </div>
-                <div>
-                    <!-- RLS/RESO/IDX: ConcessionsAmount (Conditional: if Concessions=Yes) -->
-                    <label class="field-label">Concession Amount</label>
-                    <input type="number" id="saleConcessionAmount" placeholder="$0" class="field-input" data-concept="ConcessionsAmount">
-                </div>
-                <div>
-                    <!-- RLS/RESO/IDX: ConcessionsComments (Conditional: if Concessions=Yes) -->
-                    <label class="field-label">Concession Comments</label>
-                    <input type="text" id="saleConcessionComments" placeholder="Describe concessions..." class="field-input" data-concept="ConcessionsComments">
-                </div>
-            </div>
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p class="text-xs text-blue-800"><i class="fas fa-info-circle mr-1"></i> If Concessions = Yes, Amount and Comments are required per RLS rules. Closed-status fields (BuyerBrokerFee, ClosingCosts, PropertyImprovementCosts, OtherCosts) are captured at closing.</p>
             </div>
         </div>
 
@@ -7475,10 +7456,6 @@ function collectSalePrintData() {
         description: getSaleFormValue('saleDescription'),
         // Commission
         exclusiveCommission: getSaleFormValue('saleExclusiveCommission'),
-        // Concessions (RLS/RESO/IDX: Concessions, ConcessionsAmount, ConcessionsComments)
-        concessions: getSaleFormValue('saleConcessions'),
-        concessionAmount: getSaleFormValue('saleConcessionAmount'),
-        concessionComments: getSaleFormValue('saleConcessionComments'),
         // Team (RLS/RESO/IDX: ListTeamName, ListTeamMlsId)
         listTeamName: getSaleFormValue('saleListTeamName'),
         listTeamMlsId: getSaleFormValue('saleListTeamMlsId')

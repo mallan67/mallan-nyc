@@ -57,20 +57,23 @@ describe('Commission collision fix', () => {
     expect(formHtml).toMatch(/<option value="Percent" selected>%<\/option>/);
     expect(formHtml).toMatch(/<option value="Dollars">\$<\/option>/);
   });
-  it('the payer radios are renamed to a distinct key (no collision)', () => {
+  it('the buyer side follows RealPlus\'s Buyer Agent Side: Options, Commission Type (Owner Pays to Buyer\'s Agent / Collect Your Own Fee), Compensation Type, Commission (Maya, 2026-11-03)', () => {
+    expect(formHtml).toMatch(/name="saleBuyerAgentOption" value="EnterCommInfo"[^>]*checked/);
+    expect(formHtml).toMatch(/name="saleBuyerAgentOption" value="ContactAgent"/);
     expect(formHtml).toMatch(/name="saleBuyerAgentPays" value="OwnerPays"[^>]*checked/);
-    expect(formHtml).toMatch(/name="saleBuyerAgentPays" value="BuyerPays"/);
+    expect(formHtml).toMatch(/name="saleBuyerAgentPays" value="CollectOwnFee"/);
+    expect(formHtml).not.toMatch(/value="BuyerPays"/);                                     // "Buyer Pays" is RealPlus's "Collect Your Own Fee"
+    expect(formHtml).toMatch(/for="saleBuyerCompType">Buyer Agent Compensation Type /);
+    expect(formHtml).toMatch(/for="saleBuyerComp">Buyer Agent Commission /);
   });
   it('no control uses the old colliding saleCommissionType key anymore', () => {
     expect(formHtml).not.toMatch(/id="saleCommissionType"/);
     expect(formHtml).not.toMatch(/name="saleCommissionType"/);
   });
-  it('restore maps both type and payer (payer falls back to legacy saleCommissionType)', () => {
+  it('restore maps the exclusive commission type and amount', () => {
     expect(formHtml).toMatch(/rls:\s*'saleExclusiveCommissionType',\s*form:\s*'saleExclusiveCommissionType'/);
     expect(formHtml).toMatch(/rls:\s*'saleExclusiveCommission',\s*form:\s*'saleExclusiveCommission'/);
-    expect(formHtml).toMatch(
-      /rls:\s*'saleBuyerAgentPays',\s*name:\s*'saleBuyerAgentPays'[^}]*fallback:\s*'saleCommissionType'/,
-    );
+    expect(formHtml).toMatch(/rls:\s*'saleBuyerAgentPays',\s*name:\s*'saleBuyerAgentPays'.*valueMap:\s*\{\s*BuyerPays:\s*'CollectOwnFee'\s*\}.*fallback:\s*'saleCommissionType'/);   // an old "Buyer Pays" reads as Collect Your Own Fee
   });
 });
 

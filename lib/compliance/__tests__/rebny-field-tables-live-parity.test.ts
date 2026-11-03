@@ -68,7 +68,9 @@ describe('REBNY_FIELD_TABLES against the live Cotality Property resource', () =>
     expect(byCode('CLOSED-001')?.requireFields).toEqual(['CloseDate', 'ClosePrice']);
     expect(byCode('SPONSOR-001')?.requireFields).toEqual(['SponsorUnitYN']);
     expect(byCode('SPONSOR-002')?.requireFields).toEqual(['SponsorUnitYN']);
-    expect(rules.length).toBe(33);
+    expect(byCode('CONCESSIONS-RENTAL-001')?.requireFields).toEqual(['Concessions']);                    // Maya 2026-11-03: a concession is a rental term (usually one month free rent)
+    expect(byCode('CONCESSIONS-RENTAL-001')?.appliesWhen).toEqual({ PropertyType: ['ResidentialLease'] });
+    expect(rules.length).toBe(34);
   });
 
   describe('the gate applies the rules that were restored', () => {
