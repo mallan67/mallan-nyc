@@ -221,7 +221,8 @@ const NOT_ENTERED = /^(sale|rental)(ListingAgentSearch|ListingCompanySearch|Stre
 // "None of these" values switch the rest of their group off when the agent picks them; they are left unchecked so the group is coherent.
 const EXCLUSIVE = /^(None|BuildingNo|No)$/;
 // Choices that switch other controls off (opt-out listing types, tenant-pays, a commercial classification): the first option is neutral.
-const FIRST_OF = /ListingType$|FareAct|PropertyType$/;
+// saleBuyerAgentOption / saleBuyerAgentPays: the first choices (Enter Buyer Agent Comm Info, Owner Pays) keep the buyer-agent offer the filler types live; the last ones withdraw it, and a withdrawn offer is not saved
+const FIRST_OF = /ListingType$|FareAct|PropertyType$|^saleBuyerAgent(Option|Pays)$/;
 
 /**
  * Fills every writable control in the form's saved area (the main container its save sweeps, the building modal, the media modal) with a distinctive value and

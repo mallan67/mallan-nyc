@@ -106,23 +106,76 @@ describe("the Commission Information section follows RealPlus's Exclusive Agent 
     } finally { f.close(); }
   });
 
-  it("saved and reopened, it comes back as it was", async () => {
+  it("saved and reopened, an offer comes back as it was (owner pays, Percent, 2.5)", async () => {
     const a = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600 });
     let p: Record<string, any>;
     try {
       await completeForm(a, { type: "Condo", garage: "No" });
       typeBox(a).value = "Percent"; setValue(a, "saleBuyerComp", "2.5");
-      (a.d.querySelector('input[name="saleBuyerAgentPays"][value="CollectOwnFee"]') as HTMLInputElement).checked = true;
-      (a.d.querySelector('input[name="saleBuyerAgentOption"][value="ContactAgent"]') as HTMLInputElement).checked = true;
       p = await saveDraft(a);
     } finally { a.close(); }
+    expect([p.saleBuyerComp, p.saleBuyerCompType, p.saleBuyerAgentPays, p.saleBuyerAgentOption]).toEqual(["2.5", "Percent", "OwnerPays", "EnterCommInfo"]);
     const b = await bootAddForm("SALE-FORM-REDESIGN", { search: "?id=1", listing: storedListing(p, "sale"), settle: 300 });
     try {
       await loaded(b);
       expect(val(b, "saleBuyerComp")).toBe("2.5");
       expect(val(b, "saleBuyerCompType")).toBe("Percent");
-      expect(checkedValue(b, "saleBuyerAgentPays")).toBe("CollectOwnFee");
-      expect(checkedValue(b, "saleBuyerAgentOption")).toBe("ContactAgent");
+      expect(checkedValue(b, "saleBuyerAgentPays")).toBe("OwnerPays");
+      expect(checkedValue(b, "saleBuyerAgentOption")).toBe("EnterCommInfo");
+    } finally { b.close(); }
+  });
+
+  it.each([["saleBuyerAgentPays", "CollectOwnFee"], ["saleBuyerAgentOption", "ContactAgent"]])("a number typed and then withdrawn (%s = %s) is not saved as an offer, and reopens blank", async (name, value) => {
+    const a = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600 });
+    let p: Record<string, any>;
+    try {
+      await completeForm(a, { type: "Condo", garage: "No" });
+      typeBox(a).value = "Dollars"; setValue(a, "saleBuyerComp", "3");
+      (a.d.querySelector(`input[name="${name}"][value="${value}"]`) as HTMLInputElement).checked = true;
+      expect(val(a, "saleBuyerComp")).toBe("3");                                  // still on the screen: switching back brings it back
+      p = await saveDraft(a);
+    } finally { a.close(); }
+    expect(p.saleBuyerComp).toBe("");                                              // not saved as an offer
+    expect(p.saleBuyerCompType).toBe("Percent");
+    expect(p[name]).toBe(value);
+    const b = await bootAddForm("SALE-FORM-REDESIGN", { search: "?id=1", listing: storedListing(p, "sale"), settle: 300 });
+    try {
+      await loaded(b);
+      expect(val(b, "saleBuyerComp")).toBe("");
+      expect(checkedValue(b, name)).toBe(value);
+      expect(missing(b)).toEqual([]);
+    } finally { b.close(); }
+  });
+
+  it("switching back to Owner Pays before saving brings the typed number back into the offer", async () => {
+    const a = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600 });
+    try {
+      await completeForm(a, { type: "Condo", garage: "No" });
+      setValue(a, "saleBuyerComp", "3");
+      const off = a.d.querySelector('input[name="saleBuyerAgentPays"][value="CollectOwnFee"]') as HTMLInputElement;
+      const on = a.d.querySelector('input[name="saleBuyerAgentPays"][value="OwnerPays"]') as HTMLInputElement;
+      off.checked = true; on.checked = true;
+      const p = await saveDraft(a);
+      expect([p.saleBuyerComp, p.saleBuyerCompType]).toEqual(["3", "Percent"]);
+    } finally { a.close(); }
+  });
+
+  it("editing a listing that holds an offer: withdrawing it and saving overwrites the stored number (the server merges, so an omitted key would leave it behind)", async () => {
+    const a = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600 });
+    let first: Record<string, any>;
+    try {
+      await completeForm(a, { type: "Condo", garage: "No" });
+      setValue(a, "saleBuyerComp", "3");
+      first = await saveDraft(a);
+    } finally { a.close(); }
+    expect(first.saleBuyerComp).toBe("3");
+    const b = await bootAddForm("SALE-FORM-REDESIGN", { search: "?id=1", listing: storedListing(first, "sale"), settle: 300 });
+    try {
+      await loaded(b);
+      (b.d.querySelector('input[name="saleBuyerAgentOption"][value="ContactAgent"]') as HTMLInputElement).checked = true;
+      const second = await saveDraft(b);
+      expect(Object.prototype.hasOwnProperty.call(second, "saleBuyerComp")).toBe(true);
+      expect(second.saleBuyerComp).toBe("");
     } finally { b.close(); }
   });
 

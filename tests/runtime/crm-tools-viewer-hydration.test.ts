@@ -391,7 +391,7 @@ function fillForm(d: Document, zones: string[], numeric: Set<string>): Expectati
         const group = [...d.querySelectorAll(`input[type="radio"][name="${el.name}"]`)] as HTMLInputElement[];
         // The listing type picks the distribution gates (Owner Opt-Out and Participant Only switch them off), so it takes the first option;
         // every other group takes its last, which is never the form's default.
-        const pick = /ListingType$/.test(el.name) ? group[0] : group[group.length - 1];
+        const pick = /ListingType$|^saleBuyerAgent(Option|Pays)$/.test(el.name) ? group[0] : group[group.length - 1];   // the buyer side's first choices keep the offer typed live (a withdrawn offer is not saved)
         group.forEach((r) => { r.checked = r === pick; });
         // the collector keys a radio by its id when it has one, by its name otherwise
         out.push({ key: pick.id || pick.name, kind: 'radio', expected: pick.value });

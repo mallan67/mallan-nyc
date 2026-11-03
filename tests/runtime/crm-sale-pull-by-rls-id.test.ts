@@ -66,6 +66,28 @@ describe("typing an RLS ID in the Building Lookup box", () => {
     } finally { f.close(); }
   });
 
+  it.each(["RLS20123633.", " RLS20123633 ", "RLS20123633,", "(RLS20123633)", "rls20123633", "\"RLS20123633\""])("%j (stray punctuation, spaces or lower case around it) is still the RLS ID: Pull from Cotality is offered for RLS20123633", async (typed) => {
+    const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }) });
+    try {
+      await typeRlsId(f, typed);
+      expect(pullRow(f)).not.toBeNull();
+      expect(pullRow(f)!.textContent).toMatch(/RLS20123633/);
+      pullRow(f)!.click();
+      await waitUntil(() => f.rlsPulls.length === 1);
+      expect(f.rlsPulls).toEqual(["RLS20123633"]);
+    } finally { f.close(); }
+  });
+
+  it("an address that happens to end in a number is still searched as an address, and a ListingKey with a full stop is still not an RLS ID", async () => {
+    const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }) });
+    try {
+      await typeRlsId(f, "1194314473.");
+      expect(pullRow(f)).toBeNull();
+      await typeRlsId(f, "800 2nd Avenue 806");
+      expect(pullRow(f)).toBeNull();
+    } finally { f.close(); }
+  });
+
   it("a ListingKey is not an RLS ID: nothing is offered for it", async () => {
     const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }) });
     try {

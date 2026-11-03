@@ -5362,6 +5362,8 @@ function _saleBuildingCandidateRow(b, subtitle, onPick) {
 // returns the listing's PROPERTY FACTS under the Cotality names the form already restores from a saved listing. Provider-owned data (identity, status, permissions, agent/office,
 // media) is not copied; the new listing starts as a Draft. It pulls only into a blank listing, so nothing the agent typed is replaced.
 const SALE_RLS_ID = /^RLS\d{6,12}$/i;
+// What was typed or pasted, without the stray punctuation or spaces around it ("RLS20123633.", " RLS20123633, ", "(RLS20123633)"): an RLS ID is letters and digits only.
+function saleRlsIdFromTyped(text) { return String(text || '').replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, '').toUpperCase(); }
 
 function saleRefreshRlsLink() {
     var id = (document.getElementById('saleRlsId') || {}).value || '';
@@ -5507,7 +5509,7 @@ function searchBuildingForListing(query, prefix) {
     const results = document.getElementById(prefix + 'BuildingSearchResults');
     if (!results) return;
     if (query.length < 3) { results.classList.add('hidden'); return; }
-    if (prefix === 'sale' && SALE_RLS_ID.test(query.trim())) { clearTimeout(_buildingSearchTimeout); _saleRlsPullRow(results, query.trim().toUpperCase()); return; }   // an RLS ID, not an address
+    if (prefix === 'sale' && SALE_RLS_ID.test(saleRlsIdFromTyped(query))) { clearTimeout(_buildingSearchTimeout); _saleRlsPullRow(results, saleRlsIdFromTyped(query)); return; }   // an RLS ID, not an address
 
     // Debounce API calls
     clearTimeout(_buildingSearchTimeout);
@@ -8486,6 +8488,9 @@ function collectSaleFormData() {
     if (data.saleTHLandmark === 'Yes' || data.saleTHLandmark === 'No') data.LandmarkStatusYN = data.saleTHLandmark === 'Yes'; else if (data.saleBldgLandmark === true) data.LandmarkStatusYN = true;
     // the building's units: the Building panel first, the townhouse tab when the panel is blank
     if (data.NumberOfUnitsTotal == null && _saleInt(data.saleTHUnitsTotal) != null) data.NumberOfUnitsTotal = _saleInt(data.saleTHUnitsTotal);
+    // The owner offers the buyer's agent nothing here (Contact Agent / Collect Your Own Fee): a number typed before the switch stays in the box on screen (switching back brings it back)
+    // but is NOT saved as an offer, so the saved listing never says both "none" and "3%".
+    if (saleBuyerOfferWithdrawn()) { data.saleBuyerComp = ''; data.saleBuyerCompType = 'Percent'; }
     _saleEmitClaims(data);
     return data;
 }
@@ -9195,6 +9200,13 @@ function saleBuyerOfferExpected() {
     const o = document.querySelector('input[name="saleBuyerAgentOption"]:checked');
     const p = document.querySelector('input[name="saleBuyerAgentPays"]:checked');
     return !!o && !!p && o.value === 'EnterCommInfo' && p.value === 'OwnerPays';
+}
+
+// The agent has chosen that the owner offers no compensation here: Contact Agent, or Collect Your Own Fee.
+function saleBuyerOfferWithdrawn() {
+    const o = document.querySelector('input[name="saleBuyerAgentOption"]:checked');
+    const p = document.querySelector('input[name="saleBuyerAgentPays"]:checked');
+    return (!!o && o.value === 'ContactAgent') || (!!p && p.value === 'CollectOwnFee');
 }
 
 function isFieldRelevant(field) {
