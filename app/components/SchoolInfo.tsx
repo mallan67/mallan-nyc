@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useInView } from '@/lib/hooks/useInView';
 
 /**
  * SchoolInfo — Nearby Schools section for listing detail pages.
@@ -59,8 +60,11 @@ export default function SchoolInfo({ latitude, longitude }: SchoolInfoProps) {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState(false);
+  // The request waits until the section is about to be seen; most visits never scroll this far.
+  const [sectionRef, inView] = useInView<HTMLElement>();
 
   useEffect(() => {
+    if (!inView) return;
     let cancelled = false;
 
     async function fetchSchools() {
@@ -84,7 +88,7 @@ export default function SchoolInfo({ latitude, longitude }: SchoolInfoProps) {
 
     fetchSchools();
     return () => { cancelled = true; };
-  }, [latitude, longitude]);
+  }, [inView, latitude, longitude]);
 
   // Always render the section header — never vanish completely.
   // If data unavailable, show the header with a note.
@@ -94,7 +98,7 @@ export default function SchoolInfo({ latitude, longitude }: SchoolInfoProps) {
   const totalSchools = groups.reduce((sum, g) => sum + g.schools.length, 0);
 
   return (
-    <section className="py-6 border-t border-black/[0.06]">
+    <section ref={sectionRef} className="py-6 border-t border-black/[0.06]">
       {/* Header — always visible, clickable to expand */}
       <button
         onClick={() => setExpanded(!expanded)}

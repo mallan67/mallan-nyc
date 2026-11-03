@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { isComingSoonStatus } from './ComingSoonBadge';
+import { useInView, LAZY_SECTION_ROOT_MARGIN } from '@/lib/hooks/useInView';
 
 interface ActiveUnit {
   id: string;
@@ -87,8 +88,12 @@ export default function BuildingUnits({
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  // /api/listings/building reads the database and live Cotality: it waits until the section is about to be seen. The section disappears
+  // when the building has nothing to show, so the runway is longer than the default (see SimilarListings).
+  const [sectionRef, inView] = useInView<HTMLElement>(LAZY_SECTION_ROOT_MARGIN);
 
   useEffect(() => {
+    if (!inView) return;
     const params = new URLSearchParams({
       streetNumber,
       streetName,
@@ -103,7 +108,7 @@ export default function BuildingUnits({
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [streetNumber, streetName, postalCode, currentListingId]);
+  }, [inView, streetNumber, streetName, postalCode, currentListingId]);
 
   if (!loading && activeUnits.length === 0 && saleHistory.length === 0) return null;
 
@@ -119,7 +124,7 @@ export default function BuildingUnits({
   const hasDetailData = saleHistory.some((s) => s.sqft > 0 || s.beds > 0 || s.baths > 0);
 
   return (
-    <section>
+    <section ref={sectionRef}>
       {/* Header bar */}
       <div className="flex items-center justify-between mb-6">
         <p className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-[0.15em]">

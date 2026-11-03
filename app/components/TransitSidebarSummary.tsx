@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 import type { NearbyStation } from '@/lib/transit/types';
 import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
+import { useInView } from '@/lib/hooks/useInView';
 
 function TransitScoreBadge({ score }: { score: number }) {
   let color = 'bg-red-100 text-red-700';
@@ -62,7 +63,9 @@ export default function TransitSidebarSummary({
     },
     [],
   );
-  const { data, loading: fetchLoading } = useAsyncResource(fetchKey, fetcher);
+  // The request waits until the card's place is about to be seen; most visits never get this far.
+  const [sentinelRef, inView] = useInView<HTMLDivElement>();
+  const { data, loading: fetchLoading } = useAsyncResource(inView ? fetchKey : null, fetcher);
   // Without coordinates the resource is idle (loading=false) and the
   // fallback branch below renders the neighborhood summary.
   const loading = !!fetchKey && fetchLoading;
@@ -105,7 +108,10 @@ export default function TransitSidebarSummary({
     );
   }
 
-  if (!data || data.stations.length === 0) return null;
+  if (!data || data.stations.length === 0) {
+    // Nothing to show (yet): a zero-size marker at the card's place, so the request can wait for the visitor to get near it.
+    return inView ? null : <div ref={sentinelRef} aria-hidden="true" className="absolute" />;
+  }
 
   const nearest = data.stations[0];
   const allLines = Array.from(

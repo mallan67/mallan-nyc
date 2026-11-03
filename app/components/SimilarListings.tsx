@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ComingSoonBadge } from './ComingSoonBadge';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { shouldShowPhotoCount } from '@/lib/media/listing-card-media';
+import { useInView, LAZY_SECTION_ROOT_MARGIN } from '@/lib/hooks/useInView';
 
 interface SimilarListing {
   id: string;
@@ -133,8 +134,13 @@ export default function SimilarListings({
   const [listings, setListings] = useState<SimilarListing[]>([]);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // /api/listings/similar reads the database and, on a fallback path, live Cotality: it waits until the section is about to be seen. The
+  // section disappears when there is nothing similar, so the runway is longer than the default: the answer should land before the visitor
+  // is near enough to see the page below it move.
+  const [sectionRef, inView] = useInView<HTMLElement>(LAZY_SECTION_ROOT_MARGIN);
 
   useEffect(() => {
+    if (!inView) return;
     const params = new URLSearchParams({
       type: listingType,
       beds: String(beds),
@@ -153,7 +159,7 @@ export default function SimilarListings({
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [listingType, beds, listPrice, postalCode, neighborhood, currentListingId, propertyType, propertySubType]);
+  }, [inView, listingType, beds, listPrice, postalCode, neighborhood, currentListingId, propertyType, propertySubType]);
 
   const scrollBy = useCallback((direction: 'left' | 'right') => {
     if (!scrollRef.current) return;
@@ -166,7 +172,7 @@ export default function SimilarListings({
   const isRental = listingType === 'rent';
 
   return (
-    <section>
+    <section ref={sectionRef}>
       <div className="flex items-center justify-between mb-5">
         <h2 className="font-display font-semibold text-xl text-brand-dark">
           Similar Properties {isRental ? 'For Rent' : 'For Sale'}

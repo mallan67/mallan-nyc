@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cachedPublicRead } from '@/lib/cache/public-cache';
 
 /**
  * GET /api/nearby-poi?lat=40.77&lng=-73.96&radius=800
@@ -28,29 +29,27 @@ interface CategoryCount {
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
-// POI cache — in-memory for serverless (per-instance), 7 day TTL
-const cache = new Map<string, { data: CategoryCount[]; ts: number }>();
-const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+// The 7-day cache is the repo's shared data cache (lib/cache/public-cache.ts), NOT a module-level Map: serverless
+// instances do not share memory, so the old per-instance Map sent nearly every listing view back to the public
+// Overpass server (production 2026-08-13 → 2026-11-02: 3,847 connect timeouts, plus 30s function timeouts). It has its
+// OWN tag, not the listing-sync tag: a POI answer must not be dropped every time a listing changes.
+const POI_CACHE_TAG = 'nearby-poi';
+const POI_REVALIDATE_SECONDS = 7 * 24 * 60 * 60;
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const lat = parseFloat(searchParams.get('lat') || '');
-  const lng = parseFloat(searchParams.get('lng') || '');
-  const radius = Math.min(parseInt(searchParams.get('radius') || '800', 10), 1500);
+// Overpass gets its own bound, well under the function limit, so a slow or unreachable server costs one request a few
+// seconds instead of 10s of connect timeout and then the 30s limit.
+const OVERPASS_TIMEOUT_MS = 12_000;
 
-  if (isNaN(lat) || isNaN(lng)) {
-    return NextResponse.json({ error: 'lat and lng required' }, { status: 400 });
-  }
+// Mallan lists New York. Anything outside this box is not a listing's location, and asking Overpass about it (and
+// making a new cache entry for it) is free load for whoever asks. The box is generous: the five boroughs plus the
+// nearby parts of Long Island, Westchester and New Jersey.
+const NY_BOUNDS = { minLat: 40.3, maxLat: 41.4, minLng: -74.6, maxLng: -73.3 } as const;
 
-  // Round coords to 3 decimal places for cache key (~111m precision)
-  const cacheKey = `${lat.toFixed(3)},${lng.toFixed(3)},${radius}`;
-  const cached = cache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < CACHE_TTL) {
-    return NextResponse.json({ categories: cached.data }, {
-      headers: { 'Cache-Control': 'public, s-maxage=604800, stale-while-revalidate=86400' },
-    });
-  }
-
+/**
+ * The Overpass query + categorisation for one rounded point. It THROWS on any failure (network, timeout, HTTP error):
+ * the shared cache never stores a throw, so a failure is never served to the next visitor as "no places nearby".
+ */
+async function fetchPoiCategories(lat: number, lng: number, radius: number): Promise<CategoryCount[]> {
   try {
     // Use nwr (node/way/relation) to catch POIs mapped as buildings/areas.
     // `out center` gives us a center point for way/relation elements.
@@ -76,12 +75,10 @@ out center 500;
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `data=${encodeURIComponent(query)}`,
+      signal: AbortSignal.timeout(OVERPASS_TIMEOUT_MS),
     });
 
-    if (!response.ok) {
-      console.warn(`[POI] Overpass error: ${response.status}`);
-      return NextResponse.json({ categories: [] }, { status: 200 });
-    }
+    if (!response.ok) throw new Error(`Overpass HTTP ${response.status}`);
 
     const data = await response.json();
     const elements = data.elements || [];
@@ -183,14 +180,45 @@ out center 500;
         items: items.slice(0, 25),
       }));
 
-    // Cache result
-    cache.set(cacheKey, { data: categories, ts: Date.now() });
+    return categories;
+  } catch (err) {
+    console.warn('[POI] Overpass lookup failed (not cached):', err instanceof Error ? err.message : err);
+    throw err;
+  }
+}
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const lat = parseFloat(searchParams.get('lat') || '');
+  const lng = parseFloat(searchParams.get('lng') || '');
+  const radiusParam = parseInt(searchParams.get('radius') || '800', 10);
+  const radius = Number.isFinite(radiusParam) && radiusParam > 0 ? Math.min(radiusParam, 1500) : 800;
+
+  if (isNaN(lat) || isNaN(lng)) {
+    return NextResponse.json({ error: 'lat and lng required' }, { status: 400 });
+  }
+  if (lat < NY_BOUNDS.minLat || lat > NY_BOUNDS.maxLat || lng < NY_BOUNDS.minLng || lng > NY_BOUNDS.maxLng) {
+    return NextResponse.json({ error: 'lat and lng must be in the New York area' }, { status: 400 });
+  }
+
+  // Round to 3 decimal places (~111m): one cache entry is one point, and the question asked of Overpass is about that
+  // SAME rounded point, so the shared cache key and the query can never disagree.
+  const roundedLat = Number(lat.toFixed(3));
+  const roundedLng = Number(lng.toFixed(3));
+
+  try {
+    const categories = await cachedPublicRead(
+      fetchPoiCategories,
+      ['nearby-poi'],
+      { tags: [POI_CACHE_TAG], revalidate: POI_REVALIDATE_SECONDS },
+    )(roundedLat, roundedLng, radius);
 
     return NextResponse.json({ categories }, {
       headers: { 'Cache-Control': 'public, s-maxage=604800, stale-while-revalidate=86400' },
     });
-  } catch (err) {
-    console.error('[POI] Overpass fetch error:', err);
-    return NextResponse.json({ categories: [] }, { status: 200 });
+  } catch {
+    // The page expects 200 with a list; an unavailable Overpass is "no places to show right now", and must not be cached
+    // anywhere (it was logged once, in fetchPoiCategories).
+    return NextResponse.json({ categories: [] }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
   }
 }
