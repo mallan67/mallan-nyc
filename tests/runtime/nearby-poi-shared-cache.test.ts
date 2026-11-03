@@ -141,6 +141,8 @@ describe('input is bounded', () => {
     ['not numbers', 'lat=abc&lng=def'],
     ['a point in Dhaka', 'lat=23.8103&lng=90.4125'],
     ['a point in the Atlantic', 'lat=10&lng=-40'],
+    ['Boston (past the east end of Long Island)', 'lat=42.3601&lng=-71.0589'],
+    ['Miami', 'lat=25.7617&lng=-80.1918'],
     ['latitude only', 'lat=40.77'],
   ])('%s is a 400 and never reaches Overpass', async (_n, q) => {
     const { res } = await get(q);
@@ -154,6 +156,9 @@ describe('input is bounded', () => {
     ['the Bronx', 'lat=40.8448&lng=-73.8648'],
     ['Queens', 'lat=40.7282&lng=-73.7949'],
     ['Brooklyn', 'lat=40.6782&lng=-73.9442'],
+    ['Montauk, the far end of Long Island', 'lat=41.0359&lng=-71.9545'],
+    ['the Hudson Valley (Poughkeepsie)', 'lat=41.7004&lng=-73.9210'],
+    ['Buffalo, the far side of the state', 'lat=42.8864&lng=-78.8784'],
   ])('%s is served', async (_n, q) => {
     expect((await get(q)).res.status).toBe(200);
   });

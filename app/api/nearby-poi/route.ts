@@ -41,9 +41,11 @@ const POI_REVALIDATE_SECONDS = 7 * 24 * 60 * 60;
 const OVERPASS_TIMEOUT_MS = 12_000;
 
 // Mallan lists New York. Anything outside this box is not a listing's location, and asking Overpass about it (and
-// making a new cache entry for it) is free load for whoever asks. The box is generous: the five boroughs plus the
-// nearby parts of Long Island, Westchester and New Jersey.
-const NY_BOUNDS = { minLat: 40.3, maxLat: 41.4, minLng: -74.6, maxLng: -73.3 } as const;
+// making a new cache entry for it) is free load for whoever asks. The box is the extent of New York State (it takes in
+// all of Long Island, the Hudson Valley and upstate, and a little of the neighbouring states at its edges): it keeps out
+// the rest of the world, and it must never turn a real listing's neighbourhood section off. It does not limit load from
+// inside the state; each distinct point is one cache entry.
+const NY_BOUNDS = { minLat: 40.3, maxLat: 45.1, minLng: -79.9, maxLng: -71.7 } as const;
 
 /**
  * The Overpass query + categorisation for one rounded point. It THROWS on any failure (network, timeout, HTTP error):
