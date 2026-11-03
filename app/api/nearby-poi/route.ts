@@ -30,9 +30,11 @@ interface CategoryCount {
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
 // The 7-day cache is the repo's shared data cache (lib/cache/public-cache.ts), NOT a module-level Map: serverless
-// instances do not share memory, so the old per-instance Map sent nearly every listing view back to the public
-// Overpass server (production 2026-08-13 → 2026-11-02: 3,847 connect timeouts, plus 30s function timeouts). It has its
-// OWN tag, not the listing-sync tag: a POI answer must not be dropped every time a listing changes.
+// instances do not share memory, so a view served by an instance with an empty per-instance Map went back to the public
+// Overpass server. Vercel runtime errors for this route, 2026-08-13 → 2026-11-02: 3,847 `[POI] Overpass fetch error`
+// (ConnectTimeoutError); "Task timed out after 30 seconds" is 38 occurrences across this route, /api/open-houses and
+// /api/listings/building. That the Map caused them was not established. The cache has its OWN tag, not the listing-sync
+// tag: a POI answer must not be dropped every time a listing changes.
 const POI_CACHE_TAG = 'nearby-poi';
 const POI_REVALIDATE_SECONDS = 7 * 24 * 60 * 60;
 
@@ -41,7 +43,7 @@ const POI_REVALIDATE_SECONDS = 7 * 24 * 60 * 60;
 const OVERPASS_TIMEOUT_MS = 12_000;
 
 // Mallan lists New York. Anything outside this box is not a listing's location, and asking Overpass about it (and
-// making a new cache entry for it) is free load for whoever asks. The box is the extent of New York State (it takes in
+// making a new cache entry for it) is free load for whoever asks. The box is a little larger than New York State's extent (it takes in
 // all of Long Island, the Hudson Valley and upstate, and a little of the neighbouring states at its edges): it keeps out
 // the rest of the world, and it must never turn a real listing's neighbourhood section off. It does not limit load from
 // inside the state; each distinct point is one cache entry.

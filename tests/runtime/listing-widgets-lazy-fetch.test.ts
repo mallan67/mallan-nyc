@@ -2,10 +2,11 @@
 /**
  * Listing-page widgets — each one asks its API only when the visitor is about to see it.
  *
- * Before: a listing page fired its widget requests (/api/nearby-poi, /api/market, /api/schools/nearby, /api/transit/nearby) the moment
- * it hydrated, for every visitor and every bot that runs JavaScript, whether or not anyone scrolled that far. /api/market and the
- * other widgets behind it reach the database and, on a fallback path, live Cotality; /api/nearby-poi reaches a public OpenStreetMap
- * server. Production 2026-08-13 → 2026-11-02 shows that fan-out as timeouts and pool exhaustion.
+ * Before: a listing page fired its widget requests (/api/nearby-poi, /api/market, /api/schools/nearby, /api/transit/nearby, /api/listings/similar, /api/listings/building) the moment
+ * it hydrated, for every visitor and every bot that runs JavaScript, whether or not anyone scrolled that far. /api/market and
+ * /api/listings/similar reach the database and, on a fallback path, live Cotality; /api/listings/building queries live Cotality (cached);
+ * /api/nearby-poi reaches a public OpenStreetMap server. Vercel runtime errors for 2026-08-13 → 2026-11-02 include 3,847 Overpass connect
+ * timeouts and 38 thirty-second function timeouts; that this fan-out caused them was not established.
  *
  * The REAL components are rendered into a real DOM (jsdom + react-dom/client) with a stand-in IntersectionObserver the test drives,
  * and a stand-in fetch the test reads. What is checked is what a visitor's browser would be asked, not source text.

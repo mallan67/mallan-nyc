@@ -3,8 +3,9 @@
  * GET /api/nearby-poi — shared cache, bounded failure, bounded input.
  *
  * Production, 2026-08-13 → 2026-11-02 (Vercel runtime errors): 3,847 `[POI] Overpass fetch error … ConnectTimeoutError … 10000ms`,
- * and "Task timed out after 30 seconds" on this route. Three causes in app/api/nearby-poi/route.ts:
- *  - the 7-day cache was a module-level Map: serverless instances do not share memory, so nearly every listing view went to the
+ * and "Task timed out after 30 seconds" (38 of them, across this route, /api/open-houses and /api/listings/building). Three weaknesses in
+ * app/api/nearby-poi/route.ts, fixed here (that they caused those exact errors was not established):
+ *  - the 7-day cache was a module-level Map: serverless instances do not share memory, so a view served by an instance with an empty Map went to the
  *    public Overpass server again;
  *  - the Overpass fetch had no timeout of its own (the platform's 10s connect timeout, then the 30s function limit);
  *  - any lat/lng on earth was accepted and became a new cache key and a new Overpass query: free load for anyone who asks.

@@ -88,7 +88,7 @@ export default function BuildingUnits({
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  // /api/listings/building reads the database and live Cotality: it waits until the section is about to be seen. The section disappears
+  // /api/listings/building queries live Cotality (its answers are cached): it waits until the section is about to be seen. The section disappears
   // when the building has nothing to show, so the runway is longer than the default (see SimilarListings).
   const [sectionRef, inView] = useInView<HTMLElement>(LAZY_SECTION_ROOT_MARGIN);
 
