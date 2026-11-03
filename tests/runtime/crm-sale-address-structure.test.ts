@@ -15,7 +15,6 @@ import { resolve } from 'path';
 import { bootAddForm, sleep, type BootedForm } from './add-form-harness';
 
 jest.setTimeout(120000);
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 const FORM = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
 
@@ -29,10 +28,10 @@ const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace
 const banner = (f: BootedForm) => ({ type: text(f.d.getElementById('saleIdxDetectedType')), building: text(f.d.getElementById('saleIdxDetectedBuilding')), shown: !f.d.getElementById('saleIdxMatchBanner')!.classList.contains('hidden') });
 
 /** the agent types the address in the lookup box and picks the building that is offered */
-async function pickBuilding(row: Record<string, unknown>): Promise<BootedForm> {
+async function pickBuilding(row: Record<string, unknown>, typed: string = String(row.address).slice(0, 9)): Promise<BootedForm> {
   const f = await bootAddForm('SALE-FORM-REDESIGN', { buildings: [row], settle: 700 });
   const box = f.d.getElementById('saleBuildingSearch') as HTMLInputElement;
-  box.value = String(row.address).slice(0, 9);
+  box.value = typed;
   box.dispatchEvent(new f.w.Event('input', { bubbles: true }));
   await sleep(500);
   const offered = f.d.querySelector('#saleBuildingSearchResults > div') as HTMLElement;
@@ -75,12 +74,30 @@ describe('an address names a house', () => {
     } finally { f.close(); }
   });
 
-  it('an ownership tag the form knows still decides: a co-op is a Co-op, whatever kind is also sent, and its TH / Building tab stays shut', async () => {
-    const f = await pickBuilding({ ...COOP, building_kind: 'SingleFamilyTownhouse' });
+  it('a house is a house whatever ownership tag a record still carries (152 W 121st Street: a townhouse with one listing tagged Condominium): the kind decides, the stray tag fills nothing', async () => {
+    const f = await pickBuilding({ ...HOUSE, address: '152 W 121st Street', common_interest: 'Condominium', building_kind: 'MultiFamilyTownhouse' });
+    try {
+      expect(checkedType(f)).toBe('MultiFamilyTownhouse');
+      expect(tab3Locked(f)).toBe(false);
+      expect(banner(f).type).toContain('Multi-Family');
+      expect((f.d.getElementById('saleCommonInterest') as HTMLSelectElement).value).toBe('');     // Ownership Type is not told "Condominium" for a house
+    } finally { f.close(); }
+  });
+
+  it('an apartment building is not turned into a house: a co-op the index calls a Coop stays a Co-op, and its TH / Building tab stays shut', async () => {
+    const f = await pickBuilding({ ...COOP, building_kind: 'Coop' });
     try {
       expect(checkedType(f)).toBe('Coop');
       expect(tab3Locked(f)).toBe(true);
       expect(banner(f)).toEqual({ shown: true, type: 'Co-op', building: 'The Plaza Tower' });
+    } finally { f.close(); }
+  });
+
+  it('an ownership tag with no kind at all still decides (a building the index could not classify)', async () => {
+    const f = await pickBuilding({ ...COOP });
+    try {
+      expect(checkedType(f)).toBe('Coop');
+      expect(tab3Locked(f)).toBe(true);
     } finally { f.close(); }
   });
 
@@ -109,6 +126,24 @@ describe('a locked TH / Building tab says why', () => {
     } finally { f.close(); }
   });
 
+  it('on a phone the sidebar is hidden, so the tab bar carries the same words and the greyed tab points at them', async () => {
+    expect(FORM).toMatch(/@media \(min-width: 768px\) \{ \.mobile-th-note \{ display: none !important; \} \}/);     // shown under 768px only, like the tab bar it belongs to
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 700 });
+    try {
+      const mobileNote = f.d.getElementById('saleTHTabNoteMobile') as HTMLElement;
+      const mobileTab = f.d.querySelectorAll('.mobile-tab')[2] as HTMLElement;
+      expect(mobileNote.classList.contains('hidden')).toBe(false);
+      expect(text(mobileNote)).toBe(text(f.d.getElementById('saleTHTabNote')));
+      expect(text(mobileNote)).toMatch(/TH \/ Building is not used for Condo: the building's facts are in the Building window/);
+      expect(mobileTab.getAttribute('aria-disabled')).toBe('true');
+      expect(mobileTab.getAttribute('aria-describedby')).toBe('saleTHTabNoteMobile');
+      choose(f, 'salePropertyType', 'SingleFamily');
+      expect(mobileNote.classList.contains('hidden')).toBe(true);
+      expect(mobileTab.getAttribute('aria-disabled')).toBe('false');
+      expect(mobileTab.hasAttribute('aria-describedby')).toBe(false);
+    } finally { f.close(); }
+  });
+
   it('a commercial condo is named as one', async () => {
     const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 700 });
     try {
@@ -118,6 +153,59 @@ describe('a locked TH / Building tab says why', () => {
       expect(noteOf(f).note).toMatch(/not used for Commercial Condo:/);
       choose(f, 'saleCommercialOwnership', 'WholeBuilding');
       expect(noteOf(f)).toEqual({ icon: false, noteShown: false, note: '' });
+    } finally { f.close(); }
+  });
+});
+
+/**
+ * What the LIVE Cotality answers showed (walk-through against the real API, 2026-11-03; fixtures below have the live shape of 310 W 72nd Street).
+ * A co-op's corporation is named "310/72 Owners Corp."; the name contains the street number, and the form took the name for the address: the Street Address box read
+ * "310/72 Owners Corp." (number "310/72", street "Owners Corp."). The same record says StructureType "None", which the form filled as "None (Land)" into a 16-story co-op.
+ */
+describe('live Cotality answers', () => {
+  const LIVE_COOP = { address: '310 W 72nd Street', name: '310/72 Owners Corp.', borough: 'Manhattan', zip: '10023', neighborhood: 'Lincoln Square', common_interest: 'StockCooperative', structure_type: 'None', year_built: 1924, stories_total: 16, units_total: null, building_kind: 'Coop' };
+  const value = (f: BootedForm, id: string) => (f.d.getElementById(id) as HTMLInputElement).value;
+
+  it('a co-op whose name holds the street number keeps its street address; the name stays the name', async () => {
+    const f = await pickBuilding(LIVE_COOP);
+    try {
+      expect(value(f, 'saleStreetAddress')).toBe('310 W 72nd Street');
+      expect(value(f, 'saleStreetNumber')).toBe('310');
+      expect(value(f, 'saleBldgStreetAddress')).toBe('310 W 72nd Street');
+      expect(banner(f)).toEqual({ shown: true, type: 'Co-op', building: '310/72 Owners Corp.' });
+      expect(f.errors).toEqual([]);
+    } finally { f.close(); }
+  });
+
+  it('a record with no address at all is still addressed by its name (nothing else to use)', async () => {
+    const f = await pickBuilding({ ...LIVE_COOP, address: '' }, '310 W 72nd');
+    try {
+      expect(value(f, 'saleStreetAddress')).toBe('310/72 Owners Corp.');
+    } finally { f.close(); }
+  });
+
+  it('StructureType "None" is not filled into a building the lookup typed; a real structure still is', async () => {
+    const none = await pickBuilding(LIVE_COOP);
+    try {
+      expect(value(none, 'saleStructureType')).toBe('');
+      expect(value(none, 'saleBldgType')).toBe('');
+    } finally { none.close(); }
+    const real = await pickBuilding({ ...LIVE_COOP, structure_type: 'HighRise' });
+    try {
+      expect(value(real, 'saleStructureType')).toBe('HighRise');
+      expect(value(real, 'saleBldgType')).toBe('HighRise');
+    } finally { real.close(); }
+  });
+
+  it('the lookup row names the type the way the banner does ("Single Family", "Co-op"), not by its code', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { buildings: [{ ...HOUSE, address: '34 E 70TH Street', building_kind: 'SingleFamily' }], settle: 700 });
+    try {
+      const box = f.d.getElementById('saleBuildingSearch') as HTMLInputElement;
+      box.value = '34 E 70th';
+      box.dispatchEvent(new f.w.Event('input', { bubbles: true }));
+      await sleep(500);
+      const row = f.d.querySelector('#saleBuildingSearchResults > div') as HTMLElement;
+      expect(text(row.querySelector('span'))).toBe('Single Family');
     } finally { f.close(); }
   });
 });
@@ -146,7 +234,7 @@ describe('the rest of what the walk-through found', () => {
   });
 
   it('the header buttons keep their shape when the draft notice shows (they do not wrap or shrink)', () => {
-    expect(FORM).toMatch(/<div class="flex items-center gap-2 shrink-0">\s*<button onclick="showSaleMediaDocs\(\)"/);
+    expect(FORM).toMatch(/<div class="flex flex-wrap items-center gap-2 shrink-0">\s*<button onclick="showSaleMediaDocs\(\)"/);     // flex-wrap: on a phone Submit and Cancel wrap under the others instead of running off the edge
     expect(FORM).toMatch(/onclick="manualSaveDraft\('sale'\)"[^>]*whitespace-nowrap/);
   });
 });

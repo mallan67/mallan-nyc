@@ -104,6 +104,8 @@ body { font-family: Manrope, sans-serif; }
 @media (min-width: 768px) {
   .mobile-tabs { display: none !important; }
 }
+.mobile-th-note { padding: 6px 12px; font-size: 11px; line-height: 1.35; color: #6b7280; background: #fff; border-bottom: 1px solid #e5e7eb; }
+@media (min-width: 768px) { .mobile-th-note { display: none !important; } }
 /* Media window: drop boxes, upload progress, photo tiles (Maya, 2026-11-03: "looks very outdated") */
 .mm-drop { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px 16px; border: 2px dashed #d1d5db; border-radius: 14px; background: #fafafa; text-align: center; cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
 .mm-drop:hover, .mm-drop:focus-visible { border-color: #B8860B; background: #fffbeb; outline: none; }
@@ -260,7 +262,7 @@ body { font-family: Manrope, sans-serif; }
             <span id="saleAutoSaveIndicator" class="hidden text-xs" role="status" aria-live="polite"><i class="fas fa-cloud"></i> <span id="saleAutoSaveText"></span></span>
             <span id="saleDraftBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300"><i class="fas fa-file-alt"></i> DRAFT</span>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
             <button onclick="showSaleMediaDocs()" class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium transition">
                 <i class="fas fa-images text-gray-900"></i> <span class="font-semibold text-gray-900">Media</span>
             </button>
@@ -292,6 +294,7 @@ body { font-family: Manrope, sans-serif; }
     <button onclick="showSaleMainTab(6)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">History</button>
     <button onclick="showSaleMainTab(7)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-400 whitespace-nowrap pointer-events-none" id="mobileTab7" disabled>Commission</button>
 </div>
+<p id="saleTHTabNoteMobile" class="mobile-th-note hidden" role="note"></p>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- MAIN LAYOUT: SIDEBAR + CONTENT                             -->
@@ -5383,11 +5386,17 @@ async function fetchBuildingsFromAPI(query) {
             var ci = b.common_interest == null ? '' : b.common_interest;               // the building's Cotality CommonInterest; PropertyType is not an ownership
             ci = txt(ci);
             var formType = _commonInterestToFormType(ci);
-            if (_SALE_BUILDING_TYPES.indexOf(formType) < 0) formType = _saleBuildingKindToFormType(txt(b.building_kind)) || formType;   // no ownership tag the form knows: the kind of building decides (a townhouse is a townhouse)
+            // A house is a house whatever an ownership tag still on the record says: the kind is read from ALL of the building's listings (152 W 121st Street is a townhouse with one listing tagged
+            // Condominium), the tag from one. A kind that names a house decides, and the stray tag is dropped (it must not fill Ownership Type); otherwise the tag decides, and a kind the form has
+            // no type for (Condo, a rental building) leaves it to the tag.
+            var kindType = _saleBuildingKindToFormType(txt(b.building_kind));
+            if (kindType && ['Condo', 'Coop', 'Condop'].indexOf(kindType) < 0) { formType = kindType; ci = ''; }
+            else if (_SALE_BUILDING_TYPES.indexOf(formType) < 0) formType = kindType || formType;
             var rawAddr = txt(b.address || b.street_address);                      // the address as text (a list or an object is no value)
             var bldgName = txt(b.name) || txt(b.building_name) || '';
-            var streetNum = rawAddr.match(/^\d+/);
-            var displayAddr = (bldgName && streetNum && bldgName.indexOf(streetNum[0]) !== -1) ? bldgName : rawAddr;
+            // The address is Cotality's address. A name that happens to contain the street number is still a name (live: 310 W 72nd Street is "310/72 Owners Corp.", and it was taking
+            // the Street Address box, so the listing was addressed to a corporation). The name stands in only when Cotality gave no address.
+            var displayAddr = rawAddr || bldgName;
             // Preserve EVERY field the API returned (tax_block/tax_lot,
             // association_*, cross_street, stories_total/units_total,
             // structure_type, subdivisionName, and the expanded amenities
@@ -5435,7 +5444,7 @@ function _saleBuildingCandidateRow(b, subtitle, onPick) {
     if (b.model) {
         var badge = document.createElement('span');
         badge.className = 'px-2 py-0.5 text-[10px] font-bold rounded-full ' + (b.model === 'Coop' ? 'bg-purple-100 text-purple-700' : b.model === 'Condo' ? 'bg-blue-100 text-blue-700' : b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' : 'bg-green-100 text-green-700');
-        badge.textContent = b.model; line.appendChild(badge);
+        badge.textContent = _salePropTypeLabel(b.model) || b.model; line.appendChild(badge);
     }
     row.appendChild(line);
     return row;
@@ -5928,7 +5937,9 @@ function populateBuildingFromIDX(prefix, building) {
     setIfPresent(prefix + 'BldgResidentialUnits', pick('units_total', 'unitsTotal'));
 
     // ── 4. Type + ownership ──────────────────────────────────────────
-    const stVal = pick('structure_type', 'structureType');
+    // Some records carry the text "None" as StructureType (live: 310 W 72nd Street, a 16-story co-op). "None (Land)" cannot describe a building the lookup typed, so it is left for the agent.
+    const stRaw = pick('structure_type', 'structureType');
+    const stVal = String(stRaw || '').trim().toLowerCase() === 'none' ? '' : stRaw;
     if (stVal) {
         const stEl = document.getElementById(prefix + 'StructureType');
         if (stEl) stEl.value = stVal;
@@ -7854,8 +7865,13 @@ function applySalesFieldRules() {
     if (tab3Lock) tab3Lock.classList.toggle('hidden', !skipTab3);
     if (tab3Note) {
         var ownLabel = (commercialOwnershipEl && propertyType === 'Commercial') ? ('Commercial ' + (commercialOwnershipEl.closest('label') || commercialOwnershipEl.parentElement).textContent.replace(/\s+/g, ' ').trim().replace(/^Commercial\s*/i, '')) : _salePropTypeLabel(propertyType);
-        tab3Note.textContent = skipTab3 ? 'TH / Building is not used for ' + (ownLabel || 'this property type') + ': the building\'s facts are in the Building window (the Building button at the top).' : '';
+        var noteText = skipTab3 ? 'TH / Building is not used for ' + (ownLabel || 'this property type') + ': the building\'s facts are in the Building window (the Building button at the top).' : '';
+        tab3Note.textContent = noteText;
         tab3Note.classList.toggle('hidden', !skipTab3);
+        // the sidebar is hidden under 768px: the phone's tab bar carries the same words, and the greyed tab points at them
+        var tab3NoteMobile = document.getElementById('saleTHTabNoteMobile');
+        if (tab3NoteMobile) { tab3NoteMobile.textContent = noteText; tab3NoteMobile.classList.toggle('hidden', !skipTab3); }
+        if (tab3Mobile) { tab3Mobile.setAttribute('aria-disabled', skipTab3 ? 'true' : 'false'); if (skipTab3) tab3Mobile.setAttribute('aria-describedby', 'saleTHTabNoteMobile'); else tab3Mobile.removeAttribute('aria-describedby'); }
     }
 
 
