@@ -353,7 +353,7 @@ describe('MallanServerRefusal and the validator\'s lines', () => {
 });
 
 describe.each([
-  ['SALE-FORM-REDESIGN', '_saleSubmitFailed', 'div[style*="99999"]', ['Price', 'Exclusive Start', 'Tax Lot'], ['salePrice', 'saleExclusiveStart', 'saleBldgTaxLot'], 'Listing Description'],
+  ['SALE-FORM-REDESIGN', '_saleSubmitFailed', 'div[style*="99999"]', ['Price', 'Exclusive Start', 'Tax Lot (unit)'], ['salePrice', 'saleExclusiveStart', 'saleUnitTaxLot'], 'Listing Description'],   // Property.TaxLot is the UNIT's lot: its box is the Unit tab's
   ['RENTAL-FORM-REDESIGN', '_rentalSubmitFailed', 'div.toast-notification', ['Monthly Rent', 'Exclusive Start Date', 'Tax Lot'], ['rentalMonthlyRent', 'rentalExclusiveStart', 'bldgTaxLot'], 'Listing Description'],
 ] as const)('%s: the validator\'s refusal names the boxes the page has', (form, handler, toastSelector, labels, ids, description) => {
   const refusal = async (details: unknown) => {

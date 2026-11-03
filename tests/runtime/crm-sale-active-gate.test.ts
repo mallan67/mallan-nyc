@@ -34,6 +34,11 @@ const hiddenBy = (el: Element | null, _w: any): string[] => {
 // fills a required field the way an agent would
 function fill(f: BootedForm, m: any) {
   const field = m.field;
+  if (field.type === 'garage') {
+    const no = f.d.querySelector('input[name="saleGarageSpaces"][value="No"]') as HTMLInputElement;
+    no.checked = true; no.dispatchEvent(new f.w.Event('change', { bubbles: true }));
+    return;
+  }
   if (field.type === 'checkboxGroup') {
     const first = f.d.querySelector(`input[name="${field.name}"]`) as HTMLInputElement | null;
     if (first) { first.checked = true; first.dispatchEvent(new f.w.Event('change', { bubbles: true })); }
@@ -47,7 +52,7 @@ function fill(f: BootedForm, m: any) {
   const el = f.d.getElementById(field.id) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
   if (!el) return;
   if (el.tagName === 'SELECT') {
-    const opt = [...(el as HTMLSelectElement).options].find((o) => o.value && o.value !== 'Draft');
+    const opt = [...(el as HTMLSelectElement).options].find((o) => o.value && o.value !== 'Draft' && o.value !== 'Fair');
     if (opt) (el as HTMLSelectElement).value = opt.value;
   } else if ((el as HTMLInputElement).type === 'date') el.value = '2027-01-15';
   else if ((el as HTMLInputElement).type === 'number') el.value = '2';
@@ -240,12 +245,24 @@ describe('the fields the REBNY server requires and the agent fills (they used to
     } finally { f.close(); }
   });
 
-  it('Garage is not demanded (a building\'s garage is its property type), and nothing optional is', async () => {
+  it('the garage question must be ANSWERED (the backend requires GarageYN to publish): an untouched default No is not an answer', async () => {
     const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
     try {
-      const labels = missingNow(f).map((m) => m.label);
-      expect(labels).not.toContain('Garage');
-      expect(labels.filter((l) => /garage/i.test(l))).toEqual(['Garage Spaces'].filter((l) => labels.includes(l)));   // only the form's own earlier entry, if it applies
+      const label = 'Garage Spaces Assigned (answer Yes or No)';
+      expect(missingNow(f).map((m) => m.label)).toContain(label);
+      const no = f.d.querySelector('input[name="saleGarageSpaces"][value="No"]') as HTMLInputElement;
+      no.checked = true; no.dispatchEvent(new f.w.Event('change', { bubbles: true }));       // the agent chooses No
+      expect(missingNow(f).map((m) => m.label)).not.toContain(label);
+    } finally { f.close(); }
+  });
+
+  it('a saved listing\'s own answer counts: the townhouse tab\'s Garage box (what opening a saved GarageYN restores) answers it', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
+    try {
+      const label = 'Garage Spaces Assigned (answer Yes or No)';
+      const th = f.d.getElementById('saleTHGarageYN') as HTMLSelectElement;
+      th.value = 'No';
+      expect(missingNow(f).map((m) => m.label)).not.toContain(label);
     } finally { f.close(); }
   });
 });
@@ -302,6 +319,6 @@ describe('review findings on this gate (Codex, Vercel agent)', () => {
 
   it('Save goes through validateREBNYRequired (the seam other suites stub), and shows the list instead of an alert', async () => {
     const html = require('fs').readFileSync(require('path').resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
-    expect(html).toContain("const saleMissing = validateREBNYRequired('sale');\n        if (saleMissing.length > 0) {\n            showSaleMissingRequired('save');");
+    expect(html.replace(/\r\n/g, '\n')).toContain("const saleMissing = validateREBNYRequired('sale');\n        if (saleMissing.length > 0) {\n            showSaleMissingRequired('save');");
   });
 });

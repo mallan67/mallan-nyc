@@ -114,12 +114,18 @@ describe('populateBuildingFromIDX — behavioral (parking / laundry / docs / pet
     runner(document, () => {})('sale', building);
   }
 
-  it('fills parking spaces from OpenParkingSpaces when empty; checks parking on GarageYN', () => {
+  it('fills parking spaces from OpenParkingSpaces when empty; the BUILDING parking/garage amenity ticks the building garage', () => {
     const els = { saleBldgParkingSpaces: { value: '' }, saleBldgParking: { checked: false }, saleBldgWasherDryerAllowed: { checked: false } };
-    run({ open_parking_spaces: 12, garage_yn: true, laundry_features: 'InUnit' }, els, {});
+    run({ open_parking_spaces: 12, parking: true, laundry_features: 'InUnit' }, els, {});
     expect(els.saleBldgParkingSpaces.value).toBe(12);
     expect(els.saleBldgParking.checked).toBe(true);
     expect(els.saleBldgWasherDryerAllowed.checked).toBe(true); // from LaundryFeatures
+  });
+
+  it('a unit own GarageYN / AttachedGarageYN does NOT tick the building garage (that is the Unit tab question)', () => {
+    const els = { saleBldgParking: { checked: false } };
+    run({ garage_yn: true, attached_garage_yn: true }, els, {});
+    expect(els.saleBldgParking.checked).toBe(false);
   });
 
   it('does NOT clobber an agent-entered parking spaces value', () => {

@@ -570,6 +570,78 @@ function buildingExtras(rec: Record<string, unknown> | null | undefined) {
   };
 }
 
+/** The Cotality $filter parts that pick ONE building by its street address: the exact number and the numbered street in the spellings the feed uses. */
+function cotalityStreetFilterParts(parsed: ParsedAddress): string[] {
+  const parts = [`StreetNumber eq '${sanitizeOData(parsed.streetNumber ?? '')}'`];
+  if (parsed.streetDirPrefix) {
+    parts.push(`StreetDirPrefix eq '${sanitizeOData(parsed.streetDirPrefix)}'`);
+  }
+  if (parsed.streetName) {
+    const forms = ordinalStreetForms(parsed.streetName);
+    if (forms) {
+      // the feed spells a numbered street "2ND" (every Second Avenue listing) and, for a few avenues, out ("Fifth"): both are asked for
+      const names = [forms.ordinal, forms.word].filter((v): v is string => !!v).map((n) => `tolower(StreetName) eq '${sanitizeOData(n)}'`);
+      parts.push(names.length > 1 ? `(${names.join(' or ')})` : names[0]);
+    } else {
+      parts.push(`contains(tolower(StreetName),'${sanitizeOData(parsed.streetName).toLowerCase()}')`);
+    }
+  }
+  if (parsed.streetDirSuffix) {
+    parts.push(`StreetDirSuffix eq '${sanitizeOData(parsed.streetDirSuffix)}'`);
+  }
+  return parts;
+}
+
+/**
+ * The UNIT's own tax lot, pulled live from the Cotality API for one exact unit of a building (GET ?q=<building address>&unit=<unit>&zip=<zip>). Property.TaxLot is the unit's
+ * lot (a condo unit's is 1xxx); the building's lot is the REBNY custom key BuildingTaxLot. The newest record of THIS unit that carries a lot answers, with the record it came from,
+ * so the agent can see where the number is from. A unit Cotality has no lot for answers null: nothing is guessed, and the agent types it.
+ */
+async function unitTaxLotAnswer(parsed: ParsedAddress, unitRaw: string, zip: string | null): Promise<NextResponse> {
+  const unit = cleanText(unitRaw).slice(0, 25);
+  if (!unit || !parsed.streetNumber || !(parsed.streetName || parsed.streetDirPrefix)) return NextResponse.json({ unit: null });
+  try {
+    const token = await getAccessToken();
+    const parts = cotalityStreetFilterParts(parsed);
+    const u = sanitizeOData(unit);
+    const spellings = [...new Set([u, u.toUpperCase()])].map((v) => `UnitNumber eq '${v}'`);
+    parts.push(spellings.length > 1 ? `(${spellings.join(' or ')})` : spellings[0]);
+    const cleanZip = (zip ?? '').replace(/\D/g, '').slice(0, 5);
+    if (cleanZip.length === 5) parts.push(`PostalCode eq '${cleanZip}'`);
+    const params = new URLSearchParams({
+      $filter: parts.join(' and '),
+      $select: 'ListingId,UnitNumber,TaxLot,TaxBlock,StandardStatus,PostalCode,StreetNumber,StreetName,StreetSuffix,StreetDirPrefix,StreetDirSuffix,ModificationTimestamp',
+      $orderby: 'ModificationTimestamp desc',
+      $top: '25',
+    });
+    params.set('$expand', 'CustomProperty($select=CustomFields,ListingKey)');
+    const res = await fetch(`${COTALITY_URL}/odata/Property?${params}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, cache: 'no-store' });
+    if (!res.ok) return NextResponse.json({ unit: null, _errorHint: 'The unit tax lot could not be looked up in Cotality right now. Enter it by hand.' });
+    const data = await res.json();
+    const sameUnit = (v: unknown) => String(v ?? '').trim().toLowerCase() === unit.toLowerCase();
+    const records: Array<Record<string, unknown>> = (data.value || []).filter((r: Record<string, unknown>) => recordIsTypedAddress(r, parsed) && sameUnit(r.UnitNumber));
+    const hit = records.find((r) => cleanText(r.TaxLot));
+    if (!hit) return NextResponse.json({ unit: null });
+    const cf = parseCustomFields(hit);
+    const buildingLot = cleanText(cf.BuildingTaxLot);
+    const taxLot = cleanText(hit.TaxLot);
+    return NextResponse.json({
+      unit: {
+        unit_number: cleanText(hit.UnitNumber),
+        tax_lot: taxLot,
+        tax_block: cleanText(hit.TaxBlock),
+        building_tax_lot: buildingLot,
+        same_as_building: !!buildingLot && buildingLot === taxLot,   // Cotality repeats the building's lot on this unit: it is not a unit lot of its own
+        source_listing_id: cleanText(hit.ListingId),
+        source_status: cleanText(hit.StandardStatus),
+      },
+    });
+  } catch (err) {
+    console.error('[buildings/search] unit tax lot lookup failed:', err instanceof Error ? err.message : err);
+    return NextResponse.json({ unit: null, _errorHint: 'The unit tax lot could not be looked up in Cotality right now. Enter it by hand.' });
+  }
+}
+
 export async function GET(request: NextRequest) {
   const debugMode = request.nextUrl.searchParams.get('debug') === '1';
 
@@ -624,6 +696,10 @@ export async function GET(request: NextRequest) {
 
   const parsed = parseAddressQuery(q);
   diag.parsedQuery = parsed;
+
+  // One unit's own tax lot (the form asks once the unit is known): answered from Cotality alone, no building list.
+  const unitParam = request.nextUrl.searchParams.get('unit');
+  if (unitParam && unitParam.trim()) return unitTaxLotAnswer(parsed, unitParam, request.nextUrl.searchParams.get('zip'));
 
   const buildings: Array<Record<string, unknown>> = [];
   // building object indexed by BOTH its address key and BuildingKeyNumeric key,
@@ -903,7 +979,6 @@ export async function GET(request: NextRequest) {
     if (buildings.length < 5 && parsed.streetNumber && (parsed.streetName || parsed.streetDirPrefix)) {
       try {
         const token = await getAccessToken();
-        const cleanNum = sanitizeOData(parsed.streetNumber);
 
         const SELECT = [
           'ListingId', 'BuildingName', 'YearBuilt', 'StoriesTotal',
@@ -963,24 +1038,7 @@ export async function GET(request: NextRequest) {
 
         // Exact number and exact numbered street IN the Cotality filter (live 2026-11-02: `StreetNumber eq` and `tolower(StreetName) eq … or …` answer HTTP 200; "1 5th Avenue" is 12,673
         // rows by prefix/contains and 89 exact): filtering after the 20-row cap could drop the building the agent typed.
-        const filterParts = [`StreetNumber eq '${cleanNum}'`];
-        if (parsed.streetDirPrefix) {
-          const cleanDir = sanitizeOData(parsed.streetDirPrefix);
-          filterParts.push(`StreetDirPrefix eq '${cleanDir}'`);
-        }
-        if (parsed.streetName) {
-          const forms = ordinalStreetForms(parsed.streetName);
-          if (forms) {
-            // the feed spells a numbered street "2ND" (every Second Avenue listing) and, for a few avenues, out ("Fifth"): both are asked for
-            const names = [forms.ordinal, forms.word].filter((v): v is string => !!v).map((n) => `tolower(StreetName) eq '${sanitizeOData(n)}'`);
-            filterParts.push(names.length > 1 ? `(${names.join(' or ')})` : names[0]);
-          } else {
-            filterParts.push(`contains(tolower(StreetName),'${sanitizeOData(parsed.streetName).toLowerCase()}')`);
-          }
-        }
-        if (parsed.streetDirSuffix) {
-          filterParts.push(`StreetDirSuffix eq '${sanitizeOData(parsed.streetDirSuffix)}'`);
-        }
+        const filterParts = cotalityStreetFilterParts(parsed);
         const filter = filterParts.join(' and ');
         diag.cotality.odataFilter = filter;
 

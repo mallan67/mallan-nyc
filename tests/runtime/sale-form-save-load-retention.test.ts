@@ -305,12 +305,13 @@ describe('Sale form save/load retention — collect/populate shape parity (cross
     expect(formHtml).toMatch(/rls:\s*'ActivationDate',\s*form:\s*'saleFirstShowingDate'[^}]*fallbackRls:\s*'FirstShowingDate'/);
   });
 
-  it('F2: collect emits TaxLot (the unit\'s) and BuildingTaxLot (the building\'s, a REBNY custom key served on live listings); restore keeps a listing saved before the split', () => {
+  it('F2: collect emits TaxLot (the unit\'s) and BuildingTaxLot (the building\'s, a REBNY custom key served on live listings); restore never moves one lot into the other box', () => {
     // Maya 2026-11-02: "the building has its own and unit has its own". Live: Property.TaxLot is the unit's lot (1218, 1258 ...), BuildingTaxLot the building's (7501 ...).
     expect(fullCollect).toMatch(/data\.TaxLot\s*=/);
     expect(fullCollect).toMatch(/data\.BuildingTaxLot\s*=/);
     expect(formHtml).toMatch(/rls:\s*'TaxLot',\s*form:\s*'saleUnitTaxLot'/);
-    expect(formHtml).toMatch(/rls:\s*'BuildingTaxLot',\s*form:\s*'saleBldgTaxLot'[^}]*fallbackRls:\s*'TaxLot'/);
+    expect(formHtml).toMatch(/rls:\s*'BuildingTaxLot',\s*form:\s*'saleBldgTaxLot'/);
+    expect(formHtml).not.toMatch(/rls:\s*'BuildingTaxLot',\s*form:\s*'saleBldgTaxLot'[^}]*fallbackRls/);   // the unit's lot (TaxLot) never fills the building's box
   });
 
   it('F3 (revised by Cotality-clean sweep): collect does NOT write a date into the Cotality enum Possession; legacy reload retained', () => {

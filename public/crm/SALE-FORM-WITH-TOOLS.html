@@ -1812,6 +1812,11 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <input type="text" id="saleFloorInBuilding" placeholder="e.g., 26" class="field-input" required data-concept="EntryLevel">
                 </div>
                 <div>
+                    <!-- Property.TaxLot is the UNIT's own lot (a condo unit's is 1xxx, e.g. 1218); the building's lot is the Building window's box (REBNY custom key BuildingTaxLot). A co-op shares the building's. -->
+                    <label class="field-label">Tax Lot (unit)</label>
+                    <input type="text" id="saleUnitTaxLot" placeholder="e.g., 1218" class="field-input" data-concept="TaxLot" title="The unit's own tax lot (Cotality Property.TaxLot). A co-op or a house has the building's lot: leave this empty.">
+                </div>
+                <div>
                     <!-- REBNY I15: UnitNumber (Floor + Line = Apt #, e.g., 26B) -->
                     <label class="field-label">Line in Building</label>
                     <input type="text" id="saleLineInBuilding" placeholder="e.g., B" class="field-input" data-concept="UnitLine">
@@ -4560,8 +4565,8 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                 <input type="text" id="saleBldgTaxBlock" placeholder="1234" class="field-input" data-concept="TaxBlock">
                             </div>
                             <div>
-                                <label class="field-label">Tax Lot</label>
-                                <input type="text" id="saleBldgTaxLot" placeholder="56" class="field-input" data-concept="TaxLot">
+                                <label class="field-label">Building Tax Lot</label>
+                                <input type="text" id="saleBldgTaxLot" placeholder="e.g., 7501" class="field-input" data-concept="BuildingTaxLot" title="The building's own tax lot (REBNY custom key BuildingTaxLot). The unit's lot is on the Unit tab.">
                             </div>
                             <div>
                                 <label class="field-label">Annual RE Taxes</label>

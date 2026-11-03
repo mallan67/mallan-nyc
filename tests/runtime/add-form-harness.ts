@@ -31,6 +31,8 @@ export type AddFormOpts = {
   noListingsApi?: boolean;                           // a MallanAPI without listings (no way to load or save a listing)
   buildings?: Record<string, unknown>[] | ((query: string) => Record<string, unknown>[]);   // what GET /api/buildings/search answers (the building index)
   buildingsStatus?: number | ((query: string, call: number) => number);   // the HTTP status it answers with (default 200); a function is asked per request (1, 2, ...)
+  unitLots?: (query: string, unit: string, zip: string) => Record<string, unknown> | null;   // what GET /api/buildings/search?q=&unit=&zip= answers as `unit` (the unit's own tax lot, pulled live from Cotality)
+  unitDelay?: (unit: string) => number;              // ms before that answer
   buildingsHint?: string;                            // the _errorHint it carries
   buildingsDelay?: number | ((query: string, call: number) => number);    // ms before it answers; a function is asked per request
   buildingsReply?: (query: string, call: number) => unknown;               // answers the request itself: a response-like object, or throws (the network is down)
@@ -56,7 +58,7 @@ export type AddFormOpts = {
   settle?: number;                                   // ms to let page init finish
 };
 export type Request = { url: string; method: string; body: string };
-export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; requests: Request[]; saved: Record<string, unknown>[]; statusCalls: [unknown, unknown][]; dropped: string[]; calls: string[]; close: () => void };
+export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; requests: Request[]; saved: Record<string, unknown>[]; unitLookups: string[]; statusCalls: [unknown, unknown][]; dropped: string[]; calls: string[]; close: () => void };
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function until(cond: () => boolean, ms = 8000): Promise<void> {
@@ -85,6 +87,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
   const saved: Record<string, unknown>[] = [];
   const statusCalls: [unknown, unknown][] = [];          // every listings.updateStatus(id, status) the page made
   const searched: string[] = [];                       // the queries sent to /api/buildings/search
+  const unitLookups: string[] = [];                    // the per-unit tax lot asks (`address|unit|zip`), kept apart from the building queries
   const requests: Request[] = [];                      // every fetch() the page made, with its method and body
   const dropped: string[] = [];                        // the answers that were not delivered because the window had been closed while the request was out
   const calls: string[] = [];                          // every listings.create / listings.update the page made, in order ('create', 'update <id>'), whether the server took it or not
@@ -120,6 +123,13 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
           const method = init?.method ?? 'GET';
           const body = method === 'GET' ? { showings: o.showings ?? [] } : method === 'POST' ? { showing: { id: 'S-1' } } : {};
           return { ok: true, status: method === 'POST' ? 201 : 200, json: async () => body, text: async () => '' };
+        }
+        if (u.startsWith('/api/buildings/search') && /[?&]unit=/.test(u)) {
+          const sp = new URLSearchParams(u.split('?')[1] ?? '');
+          const [q, unit, zip] = [sp.get('q') ?? '', sp.get('unit') ?? '', sp.get('zip') ?? ''];
+          unitLookups.push(`${q}|${unit}|${zip}`);
+          if (o.unitDelay) await sleep(o.unitDelay(unit));
+          return { ok: true, status: 200, json: async () => ({ unit: o.unitLots ? o.unitLots(q, unit, zip) : null }), text: async () => '' };
         }
         if (u.startsWith('/api/buildings/search')) {
           const q = decodeURIComponent((u.split('q=')[1] ?? '').split('&')[0]);
@@ -175,7 +185,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
     },
   });
   await sleep(o.settle ?? 1200);
-  return { w: dom.window, d: dom.window.document, errors, fetched, searched, requests, saved, statusCalls, dropped, calls, close: () => dom.window.close() };
+  return { w: dom.window, d: dom.window.document, errors, fetched, searched, requests, saved, unitLookups, statusCalls, dropped, calls, close: () => dom.window.close() };
 }
 
 export const val = (d: Document, id: string): string => ((d.getElementById(id) as HTMLInputElement | null)?.value) ?? '';

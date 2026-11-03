@@ -258,3 +258,71 @@ describe('the building\'s own tax lot', () => {
     expect(buildings[0].building_tax_lot).toBe('');
   });
 });
+
+// ── The unit's own tax lot, pulled live from Cotality for ONE unit (Maya, 2026-11-03: "it should be linked to the Cotality API that pulls it") ──────────────────────────────────
+// Live, 800 2ND Avenue #806 (RLS20123633): Property.TaxLot 1025 (the unit's), CustomFields.BuildingTaxLot 7501 (the building's), TaxBlock 01335.
+describe('?unit= — the unit\'s own tax lot from Cotality', () => {
+  const unitRecord = (over: Record<string, unknown>) => liveRecord({
+    UnitNumber: '806', TaxLot: '1025', TaxBlock: '01335', ModificationTimestamp: '2026-11-02T06:17:29.450Z',
+    CustomProperty: [{ CustomFields: JSON.stringify({ BuildingTaxLot: '7501' }) }], ...over,
+  });
+  let asked: string[] = [];
+  const stubUnits = (records: Record<string, unknown>[], ok = true) => {
+    asked = [];
+    global.fetch = jest.fn(async (url: string) => { asked.push(decodeURIComponent(String(url).replace(/[+]/g, ' '))); return { ok, status: ok ? 200 : 503, json: async () => ({ value: records }) }; }) as unknown as typeof fetch;
+  };
+  async function unitLot(q: string, unit: string, zip = '10017') {
+    const res = await GET(new NextRequest(`http://localhost/api/buildings/search?q=${encodeURIComponent(q)}&unit=${encodeURIComponent(unit)}&zip=${zip}`, { headers: { 'x-forwarded-for': `10.9.${Math.floor(++callerSeq / 250)}.${callerSeq % 250}` } }));
+    return { status: res.status, body: (await res.json()) as { unit: Record<string, unknown> | null; _errorHint?: string; buildings?: unknown } };
+  }
+
+  it('answers the unit\'s lot with the building\'s lot beside it and the record it came from', async () => {
+    stubUnits([unitRecord({ ListingId: 'RLS20123633' })]);
+    const { status, body } = await unitLot('800 2nd Ave', '806');
+    expect(status).toBe(200);
+    expect(body.unit).toEqual({ unit_number: '806', tax_lot: '1025', tax_block: '01335', building_tax_lot: '7501', same_as_building: false, source_listing_id: 'RLS20123633', source_status: 'Active' });
+    expect(body.buildings).toBeUndefined();                                    // a unit answer, not a building list
+    expect(queryRaw).not.toHaveBeenCalled();                                   // Cotality alone: no copy in our database
+  });
+
+  it('asks Cotality for that exact building and unit: the number, the street in the feed\'s spelling, the unit and the zip', async () => {
+    stubUnits([unitRecord({})]);
+    await unitLot('800 2nd Ave', '806');
+    const url = asked.find((u) => u.includes('/odata/Property'))!;
+    expect(url).toContain("StreetNumber eq '800'");
+    expect(url).toContain("tolower(StreetName) eq '2nd'");
+    expect(url).toMatch(/UnitNumber eq '806'/);
+    expect(url).toContain("PostalCode eq '10017'");
+  });
+
+  it('the newest record of the unit that CARRIES a lot answers (an older closed lease without one is skipped)', async () => {
+    stubUnits([unitRecord({ ListingId: 'NEW', TaxLot: null }), unitRecord({ ListingId: 'OLD', TaxLot: '1025' })]);
+    const { body } = await unitLot('800 2nd Ave', '806');
+    expect(body.unit).toMatchObject({ tax_lot: '1025', source_listing_id: 'OLD' });
+  });
+
+  it('never answers with another unit\'s lot or another building\'s', async () => {
+    stubUnits([unitRecord({ UnitNumber: '807', TaxLot: '1026' }), unitRecord({ StreetNumber: '8001', StreetName: '12TH', TaxLot: '1' })]);
+    const { body } = await unitLot('800 2nd Ave', '806');
+    expect(body.unit).toBeNull();
+  });
+
+  it('flags a lot that is only the building\'s lot repeated on the unit', async () => {
+    stubUnits([unitRecord({ UnitNumber: '800', TaxLot: '7501' })]);
+    const { body } = await unitLot('800 2nd Ave', '800');
+    expect(body.unit).toMatchObject({ tax_lot: '7501', building_tax_lot: '7501', same_as_building: true });
+  });
+
+  it('a Cotality failure answers 200 with no unit and a hint (the address result is never held back)', async () => {
+    stubUnits([], false);
+    const { status, body } = await unitLot('800 2nd Ave', '806');
+    expect(status).toBe(200);
+    expect(body.unit).toBeNull();
+    expect(body._errorHint).toMatch(/Enter it by hand/);
+  });
+
+  it('a unit Cotality has no lot for answers null: nothing is guessed', async () => {
+    stubUnits([unitRecord({ TaxLot: '' })]);
+    expect((await unitLot('800 2nd Ave', '806')).body.unit).toBeNull();
+  });
+});

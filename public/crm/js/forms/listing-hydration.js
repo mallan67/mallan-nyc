@@ -105,7 +105,7 @@
     { rls: 'CrossStreet', form: 'saleBldgCrossStreet1', type: 'text', src: 'raw' },
     { rls: 'TaxBlock', form: 'saleBldgTaxBlock', type: 'text', src: 'raw' },
     { rls: 'TaxLot', form: 'saleUnitTaxLot', type: 'text', src: 'raw' },
-    { rls: 'BuildingTaxLot', form: 'saleBldgTaxLot', type: 'text', src: 'raw', fallbackRls: 'TaxLot' },
+    { rls: 'BuildingTaxLot', form: 'saleBldgTaxLot', type: 'text', src: 'raw' },
     { rls: 'AssociationName', form: 'saleBldgAssociationName', type: 'text', src: 'raw' },
     { rls: 'NewConstructionYN', form: 'saleBldgNewConstruction', type: 'bool', src: 'raw' },
     // SponsorUnitYN restores the Essentials Sponsor Unit Yes/No (SALE_RADIO_MAP below), not a building box.
