@@ -24,7 +24,7 @@ tailwind.config = {
 </script>
 <script>
 // ── Global Toast — replaces native alert() ──
-function showToast(message, type) {
+function showToast(message, type, duration) {
     if (typeof document === 'undefined' || !document || !document.body) return;   // a page that is gone
     var toast = document.createElement('div');
     toast.className = 'mallan-toast';                 // the page's own toasts, findable by class
@@ -37,7 +37,7 @@ function showToast(message, type) {
     toast.textContent = icon + message;
     document.body.appendChild(toast);
     requestAnimationFrame(function() { toast.style.opacity = '1'; });
-    setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 300); }, 4000);
+    setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 300); }, (typeof duration === 'number' && duration > 0) ? duration : 4000);
 }
 window.alert = function(msg) { showToast(String(msg)); };
 </script>
@@ -5426,6 +5426,27 @@ function _saleEnteredFields() {
     return found;
 }
 
+// Cotality files a medical or professional office condominium as Residential / Apartment, but its Current Use says what it is. A listing whose Current Use is a commercial one
+// (MedicalDental, Office) is a Commercial listing in this form: the Commercial type, the ownership its Cotality CommonInterest names (Condominium = Commercial Condo) and the
+// office kinds its Current Use names. Nothing else is guessed: a use the form does not know as commercial (Investment, none) changes nothing.
+var SALE_PULL_COMMERCIAL_USE = { MedicalDental: ['MedicalOffice', 'DentalOffice'], Office: ['ProfessionalOffice'] };
+var SALE_PULL_COMMERCIAL_OWNERSHIP = { Condominium: 'CommercialCondo', Condop: 'CommercialCondop', StockCooperative: 'CommercialCoop' };
+function _saleApplyCommercialFromPull(rec) {
+    var uses = [].concat(rec.CurrentUse === undefined || rec.CurrentUse === null ? [] : rec.CurrentUse).map(function (u) { return String(u).trim(); });
+    var commercial = uses.filter(function (u) { return Object.prototype.hasOwnProperty.call(SALE_PULL_COMMERCIAL_USE, u); });
+    if (!commercial.length) return false;
+    var type = document.querySelector('input[name="salePropertyType"][value="Commercial"]');
+    if (!type) return false;
+    type.checked = true;
+    var ownership = SALE_PULL_COMMERCIAL_OWNERSHIP[String(rec.CommonInterest || '').trim()];
+    if (ownership) { var o = document.querySelector('input[name="saleCommercialOwnership"][value="' + ownership + '"]'); if (o) o.checked = true; }
+    commercial.forEach(function (use) {
+        SALE_PULL_COMMERCIAL_USE[use].forEach(function (v) { var cb = document.querySelector('input[name="saleCommSubtype"][value="' + v + '"]'); if (cb) cb.checked = true; });
+    });
+    if (typeof toggleSaleCommercialOwnership === 'function') toggleSaleCommercialOwnership();
+    return true;
+}
+
 async function pullFromCotalityByRlsId(rlsId) {
     if (_saleRefuseWhileLoading()) return;
     var results = document.getElementById('saleBuildingSearchResults');
@@ -5491,6 +5512,7 @@ async function pullFromCotalityByRlsId(rlsId) {
             firstCo.value = String(rec.OnMarketDate).slice(0, 10);
             firstCo.title = 'The date the listing went active on the market (Cotality OnMarketDate).';
         }
+        _saleApplyCommercialFromPull(rec);
         document.getElementById('saleRlsId').value = body.rls.listing_id;
         document.getElementById('saleRlsListingKey').value = body.rls.listing_key || '';
         saleRefreshRlsLink();
@@ -5563,8 +5585,10 @@ function selectBuildingFromIDX(prefix, picked) {
     updateSaleAddressDerived();
 
     // 2. Auto-detect property type
+    // (A listing the agent or the pull has already made Commercial stays Commercial: a commercial condo sits in a condominium building.)
     var typeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
-    if (typeRadio) { typeRadio.checked = true; applySalesFieldRules(); }
+    var _typeNow = document.querySelector('input[name="' + prefix + 'PropertyType"]:checked');
+    if (typeRadio && !(_typeNow && _typeNow.value === 'Commercial')) { typeRadio.checked = true; applySalesFieldRules(); }
     // Ownership Type is the building's own Cotality CommonInterest (the value its type was read from): written only while the agent has not chosen one, and only when the box offers it.
     var _ownEl = document.getElementById(prefix + 'CommonInterest');
     if (_ownEl && building.commonInterestRaw && !_ownEl.value && Array.prototype.some.call(_ownEl.options, function (o) { return o.value === building.commonInterestRaw; })) { _ownEl.value = building.commonInterestRaw; _ownEl.dataset.autoDerived = 'building'; }
@@ -7263,7 +7287,14 @@ function shouldSkipTab3(formType) {
     const val = selected.value;
     // Only skip Tab 3 for managed building unit types (they use Building Modal, not Tab 3)
     const skipTypes = ['Coop', 'Condo', 'Condop', 'CommercialCoop', 'CommercialCondo', 'RentalBuilding', 'Loft', 'DeededParking'];
-    return skipTypes.includes(val);
+    if (skipTypes.includes(val)) return true;
+    // The Sale form's Commercial listing is the type "Commercial" and its ownership is a separate choice: a commercial condo / condop / co-op is a unit in a managed building, like a residential one,
+    // and uses the Building window, not the TH / Building tab (Maya, 2026-11-03: "it should lock the TH when it is condo").
+    if (formType === 'sale' && val === 'Commercial') {
+        const own = document.querySelector('input[name="saleCommercialOwnership"]:checked');
+        return !!own && ['CommercialCondo', 'CommercialCondop', 'CommercialCoop'].includes(own.value);
+    }
+    return false;
 }
 
 // Next from Tab 2 last sub-tab (2.3 Features) → Tab 3 if applicable, else Tab 4
@@ -8590,6 +8621,43 @@ function _saleRefuseWhileLoading() {
     if (window._saleEditLoad === 'failed') { showToast('The saved listing did not load — nothing was sent, so a blank form cannot replace it. Reload the page.', 'error'); return true; }
     return false;
 }
+// The refusal stays on the page until the agent closes it: a toast lasts seconds and this page used to leave for the list before the reason could be read.
+function _saleShowPublishRefusal(lid, message, lines) {
+    var old = document.getElementById('salePublishRefusal');
+    if (old) old.remove();
+    var box = document.createElement('div');
+    box.id = 'salePublishRefusal';
+    box.setAttribute('role', 'alertdialog');
+    box.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:100000;max-width:640px;width:92%;max-height:70vh;overflow:auto;background:#fff;border:2px solid #dc2626;border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.3);padding:18px 20px;font-family:Manrope,sans-serif;font-size:14px;color:#111827';
+    function line(text, css) { var d = document.createElement('div'); d.style.cssText = css || 'margin-bottom:8px'; d.textContent = text; return d; }
+    box.appendChild(line('Saved as a Draft. It is NOT live.', 'font-weight:700;color:#b91c1c;font-size:16px;margin-bottom:8px'));
+    box.appendChild(line('Listing ' + lid + ' is saved, but the server refused to publish it: ' + message));
+    if (lines && lines.length) {
+        box.appendChild(line('Fix these, then Submit again:', 'font-weight:600;margin:10px 0 4px'));
+        var ul = document.createElement('ul');
+        ul.style.cssText = 'margin:0 0 12px 20px;list-style:disc';
+        lines.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+        box.appendChild(ul);
+    }
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = 'Close';
+    close.style.cssText = 'background:#1e293b;color:#fff;border:0;border-radius:8px;padding:8px 18px;font-weight:600;cursor:pointer';
+    close.onclick = function () { box.remove(); };
+    box.appendChild(close);
+    document.body.appendChild(box);
+}
+
+// The server's refusal to publish, in words: the REBNY fields it says are missing and the wording / rule blockers it names (the body of the 422, kept by the API client as err.details).
+function _salePublishRefusalLines(err) {
+    var d = (err && (err.details || err.data)) || {};
+    var out = [];
+    ((d.validation && d.validation.errors) || []).forEach(function (e) { out.push(String(e).replace(/^\[REBNY\]\s*/, '')); });
+    (d.blockers || []).forEach(function (b) { out.push(typeof b === 'string' ? b : [b && b.field, b && b.message].filter(Boolean).join(': ')); });
+    if (!out.length && d.field) out.push(String(d.field));
+    return out.slice(0, 25);
+}
+
 function submitSalesListing() {
     if (_saleSendInFlight) { showToast('Still sending the last save — please wait.', 'info'); return; }
     if (_saleRefuseWhileLoading()) return;
@@ -8736,13 +8804,15 @@ function submitSalesListing() {
                 } catch (e) { /* non-critical — workflow status is supplementary */ }
             }
             var finalStatus = currentCanonical;
+            var _publishRefusal = null;                    // set when the server refused the move to the status the agent chose
             if (targetCanonical && currentCanonical !== targetCanonical && dbId && !isInternalOnly && targetCanonical !== 'Draft') {
                 try {
                     statusResult = await MallanAPI.listings.updateStatus(dbId, targetCanonical);
                     finalStatus = statusResult.status || targetCanonical;
                 } catch (statusErr) {
                     console.warn('[Submit] Status transition failed:', statusErr.message);
-                    showToast('Saved as Draft. Publish failed: ' + statusErr.message, 'warning');
+                    _publishRefusal = { message: statusErr.message, lines: _salePublishRefusalLines(statusErr) };
+                    showToast('Saved as Draft. Publish failed: ' + statusErr.message, 'warning', 15000);
                 }
             }
             try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
@@ -8756,6 +8826,9 @@ function submitSalesListing() {
                 showToast('Listing ' + lid + ' published — Status: Active', 'success');
                 // Show RealPlus URL panel
                 showSalePublishedPanel(lid, publicUrl, realPlusUrl);
+            } else if (_publishRefusal) {
+                // The listing IS saved (as a Draft) and stays open here: the agent reads WHY it is not live, fixes it, and submits again. Nothing redirects before the reason is read.
+                _saleShowPublishRefusal(lid, _publishRefusal.message, _publishRefusal.lines);
             } else {
                 showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
                 setTimeout(function() { window.location.href = '/crm/dashboard#/ops/listings'; }, 1500);

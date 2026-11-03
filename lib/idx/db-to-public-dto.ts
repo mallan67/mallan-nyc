@@ -543,6 +543,8 @@ export function dbListingToPublicDTO(
       features.CommonInterest as string | undefined,
       listing.property_sub_type,
       listing.property_type || 'Residential',
+      // the Sale form's Commercial section: the newest save is in raw_data (an edit writes it there first), the typed column is what the create stored
+      typeof rawData.commercial_ownership === 'string' ? rawData.commercial_ownership : listing.commercial_ownership,
     ),
     propertySubType: listing.property_sub_type,
     bedroomsTotal: listing.bedrooms_total || 0,

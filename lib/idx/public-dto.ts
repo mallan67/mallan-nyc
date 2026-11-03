@@ -18,8 +18,17 @@ import { isComingSoonStatus } from '@/lib/compliance/status';
 import { isAddressDisplayable } from '@/lib/compliance/gates';
 import { resolveListingMedia, toDtoMedia, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 
+/** What a Mallan website-only commercial listing is called on a card, by the ownership the broker chose in the Commercial section of the Sale form (Maya, 2026-11-03: "commercial condo"). */
+const COMMERCIAL_OWNERSHIP_DISPLAY: Record<string, string> = {
+  CommercialCondo: 'Commercial Condo',
+  CommercialCondop: 'Commercial Condop',
+  CommercialCoop: 'Commercial Co-op',
+};
+
 /** Map Trestle property fields to user-friendly property type */
-export function mapPropertyTypeToDisplay(commonInterest?: string, propertySubType?: string | null, fallback?: string): string {
+export function mapPropertyTypeToDisplay(commonInterest?: string, propertySubType?: string | null, fallback?: string, commercialOwnership?: string | null): string {
+  // 0. A commercial condo / condop / co-op the broker classified on the Mallan Sale form says so (the CommonInterest of its building would read "Condo")
+  if (commercialOwnership && COMMERCIAL_OWNERSHIP_DISPLAY[commercialOwnership]) return COMMERCIAL_OWNERSHIP_DISPLAY[commercialOwnership];
   // 1. CommonInterest is the most reliable for co-op/condo distinction
   if (commonInterest) {
     switch (commonInterest) {

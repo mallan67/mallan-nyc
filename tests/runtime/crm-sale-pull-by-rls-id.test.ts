@@ -147,6 +147,64 @@ describe("pulling RLS20123633 into a blank listing", () => {
     }
   });
 
+  it("800 2nd Avenue is a Commercial Condo: Current Use MedicalDental + Condominium select the Commercial listing, Commercial Condo and the Medical and Dental office kinds, and the building lookup that follows does not turn it back into a residential condo", async () => {
+    const f = await pulled();
+    try {
+      const on = (name: string) => (f.d.querySelector(`input[name="${name}"]:checked`) as HTMLInputElement | null)?.value ?? null;
+      expect(on("salePropertyType")).toBe("Commercial");
+      expect(on("saleCommercialOwnership")).toBe("CommercialCondo");
+      expect([...f.d.querySelectorAll('input[name="saleCommSubtype"]:checked')].map((e: any) => e.value).sort()).toEqual(["DentalOffice", "MedicalOffice"]);
+      expect(on("saleCurrentUse")).toBe("MedicalDental");
+      expect(val(f, "saleCommonInterest")).toBe("Condominium");
+    } finally { f.close(); }
+  });
+
+  it("a Commercial Condo uses the Building window: the TH / Building tab is locked, as it is for a residential condo", async () => {
+    const f = await pulled();
+    try {
+      const tab = f.d.getElementById("sidebarTab3") as HTMLElement;
+      expect(tab.style.pointerEvents).toBe("none");
+      expect(tab.style.opacity).toBe("0.4");
+      expect((f.w as any).shouldSkipTab3("sale")).toBe(true);
+      // and only for a condo / condop / co-op: a commercial WHOLE BUILDING keeps the tab
+      (f.d.querySelector('input[name="saleCommercialOwnership"][value="WholeBuilding"]') as HTMLInputElement).click();
+      expect((f.w as any).shouldSkipTab3("sale")).toBe(false);
+      (f.d.querySelector('input[name="saleCommercialOwnership"][value="CommercialCoop"]') as HTMLInputElement).click();
+      expect((f.w as any).shouldSkipTab3("sale")).toBe(true);
+    } finally { f.close(); }
+  });
+
+  it("saved, it is a Commercial Condo in what the server stores (property type, ownership, office kinds), and it comes back the same on reopening", async () => {
+    const a = await pulled();
+    let p: Record<string, any>;
+    try { p = await saveDraft(a); } finally { a.close(); }
+    expect(p.PropertyType).toBe("Commercial");
+    expect(p.commercial_ownership).toBe("CommercialCondo");
+    expect(p.commercial_sub_type).toBe("MedicalOffice");
+    expect(p.saleCommSubtype).toEqual(["MedicalOffice", "DentalOffice"]);
+    const b = await bootAddForm("SALE-FORM-REDESIGN", { search: "?id=1", listing: storedListing(p, "sale"), settle: 300 });
+    try {
+      await loaded(b);
+      const on = (name: string) => (b.d.querySelector(`input[name="${name}"]:checked`) as HTMLInputElement | null)?.value ?? null;
+      expect(on("salePropertyType")).toBe("Commercial");
+      expect(on("saleCommercialOwnership")).toBe("CommercialCondo");
+      expect([...b.d.querySelectorAll('input[name="saleCommSubtype"]:checked')].map((e: any) => e.value).sort()).toEqual(["DentalOffice", "MedicalOffice"]);
+      expect((b.d.getElementById("sidebarTab3") as HTMLElement).style.pointerEvents).toBe("none");
+    } finally { b.close(); }
+  });
+
+  it("a use the form does not know as commercial changes nothing: Investment, or no Current Use, stays a residential Condo", async () => {
+    for (const use of ["Investment", undefined]) {
+      const answer: any = serverAnswer();
+      if (use) answer.record.CurrentUse = use; else delete answer.record.CurrentUse;
+      const f = await pulled({ rlsPull: () => ({ body: answer }) });
+      try {
+        expect((f.d.querySelector('input[name="salePropertyType"]:checked') as HTMLInputElement).value).toBe("Condo");
+        expect([...f.d.querySelectorAll('input[name="saleCommSubtype"]:checked')]).toEqual([]);
+      } finally { f.close(); }
+    }
+  });
+
   it("the unit's tax lot and the building's tax lot land in their own boxes (1025 and 7501)", async () => {
     const f = await pulled();
     try {
