@@ -187,6 +187,43 @@ describe("pulling RLS20123633 into a blank listing", () => {
   });
 });
 
+describe("the building the pull looks up (live shape for 800 2ND Avenue)", () => {
+  // The doorman answer is Cotality's AttendanceType (a Property custom key). Its value "None" is on 38% of live listings and cannot be told from an unfilled default, so it is never
+  // taken as "no doorman" (Maya: "no attended won't be right"); a real value still fills the staffing group.
+  const withAttendance = (value: string | null) => () => { const a = serverAnswer(); const r = a.record as Record<string, unknown>; if (value === null) delete r.AttendanceType; else r.AttendanceType = value; return { body: a }; };
+  const staff = (f: BootedForm) => [...f.d.querySelectorAll('input[name="saleAttendanceType"]:checked')].map((c: any) => c.value);
+
+  it("the listing's AttendanceType None (what this listing carries) does NOT tick 'None': the staffing group is left for the broker", async () => {
+    const f = await pulled();
+    try { expect(staff(f)).toEqual([]); } finally { f.close(); }
+  });
+
+  it("the building lookup's AttendanceType None does not tick it either", async () => {
+    const f = await pulled({ rlsPull: withAttendance(null), buildings: [{ ...BUILDING, attendance_type: "None" }] });
+    try { expect(staff(f)).toEqual([]); } finally { f.close(); }
+  });
+
+  it("a real value fills it: a full-time doorman on the listing, or on the building", async () => {
+    const a = await pulled({ rlsPull: withAttendance("DoormanFullTime") });
+    try { expect(staff(a)).toEqual(["DoormanFullTime"]); } finally { a.close(); }
+    const b = await pulled({ rlsPull: withAttendance(null), buildings: [{ ...BUILDING, attendance_type: "DoormanFullTime" }] });
+    try { expect(staff(b)).toEqual(["DoormanFullTime"]); } finally { b.close(); }
+  });
+
+  it("the building window gets the building's own facts: type, year, floors, zoning, ownership, elevators, tax block and the BUILDING's tax lot", async () => {
+    const f = await pulled({ buildings: [{ ...BUILDING, structure_type: "HighRise", zoning_description: "C5-2", elevators_total: 0, building_tax_lot: "7501" }] });
+    try {
+      expect(val(f, "saleBldgType")).toBe("HighRise");
+      expect(val(f, "saleBldgYearBuilt")).toBe("1957");
+      expect(val(f, "saleBldgTotalFloors")).toBe("18");
+      expect(val(f, "saleBldgZoning")).toBe("C5-2");
+      expect(val(f, "saleBldgOwnership")).toBe("Condominium");
+      expect(val(f, "saleBldgTaxBlock")).toBe("01335");
+      expect(val(f, "saleBldgTaxLot")).toBe("7501");
+    } finally { f.close(); }
+  });
+});
+
 describe("what the pull will not do", () => {
   it("refuses a listing that already has an address or a price, and asks Cotality nothing (nothing typed is replaced)", async () => {
     const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }) });

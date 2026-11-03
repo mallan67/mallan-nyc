@@ -5450,6 +5450,9 @@ async function pullFromCotalityByRlsId(rlsId) {
         }
         var rec = body.record || {};
         if (rec.PublicRemarks) rec.PublicRemarks = _saleHtmlToText(rec.PublicRemarks);
+        // Cotality's AttendanceType "None" sits on 38% of live listings and cannot be told from an unfilled default, so it is not taken as "no doorman" (Maya): the staffing group is left for
+        // the broker. A real value (DoormanFullTime, ConciergeFullTime ...) still fills it.
+        if (String(rec.AttendanceType || '').trim() === 'None') delete rec.AttendanceType;
         var addr = {};
         ['StreetNumber', 'StreetDirPrefix', 'StreetName', 'StreetSuffix', 'StreetDirSuffix', 'UnitNumber', 'City', 'StateOrProvince', 'PostalCode', 'CityRegion', 'CountyOrParish', 'PostalCity', 'SubdivisionName'].forEach(function (k) { if (rec[k] !== undefined) addr[k] = rec[k]; });
         // A saved listing keeps price, beds, baths, areas... in database columns; the form's own field map says which column feeds which control (src 'listing'), so the pulled value
