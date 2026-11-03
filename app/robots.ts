@@ -31,8 +31,8 @@ const BASE_URL = 'https://mallan.nyc';
  *      page to answer a person's question or build an answer-engine index; each
  *      provider documents them apart from its training crawler. They keep access
  *      to brand and category pages for brand visibility, but are blocked from
- *      individual listing URLs (granular address data per REBNY UCBA Art. III
- *      §2(C)). The path lists live in lib/seo/crawler-policy.ts and the server
+ *      individual listing URLs and agent profile pages (which can render deal
+ *      addresses and prices). The path lists live in lib/seo/crawler-policy.ts and the server
  *      enforces the same split (lib/middleware/bot-blocker.ts), because some of
  *      these fetchers do not obey robots.txt.
  *

@@ -10,9 +10,13 @@
  * The policy matrix itself is unchanged; its header is in app/robots.ts. In short:
  *   - AI-search fetchers (below) may read the home page, brand pages and category pages. They may
  *     not read individual listings, search, admin, API or private client paths.
- *     (REBNY UCBA Art. III §2(C): granular address data is not for AI fetchers.)
- *   - AI training crawlers (GPTBot, ClaudeBot, ...) never read anything: the server refuses them
- *     on every path, whatever robots.txt allows.
+ *     (This is the policy matrix the repo stated in a comment in app/robots.ts. The Master has no
+ *     AI-crawler rule, and the UCBA section that comment cited, Art. III §2(C), is the "Listing
+ *     Courtesy of" attribution rule in the repo's UCBA extract, so it is not the source. The rule
+ *     itself is the owner's decision.)
+ *   - AI training crawlers (GPTBot, ClaudeBot, ...) are refused on every path the proxy runs on,
+ *     whatever robots.txt allows. (proxy.ts does not run for /robots.txt, /sitemap.xml,
+ *     /_next/static, /_next/image, /images or /fonts.)
  *
  * A route that is in none of the lists below is NOT open to an AI-search fetcher. Add it to
  * BRAND_ALLOW (no MLS data on the page) or MLS_CATEGORY_ONLY_BLOCK_TRAINING (aggregates MLS data)
@@ -59,9 +63,13 @@ export const MLS_LISTING_PATHS = ['/listing/'];
 export const MLS_SEARCH_PATHS = ['/search'];
 
 // Public routes nobody has classified yet. A building page lists its units with prices, so it carries
-// listing data; `/results` sits next to search. Refused to every AI fetcher and training crawler until
-// Maya classifies them (docs/PLATFORM-ISSUE-REGISTRY.md SEO-004). Google and Bing are not affected.
-export const UNCLASSIFIED_DATA_PATHS = ['/building', '/buildings/', '/results'];
+// listing data; `/results` sits next to search. An agent profile (`/agents/<name>`) and its listings page
+// can render the agent's active and closed deals: street, unit, ZIP, price and courtesy line
+// (app/agents/[name]/page.tsx). None of that was in the server HTML of the four agents on 2026-11-03, but
+// the code path exists. Refused to every AI fetcher and training crawler until Maya classifies them
+// (docs/PLATFORM-ISSUE-REGISTRY.md SEO-004). The agents INDEX (`/agents`) stays a brand page.
+// Google and Bing are not affected.
+export const UNCLASSIFIED_DATA_PATHS = ['/building', '/buildings/', '/results', '/agents/'];
 
 // Category/neighborhood pages — render listing cards aggregating MLS data.
 // Google/Bing: crawl (SEO is the point). AI search: crawl (user-triggered
@@ -94,7 +102,7 @@ export const MLS_CATEGORY_ONLY_BLOCK_TRAINING = [
 // data (app/resources/[slug]/page.tsx renders data/resources/*.json only).
 export const BRAND_ALLOW = [
   '/about',
-  '/agents', '/agents/',
+  '/agents',
   '/contact',
   '/sell',
   '/sell/international',
@@ -138,15 +146,20 @@ export function isAiSearchFetcher(userAgent: string): boolean {
 // What an AI-search fetcher may read: the home page, brand pages, category pages. Nothing else.
 const AI_SEARCH_OPEN_PATHS = [...BRAND_ALLOW, ...MLS_CATEGORY_ONLY_BLOCK_TRAINING];
 
+// A prefix matches whole path segments: `/buy` covers `/buy` and `/buy/international`, not `/buyers-secret`.
+// A prefix that ends in `/` covers what is under it, not the bare path.
+const isUnder = (pathname: string, prefix: string) =>
+  prefix.endsWith('/') ? pathname.startsWith(prefix) : pathname === prefix || pathname.startsWith(`${prefix}/`);
+
 /**
  * Whether an AI-search fetcher may read `pathname`. An allow-list, so a route nobody has classified
- * stays closed. A prefix matches whole path segments: `/buy` opens `/buy` and `/buy/international`,
- * not `/buyers-secret`. `pathname` is the URL's path (dot-segments already resolved, no query).
+ * stays closed, and a closed path wins over an open one, as the longest matching rule wins in robots.txt:
+ * `/agents` is open and `/agents/<name>` is closed. `pathname` is the URL's path (dot-segments already
+ * resolved, no query); a trailing slash is ignored.
  */
 export function aiSearchMayFetch(pathname: string): boolean {
-  if (pathname === '/') return true;
-  return AI_SEARCH_OPEN_PATHS.some((prefix) => {
-    if (prefix.endsWith('/')) return pathname.startsWith(prefix);
-    return pathname === prefix || pathname.startsWith(`${prefix}/`);
-  });
+  const path = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  if (path === '/') return true;
+  if (UNCLASSIFIED_DATA_PATHS.some((prefix) => isUnder(path, prefix))) return false;
+  return AI_SEARCH_OPEN_PATHS.some((prefix) => isUnder(path, prefix));
 }

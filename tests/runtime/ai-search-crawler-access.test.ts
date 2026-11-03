@@ -9,7 +9,8 @@
  * while app/robots.ts published a policy that lets "AI search" fetchers read brand and category
  * pages and keeps them off /listing/ and /search. Two of the six were refused everywhere (so
  * Mallan could not be cited), the other four ignored the listing rule the policy states
- * (REBNY UCBA Art. III §2(C): granular address data is not for AI fetchers).
+ * (the matrix is a comment in app/robots.ts; the Master has no AI-crawler rule, and the UCBA section that
+ * comment cited does not say this, so the rule itself is the owner's decision).
  *
  * OpenAI and Perplexity say robots.txt may not apply to their user-triggered fetchers (ChatGPT-User,
  * Perplexity-User) in their crawler documentation, so the server is the control that matters.
@@ -34,7 +35,8 @@ const AI_SEARCH_FETCHERS = [
   'Claude-SearchBot', // Anthropic: improves search result relevance
 ] as const;
 
-// Used for model training: refused on every path by the server, as before this change.
+// Used for model training: refused by the server on every path the proxy runs on, as before this change.
+// (proxy.ts does not run for /robots.txt, /sitemap.xml, /_next/static, /_next/image, /images or /fonts.)
 const TRAINING_CRAWLERS = ['GPTBot', 'ClaudeBot', 'CCBot', 'Bytespider', 'Amazonbot', 'Applebot-Extended'];
 const SCRAPERS = ['AhrefsBot', 'SemrushBot', 'MJ12bot', 'DataForSeoBot'];
 
@@ -77,7 +79,6 @@ const OPEN_TO_AI_SEARCH = [
   '/',
   '/about',
   '/agents',
-  '/agents/leda-gorgone',
   '/contact',
   '/sell',
   '/sell/international',
@@ -128,7 +129,17 @@ const REFUSED_TO_AI_SEARCH = [
 // Public routes the policy matrix does not classify. They carry listing data (a building page lists
 // its units with prices) or sit next to it, so the AI-search tier is refused until Maya classifies
 // them. Fail closed: a route nobody classified is not opened by default.
-const UNCLASSIFIED_PUBLIC_ROUTES = ['/buildings/some-building', '/building', '/results'];
+// An agent profile (/agents/<name>) and its listings page can render that agent's active and closed deals
+// (street, unit, ZIP, price: app/agents/[name]/page.tsx). None of that was in the server HTML of the four
+// agents on 2026-11-03, but the code path exists, so the profiles are closed to the tier too; the agents
+// index (/agents) stays open.
+const UNCLASSIFIED_PUBLIC_ROUTES = [
+  '/buildings/some-building',
+  '/building',
+  '/results',
+  '/agents/leda-gorgone',
+  '/agents/leda-gorgone/listings',
+];
 
 describe('AI-search fetchers: brand and category pages are readable', () => {
   for (const token of AI_SEARCH_FETCHERS) {
@@ -239,7 +250,7 @@ describe('Google and Bing can read the public agent pages', () => {
 });
 
 describe('training crawlers: robots.txt keeps them off the data-bearing routes nobody has classified', () => {
-  it.each(['/building', '/buildings/some-building', '/results', '/listing/x/rls1', '/buy', '/manhattan/chelsea'])(
+  it.each(['/building', '/buildings/some-building', '/results', '/agents/leda-gorgone', '/listing/x/rls1', '/buy', '/manhattan/chelsea'])(
     'robots.txt disallows GPTBot on %s',
     (path) => {
       expect(robotsAllows(uaOf('GPTBot'), path)).toBe(false);
