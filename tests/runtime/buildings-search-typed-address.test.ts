@@ -321,6 +321,34 @@ describe('?unit= — the unit\'s own tax lot from Cotality', () => {
     expect(body._errorHint).toMatch(/Enter it by hand/);
   });
 
+  it('compares the street type: "800 2nd Ave" never takes the lot of a unit on 800 2nd STREET in the same ZIP (review on #677)', async () => {
+    stubUnits([unitRecord({ StreetSuffix: 'Street', TaxLot: '1999', ListingId: 'WRONG-BUILDING' }), unitRecord({ ListingId: 'RIGHT', TaxLot: '1025' })]);
+    const { body } = await unitLot('800 2nd Ave', '806');
+    expect(body.unit).toMatchObject({ tax_lot: '1025', source_listing_id: 'RIGHT' });
+    stubUnits([unitRecord({ StreetSuffix: 'Street', TaxLot: '1999', ListingId: 'WRONG-BUILDING' })]);            // only the other building has the unit
+    expect((await unitLot('800 2nd Avenue', '806')).body.unit).toBeNull();
+  });
+
+  it('accepts the street type in either spelling (Ave / Avenue)', async () => {
+    stubUnits([unitRecord({ StreetSuffix: 'Ave', TaxLot: '1025' })]);
+    expect((await unitLot('800 2nd Avenue', '806')).body.unit).toMatchObject({ tax_lot: '1025' });
+  });
+
+  it('with no street type typed and two streets answering (an Avenue and a Street), it refuses to pick and says what to add', async () => {
+    stubUnits([unitRecord({ StreetSuffix: 'Street', TaxLot: '1999' }), unitRecord({ TaxLot: '1025' })]);
+    const { body } = await unitLot('800 2nd', '806');
+    expect(body.unit).toBeNull();
+    expect(body._errorHint).toMatch(/Add the street type/);
+  });
+
+  it('compares the direction: 333 East 46th Street never takes the lot of 333 West 46th Street', async () => {
+    const e46 = (over: Record<string, unknown>) => unitRecord({ StreetNumber: '333', StreetName: '46TH', StreetSuffix: 'Street', ...over });
+    stubUnits([e46({ StreetDirPrefix: 'W', TaxLot: '1999', ListingId: 'WEST' })]);
+    expect((await unitLot('333 East 46th Street', '806')).body.unit).toBeNull();
+    stubUnits([e46({ StreetDirPrefix: 'W', TaxLot: '1999', ListingId: 'WEST' }), e46({ StreetDirPrefix: 'E', TaxLot: '1025', ListingId: 'EAST' })]);
+    expect((await unitLot('333 East 46th Street', '806')).body.unit).toMatchObject({ tax_lot: '1025', source_listing_id: 'EAST' });
+  });
+
   it('a unit Cotality has no lot for answers null: nothing is guessed', async () => {
     stubUnits([unitRecord({ TaxLot: '' })]);
     expect((await unitLot('800 2nd Ave', '806')).body.unit).toBeNull();

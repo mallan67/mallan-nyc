@@ -32,6 +32,7 @@ export type AddFormOpts = {
   buildings?: Record<string, unknown>[] | ((query: string) => Record<string, unknown>[]);   // what GET /api/buildings/search answers (the building index)
   buildingsStatus?: number | ((query: string, call: number) => number);   // the HTTP status it answers with (default 200); a function is asked per request (1, 2, ...)
   unitLots?: (query: string, unit: string, zip: string) => Record<string, unknown> | null;   // what GET /api/buildings/search?q=&unit=&zip= answers as `unit` (the unit's own tax lot, pulled live from Cotality)
+  unitFail?: (unit: string) => 'throw' | number | undefined;   // that request fails: 'throw' = the network is down, a number = the HTTP status it answers with
   unitDelay?: (unit: string) => number;              // ms before that answer
   buildingsHint?: string;                            // the _errorHint it carries
   buildingsDelay?: number | ((query: string, call: number) => number);    // ms before it answers; a function is asked per request
@@ -129,6 +130,9 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
           const [q, unit, zip] = [sp.get('q') ?? '', sp.get('unit') ?? '', sp.get('zip') ?? ''];
           unitLookups.push(`${q}|${unit}|${zip}`);
           if (o.unitDelay) await sleep(o.unitDelay(unit));
+          const fail = o.unitFail?.(unit);
+          if (fail === 'throw') throw new Error('network down');
+          if (typeof fail === 'number') return { ok: false, status: fail, json: async () => ({}), text: async () => '' };
           return { ok: true, status: 200, json: async () => ({ unit: o.unitLots ? o.unitLots(q, unit, zip) : null }), text: async () => '' };
         }
         if (u.startsWith('/api/buildings/search')) {
