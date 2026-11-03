@@ -104,6 +104,75 @@ body { font-family: Manrope, sans-serif; }
 @media (min-width: 768px) {
   .mobile-tabs { display: none !important; }
 }
+/* Media window: drop boxes, upload progress, photo tiles (Maya, 2026-11-03: "looks very outdated") */
+.mm-drop { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px 16px; border: 2px dashed #d1d5db; border-radius: 14px; background: #fafafa; text-align: center; cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
+.mm-drop:hover, .mm-drop:focus-visible { border-color: #B8860B; background: #fffbeb; outline: none; }
+.mm-drop:focus-visible { box-shadow: 0 0 0 3px rgba(184,134,11,.25); }
+.mm-drop.mm-over { border-style: solid; border-color: #B8860B; background: #fef3c7; box-shadow: 0 0 0 4px rgba(184,134,11,.18); }
+.mm-drop.mm-compact { padding: 14px 16px; }
+.mm-drop-icon { width: 44px; height: 44px; border-radius: 9999px; background: #fef3c7; color: #B8860B; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 4px; transition: background .15s, color .15s; }
+.mm-drop.mm-compact .mm-drop-icon { width: 34px; height: 34px; font-size: 14px; }
+.mm-drop.mm-over .mm-drop-icon { background: #B8860B; color: #fff; }
+.mm-drop-title { font-size: 14px; font-weight: 600; color: #1f2937; }
+.mm-drop-sub { font-weight: 400; color: #4b5563; }
+.mm-link { color: #B8860B; text-decoration: underline; text-underline-offset: 2px; }
+.mm-drop-hint { font-size: 12px; color: #6b7280; max-width: 52ch; line-height: 1.4; }
+.mm-count { font-size: 12px; font-weight: 600; color: #6b7280; background: #f3f4f6; border-radius: 9999px; padding: 2px 10px; white-space: nowrap; }
+.mm-tip { margin-top: 10px; font-size: 12px; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 8px 12px; }
+.mm-tip i { color: #B8860B; margin-right: 4px; }
+.mm-details { margin-top: 10px; border: 1px solid #dbeafe; background: #f8fbff; border-radius: 10px; padding: 8px 12px; font-size: 11px; color: #1d4ed8; }
+.mm-details > summary { cursor: pointer; font-size: 12px; font-weight: 700; color: #1e3a8a; }
+.mm-details[open] > summary { margin-bottom: 8px; }
+.mm-progress { display: none; margin-top: 12px; }
+.mm-progress.mm-on { display: block; }
+.mm-progress-row { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+.mm-progress-name { font-weight: 400; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.mm-progress-track { height: 6px; border-radius: 9999px; background: #f3f4f6; overflow: hidden; }
+.mm-progress-bar { height: 100%; width: 0; border-radius: 9999px; background: linear-gradient(90deg, #B8860B, #d9a21b); transition: width .25s ease; }
+.mm-progress.mm-ok .mm-progress-bar { background: #16a34a; }
+.mm-progress.mm-bad .mm-progress-bar { background: #dc2626; }
+.mm-progress.mm-bad .mm-progress-label { color: #b91c1c; }
+.mm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 14px 12px; margin-top: 14px; }
+.mm-grid:empty { display: none; }
+.mm-tile { position: relative; }
+.mm-tile.mm-drag { cursor: grab; }
+.mm-frame { position: relative; aspect-ratio: 4 / 3; border-radius: 10px; overflow: hidden; background: #f3f4f6; border: 1px solid #e5e7eb; transition: box-shadow .15s, transform .15s; }
+.mm-tile:hover .mm-frame { box-shadow: 0 6px 16px rgba(17,24,39,.14); }
+.mm-tile.mm-cover .mm-frame { border-color: #B8860B; box-shadow: 0 0 0 2px #B8860B; }
+.mm-tile.mm-pending .mm-frame { border-style: dashed; border-color: #94a3b8; }
+.mm-tile.mm-dragging { opacity: .4; }
+.mm-tile.mm-over .mm-frame { box-shadow: 0 0 0 3px #B8860B; transform: scale(.97); }
+.mm-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.mm-blank { display: flex; align-items: center; justify-content: center; font-size: 11px; color: #9ca3af; }
+.mm-cap { margin: 6px 2px 0; font-size: 11px; line-height: 1.2; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mm-pill { position: absolute; top: 7px; left: 7px; max-width: calc(100% - 44px); padding: 2px 8px; border: 0; border-radius: 9999px; font-size: 10px; font-weight: 700; line-height: 16px; color: #fff; background: #B8860B; box-shadow: 0 1px 3px rgba(0,0,0,.25); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-pill.mm-soft { background: rgba(255,255,255,.95); color: #6b5410; font-weight: 600; cursor: pointer; }
+.mm-pill.mm-soft:hover { background: #fff; color: #B8860B; }
+.mm-pill.mm-queued { background: rgba(17,24,39,.74); }
+.mm-tile[data-state="busy"] .mm-pill.mm-queued { background: #B8860B; }
+.mm-tile[data-state="done"] .mm-pill.mm-queued { background: #16a34a; }
+.mm-tile[data-state="failed"] .mm-pill.mm-queued { background: #dc2626; }
+.mm-tile[data-state="skipped"] .mm-pill.mm-queued { background: #64748b; }
+.mm-x { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 9999px; background: rgba(17,24,39,.62); color: #fff; font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.mm-x:hover { background: #dc2626; }
+.mm-bar { position: absolute; left: 6px; right: 6px; bottom: 6px; display: flex; justify-content: center; gap: 6px; z-index: 1; }
+.mm-mv { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 9999px; background: rgba(17,24,39,.68); color: #fff; font-size: 11px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.mm-mv:hover { background: rgba(17,24,39,.92); }
+.mm-pill:focus-visible, .mm-x:focus-visible, .mm-mv:focus-visible { outline: 2px solid #fff; outline-offset: 1px; box-shadow: 0 0 0 4px #B8860B; }
+.mm-ctl { opacity: 0; transition: opacity .15s; }
+.mm-tile:hover .mm-ctl, .mm-tile:focus-within .mm-ctl { opacity: 1; }
+@media (hover: none) { .mm-ctl { opacity: 1; } }
+.mm-docs { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.mm-docs:empty { display: none; }
+.mm-doc { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; font-size: 13px; }
+.mm-doc-icon { width: 30px; height: 30px; flex-shrink: 0; border-radius: 8px; background: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; }
+.mm-doc-icon.mm-word { background: #dbeafe; color: #2563eb; }
+.mm-doc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1f2937; }
+.mm-doc-link { color: #1d4ed8; }
+.mm-doc-link:hover { text-decoration: underline; }
+.mm-doc-note { font-size: 11px; color: #9ca3af; white-space: nowrap; }
+.mm-doc-rm { margin-left: auto; padding: 4px 8px; border: 0; border-radius: 6px; background: none; font-size: 12px; color: #6b7280; cursor: pointer; }
+.mm-doc-rm:hover { background: #fef2f2; color: #b91c1c; }
 /* Scrollbar */
 .sidebar-nav::-webkit-scrollbar { width: 4px; }
 .sidebar-nav::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
@@ -3933,12 +4002,19 @@ body { font-family: Manrope, sans-serif; }
 <!-- ═══════════════════════════════════════════════════════════ -->
 <div id="saleMediaModal" class="fixed inset-0 bg-black/50 z-50 hidden" onclick="closeSaleMediaModal(event)">
     <div class="absolute right-0 top-0 h-full w-full max-w-2xl bg-white shadow-xl overflow-y-auto" onclick="event.stopPropagation()">
-        <div class="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
-            <div>
-                <h3 class="text-lg font-semibold">Media and Documents</h3>
-                <p class="text-xs text-gray-500">Upload photos, videos, floor plans, and documents</p>
+        <div class="sticky top-0 bg-white border-b px-6 py-4 z-10">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold">Media and Documents</h3>
+                    <p class="text-xs text-gray-500">Upload photos, videos, floor plans, and documents</p>
+                </div>
+                <button onclick="closeSaleMediaModal()" class="text-gray-500 hover:text-gray-700" aria-label="Close"><i class="fas fa-times text-xl"></i></button>
             </div>
-            <button onclick="closeSaleMediaModal()" class="text-gray-500 hover:text-gray-700" aria-label="Close"><i class="fas fa-times text-xl"></i></button>
+            <!-- Files being sent to the listing: which one, how many, and whether any failed -->
+            <div id="saleMediaProgress" class="mm-progress" role="status" aria-live="polite">
+                <div class="mm-progress-row"><span id="saleMediaProgressLabel" class="mm-progress-label"></span><span id="saleMediaProgressName" class="mm-progress-name"></span></div>
+                <div id="saleMediaProgressTrack" class="mm-progress-track" role="progressbar" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="saleMediaProgressBar" class="mm-progress-bar"></div></div>
+            </div>
         </div>
         <div class="p-6">
             <!-- REBNY Media Compliance Notice -->
@@ -3950,21 +4026,22 @@ body { font-family: Manrope, sans-serif; }
             <!-- Photos -->
             <div class="mb-8">
                 <div class="flex items-center justify-between mb-3">
-                    <h4 class="font-semibold text-gray-900">Photos <span class="text-xs text-gray-500 font-normal">(Up to 100 photos, min 1024x768px, recommended 2048x1365px, JPEG/PNG, max 10MB each)</span></h4>
-                    <span id="salePhotoCount" class="text-xs font-semibold text-gray-500">0 / 100 uploaded</span>
+                    <h4 class="font-semibold text-gray-900">Photos <span class="text-xs text-gray-500 font-normal">(up to 100)</span></h4>
+                    <span id="salePhotoCount" class="mm-count">0 / 100 uploaded</span>
                 </div>
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#B8860B] cursor-pointer transition-colors" onclick="document.getElementById('salePhotoInput').click()">
-                    <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
-                    <p class="text-sm text-gray-600 mb-1">Drag and drop photos here or click to browse</p>
-                    <p class="text-xs text-gray-500">JPEG, PNG only — Landscape 4:3 or 3:2 preferred — No watermarks, agent info, or logos (UCBA Art. I Sec. 5(C))</p>
+                <div class="mm-drop" onclick="document.getElementById('salePhotoInput').click()">
+                    <span class="mm-drop-icon"><i class="fas fa-images"></i></span>
+                    <span class="mm-drop-title">Drag photos here or <span class="mm-link">browse</span></span>
+                    <span class="mm-drop-hint">JPEG or PNG, up to 10 MB each. Landscape 4:3 or 3:2 preferred, at least 1024 x 768 px (2048 x 1365 recommended).</span>
+                    <span class="mm-drop-hint">No watermarks, agent info, or logos (UCBA Art. I Sec. 5(C))</span>
                     <input type="file" id="salePhotoInput" multiple accept=".jpg,.jpeg,.png" class="hidden" data-concept-disposition="mallan-internal">
                 </div>
                 <!-- REBNY I23: Photo sort order — first photo = primary listing photo -->
-                <p class="text-xs text-amber-600 mt-2"><i class="fas fa-star mr-1"></i> <strong>Primary Photo:</strong> First photo = hero image on StreetEasy, Zillow, Realtor.com, and all syndicated sites. Drag to reorder.</p>
+                <p class="mm-tip"><i class="fas fa-star"></i> <strong>Primary Photo:</strong> First photo = hero image on StreetEasy, Zillow, Realtor.com, and all syndicated sites. Drag a photo, or use its arrows, to reorder.</p>
                 <!-- Photo quality guidelines -->
-                <div class="mt-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-[10px] text-blue-700 space-y-1">
-                    <div class="font-bold text-blue-800"><i class="fas fa-info-circle mr-1"></i> Photo Requirements (Trestle / REBNY RLS)</div>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-0.5">
+                <details class="mm-details">
+                    <summary><i class="fas fa-info-circle mr-1"></i> Photo Requirements (Trestle / REBNY RLS)</summary>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1">
                         <span><strong>Min:</strong> 1024 x 768 px</span>
                         <span><strong>Rec:</strong> 2048 x 1365 px</span>
                         <span><strong>Format:</strong> JPEG (preferred)</span>
@@ -3974,10 +4051,10 @@ body { font-family: Manrope, sans-serif; }
                         <span><strong>Optimal:</strong> 22–27 photos</span>
                         <span><strong>Min rec:</strong> 10–15 photos</span>
                     </div>
-                    <div class="text-blue-600 mt-1">Each photo must be assigned a Room/Category (RESO ImageOf) and sort order. Photos under 1024x768 will be flagged for rejection.</div>
-                </div>
+                    <div class="mt-2">Each photo must be assigned a Room/Category (RESO ImageOf) and sort order. Photos under 1024x768 will be flagged for rejection.</div>
+                </details>
                 <!-- RESO ImageOf category selector (shown per photo in preview) -->
-                <div id="salePhotoPreview" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4" style="cursor: grab;"></div>
+                <div id="salePhotoPreview" class="mm-grid"></div>
 
                 <!-- RLS I23: Photo Sort Order -->
                 <div class="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
@@ -4012,13 +4089,13 @@ body { font-family: Manrope, sans-serif; }
             <!-- Floor Plans -->
             <div class="mb-8">
                 <h4 class="font-semibold text-gray-900 mb-3">Floor Plans <span class="text-xs text-gray-500 font-normal">(max 10MB each, JPG/PNG only, 150 dpi recommended)</span></h4>
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#B8860B] cursor-pointer transition-colors" onclick="document.getElementById('saleFloorplanInput').click()">
-                    <i class="fas fa-drafting-compass text-3xl text-gray-400 mb-2"></i>
-                    <p class="text-sm text-gray-600">Upload Floor Plan</p>
-                    <p class="text-xs text-gray-500 mt-1">JPG, PNG, PDF only</p>
+                <div class="mm-drop mm-compact" onclick="document.getElementById('saleFloorplanInput').click()">
+                    <span class="mm-drop-icon"><i class="fas fa-drafting-compass"></i></span>
+                    <span class="mm-drop-title">Drag a floor plan here or <span class="mm-link">browse</span></span>
+                    <span class="mm-drop-hint">JPG, PNG, PDF only</span>
                     <input type="file" id="saleFloorplanInput" accept=".jpg,.jpeg,.png,.pdf" class="hidden" data-concept-disposition="mallan-internal">
                 </div>
-                <div id="saleFloorplanPreview" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4"></div>
+                <div id="saleFloorplanPreview" class="mm-grid"></div>
                 <p class="text-[10px] text-gray-400 mt-2"><i class="fas fa-shield-alt mr-1"></i>Only upload media you have rights/authorization to use.</p>
             </div>
 
@@ -4052,13 +4129,13 @@ body { font-family: Manrope, sans-serif; }
             <!-- Documents (file uploads) -->
             <div class="mb-6">
                 <h4 class="font-semibold text-gray-900 mb-3">Documents <span class="text-xs text-gray-500 font-normal">(max 20MB each)</span></h4>
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#B8860B] cursor-pointer transition-colors" onclick="document.getElementById('saleDocInput').click()">
-                    <i class="fas fa-file-pdf text-3xl text-gray-400 mb-2"></i>
-                    <p class="text-sm text-gray-600">Upload Documents</p>
-                    <p class="text-xs text-gray-500 mt-1">PDF, DOC, DOCX only (Offering Plan, Financials, etc.) — kept with the listing in the CRM; never shown on the website or sent to the RLS</p>
+                <div class="mm-drop mm-compact" onclick="document.getElementById('saleDocInput').click()">
+                    <span class="mm-drop-icon"><i class="fas fa-file-pdf"></i></span>
+                    <span class="mm-drop-title">Upload Documents <span class="mm-drop-sub">- drag files here or <span class="mm-link">browse</span></span></span>
+                    <span class="mm-drop-hint">PDF, DOC, DOCX only (Offering Plan, Financials, etc.) — kept with the listing in the CRM; never shown on the website or sent to the RLS</span>
                     <input type="file" id="saleDocInput" multiple accept=".pdf,.doc,.docx" class="hidden" data-concept-disposition="mallan-internal">
                 </div>
-                <div id="saleDocPreview" class="mt-3 space-y-1"></div>
+                <div id="saleDocPreview" class="mm-docs"></div>
                 <div class="bg-red-50 border border-red-200 rounded-lg p-2 mt-2">
                     <p class="text-[10px] text-red-700"><i class="fas fa-exclamation-triangle mr-1"></i> <strong>Privacy:</strong> Do NOT upload owner/tenant ID scans, tax returns, or personal financial documents. These violate NY SHIELD Act requirements.</p>
                 </div>
@@ -11417,15 +11494,15 @@ function _populateSaleFormFromApi(listing) {
             var container = isFloor ? floorContainer : photoContainer;
             if (!container) return;
             var div = document.createElement('div');
-            div.className = 'relative group';
+            div.className = 'mm-tile mm-drag group';
             div.draggable = true;
             var tileIdx = container.children.length;                                         // the tile's place in its box (not the record's place in the list)
             div.setAttribute('data-media-idx', String(tileIdx));
             div.ondragstart = function(e) { e.dataTransfer.setData('text/plain', String(tileIdx)); };
-            div.ondragover = function(e) { e.preventDefault(); this.style.outline = '2px solid #B8860B'; };
-            div.ondragleave = function() { this.style.outline = ''; };
+            div.ondragover = function(e) { e.preventDefault(); this.classList.add('mm-over'); };
+            div.ondragleave = function() { this.classList.remove('mm-over'); };
             div.ondrop = function(e) {
-                e.preventDefault(); this.style.outline = '';
+                e.preventDefault(); this.classList.remove('mm-over');
                 var fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
                 var toIdx = parseInt(this.getAttribute('data-media-idx'));
                 if (isNaN(fromIdx) || isNaN(toIdx) || fromIdx === toIdx) return;
@@ -11465,10 +11542,12 @@ function _populateSaleFormFromApi(listing) {
             var mediaId = _idOf(m.id) || _idOf(m.media_id) || _idOf(m.MediaKey) || '';
             var place = isFloor ? (++floorCount) : (++photoCount);
             div.setAttribute('data-media-id', mediaId);
-            div.appendChild(_tileImage(url, 'w-full h-24 object-cover rounded-lg border'));
-            var grip = _tileEl('div', 'absolute top-0.5 left-0.5 bg-black/50 text-white text-[9px] px-1 rounded opacity-0 group-hover:opacity-100 cursor-grab'); grip.appendChild(_tileEl('i', 'fas fa-grip-vertical')); grip.appendChild(document.createTextNode(' ' + place)); div.appendChild(grip);
-            div.appendChild(_tileButton(_TILE_REMOVE, '×', 'Remove', function () { removeServerMedia(this, mediaId); }));
-            div.appendChild(_tileEl('p', 'text-[10px] text-gray-500 truncate mt-1', (isFloor ? 'Floor Plan' : 'Photo') + ' ' + place));
+            var frame = _tileEl('div', 'mm-frame');
+            frame.appendChild(_tileImage(url, 'mm-img'));
+            var grip = _tileEl('div', 'absolute top-0.5 left-0.5 bg-black/50 text-white text-[9px] px-1 rounded opacity-0 group-hover:opacity-100 cursor-grab'); grip.appendChild(_tileEl('i', 'fas fa-grip-vertical')); grip.appendChild(document.createTextNode(' ' + place)); frame.appendChild(grip);
+            frame.appendChild(_tileButton(_TILE_REMOVE, '×', 'Remove', function () { removeServerMedia(this, mediaId); }));
+            div.appendChild(frame);
+            div.appendChild(_tileEl('p', 'mm-cap', (isFloor ? 'Floor Plan' : 'Photo') + ' ' + place));
             container.appendChild(div);
         });
         var countEl = document.getElementById('salePhotoCount');
@@ -11663,17 +11742,18 @@ var _pendingMediaFiles = [];
 
 // ── Tiles are built as elements: the media key / id and the picture address are attribute and text values, never markup (an id or caption with a quote or a tag cannot run) ──
 function _tileEl(tag, className, text) { var el = document.createElement(tag); if (className) el.className = className; if (text !== undefined && text !== null) el.textContent = String(text); return el; }
-function _tileImage(url, className) { var img = document.createElement('img'); img.src = url; img.draggable = false; img.setAttribute('draggable', 'false'); img.className = className || 'w-full h-24 object-cover rounded-lg border'; return img; }
+function _tileImage(url, className) { var img = document.createElement('img'); img.src = url; img.draggable = false; img.setAttribute('draggable', 'false'); img.className = className || 'mm-img'; return img; }
 function _tileButton(className, text, title, onClick) { var b = document.createElement('button'); b.type = 'button'; b.className = className; if (title) b.title = title; b.textContent = text; b.addEventListener('click', onClick); return b; }
-var _TILE_REMOVE = 'absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100 transition flex items-center justify-center';
-var _TILE_MOVE = 'bg-black/60 hover:bg-black/80 text-white rounded w-6 h-6 text-xs leading-none flex items-center justify-center';
+var _TILE_REMOVE = 'mm-x mm-ctl';
+var _TILE_MOVE = 'mm-mv';
 function _tileMoveRow(earlierText, onEarlier, laterText, onLater) {
-    var row = _tileEl('div', 'absolute bottom-6 left-1 right-1 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition z-10');
+    var row = _tileEl('div', 'mm-bar mm-ctl');
     row.appendChild(_tileButton(_TILE_MOVE, earlierText, 'Move earlier', onEarlier));
     row.appendChild(_tileButton(_TILE_MOVE, laterText, 'Move later', onLater));
     return row;
 }
 // The preview tile of a file chosen but not yet uploaded: a document is a row in the list; a photo / floor plan is a tile with the file name as text. A photo's tile carries ◀/▶ (_movePendingTile).
+// "Not uploaded" turns into Uploading / Uploaded / Upload failed as the file goes (_mediaProgress).
 function _pendingTile(file, mediaType, pendingIndex) {
     var div;
     if (mediaType === 'document') {
@@ -11682,28 +11762,33 @@ function _pendingTile(file, mediaType, pendingIndex) {
         return div;
     }
     var previewUrl = URL.createObjectURL(file);
-    div = _tileEl('div', 'relative group');
+    div = _tileEl('div', 'mm-tile mm-pending group');
     div.setAttribute('data-media-index', String(pendingIndex));
+    var frame = _tileEl('div', 'mm-frame');
     if (file.type === 'application/pdf') {
-        var pdfBox = _tileEl('div', 'w-full h-24 bg-gray-100 rounded-lg flex items-center justify-center'); pdfBox.appendChild(_tileEl('i', 'fas fa-file-pdf text-3xl text-red-400')); div.appendChild(pdfBox);
+        var pdfBox = _tileEl('div', 'mm-img mm-blank bg-gray-100'); pdfBox.appendChild(_tileEl('i', 'fas fa-file-pdf text-3xl text-red-400')); frame.appendChild(pdfBox);
     } else {
-        div.appendChild(_tileImage(previewUrl, 'w-full h-24 object-cover rounded-lg'));
+        frame.appendChild(_tileImage(previewUrl, 'mm-img'));
         if (mediaType === 'photo') {
-            div.appendChild(_tileMoveRow('◀', function () { _movePendingTile(div, -1); }, '▶', function () { _movePendingTile(div, 1); }));
+            frame.appendChild(_tileMoveRow('◀', function () { _movePendingTile(div, -1); }, '▶', function () { _movePendingTile(div, 1); }));
         }
     }
-    div.appendChild(_tileEl('p', 'text-[10px] text-gray-500 truncate mt-1', file.name));
-    div.appendChild(_tileButton(_TILE_REMOVE, '×', 'Remove', function () { removePendingMedia(pendingIndex, this); }));
+    frame.appendChild(_tileEl('span', 'mm-pill mm-queued', 'Not uploaded'));
+    frame.appendChild(_tileButton(_TILE_REMOVE, '×', 'Remove', function () { removePendingMedia(pendingIndex, this); }));
+    div.appendChild(frame);
+    div.appendChild(_tileEl('p', 'mm-cap', file.name));
     return div;
 }
 // A document row in the Media modal (a listing's PDF / DOC / DOCX): name, open, remove
 function _documentRow(name, url, onRemove, pending) {
-    var row = _tileEl('div', 'flex items-center gap-2 text-sm border rounded px-2 py-1 bg-gray-50');
-    row.appendChild(_tileEl('i', 'fas fa-file-pdf text-red-400'));
-    if (url) { var a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.className = 'truncate flex-1 text-blue-700 hover:underline'; a.textContent = name; row.appendChild(a); }
-    else row.appendChild(_tileEl('span', 'truncate flex-1', name));
-    if (pending) row.appendChild(_tileEl('span', 'text-[10px] text-gray-400', 'not uploaded yet'));
-    row.appendChild(_tileButton('text-red-500 hover:text-red-700 text-xs', 'Remove', 'Remove this document', onRemove));
+    var row = _tileEl('div', 'mm-doc');
+    var icon = _tileEl('span', 'mm-doc-icon' + (/\.docx?$/i.test(String(name)) ? ' mm-word' : ''));
+    icon.appendChild(_tileEl('i', 'fas ' + (/\.docx?$/i.test(String(name)) ? 'fa-file-word' : 'fa-file-pdf')));
+    row.appendChild(icon);
+    if (url) { var a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.className = 'mm-doc-name mm-doc-link'; a.textContent = name; row.appendChild(a); }
+    else row.appendChild(_tileEl('span', 'mm-doc-name', name));
+    if (pending) row.appendChild(_tileEl('span', 'mm-queued mm-doc-note', 'not uploaded yet'));
+    row.appendChild(_tileButton('mm-doc-rm', 'Remove', 'Remove this document', onRemove));
     return row;
 }
 
@@ -11843,7 +11928,7 @@ async function uploadPendingMedia(listingId, opts) {
     try {
         var uploaded = 0, failed = 0;
         for (var i = 0; i < pending.length; i++) {
-            var entry = pending[i];
+            var entry = pending[i]; _mediaProgress(pending, i);
             // A PDF among the photos / floor plans stays preview-only (the gallery shows images); a document uploads as a document
             var entryIsPdf = entry.type !== 'document' && (entry.file.type === 'application/pdf' || entry.file.name.toLowerCase().endsWith('.pdf'));
             if (entryIsPdf) {
@@ -11889,8 +11974,77 @@ async function uploadPendingMedia(listingId, opts) {
         }
         return { uploaded: uploaded, failed: failed };
     } finally {
-        _uploadPendingMediaBusy = false;
+        _uploadPendingMediaBusy = false; _mediaProgress(pending, pending.length, true);
     }
+}
+
+// ── The strip in the Media window's header: which file is going, how many there are, whether any failed. Each file's own tile / row says Uploading, Uploaded or Upload failed. ──
+var _mediaProgressTimer = null;
+function _mediaProgress(list, at, finished) {
+    var box = document.getElementById('saleMediaProgress');
+    if (!box) return;
+    // A file that is not sent is not one of the files counted: a PDF among the photos / floor plans stays a preview (uploadPendingMedia skips it), and one taken out of the list is gone.
+    var skipped = function (m) { return m._removed || (m.type !== 'document' && (m.file.type === 'application/pdf' || /\.pdf$/i.test(m.file.name))); };
+    var counts = function (m) { return m.uploaded || !skipped(m); };
+    var total = list.filter(counts).length;
+    clearTimeout(_mediaProgressTimer);
+    if (!total) { box.className = 'mm-progress'; return; }
+    var sent = list.filter(function (m) { return m.uploaded; }).length;
+    var before = list.slice(0, finished ? list.length : at).filter(counts).length;                    // the files counted that come before the one going now
+    var failed = list.filter(function (m, i) { return (finished || i < at) && !m.uploaded && counts(m); }).length;
+    var pct = finished ? 100 : Math.max(4, Math.round(before / total * 100));
+    box.className = 'mm-progress mm-on' + (finished ? (failed ? ' mm-bad' : ' mm-ok') : '');
+    var say = function (id, text) { var el = document.getElementById(id); if (el) el.textContent = text; };
+    say('saleMediaProgressLabel', finished ? sent + ' of ' + total + ' uploaded' + (failed ? ' · ' + failed + ' failed' : '') : 'Uploading ' + Math.min(before + 1, total) + ' of ' + total);
+    say('saleMediaProgressName', !finished && list[at] ? list[at].file.name : '');
+    var bar = document.getElementById('saleMediaProgressBar'); if (bar) bar.style.width = pct + '%';
+    var track = document.getElementById('saleMediaProgressTrack'); if (track) track.setAttribute('aria-valuenow', String(pct));
+    var WORDS = { queued: 'Not uploaded', busy: 'Uploading…', done: 'Uploaded', failed: 'Upload failed', skipped: 'Preview only' };
+    list.forEach(function (m, i) {
+        var tile = document.querySelector('[data-media-index="' + _pendingMediaFiles.indexOf(m) + '"]');
+        if (!tile) return;
+        var state = m.uploaded ? 'done' : skipped(m) ? 'skipped' : (!finished && i === at) ? 'busy' : (finished || i < at) ? 'failed' : 'queued';
+        tile.setAttribute('data-state', state);
+        var note = tile.querySelector('.mm-queued');
+        if (note) note.textContent = WORDS[state];
+    });
+    if (finished && !failed) _mediaProgressTimer = setTimeout(function () { box.className = 'mm-progress'; }, 4000);   // a failure stays until the next upload
+}
+
+// ── The three upload boxes: a click or Enter / Space opens the file picker; a file dropped on a box is taken the way a chosen one is ──
+function _mediaFileAccepted(input, file) {
+    var accept = String(input.getAttribute('accept') || '').toLowerCase().split(',').map(function (a) { return a.trim(); }).filter(Boolean);
+    if (!accept.length) return true;
+    var name = String(file.name || '').toLowerCase(), type = String(file.type || '').toLowerCase();
+    return accept.some(function (a) { return a.charAt(0) === '.' ? name.slice(-a.length) === a : type === a; });
+}
+function _mediaHasFiles(e) { var t = e && e.dataTransfer && e.dataTransfer.types; return !!t && Array.prototype.indexOf.call(t, 'Files') >= 0; }   // a photo tile being dragged carries text, not files
+function _wireMediaDropZones() {
+    [['salePhotoInput', 'photo', 'photos', 'a JPG or PNG image'], ['saleFloorplanInput', 'floorplan', 'a floor plan', 'a JPG, PNG or PDF'], ['saleDocInput', 'document', 'documents', 'a PDF, DOC or DOCX']].forEach(function (z) {
+        var input = document.getElementById(z[0]);
+        var zone = input && input.parentElement;
+        if (!zone || zone.getAttribute('data-mm-bound')) return;
+        zone.setAttribute('data-mm-bound', '1');
+        zone.setAttribute('role', 'button');
+        zone.setAttribute('tabindex', '0');
+        zone.setAttribute('aria-label', 'Add ' + z[2] + ': choose files, or drop them here');
+        zone.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+        ['dragenter', 'dragover'].forEach(function (type) { zone.addEventListener(type, function (e) { if (!_mediaHasFiles(e)) return; e.preventDefault(); zone.classList.add('mm-over'); }); });
+        zone.addEventListener('dragleave', function (e) { if (!zone.contains(e.relatedTarget)) zone.classList.remove('mm-over'); });
+        zone.addEventListener('drop', function (e) {
+            if (!_mediaHasFiles(e)) return;
+            e.preventDefault();
+            zone.classList.remove('mm-over');
+            var taken = [];
+            Array.prototype.forEach.call(e.dataTransfer.files || [], function (f) {
+                if (_mediaFileAccepted(input, f)) taken.push(f); else showToast('"' + f.name + '" is not ' + z[3] + '.', 'error');
+            });
+            if (taken.length) handleSaleMediaUpload({ target: { files: taken, value: '' } }, z[1]);
+        });
+    });
+    // A file dropped beside the boxes must not make the browser open it in place of the form: the listing being typed would be lost
+    var modal = document.getElementById('saleMediaModal');
+    if (modal) ['dragover', 'drop'].forEach(function (type) { modal.addEventListener(type, function (e) { if (_mediaHasFiles(e)) e.preventDefault(); }); });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -11968,23 +12122,26 @@ function _renderMediaTile(container, m, idx, listingId) {
     var isFloor = (m.media_type === 'FloorPlan');
     var url = typeof m.url === 'string' ? m.url.trim() : (typeof m.heroUrl === 'string' ? m.heroUrl.trim() : '');
     var drawable = /^(https?:\/\/|\/(?!\/))/i.test(url);                                                              // a web address, or a path of this site; else a blank tile
-    var div = _tileEl('div', 'relative group');
+    var div = _tileEl('div', 'mm-tile group' + (m.preferred_photo_yn ? ' mm-cover' : '') + (isFloor ? '' : ' mm-drag'));
     div.setAttribute('data-media-key', mediaKey);
     div.setAttribute('data-media-id', mediaKey);
     if (!isFloor) {
         div.draggable = true;
-        div.ondragstart = function (e) { e.dataTransfer.setData('text/plain', m.media_key); };
-        div.ondragover = function (e) { e.preventDefault(); this.style.outline = '2px solid #B8860B'; };
-        div.ondragleave = function () { this.style.outline = ''; };
-        div.ondrop = function (e) { e.preventDefault(); this.style.outline = ''; _onMediaRowDrop(e, this, listingId, container); };
+        div.ondragstart = function (e) { e.dataTransfer.setData('text/plain', m.media_key); var t = this; setTimeout(function () { t.classList.add('mm-dragging'); }, 0); };   // (after the browser has taken the drag picture)
+        div.ondragend = function () { this.classList.remove('mm-dragging'); };
+        div.ondragover = function (e) { e.preventDefault(); this.classList.add('mm-over'); };
+        div.ondragleave = function () { this.classList.remove('mm-over'); };
+        div.ondrop = function (e) { e.preventDefault(); this.classList.remove('mm-over', 'mm-dragging'); _onMediaRowDrop(e, this, listingId, container); };
     }
-    if (drawable) div.appendChild(_tileImage(url, 'w-full h-24 object-cover rounded-lg border')); else div.appendChild(_tileEl('div', 'w-full h-24 bg-gray-100 rounded-lg border flex items-center justify-center text-[10px] text-gray-400', 'no picture'));
-    if (m.preferred_photo_yn) div.appendChild(_tileEl('div', 'absolute top-1 left-1 bg-[#B8860B] text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow', '★ COVER'));
-    else if (!isFloor) div.appendChild(_tileButton('absolute top-1 left-1 bg-white/90 text-[#7a6a3a] text-[9px] font-semibold px-2 py-0.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition', 'Set as cover', 'Make this the cover photo', function () { setMainPhoto(listingId, mediaKey); }));
+    var frame = _tileEl('div', 'mm-frame');
+    if (drawable) frame.appendChild(_tileImage(url, 'mm-img')); else frame.appendChild(_tileEl('div', 'mm-img mm-blank bg-gray-100', 'no picture'));
+    if (m.preferred_photo_yn) frame.appendChild(_tileEl('div', 'mm-pill', '★ COVER'));
+    else if (!isFloor) frame.appendChild(_tileButton('mm-pill mm-soft mm-ctl', 'Set as cover', 'Set as cover', function () { setMainPhoto(listingId, mediaKey); }));
     // Click-to-move reorder (photos only); native drag also works since the image is not draggable. Floor plans get no move buttons.
-    if (!isFloor) { var move = _tileMoveRow('◀', function () { _moveMediaTile(listingId, mediaKey, -1); }, '▶', function () { _moveMediaTile(listingId, mediaKey, 1); }); div.appendChild(move); }
-    div.appendChild(_tileButton(_TILE_REMOVE, '×', 'Remove', function () { removeServerMedia(this, mediaKey); }));
-    div.appendChild(_tileEl('p', 'text-[10px] text-gray-500 truncate mt-1', isFloor ? 'Floor Plan' : 'Photo ' + (idx + 1)));
+    if (!isFloor) { var move = _tileMoveRow('◀', function () { _moveMediaTile(listingId, mediaKey, -1); }, '▶', function () { _moveMediaTile(listingId, mediaKey, 1); }); frame.appendChild(move); }
+    frame.appendChild(_tileButton(_TILE_REMOVE, '×', 'Remove', function () { removeServerMedia(this, mediaKey); }));
+    div.appendChild(frame);
+    div.appendChild(_tileEl('p', 'mm-cap', isFloor ? 'Floor Plan' : 'Photo ' + (idx + 1)));
     container.appendChild(div);
 }
 
@@ -12170,6 +12327,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (optOutInput) {
         optOutInput.addEventListener('change', function(e) { handleSaleMediaUpload(e, 'document'); });
     }
+
+    _wireMediaDropZones();   // the upload boxes: keyboard, drag and drop
 
     // Initialize validation system
     initSaleValidation();
