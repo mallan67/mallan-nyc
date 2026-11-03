@@ -21,6 +21,7 @@ import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
 import { MALLAN_LIST_OFFICE_MLS_IDS } from "@/lib/listings/mallan-source-identity";
+import { assertRlsLinkFree, rlsLinkConflictBody, rlsLinkOf, RlsLinkConflict } from "@/lib/listings/rls-link";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -293,6 +294,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `${nonTextSlot} must be text` }, { status: 400 });
   }
 
+  // The RLS link ("Pull from Cotality" records the listing's Cotality ListingId as saleRlsId): it must be an RLS ID, and one RLS ID belongs to one Mallan listing (checked in the
+  // transaction below, behind a lock, so two tabs pulling the same RLS ID cannot both save).
+  const rlsLink = rlsLinkOf(body);
+  if (rlsLink.error) return NextResponse.json({ error: rlsLink.error }, { status: 400 });
+  if (rlsLink.rls) body.saleRlsId = rlsLink.rls;
+
   // Classify RLS eligibility using UCBA mixed-use model (Art. I, Sec. 5(F))
   // Mixed-use in ≤5 unit buildings → RLS-eligible; >5 units or pure commercial → website-only
   // InHouse listings are website-only by definition — not on RLS.
@@ -459,6 +466,7 @@ export async function POST(req: NextRequest) {
   try {
   result = await prisma.$transaction(async (tx) => {
     const listingId = await generateListingId(tx, listingType);
+    if (rlsLink.rls) await assertRlsLinkFree(tx, rlsLink.rls);
 
     // Stamp the Mallan listing-agent attribution. listingId is SL-/RL- (CRM
     // exclusive) so this is never null; it blank-only-merges over whatever
@@ -586,6 +594,7 @@ export async function POST(req: NextRequest) {
     return { id: listing.id.toString(), listingId };
   });
   } catch (dbErr) {
+    if (dbErr instanceof RlsLinkConflict) return NextResponse.json(rlsLinkConflictBody(dbErr), { status: 409 });
     const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
     const code = (dbErr as { code?: string })?.code;
     const meta = (dbErr as { meta?: unknown })?.meta;

@@ -5503,6 +5503,12 @@ function loadSaleListingData(listingId) {
     viewerSetVal('saleAddressDisplay', d.address + (d.unit ? ' #' + d.unit : ''));
     viewerSetVal('saleUnitDisplay', d.unit || '--');
     viewerSetVal('saleListingIdDisplay', d.listingId);
+    // The RLS link ("Pull from Cotality" on the Sale form): the listing's Cotality ListingId (the RLS ID), kept as raw_data.saleRlsId, and its ListingKey, a different identifier.
+    var rlsLinkRaw = (d._raw && d._raw.raw_data) || {};
+    viewerSetVal('saleRlsId', rlsLinkRaw.saleRlsId);
+    viewerSetVal('saleRlsListingKey', rlsLinkRaw.saleRlsListingKey);
+    var rlsLinkDisp = document.getElementById('saleRlsIdDisplay');
+    if (rlsLinkDisp) rlsLinkDisp.textContent = rlsLinkRaw.saleRlsId || 'not linked';
     viewerSetVal('saleLastUpdated', d.lastUpdated);
 
     // UCBA Art. III, Sec. 2(C): "Listing Courtesy of [Exclusive Broker/Participant]"

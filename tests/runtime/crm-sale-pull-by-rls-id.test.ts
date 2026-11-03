@@ -98,6 +98,33 @@ describe("pulling RLS20123633 into a blank listing", () => {
     } finally { f.close(); }
   });
 
+  it("the building address stays 800 2ND Avenue and the unit stays 806: the unit never enters the street, the lookup, or the saved street name", async () => {
+    const f = await pulled();
+    try {
+      expect(val(f, "saleStreetAddress")).toBe("800 2ND Avenue");              // the street line, without the unit that Cotality's UnparsedAddress ("800 2ND Avenue 806") carries
+      expect(val(f, "saleUnitNumber")).toBe("806");
+      expect(f.searched.length).toBeGreaterThan(0);
+      for (const q of f.searched) expect(q).not.toMatch(/\b806\b/);            // the building lookup asked about the building, not the unit
+      await completeForm(f, { type: "Condo", garage: "No", omit: ["saleStreetAddress", "saleZipCode", "salePrice", "saleBldgTaxLot"] });
+      const p = await saveDraft(f);
+      expect([p.StreetNumber, p.StreetName, p.StreetSuffix, p.UnitNumber]).toEqual(["800", "2ND", "Avenue", "806"]);
+      expect(String(p.StreetName)).not.toMatch(/806/);
+    } finally { f.close(); }
+  });
+
+  it("a record with no street parts has the unit cut off the end of its UnparsedAddress (800 2ND Avenue 806, #806 and Unit 806 all give 800 2ND Avenue)", async () => {
+    for (const unparsed of ["800 2ND Avenue 806", "800 2ND Avenue #806", "800 2ND Avenue, Unit 806"]) {
+      const answer: any = serverAnswer();
+      for (const k of ["StreetNumber", "StreetName", "StreetSuffix", "StreetDirPrefix", "StreetDirSuffix"]) delete answer.record[k];
+      answer.record.UnparsedAddress = unparsed;
+      const f = await pulled({ rlsPull: () => ({ body: answer }) });
+      try {
+        expect(val(f, "saleStreetAddress")).toBe("800 2ND Avenue");
+        expect(val(f, "saleUnitNumber")).toBe("806");
+      } finally { f.close(); }
+    }
+  });
+
   it("the unit's tax lot and the building's tax lot land in their own boxes (1025 and 7501)", async () => {
     const f = await pulled();
     try {
@@ -230,7 +257,7 @@ describe("the building the pull looks up (live shape for 800 2ND Avenue)", () =>
 });
 
 describe("what the pull will not do", () => {
-  it("refuses a listing that already has an address or a price, and asks Cotality nothing (nothing typed is replaced)", async () => {
+  it("refuses a listing that already has an address, and asks Cotality nothing (nothing typed is replaced)", async () => {
     const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }) });
     try {
       setValue(f, "saleStreetAddress", "1 Other Street");
@@ -238,8 +265,71 @@ describe("what the pull will not do", () => {
       pullRow(f)!.click();
       await sleep(200);
       expect(f.rlsPulls).toEqual([]);
-      expect(toasts(f).some((t) => /already has an address or a price/.test(t))).toBe(true);
+      expect(toasts(f).some((t) => /already has information entered/.test(t))).toBe(true);
       expect(val(f, "saleStreetAddress")).toBe("1 Other Street");
+    } finally { f.close(); }
+  });
+
+  it("a blank form has nothing entered, so the pull is allowed (the page's own defaults and the agent's own fields do not count)", async () => {
+    const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }) });
+    try {
+      expect((f.w as any)._saleEnteredFields()).toEqual([]);
+    } finally { f.close(); }
+  });
+
+  it("refuses when the agent has typed ANY field, not only the address or the price (bedrooms typed, address and price still blank)", async () => {
+    const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }) });
+    try {
+      setValue(f, "saleBedrooms", "3");
+      expect((f.w as any)._saleEnteredFields()).toContain("saleBedrooms");
+      await typeRlsId(f, "RLS20123633");
+      pullRow(f)!.click();
+      await sleep(250);
+      expect(f.rlsPulls).toEqual([]);
+      expect(toasts(f).some((t) => /already has information entered/.test(t))).toBe(true);
+      expect(val(f, "saleBedrooms")).toBe("3");
+      expect(val(f, "saleRlsId")).toBe("");
+    } finally { f.close(); }
+  });
+
+  it("a choice counts too: a ticked radio the page did not tick is the agent's, and stops the pull", async () => {
+    const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }) });
+    try {
+      const radio = [...f.d.querySelectorAll('input[type="radio"]')].find((r: any) => !r.defaultChecked && !r.checked && !r.disabled && !/^sale(ListingAgent|Agent)/.test(r.id)) as HTMLInputElement;
+      radio.checked = true;
+      expect((f.w as any)._saleEnteredFields().length).toBeGreaterThan(0);
+    } finally { f.close(); }
+  });
+
+  it("typing while Cotality is answering: the answer is NOT written over what the agent just entered", async () => {
+    const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }), rlsPullDelay: 400 });
+    try {
+      await typeRlsId(f, "RLS20123633");
+      pullRow(f)!.click();
+      await waitUntil(() => f.rlsPulls.length === 1);   // asked; not answered yet
+      setValue(f, "saleBedrooms", "5");                 // the agent types while it loads
+      await sleep(700);
+      expect(val(f, "saleBedrooms")).toBe("5");
+      expect(val(f, "saleRlsId")).toBe("");
+      expect(val(f, "salePrice")).toBe("");
+      expect(toasts(f).some((t) => /entered information while Cotality was answering/.test(t))).toBe(true);
+    } finally { f.close(); }
+  });
+
+  it("two pulls in a row: the second answer does not run over the first", async () => {
+    const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600, rlsPull: () => ({ body: serverAnswer() }), rlsPullDelay: 300 });
+    try {
+      await typeRlsId(f, "RLS20123633");
+      let fills = 0;
+      const fill = (f.w as any)._populateSaleFormFromApi;
+      (f.w as any)._populateSaleFormFromApi = (...a: unknown[]) => { fills++; return fill(...a); };
+      const row = pullRow(f)!;
+      row.click(); row.click();
+      await waitUntil(() => val(f, "saleRlsId") === "RLS20123633");
+      await sleep(900);
+      expect(val(f, "saleRlsId")).toBe("RLS20123633");
+      expect(f.rlsPulls.length).toBe(2);                // both went out; only the first was written
+      expect(fills).toBe(1);                            // the form was filled once
     } finally { f.close(); }
   });
 
@@ -301,6 +391,43 @@ describe("the link survives save and reload", () => {
       expect(b.d.getElementById("saleRlsLinkState")!.textContent).toMatch(/Linked/);
       expect(val(b, "salePrice")).toBe("1200000");
     } finally { b.close(); }
+  });
+
+  it("every identifier survives create -> save -> reload -> edit -> save -> reload: the SL ID stays the listing's own, the RLS ID and the ListingKey stay Cotality's and apart", async () => {
+    const a = await pulled();
+    let first: Record<string, any>;
+    try {
+      await completeForm(a, { type: "Condo", garage: "No", omit: ["saleStreetAddress", "saleZipCode", "salePrice", "saleBldgTaxLot"] });
+      first = await saveDraft(a);
+    } finally { a.close(); }
+    const stored1: any = storedListing(first, "sale");
+    expect(stored1.listing_id).toBe("SL-0001");
+
+    const b = await bootAddForm("SALE-FORM-REDESIGN", { search: "?id=1", listing: stored1, settle: 300 });
+    let second: Record<string, any>;
+    try {
+      await loaded(b);
+      expect(b.d.getElementById("saleListingIdDisplay")!.textContent).toBe("SL-0001");
+      expect(b.d.getElementById("saleRlsIdDisplay")!.textContent).toBe("RLS20123633");
+      expect(val(b, "saleRlsListingKey")).toBe("1194314473");
+      setValue(b, "saleDescription", "Corner unit with open city views, edited after the pull.");     // the edit
+      second = await saveDraft(b);
+    } finally { b.close(); }
+    expect(second.saleRlsId).toBe("RLS20123633");
+    expect(second.saleRlsListingKey).toBe("1194314473");
+    expect([second.StreetNumber, second.StreetName, second.StreetSuffix, second.UnitNumber]).toEqual(["800", "2ND", "Avenue", "806"]);
+
+    const c = await bootAddForm("SALE-FORM-REDESIGN", { search: "?id=1", listing: { ...storedListing({ ...first, ...second }, "sale") }, settle: 300 });
+    try {
+      await loaded(c);
+      expect(c.d.getElementById("saleListingIdDisplay")!.textContent).toBe("SL-0001");
+      expect(c.d.getElementById("saleRlsIdDisplay")!.textContent).toBe("RLS20123633");
+      expect(val(c, "saleRlsId")).toBe("RLS20123633");
+      expect(val(c, "saleRlsListingKey")).toBe("1194314473");
+      expect(val(c, "saleStreetAddress")).toBe("800 2ND Avenue");
+      expect(val(c, "saleUnitNumber")).toBe("806");
+      expect(val(c, "saleDescription")).toMatch(/edited after the pull/);
+    } finally { c.close(); }
   });
 
   it("a listing never pulled says RLS link not verified", async () => {

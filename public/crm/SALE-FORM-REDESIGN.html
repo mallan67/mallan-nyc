@@ -5420,13 +5420,34 @@ function _saleHtmlToText(html) {
         .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+// What the agent has typed or chosen so far: any control that no longer holds what the page gave it (its default). The Pull fills the whole form, so it runs only on a form with
+// nothing of the agent's in it. What the page sets itself (the agent/company, today's date, the search box the RLS ID was typed into, the read-only RLS boxes) is not counted.
+function _saleEnteredFields() {
+    var found = [];
+    document.querySelectorAll('input, select, textarea').forEach(function (el) {
+        var id = el.id || '';
+        if (!id && !el.name) return;
+        if (el.disabled || el.readOnly || el.type === 'hidden' || el.type === 'button' || el.type === 'submit' || el.type === 'file') return;
+        if (id === 'saleBuildingSearch' || /^sale(ListingAgent|ListingCompany|Agent|Office|Company)/.test(id) || id === 'saleCreateDate' || id === 'saleBldgLandLeaseYN') return;   // the page sets these itself (today's date, the company, the land-lease mirror of its radio)
+        var changed;
+        if (el.type === 'radio' || el.type === 'checkbox') changed = el.checked !== el.defaultChecked;
+        else if (el.tagName === 'SELECT') {
+            if (el.multiple) changed = Array.prototype.some.call(el.options, function (o) { return o.selected !== o.defaultSelected; });
+            else {
+                var def = Array.prototype.findIndex.call(el.options, function (o) { return o.defaultSelected; });
+                changed = el.selectedIndex !== (def < 0 ? 0 : def);
+            }
+        } else changed = el.value !== el.defaultValue;
+        if (changed) found.push(id || el.name);
+    });
+    return found;
+}
+
 async function pullFromCotalityByRlsId(rlsId) {
     if (_saleRefuseWhileLoading()) return;
     var results = document.getElementById('saleBuildingSearchResults');
-    var street = (document.getElementById('saleStreetAddress') || {}).value || '';
-    var price = Number(((document.getElementById('salePrice') || {}).value || '').replace(/[^0-9.]/g, '')) || 0;
-    if (street.trim() || price > 0) {
-        showToast('This listing already has an address or a price. Pull into a blank listing so nothing you typed is replaced.', 'warning');
+    if (_saleEnteredFields().length) {
+        showToast('This listing already has information entered. Pull into a blank listing so nothing you typed is replaced.', 'warning');
         return;
     }
     var existingId = (document.getElementById('saleRlsId') || {}).value || '';
@@ -5448,11 +5469,30 @@ async function pullFromCotalityByRlsId(rlsId) {
             }
             return;
         }
+        // Cotality took a moment; the agent may have typed (or pulled again) meanwhile. Nothing typed is replaced.
+        if (_saleEnteredFields().length || (document.getElementById('saleRlsId') || {}).value) {
+            showToast('You entered information while Cotality was answering, so nothing was replaced. Pull into a blank listing.', 'warning');
+            if (results) results.classList.add('hidden');
+            return;
+        }
         var rec = body.record || {};
         if (rec.PublicRemarks) rec.PublicRemarks = _saleHtmlToText(rec.PublicRemarks);
         // Cotality's AttendanceType "None" sits on 38% of live listings and cannot be told from an unfilled default, so it is not taken as "no doorman" (Maya): the staffing group is left for
         // the broker. A real value (DoormanFullTime, ConciergeFullTime ...) still fills it.
         if (String(rec.AttendanceType || '').trim() === 'None') delete rec.AttendanceType;
+        // Cotality's UnparsedAddress carries the unit ("800 2ND Avenue 806"). This form's street line is the BUILDING's street (the unit has its own box), and the building lookup and the street
+        // parser read it, so the street line is built from the record's own street parts; only a record with none of them has its unit cut off the end of UnparsedAddress.
+        var streetLine = [rec.StreetNumber, rec.StreetDirPrefix, rec.StreetName, rec.StreetSuffix, rec.StreetDirSuffix].filter(function (x) { return x !== undefined && x !== null && String(x).trim() !== ''; }).join(' ');
+        if (!streetLine) {
+            streetLine = String(rec.UnparsedAddress || rec.UnParsedAddress || '').trim();
+            var unitTxt = String(rec.UnitNumber || '').trim();
+            if (streetLine && unitTxt) {
+                var tail = streetLine.slice(-unitTxt.length);
+                if (tail.toLowerCase() === unitTxt.toLowerCase()) streetLine = streetLine.slice(0, -unitTxt.length).replace(/[\s,#-]*(?:unit|apt|apartment)?[\s#]*$/i, '').trim();
+            }
+        }
+        delete rec.UnParsedAddress;
+        if (streetLine) rec.UnparsedAddress = streetLine; else delete rec.UnparsedAddress;
         var addr = {};
         ['StreetNumber', 'StreetDirPrefix', 'StreetName', 'StreetSuffix', 'StreetDirSuffix', 'UnitNumber', 'City', 'StateOrProvince', 'PostalCode', 'CityRegion', 'CountyOrParish', 'PostalCity', 'SubdivisionName'].forEach(function (k) { if (rec[k] !== undefined) addr[k] = rec[k]; });
         // A saved listing keeps price, beds, baths, areas... in database columns; the form's own field map says which column feeds which control (src 'listing'), so the pulled value

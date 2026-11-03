@@ -344,8 +344,7 @@ function mergeMissingExtras(target: Record<string, unknown>, extras: Record<stri
     // doorman if ANY of its listings says so: the positive members of every record are united, and "None" never blocks one (a listing left at the default says nothing about the lobby;
     // 800 2nd Avenue's newest listing says None while its lease RLS10612741 says DoormanFullTime + LobbyAttendantFullTime). Only "None"s: kept as they are, and the form takes no stand on them.
     if (k === 'attendance_type') {
-      const positive = (x: unknown) => String(x ?? '').split(',').map((m) => m.trim()).filter((m) => m && m !== 'None');
-      const united = [...new Set([...positive(cur), ...positive(v)])];
+      const united = [...new Set([cur, v].flatMap((x) => String(x ?? '').split(',')).map((m) => m.trim()).filter((m) => m && m !== 'None'))];
       if (united.length) target[k] = united.join(',');
       else if ((cur === null || cur === undefined || cur === '') && v) target[k] = v;
       continue;
