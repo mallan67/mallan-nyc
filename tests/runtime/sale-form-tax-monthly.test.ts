@@ -44,7 +44,9 @@ describe('sale form — two-way monthly <-> annual RE tax', () => {
 
   it('edit-load refreshes the derived monthly display (autoCalcTaxMonthly called in populate)', () => {
     // After the populate trigger-calc, autoCalcTaxMonthly() runs so monthly shows when annual exists.
-    expect(FORM).toMatch(/calculateSaleTotalMonthly\(\);[\s\S]{0,400}?autoCalcTaxMonthly === 'function'\) autoCalcTaxMonthly\(\)/);
+    expect(FORM).toMatch(/calculateSaleTotalMonthly\(\);[\s\S]{0,1600}?autoCalcTaxMonthly === 'function'\) autoCalcTaxMonthly\(\)/);
+    // a record that carries only the MONTHLY tax: the form's own monthly-to-annual sync runs FIRST, or the re-derivation from the empty annual would blank the loaded monthly figure
+    expect(FORM).toMatch(/!annualBox\.value && parseFloat\(monthlyBox\.value\) > 0 && typeof syncSaleAnnualFromMonthly === 'function'\) \{\s*syncSaleAnnualFromMonthly\(\);[\s\S]{0,400}?autoCalcTaxMonthly === 'function'\) autoCalcTaxMonthly\(\)/);
   });
 
   it('Total Monthly adds the MONTHLY tax (annual/12), not the annual figure (Codex #432 P2)', () => {

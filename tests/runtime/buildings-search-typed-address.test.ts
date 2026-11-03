@@ -354,3 +354,31 @@ describe('?unit= — the unit\'s own tax lot from Cotality', () => {
     expect((await unitLot('800 2nd Ave', '806')).body.unit).toBeNull();
   });
 });
+
+// ── A building has a doorman if ANY of its listings says so (Maya, 2026-11-03: "more than 50% of the buildings in the city have doormen") ────────────────────────────────────────
+describe('building attendance (doorman) is united across the building\'s listings', () => {
+  const withAttendance = (value: unknown, over: Record<string, unknown> = {}) =>
+    liveRecord({ UnitNumber: String(++seq), CustomProperty: value === undefined ? [] : [{ CustomFields: JSON.stringify({ AttendanceType: value }) }], ...over });
+
+  it('800 2nd Avenue: the newest listing says None, a lease of the same building says DoormanFullTime + LobbyAttendantFullTime -> the building has them', async () => {
+    queryRaw.mockResolvedValue([]);
+    stubCotality([withAttendance('None', { StandardStatus: 'Active' }), withAttendance('None', { StandardStatus: 'Closed' }), withAttendance('DoormanFullTime,LobbyAttendantFullTime', { StandardStatus: 'Closed' })]);
+    const { buildings } = await search('800 2nd Ave');
+    expect(buildings).toHaveLength(1);
+    expect(buildings[0].attendance_type).toBe('DoormanFullTime,LobbyAttendantFullTime');
+  });
+
+  it('different listings, different members: they are united, once each', async () => {
+    queryRaw.mockResolvedValue([]);
+    stubCotality([withAttendance('DoormanFullTime'), withAttendance('ConciergeFullTime,DoormanFullTime'), withAttendance('None')]);
+    const { buildings } = await search('800 2nd Ave');
+    expect(String(buildings[0].attendance_type).split(',').sort()).toEqual(['ConciergeFullTime', 'DoormanFullTime']);
+  });
+
+  it('only Nones: kept as None (the form takes no stand on it); a listing with no attendance value changes nothing', async () => {
+    queryRaw.mockResolvedValue([]);
+    stubCotality([withAttendance('None'), withAttendance(undefined), withAttendance('None')]);
+    const { buildings } = await search('800 2nd Ave');
+    expect(buildings[0].attendance_type).toBe('None');
+  });
+});

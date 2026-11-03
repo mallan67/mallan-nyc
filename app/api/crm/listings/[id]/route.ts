@@ -28,6 +28,7 @@ import { resolveListingAgentInfo } from "@/lib/listings/agent-info-resolver";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
 import { REBNY_FIELD_TABLES } from "@/lib/compliance/rebny-field-tables";
+import { assertRlsLinkFree, rlsLinkConflictBody, rlsLinkOf, RlsLinkConflict } from "@/lib/listings/rls-link";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -160,6 +161,13 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (nonTextSlot) {
     return NextResponse.json({ error: `${nonTextSlot} must be text` }, { status: 400 });
   }
+
+  // The RLS link ("Pull from Cotality" records the listing's Cotality ListingId as saleRlsId): it must be an RLS ID, and one RLS ID belongs to one Mallan listing. A link this listing
+  // does not already carry is checked against the others inside the update's transaction, behind a lock, so two tabs pulling the same RLS ID cannot both save.
+  const rlsLink = rlsLinkOf(body);
+  if (rlsLink.error) return NextResponse.json({ error: rlsLink.error }, { status: 400 });
+  if (rlsLink.rls) body.saleRlsId = rlsLink.rls;
+  const newRlsLink = rlsLink.rls && rlsLink.rls !== String((listing.raw_data as Record<string, unknown> | null)?.saleRlsId ?? "").trim().toUpperCase() ? rlsLink.rls : null;
 
   // The owner (seller / landlord) relationship — owner_client_id: a client id links, null / "" clears, an absent key leaves it as it is.
   // It is the typed column Listing.owner_client_id (relation ListingOwner), never a raw_data key, so it is taken off the body here.
@@ -559,10 +567,21 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
   if (body.media !== undefined) update.media = body.media as Prisma.InputJsonValue;
 
-  const updated = await prisma.listing.update({
-    where: { id: listing.id },
-    data: update,
-  });
+  let updated: Awaited<ReturnType<typeof prisma.listing.update>>;
+  try {
+    updated = newRlsLink
+      ? await prisma.$transaction(async (tx) => {
+          await assertRlsLinkFree(tx, newRlsLink, listing.id);
+          return tx.listing.update({ where: { id: listing.id }, data: update });
+        })
+      : await prisma.listing.update({
+          where: { id: listing.id },
+          data: update,
+        });
+  } catch (err) {
+    if (err instanceof RlsLinkConflict) return NextResponse.json(rlsLinkConflictBody(err), { status: 409 });
+    throw err;
+  }
 
   // Building-Neon-wake — a CRM edit can change price/address/status/gates on
   // an exclusive that appears in cached BUILDING payloads: expire the listing
