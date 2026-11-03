@@ -1,9 +1,8 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 import { useClientOnly } from '@/lib/hooks/useClientOnly';
 
 interface Section {
@@ -18,7 +17,7 @@ interface CTA {
   buttonLink: string;
 }
 
-interface ResourceData {
+export interface ResourceData {
   slug: string;
   title: string;
   subtitle: string;
@@ -281,21 +280,13 @@ function EmailGateForm({
 }
 
 /* ---- Main Component ---- */
-export default function ResourceContent({ slug }: { slug: string }) {
+/**
+ * The guide arrives as a prop. app/resources/[slug]/page.tsx reads data/resources/*.json on the server, so the
+ * guide is in the HTML a crawler receives. This component used to fetch /api/resources/<slug>; that route was
+ * deleted on 2026-03-15 and every guide said "Resource Not Found" from then on.
+ */
+export default function ResourceContent({ slug, data }: { slug: string; data: ResourceData }) {
   const isGated = GATED_SLUGS.includes(slug);
-
-  // Resource fetch via state-machine hook. `loading` and `error` are
-  // derived from status; no setState-in-effect.
-  const fetcher = useCallback(
-    async (key: string | number, signal: AbortSignal): Promise<ResourceData> => {
-      const res = await fetch(`/api/resources/${key}`, { signal });
-      if (!res.ok) throw new Error('Not found');
-      return res.json();
-    },
-    [],
-  );
-  const { data, loading, error: fetchError, status } = useAsyncResource(slug, fetcher);
-  const error = status === 'error' && !!fetchError;
 
   // Mount-only localStorage hydration for the unlock flag. Non-gated
   // slugs short-circuit to unlocked (no read needed).
@@ -316,47 +307,6 @@ export default function ResourceContent({ slug }: { slug: string }) {
     } catch {
       // localStorage unavailable
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="py-16">
-        <div className="max-w-3xl mx-auto px-4">
-          <div className="animate-pulse">
-            <div className="h-10 bg-black/5 rounded w-2/3 mb-4"></div>
-            <div className="h-6 bg-black/5 rounded w-1/2 mb-8"></div>
-            <div className="space-y-4">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="space-y-2">
-                  <div className="h-6 bg-black/5 rounded w-1/3"></div>
-                  <div className="h-4 bg-black/5 rounded"></div>
-                  <div className="h-4 bg-black/5 rounded w-5/6"></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <div className="py-16 text-center">
-        <div className="max-w-xl mx-auto px-4">
-          <h1 className="text-2xl font-display font-semibold mb-4">Resource Not Found</h1>
-          <p className="text-brand-dark/90 mb-8">
-            The resource you&apos;re looking for doesn&apos;t exist.
-          </p>
-          <Link
-            href="/"
-            className="inline-block px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90"
-          >
-            Return Home
-          </Link>
-        </div>
-      </div>
-    );
   }
 
   // Determine hero title override for gated guides
