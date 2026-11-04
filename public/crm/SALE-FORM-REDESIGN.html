@@ -5632,13 +5632,15 @@ async function pullFromCotalityByRlsId(rlsId) {
 }
 
 // ── The form follows Cotality (Maya, 2026-11-04: "the form should auto updated when the information updates") ─────────────────────────────────────
-// A saved listing that is linked to an RLS ID is maintained in RealPlus, so the facts of its unit, its building and its price follow the Cotality record: the form asks Cotality when the listing
-// opens and again when the agent comes back to the page. Only these facts follow, never what the agent writes or decides here (description, notes, status, dates, agent and office, commission, media,
+// A saved listing that is linked to an RLS ID follows the Cotality record of that RLS ID (RealPlus feeds Cotality, Cotality feeds Mallan): the facts of its unit, its building and its price follow it.
+// The form asks Cotality when the listing opens and again when the agent comes back to the page; a scheduled job (/api/cron/rls-follow) keeps the saved record's public facts the same way. Only these facts follow, never what the agent writes or decides here (description, notes, status, dates, agent and office, commission, media,
 // property type). A box Cotality has no value for is never blanked, and a count of 0 or the text "null" is no value. A box the agent changed since the listing opened is never replaced: it is listed as
 // kept. Every change is listed with its old and new value, and nothing is saved until the agent presses Submit. If Cotality cannot be reached the form says so.
 var SALE_COTALITY_FOLLOWS = ['BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'RoomsTotal', 'LivingArea', 'LivingAreaUnits', 'EntryLevel', 'TaxLot',
     'ListPrice', 'AssociationFee', 'AssociationFeeFrequency', 'TaxAnnualAmount',
     'YearBuilt', 'YearBuiltEffective', 'StoriesTotal', 'NumberOfUnitsTotal', 'ElevatorsTotal', 'BuildingName', 'StructureType', 'TaxBlock', 'BuildingTaxLot'];
+// 0 is "nobody filled it" for these (a $0 maintenance, a 0-story building), not a fact; a bedroom or bathroom count of 0 is one. The scheduled job (lib/listings/rls-followed-facts.ts) holds the same list.
+var SALE_COTALITY_POSITIVE = ['ListPrice', 'LivingArea', 'RoomsTotal', 'YearBuilt', 'StoriesTotal', 'AssociationFee', 'TaxAnnualAmount'];
 var _saleFollow = { at: 0, busy: false, loaded: null };
 function _saleFollowText(v) { var t = String(v === undefined || v === null ? '' : v).trim(); return /^(null|undefined)$/i.test(t) ? '' : t; }
 function _saleFollowTargets(rec) {
@@ -5647,7 +5649,7 @@ function _saleFollowTargets(rec) {
         if (SALE_COTALITY_FOLLOWS.indexOf(f.rls) < 0 || f.src === 'addr' || f.src === 'agentInfo') return;
         var v = _saleFollowText(rec[f.rls]);
         if (v === '') return;
-        if (f.rls === 'NumberOfUnitsTotal' && !(Number(v) > 0)) return;             // 0 = nobody counted
+        if ((f.rls === 'NumberOfUnitsTotal' || SALE_COTALITY_POSITIVE.indexOf(f.rls) >= 0) && !(Number(v) > 0)) return;             // 0 = nobody counted / filled it
         if (f.rls === 'StructureType' && /^none$/i.test(v)) return;
         if (f.valueMap && Object.prototype.hasOwnProperty.call(f.valueMap, v)) v = f.valueMap[v];
         out.push({ id: f.form, value: v, number: f.type === 'number' });
