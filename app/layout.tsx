@@ -240,10 +240,6 @@ const jsonLd = {
       name: 'Real Estate Board of New York (REBNY)',
       sameAs: 'https://www.rebny.com',
     },
-    {
-      '@type': 'Organization',
-      name: 'National Association of Realtors (NAR)',
-    },
   ],
   // Founder / principal broker — links the person to the business
   founder: {
