@@ -85,16 +85,18 @@ export type FollowPlan = {
 
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
-/** What the listing holds now for a fact, in the place a save from the Sale form writes it. */
+/**
+ * What the listing's PUBLIC place holds now for a fact: the typed column, or the features / address bucket the public page reads. raw_data is not consulted: an older listing whose fact is
+ * only in raw_data has an empty public place, and the plan must fill it (Codex, review of #690: a raw_data fallback marked such a fact "unchanged" and left the column or bucket empty on
+ * every run).
+ */
 function heldNow(fact: FollowedFact, listing: ListingFollowState): number | string | null {
-  const raw = obj(listing.raw_data);
   const held =
     fact.bucket === 'column' ? (listing as unknown as Record<string, unknown>)[fact.column as string]
     : fact.bucket === 'features' ? obj(listing.features)[fact.cotality]
     : obj(listing.address)[fact.cotality];
-  const v = held !== undefined && held !== null && held !== '' ? held : raw[fact.cotality];
-  if (v === undefined || v === null || v === '') return null;
-  return fact.kind === 'text' ? String(v) : Number(v);
+  if (held === undefined || held === null || held === '') return null;
+  return fact.kind === 'text' ? String(held) : Number(held);
 }
 
 const same = (fact: FollowedFact, a: number | string | null, b: number | string) =>

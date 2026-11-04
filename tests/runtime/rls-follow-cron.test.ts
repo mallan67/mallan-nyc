@@ -126,6 +126,15 @@ describe('SL-0010 follows RLS20123633', () => {
     expect(data.raw_data).toMatchObject({ ListPrice: 1150000, salePrice: 1150000, AssociationFee: 1700, saleMaintCC: 1700, BuildingName: 'The Tudor', saleBldgName: 'The Tudor' });
   });
 
+  it('an older listing whose year and stories are only in raw_data gets them in the features bucket the public page reads (Codex, review of #690)', async () => {
+    findMany.mockResolvedValue([sl0010({ bedrooms_total: 8, bathrooms_full: 3, features: {}, raw_data: { saleRlsId: 'RLS20123633', YearBuilt: 1957, StoriesTotal: 18, RoomsTotal: 8, AssociationFee: 1588, AssociationFeeFrequency: 'Monthly' } })]);
+    const { body } = await run();
+    expect(body).toMatchObject({ changed: 1, unchanged: 0 });
+    const { data } = updateMany.mock.calls[0][0];
+    expect(data.features).toEqual({ YearBuilt: 1957, StoriesTotal: 18, RoomsTotal: 8, AssociationFee: 1588, AssociationFeeFrequency: 'Monthly' });
+    expect(data).not.toHaveProperty('bedrooms_total');            // the columns already agree
+  });
+
   it('a listing that already agrees with Cotality is not written, audited or revalidated (it runs every 10 minutes)', async () => {
     findMany.mockResolvedValue([sl0010({ bedrooms_total: 8, bathrooms_full: 3 })]);
     const { body } = await run();

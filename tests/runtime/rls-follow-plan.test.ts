@@ -93,9 +93,23 @@ describe('where each fact goes: the same place a save from the Sale form puts it
     expect(p.address).toEqual({ BuildingName: 'The Tudor' });
   });
 
-  it('a fact that is only in raw_data (an older save) is compared with it, not treated as new', () => {
-    const p = planRlsFollow({ list_price: 1, bedrooms_total: 1, bathrooms_full: 1, bathrooms_half: 1, living_area: 1, features: {}, address: {}, raw_data: { YearBuilt: '1957' } }, { YearBuilt: 1957 });
-    expect(p.changes).toEqual([]);
+  // Codex, review of #690: an older listing whose fact is only in raw_data has an empty public place (the features bucket the page reads, or the typed column). A raw_data fallback called such
+  // a fact "unchanged" and left the public place empty on every run.
+  it('a fact held only in raw_data (an older save) is written to the public bucket the page reads, every run until it is there', () => {
+    const older = { list_price: 1, bedrooms_total: 1, bathrooms_full: 1, bathrooms_half: 1, living_area: 1, features: {}, address: {}, raw_data: { YearBuilt: '1957', StoriesTotal: 18 } };
+    const p = planRlsFollow(older, { YearBuilt: 1957, StoriesTotal: 18 });
+    expect(p.changes).toEqual([{ field: 'YearBuilt', from: null, to: 1957 }, { field: 'StoriesTotal', from: null, to: 18 }]);
+    expect(p.features).toEqual({ YearBuilt: 1957, StoriesTotal: 18 });
+    // once the bucket holds it, the plan is empty
+    expect(planRlsFollow({ ...older, features: { YearBuilt: 1957, StoriesTotal: 18 } }, { YearBuilt: 1957, StoriesTotal: 18 }).changes).toEqual([]);
+  });
+
+  it('a typed column that is empty (null) while raw_data holds the number is filled too, and the building\'s name goes to the address bucket', () => {
+    const older = { list_price: 1200000, bedrooms_total: null, bathrooms_full: 3, bathrooms_half: 0, living_area: 1482, features: {}, address: {}, raw_data: { BedroomsTotal: 8, BuildingName: 'The Tudor' } };
+    const p = planRlsFollow(older, { BedroomsTotal: 8, BuildingName: 'The Tudor' });
+    expect(p.columns).toEqual({ bedrooms_total: 8 });
+    expect(p.address).toEqual({ BuildingName: 'The Tudor' });
+    expect(p.changes.map((c) => c.field)).toEqual(['BedroomsTotal', 'BuildingName']);
   });
 });
 
