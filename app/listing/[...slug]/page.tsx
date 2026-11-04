@@ -11,6 +11,7 @@ import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
 import AuctionBanner from '@/app/components/AuctionBanner';
 import InvestorCalculator from '@/app/components/InvestorCalculator';
+import { isCommercialSpace } from '@/lib/listings/is-commercial-space';
 import RentVsBuyCalculator from '@/app/components/RentVsBuyCalculator';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import ListingMediaGallery from '@/app/components/ListingMediaGallery';
@@ -1846,6 +1847,7 @@ export default async function ListingPage({ params }: Props) {
                     monthlyTaxes={listing.taxAnnualAmount ? Math.round(listing.taxAnnualAmount / 12) : 0}
                     bedrooms={listing.bedroomsTotal}
                     neighborhood={neighborhood || borough}
+                    isCommercial={isCommercialSpace(listing.propertyType, listing.propertySubType)}
                   />
                 ) : (
                   <RentVsBuyCalculator

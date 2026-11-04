@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import agentsJson from '@/data/agents.json';
+import { AGENT_CARDS_FETCH } from '@/lib/cache/agent-cards-cache';
 import ActiveListingsTabs from './listings/ActiveListingsTabs';
 import PastDealsSection from './PastDealsSection';
 import { getPastDeals } from './past-deals-loader';
@@ -87,7 +88,7 @@ async function getAgentListings(slug: string): Promise<{
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
       || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
     const res = await fetch(`${baseUrl}/api/agents/${slug}/listings`, {
-      next: { revalidate: 300 },
+      next: AGENT_CARDS_FETCH,
     });
     if (!res.ok) throw new Error(`${res.status}`);
     return await res.json();

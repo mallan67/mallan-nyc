@@ -13,6 +13,7 @@ import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs
 import { mapAgentCardMedia } from '@/lib/idx/agent-card-media';
 import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
 import type { IDXListing } from '@/lib/idx/types';
+import { AGENT_CARDS_CACHE_CONTROL } from '@/lib/cache/agent-cards-cache';
 
 /**
  * GET /api/agents/[slug]/listings
@@ -122,7 +123,7 @@ export async function GET(
           attribution: useIDX ? generateAttributionText() : 'Exclusive listings by Mallan Real Estate Inc.',
         },
       },
-      { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } }
+      { headers: { 'Cache-Control': AGENT_CARDS_CACHE_CONTROL } }
     );
   } catch (error) {
     console.error(`[/api/agents/${slug}/listings] Error:`, error instanceof Error ? error.message : error);
