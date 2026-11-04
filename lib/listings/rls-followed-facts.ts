@@ -14,6 +14,8 @@
  * tests/runtime/rls-follow-plan.test.ts holds this table to the Sale form's own follow list and field map, so the form and the server cannot drift.
  */
 
+import { IDENTITY_SELECT } from '@/lib/listings/rls-follow-identity';
+
 export type FollowedFact = {
   /** The live Cotality Property field. */
   cotality: string;
@@ -43,8 +45,8 @@ export const FOLLOWED_FACTS: readonly FollowedFact[] = [
   { cotality: 'BuildingName', kind: 'text', bucket: 'address', positiveOnly: false, raw: ['BuildingName', 'saleBldgName'] },
 ];
 
-/** The Cotality fields to ask for: the followed facts, and what proves the record is the listing's (its id and its office). */
-export const FOLLOW_SELECT = ['ListingId', 'ListingKey', 'ListOfficeMlsId', 'StandardStatus', ...FOLLOWED_FACTS.map((f) => f.cotality)];
+/** The Cotality fields to ask for: the followed facts, and what proves the record is the listing's (its id, its office, and its address and unit: rls-follow-identity.ts). */
+export const FOLLOW_SELECT = ['ListingId', 'ListingKey', 'ListOfficeMlsId', 'StandardStatus', ...IDENTITY_SELECT, ...FOLLOWED_FACTS.map((f) => f.cotality)];
 
 const NO_VALUE_TEXT = /^(null|undefined|none|n\/a)?$/i;
 

@@ -46,6 +46,8 @@ jest.mock('@/lib/idx/fetch', () => ({
   fetchFromTrestle: (...args: unknown[]) => mockFetchFromCotality(...args),
 }));
 // The Prisma-backed machine must never be evaluated for real in a unit test.
+// The follow of linked listings (lib/listings/rls-follow-run.ts) runs after the cycle on the Neon path; it has its own tests (rls-follow-cron.test.ts) and is not what this file is about.
+jest.mock('@/lib/listings/rls-follow-run', () => ({ runRlsFollow: jest.fn(async () => ({ httpStatus: 200, summary: { linked: 0, changed: 0, unchanged: 0, skipped: [], failed: [], duplicateLinks: [], notTheSameUnit: [], statusMismatch: [], timeBudgetReached: false } })) }));
 jest.mock('@/app/api/cron/one-cycle/route', () => ({
   GET: async () => new Response(JSON.stringify(mockCycleBody), { status: 200 }),
 }));

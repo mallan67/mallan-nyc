@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 /**
- * GET /api/cron/rls-follow — a Mallan listing follows the Cotality record of its RLS ID (Maya, 2026-11-04: "please connect it to the rls number ... realplus is feeding to cotality and cotality
+ * runRlsFollow (lib/listings/rls-follow-run.ts), reached here through its manual trigger GET /api/cron/rls-follow — a Mallan listing follows the Cotality record of its RLS ID (Maya, 2026-11-04: "please connect it to the rls number ... realplus is feeding to cotality and cotality
  * to me").
  *
  * The Cotality record below is the live one for RLS20123633 (read with the cron's own $select): bedrooms 8, full baths 3. SL-0010, linked to it, still held the numbers of the first pull.
@@ -10,6 +10,7 @@ import { NextRequest } from 'next/server';
 const findMany = jest.fn();
 const updateMany = jest.fn();
 const auditCreate = jest.fn(async () => ({}));
+const auditFindMany = jest.fn(async (..._a: unknown[]) => [] as Array<{ changes: unknown }>);
 const safeRevalidateTags = jest.fn();
 const dualWrite = jest.fn(async () => undefined);
 
@@ -17,7 +18,7 @@ jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
     listing: { findMany: (...a: unknown[]) => findMany(...a), updateMany: (...a: unknown[]) => updateMany(...a) },
-    auditEvent: { create: (...a: unknown[]) => auditCreate(...(a as [])) },
+    auditEvent: { create: (...a: unknown[]) => auditCreate(...(a as [])), findMany: (...a: unknown[]) => auditFindMany(...a) },
     // the update and the projection write run in one transaction: the callback gets a client, and a throw inside it is the rollback
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn({ listing: { updateMany: (...a: unknown[]) => updateMany(...a) } }),
   },
@@ -37,13 +38,14 @@ import { GET } from '@/app/api/cron/rls-follow/route';
 const LIVE = {
   BathroomsFull: 3, LivingArea: 1482, RoomsTotal: 8, BedroomsTotal: 8, BuildingName: null, AssociationFeeFrequency: 'Monthly', ListOfficeMlsId: '7041', BathroomsHalf: 0,
   ListPrice: 1200000, StandardStatus: 'Active', TaxAnnualAmount: null, ListingId: 'RLS20123633', AssociationFee: 1588, StoriesTotal: 18, YearBuilt: 1957, ListingKey: '1194314473',
+  StreetNumber: '800', StreetDirPrefix: null, StreetName: '2ND', StreetSuffix: 'Avenue', UnitNumber: '806', PostalCode: '10017',
 };
 const SAVED_AT = new Date('2026-11-03T16:28:40.683Z');
 const sl0010 = (over: Record<string, unknown> = {}) => ({
   id: BigInt(7), listing_id: 'SL-0010', status: 'Active', modification_timestamp: SAVED_AT,
   list_price: '1200000', bedrooms_total: 0, bathrooms_full: 2, bathrooms_half: 0, living_area: '1482',
   features: { YearBuilt: 1957, StoriesTotal: 18, RoomsTotal: 8, AssociationFee: 1588, AssociationFeeFrequency: 'Monthly' },
-  address: { StreetNumber: '800', StreetName: '2ND', PostalCode: '10017' },
+  address: { StreetNumber: '800', StreetName: '2nd Avenue', UnitNumber: '806', PostalCode: '10017' },
   raw_data: { saleRlsId: 'RLS20123633', saleBedrooms: '0', BedroomsTotal: 0, PublicRemarks: 'Our own description.', saleStatus: 'Active' },
   ...over,
 });
@@ -66,6 +68,7 @@ const run = async (secret: string | null = 's3cret') => {
 beforeEach(() => {
   process.env.CRON_SECRET = 's3cret';
   for (const m of [findMany, updateMany, auditCreate, safeRevalidateTags, dualWrite]) m.mockClear();
+  auditFindMany.mockReset().mockResolvedValue([]);
   findMany.mockReset().mockResolvedValue([sl0010()]);
   updateMany.mockReset().mockResolvedValue({ count: 1 });
   cotality([LIVE]);
@@ -102,7 +105,7 @@ describe('SL-0010 follows RLS20123633', () => {
     expect(asked[0]).toMatch(/\/odata\/Property\?/);
     expect(asked[0]).toContain("$filter=ListingId eq 'RLS20123633'");
     const select = (asked[0].match(/\$select=([^&]+)/)?.[1] ?? '').split(',');
-    expect(select).toEqual(expect.arrayContaining(['ListingId', 'ListOfficeMlsId', 'StandardStatus', 'ListPrice', 'BedroomsTotal', 'BathroomsFull']));
+    expect(select).toEqual(expect.arrayContaining(['ListingId', 'ListOfficeMlsId', 'StandardStatus', 'ListPrice', 'BedroomsTotal', 'BathroomsFull', 'StreetNumber', 'StreetName', 'UnitNumber', 'PostalCode']));
     for (const never of ['PublicRemarks', 'PrivateRemarks', 'ListAgentFullName', 'Permission']) expect(select).not.toContain(never);
     const where = findMany.mock.calls[0][0].where;
     expect(where.raw_data).toEqual({ path: ['saleRlsId'], string_starts_with: 'RLS' });
@@ -127,7 +130,7 @@ describe('SL-0010 follows RLS20123633', () => {
     const { data } = updateMany.mock.calls[0][0];
     expect(data.list_price).toBe(1150000);
     expect(data.features).toEqual({ YearBuilt: 1957, StoriesTotal: 18, RoomsTotal: 8, AssociationFee: 1700, AssociationFeeFrequency: 'Monthly' });
-    expect(data.address).toEqual({ StreetNumber: '800', StreetName: '2ND', PostalCode: '10017', BuildingName: 'The Tudor' });
+    expect(data.address).toEqual({ StreetNumber: '800', StreetName: '2nd Avenue', UnitNumber: '806', PostalCode: '10017', BuildingName: 'The Tudor' });
     expect(data.raw_data).toMatchObject({ ListPrice: 1150000, salePrice: 1150000, AssociationFee: 1700, saleMaintCC: 1700, BuildingName: 'The Tudor', saleBldgName: 'The Tudor' });
   });
 
@@ -233,11 +236,12 @@ describe('what it refuses to do', () => {
     expect(updateMany).not.toHaveBeenCalled();
   });
 
-  it('a listing Cotality no longer says is live (Closed, Withdrawn, Canceled, Expired) is not followed', async () => {
+  it('a listing Cotality no longer says is live (Closed, Withdrawn, Canceled, Expired) is not followed, and its status is not touched', async () => {
     for (const status of ['Closed', 'Withdrawn', 'Canceled', 'Expired']) {
       cotality([{ ...LIVE, StandardStatus: status }]);
       const { body } = await run();
       expect(body.skipped[0].reason).toMatch(new RegExp(`Cotality says the listing is ${status}`));
+      expect(body.skipped[0].reason).toMatch(/its status is left as it is/);
     }
     expect(updateMany).not.toHaveBeenCalled();
   });
@@ -268,9 +272,136 @@ describe('what it refuses to do', () => {
   });
 });
 
+describe('a listing the record is not the same unit as', () => {
+  const notFollowed = async (record: Record<string, unknown>, listing = sl0010()) => {
+    findMany.mockResolvedValue([listing]);
+    cotality([record]);
+    return run();
+  };
+
+  it('SL-0010 is the record\'s unit: "2nd Avenue" and "2ND" + "Avenue" are one street, 806 is 806, the ZIP agrees', async () => {
+    const { body } = await notFollowed(LIVE);
+    expect(body).toMatchObject({ changed: 1, notTheSameUnit: [] });
+  });
+
+  it('another unit in the same building is refused: a wrong RLS ID that is one of Mallan\'s own listings must not move that unit\'s price and rooms into this one', async () => {
+    const { body } = await notFollowed({ ...LIVE, UnitNumber: '807', BedroomsTotal: 2, ListPrice: 999000 });
+    expect(body.changed).toBe(0);
+    expect(body.notTheSameUnit).toEqual([{ listing_id: 'SL-0010', rls: 'RLS20123633', reason: 'the Cotality record is for 800 2ND Avenue #807, and this listing is 800 2nd Avenue #806' }]);
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(safeRevalidateTags).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['another street number', { StreetNumber: '802' }],
+    ['another street', { StreetName: '3RD' }],
+    ['another ZIP (both sides have one)', { PostalCode: '10022' }],
+    ['a unit on the record, none on the listing', {}],
+  ])('%s is refused', async (label, change) => {
+    const listing = label.startsWith('a unit on the record') ? sl0010({ address: { StreetNumber: '800', StreetName: '2nd Avenue', PostalCode: '10017' } }) : sl0010();
+    const { body } = await notFollowed({ ...LIVE, ...change }, listing);
+    expect(body.changed).toBe(0);
+    expect(body.notTheSameUnit).toHaveLength(1);
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it.each([['#806'], ['Apt 806'], [' 806 '], ['Unit 806']])('the unit written as %j is still unit 806', async (unit) => {
+    const { body } = await notFollowed({ ...LIVE, UnitNumber: unit });
+    expect(body).toMatchObject({ changed: 1, notTheSameUnit: [] });
+  });
+
+  it('a house (no unit on either side) is the record\'s house; a ZIP on one side only does not make a different house', async () => {
+    const house = { StreetNumber: '12', StreetName: 'East 90th Street' };
+    const { body } = await notFollowed({ ...LIVE, StreetNumber: '12', StreetName: 'E 90th', StreetSuffix: 'Street', UnitNumber: null, PostalCode: null }, sl0010({ address: { ...house } , postal_code: '10128' }));
+    expect(body).toMatchObject({ changed: 1, notTheSameUnit: [] });
+  });
+
+  it('a listing with no street address saved, or a record with none, cannot be proven and is refused', async () => {
+    expect((await notFollowed(LIVE, sl0010({ address: { PostalCode: '10017' } }))).body.notTheSameUnit[0].reason).toMatch(/no street address saved/);
+    expect((await notFollowed({ ...LIVE, StreetNumber: null, StreetName: null })).body.notTheSameUnit[0].reason).toMatch(/carries no street address/);
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it('the refusal is recorded once a day, not on every run', async () => {
+    await notFollowed({ ...LIVE, UnitNumber: '807' });
+    expect(auditCreate).toHaveBeenCalledTimes(1);
+    const data = (auditCreate.mock.calls[0] as unknown as [{ data: Record<string, any> }])[0].data;
+    expect(data).toMatchObject({ action: 'rls_follow_refused', entity_type: 'listing', entity_id: '7', user_type: 'system' });
+    expect(data.changes).toMatchObject({ listing_id: 'SL-0010', rls_id: 'RLS20123633', reason: 'not_the_same_unit' });
+    // the same reason, already recorded today: nothing more is written
+    auditFindMany.mockResolvedValue([{ changes: data.changes }]);
+    auditCreate.mockClear();
+    await notFollowed({ ...LIVE, UnitNumber: '807' });
+    expect(auditCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('one RLS ID, one Mallan listing', () => {
+  it('two listings that carry the same RLS ID are followed by neither, and the two ids are named', async () => {
+    findMany.mockResolvedValue([sl0010(), sl0010({ id: BigInt(9), listing_id: 'SL-0012' })]);
+    const { body } = await run();
+    expect(body.changed).toBe(0);
+    expect(body.duplicateLinks).toEqual([{ rls: 'RLS20123633', listings: ['SL-0010', 'SL-0012'] }]);
+    expect(body.skipped.map((x: { listing_id: string }) => x.listing_id).sort()).toEqual(['SL-0010', 'SL-0012']);
+    expect(body.skipped[0].reason).toMatch(/linked to 2 Mallan listings \(SL-0010, SL-0012\)/);
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(asked).toEqual([]);                                                // nothing to ask Cotality about
+  });
+
+  it('a lower-case link and an upper-case one are the same link', async () => {
+    findMany.mockResolvedValue([sl0010(), sl0010({ id: BigInt(9), listing_id: 'SL-0012', raw_data: { saleRlsId: 'rls20123633' } })]);
+    const { body } = await run();
+    expect(body.duplicateLinks).toHaveLength(1);
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it('the other listings are still followed', async () => {
+    findMany.mockResolvedValue([sl0010(), sl0010({ id: BigInt(9), listing_id: 'SL-0012' }), sl0010({ id: BigInt(8), listing_id: 'SL-0011', raw_data: { saleRlsId: 'RLS20123634' }, address: { StreetNumber: '801', StreetName: '2nd Avenue', UnitNumber: '9A', PostalCode: '10017' } })]);
+    cotality([{ ...LIVE, ListingId: 'RLS20123634', StreetNumber: '801', UnitNumber: '9A', BedroomsTotal: 3 }]);
+    const { body } = await run();
+    expect(body).toMatchObject({ changed: 1 });
+    expect(updateMany.mock.calls[0][0].where.id).toBe(BigInt(8));
+  });
+});
+
+describe('Cotality says the listing is no longer live', () => {
+  it('Withdrawn: the Mallan listing keeps its status (the public page is not changed by this job), the facts are not followed, and the difference is reported and recorded', async () => {
+    cotality([{ ...LIVE, StandardStatus: 'Withdrawn', BedroomsTotal: 1, ListPrice: 1 }]);
+    const { status, body } = await run();
+    expect(status).toBe(200);
+    expect(body.statusMismatch).toEqual([{ listing_id: 'SL-0010', rls: 'RLS20123633', cotalityStatus: 'Withdrawn' }]);
+    expect(updateMany).not.toHaveBeenCalled();                                // no status, no facts
+    expect(safeRevalidateTags).not.toHaveBeenCalled();
+    const data = (auditCreate.mock.calls[0] as unknown as [{ data: Record<string, any> }])[0].data;
+    expect(data).toMatchObject({ action: 'rls_follow_status_mismatch', entity_id: '7' });
+    expect(data.changes).toMatchObject({ listing_id: 'SL-0010', rls_id: 'RLS20123633', cotality_status: 'Withdrawn', mallan_status: 'Active' });
+  });
+
+  it('is recorded once a day per status, so a listing that stays withdrawn does not add a row every ten minutes', async () => {
+    cotality([{ ...LIVE, StandardStatus: 'Closed' }]);
+    await run();
+    const recorded = (auditCreate.mock.calls[0] as unknown as [{ data: Record<string, any> }])[0].data.changes;
+    auditFindMany.mockResolvedValue([{ changes: recorded }]);
+    auditCreate.mockClear();
+    await run();
+    expect(auditCreate).not.toHaveBeenCalled();
+    cotality([{ ...LIVE, StandardStatus: 'Withdrawn' }]);                      // a different status is a different fact
+    await run();
+    expect(auditCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failure to record never changes what the run does or says', async () => {
+    cotality([{ ...LIVE, StandardStatus: 'Withdrawn' }]);
+    auditFindMany.mockRejectedValue(new Error('audit down'));
+    const { status, body } = await run();
+    expect(status).toBe(200);
+    expect(body.statusMismatch).toHaveLength(1);
+  });
+});
+
 describe('the schedule', () => {
-  it('is registered in vercel.json every 10 minutes (the sync\'s own cadence)', () => {
+  it('has none of its own: vercel.json carries no cron for it (the One Cycle\'s preflight runs it after the cycle, on the Neon path only)', () => {
     const crons = (require('../../vercel.json') as { crons: Array<{ path: string; schedule: string }> }).crons;
-    expect(crons).toContainEqual({ path: '/api/cron/rls-follow', schedule: '*/10 * * * *' });
+    expect(crons.find((c) => c.path === '/api/cron/rls-follow')).toBeUndefined();
   });
 });
