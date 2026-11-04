@@ -5682,6 +5682,10 @@ async function saleFollowCotality(opts) {
         if (!resp.ok || !body.record) { _saleFollowShow('error', 'Cotality could not be checked just now' + (body.error ? ' (' + body.error + ')' : '') + '. The facts shown are the ones saved with this listing.'); return; }
         if (!_saleFollow.loaded) _saleFollowSnapshot();
         var changed = [], kept = [];
+        // The change events below run the form's own handlers (totals, rules), and a change event also schedules the autosave, which in edit mode SAVES TO THE SERVER: the banner says nothing is
+        // saved until Submit, so the autosave is held off while the facts are applied (Codex, review of #688). The agent's own next edit autosaves as it always did.
+        window._salePopulateInProgress = true;
+        try {
         _saleFollowTargets(body.record).forEach(function (t) {
             var el = document.getElementById(t.id);
             if (!el || el.disabled || el.readOnly) return;
@@ -5698,6 +5702,7 @@ async function saleFollowCotality(opts) {
             _saleFollow.loaded[t.id] = String(el.value);
             changed.push(_saleFollowLabel(el) + ' ' + (now === '' ? 'blank' : now) + ' \u2192 ' + next);
         });
+        } finally { window._salePopulateInProgress = false; clearTimeout(autoSaveTimer); }
         var when = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         var keptText = kept.length ? ' Not replaced, because you changed them here: ' + kept.join('; ') + '.' : '';
         if (changed.length) _saleFollowShow('changed', 'Updated from Cotality (RLS ID ' + rls + ', checked ' + when + '): ' + changed.join('; ') + '. Press Submit to save them.' + keptText);
