@@ -19,7 +19,7 @@ describe('parseRecipientFile — CSV', () => {
       + 'unknown@example.com,Unknown,,APPROVED\n';
     const r = await parseRecipientFile(buf(csv), 'scanner-research.csv');
     expect(r.recipients).toEqual([{ email: 'cleared@example.com', name: 'Cleared' }]);
-    expect(r.counts).toMatchObject({ total: 3, valid: 1, invalid: 2 });
+    expect(r.counts).toMatchObject({ total: 3, valid: 1, held: 2, invalid: 0 });
   });
 
   it('honors approved_for_eblast and spaced Eblast eligibility headers', async () => {
@@ -28,7 +28,7 @@ describe('parseRecipientFile — CSV', () => {
       + 'yes@example.com,Yes,YES,APPROVED\n';
     const r = await parseRecipientFile(buf(csv), 'reviewed.csv');
     expect(r.recipients).toEqual([{ email: 'yes@example.com', name: 'Yes' }]);
-    expect(r.counts.invalid).toBe(1);
+    expect(r.counts.held).toBe(1);
   });
 
   it('parses a headered Email/Name CSV', async () => {
