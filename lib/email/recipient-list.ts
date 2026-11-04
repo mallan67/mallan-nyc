@@ -120,6 +120,17 @@ function extractRecipients(rows: string[][]): RecipientParseResult {
 
   const header = rows[0].map((c) => c.trim().toLowerCase());
   const hasHeader = header.some((h) => EMAIL_HEADERS.has(h));
+  // Research-export eligibility is a send gate, not an informational column.
+  // Without this, a BLOCKED_REVIEW file was reduced to {email,name} and
+  // could be sent as though its source had approved the addresses.
+  const eligibilityColumns = ['send_eligibility', 'outreach_permission',
+    'permission_status', 'approved_for_eblast', 'eblast_eligibility'];
+  const eligibilityIndices = hasHeader
+    ? header.map((h, i) => ({ h: h.replace(/\\s+/g, '_'), i }))
+      .filter((p) => eligibilityColumns.includes(p.h)).map((p) => p.i)
+    : [];
+  const approved = new Set(['APPROVED', 'SEND_APPROVED', 'SEND_READY',
+    'CLEARED', 'YES', 'TRUE', '1']);
 
   let emailIdx: number, nameIdx: number, firstIdx = -1, lastIdx = -1;
   if (hasHeader) {
@@ -141,6 +152,13 @@ function extractRecipients(rows: string[][]): RecipientParseResult {
     counts.total++;
     const rawEmail = (r[emailIdx] ?? "").trim();
     if (!rawEmail) { counts.missing++; continue; }
+    // An explicit HOLD, missing approval, or contradictory eligibility column
+    // must never flow into the deliverable audience. Plain opted-in Email/Name
+    // files without research-export gates retain their existing behavior.
+    if (eligibilityIndices.some((i) => !approved.has((r[i] ?? '').trim().toUpperCase()))) {
+      counts.invalid++;
+      continue;
+    }
 
     const email = rawEmail.toLowerCase();
     if (!EMAIL_RE.test(email)) {
