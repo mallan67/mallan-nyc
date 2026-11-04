@@ -15,7 +15,12 @@ const dualWrite = jest.fn(async () => undefined);
 
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
-  default: { listing: { findMany: (...a: unknown[]) => findMany(...a), updateMany: (...a: unknown[]) => updateMany(...a) }, auditEvent: { create: (...a: unknown[]) => auditCreate(...(a as [])) } },
+  default: {
+    listing: { findMany: (...a: unknown[]) => findMany(...a), updateMany: (...a: unknown[]) => updateMany(...a) },
+    auditEvent: { create: (...a: unknown[]) => auditCreate(...(a as [])) },
+    // the update and the projection write run in one transaction: the callback gets a client, and a throw inside it is the rollback
+    $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn({ listing: { updateMany: (...a: unknown[]) => updateMany(...a) } }),
+  },
 }));
 jest.mock('@/lib/idx/auth', () => ({ getAccessToken: jest.fn(async () => 'test-token') }));
 jest.mock('@/lib/idx/media-sync', () => ({ buildMallanOwnedListingWhere: () => ({ OR: [{ listing_id: { startsWith: 'SL-' } }, { listing_id: { startsWith: 'RL-' } }] }) }));
@@ -149,6 +154,49 @@ describe('SL-0010 follows RLS20123633', () => {
     const { body } = await run();
     expect(body).toMatchObject({ linked: 0, changed: 0 });
     expect(asked).toEqual([]);
+  });
+});
+
+describe('every linked listing is read, not the first 100 (Codex, review of #690)', () => {
+  it('reads the listings a page at a time by id, with a cursor, until a short page, and follows all 250 of them', async () => {
+    const all = Array.from({ length: 250 }, (_, i) => sl0010({ id: BigInt(i + 1), listing_id: `SL-${String(i + 1).padStart(4, '0')}`, raw_data: { saleRlsId: `RLS2000${String(1000 + i)}` } }));
+    findMany.mockReset().mockImplementation(async ({ where, take }: { where: { id?: { gt: bigint } }; take: number }) => all.filter((l) => !where.id || l.id > where.id.gt).slice(0, take));
+    cotality(all.map((l, i) => ({ ...LIVE, ListingId: `RLS2000${String(1000 + i)}` })));
+    // Cotality answers each chunk of ids with only the records asked for
+    global.fetch = jest.fn(async (url: string) => {
+      const asked = [...decodeURIComponent(String(url).replace(/\+/g, ' ')).matchAll(/ListingId eq '(RLS\d+)'/g)].map((m) => m[1]);
+      return { ok: true, status: 200, json: async () => ({ value: asked.map((id) => ({ ...LIVE, ListingId: id })) }) };
+    }) as unknown as typeof fetch;
+    const { body } = await run();
+    expect(body).toMatchObject({ linked: 250, changed: 250, capped: false, timeBudgetReached: false });
+    expect(findMany).toHaveBeenCalledTimes(3);                                              // 100 + 100 + 50
+    const cursors = findMany.mock.calls.map((c) => c[0].where.id?.gt ?? null);
+    expect(cursors).toEqual([null, BigInt(100), BigInt(200)]);
+    for (const c of findMany.mock.calls) expect(c[0].orderBy).toEqual({ id: 'asc' });
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(13);                        // 250 RLS IDs, 20 to a request
+  });
+});
+
+describe('a projection write that fails does not leave search stale for good (Codex, review of #690)', () => {
+  it('the update and the projection are one transaction: a failing projection fails the listing (reported), and nothing is audited or revalidated, so the next run tries again', async () => {
+    const logged = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    dualWrite.mockRejectedValueOnce(new Error('projection down'));
+    const { body } = await run();
+    expect(body).toMatchObject({ changed: 0 });
+    expect(body.failed).toEqual([{ listing_id: 'SL-0010', error: 'projection down' }]);
+    expect(auditCreate).not.toHaveBeenCalled();
+    expect(safeRevalidateTags).not.toHaveBeenCalled();
+    logged.mockRestore();
+    // the next run: the projection answers, the same difference is found again, and the listing is followed
+    const next = await run();
+    expect(next.body).toMatchObject({ changed: 1, failed: [] });
+    expect(dualWrite).toHaveBeenCalledTimes(2);
+  });
+
+  it('the projection is written with the transaction\'s client, after the update', async () => {
+    await run();
+    expect(dualWrite).toHaveBeenCalledWith(expect.objectContaining({ listing: expect.objectContaining({ updateMany: expect.any(Function) }) }), 'SL-0010');
+    expect(updateMany.mock.invocationCallOrder[0]).toBeLessThan(dualWrite.mock.invocationCallOrder[0]);
   });
 });
 

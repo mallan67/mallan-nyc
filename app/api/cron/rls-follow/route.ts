@@ -33,7 +33,11 @@ export const maxDuration = 60;
 // A Draft is the agent's own work in progress and is left alone; a closed, withdrawn or expired listing is no longer followed.
 const NOT_CLOSED = ['Active', 'ActiveUnderContract', 'ComingSoon', 'Pending'];
 const COTALITY_LIVE = new Set(['Active', 'ActiveUnderContract', 'ComingSoon', 'Pending']);
-const MAX_LISTINGS = 100;
+// Every linked listing is read, a page at a time by id (a fixed `take` would read the same first rows on every run and starve the rest: Codex, review of #690). Mallan has tens of linked
+// listings; the page cap is a sanity bound, and the time budget keeps one run inside maxDuration (what it did not reach is reported, and is read again by the next run).
+const PAGE_SIZE = 100;
+const MAX_PAGES = 50;
+const TIME_BUDGET_MS = 45_000;
 
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
@@ -44,21 +48,34 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const linked = await prisma.listing.findMany({
-    where: {
-      AND: [buildMallanOwnedListingWhere()],
-      status: { in: NOT_CLOSED },
-      raw_data: { path: ['saleRlsId'], string_starts_with: 'RLS' },
-    },
-    select: {
-      id: true, listing_id: true, status: true, modification_timestamp: true,
-      list_price: true, bedrooms_total: true, bathrooms_full: true, bathrooms_half: true, living_area: true,
-      features: true, address: true, raw_data: true,
-    },
-    take: MAX_LISTINGS,
-  });
+  const started = Date.now();
+  const select = {
+    id: true, listing_id: true, status: true, modification_timestamp: true,
+    list_price: true, bedrooms_total: true, bathrooms_full: true, bathrooms_half: true, living_area: true,
+    features: true, address: true, raw_data: true,
+  } as const;
+  const linked: Array<Prisma.ListingGetPayload<{ select: typeof select }>> = [];
+  let cursor: bigint | null = null;
+  let capped = false;
+  for (let page = 0; ; page++) {
+    if (page >= MAX_PAGES) { capped = true; break; }
+    const rows: typeof linked = await prisma.listing.findMany({
+      where: {
+        AND: [buildMallanOwnedListingWhere()],
+        status: { in: NOT_CLOSED },
+        raw_data: { path: ['saleRlsId'], string_starts_with: 'RLS' },
+        ...(cursor !== null ? { id: { gt: cursor } } : {}),
+      },
+      orderBy: { id: 'asc' },
+      take: PAGE_SIZE,
+      select,
+    });
+    linked.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+    cursor = rows[rows.length - 1].id;
+  }
 
-  const summary = { linked: linked.length, changed: 0, unchanged: 0, skipped: [] as Array<{ listing_id: string; reason: string }>, failed: [] as Array<{ listing_id: string; error: string }> };
+  const summary = { linked: linked.length, changed: 0, unchanged: 0, capped, timeBudgetReached: false, skipped: [] as Array<{ listing_id: string; reason: string }>, failed: [] as Array<{ listing_id: string; error: string }> };
   if (!linked.length) return NextResponse.json(summary);
 
   const byRls = new Map<string, typeof linked>();
@@ -77,6 +94,7 @@ export async function GET(req: NextRequest) {
 
   const tags = new Set<string>();
   for (const [rls, listings] of byRls) {
+    if (Date.now() - started > TIME_BUDGET_MS) { summary.timeBudgetReached = true; break; }
     const record = fetched.records.get(rls);
     if (!record) {
       for (const l of listings) summary.skipped.push({ listing_id: l.listing_id, reason: refusedBy.get(rls) ?? 'Cotality did not answer for this RLS ID' });
@@ -98,9 +116,16 @@ export async function GET(req: NextRequest) {
         };
         if (Object.keys(plan.features).length) data.features = { ...obj(l.features), ...plan.features } as Prisma.InputJsonValue;
         if (Object.keys(plan.address).length) data.address = { ...obj(l.address), ...plan.address } as Prisma.InputJsonValue;
-        // compare-and-set: a listing saved in the CRM since it was read is left alone and tried again on the next run
-        const done = await prisma.listing.updateMany({ where: { id: l.id, modification_timestamp: l.modification_timestamp }, data });
-        if (done.count !== 1) { summary.skipped.push({ listing_id: l.listing_id, reason: 'saved meanwhile: tried again on the next run' }); continue; }
+        // compare-and-set: a listing saved in the CRM since it was read is left alone and tried again on the next run. The search projection (price, bedrooms, baths, area and the
+        // modification time are mirrored there) is written in the SAME transaction: if it fails the update is rolled back, so the next run sees the same difference and tries again
+        // (Codex, review of #690: a swallowed projection failure left search stale for good).
+        const written = await prisma.$transaction(async (tx) => {
+          const done = await tx.listing.updateMany({ where: { id: l.id, modification_timestamp: l.modification_timestamp }, data });
+          if (done.count !== 1) return false;
+          await dualWriteProjectionForListingId(tx as unknown as Parameters<typeof dualWriteProjectionForListingId>[0], l.listing_id);
+          return true;
+        });
+        if (!written) { summary.skipped.push({ listing_id: l.listing_id, reason: 'saved meanwhile: tried again on the next run' }); continue; }
         summary.changed++;
         tags.add(listingCacheTag(l.listing_id));
         for (const t of buildingAndManifestInvalidationTags(l.address)) tags.add(t);
@@ -114,9 +139,6 @@ export async function GET(req: NextRequest) {
             changes: { listing_id: l.listing_id, rls_id: rls, source: 'cotality', changes: plan.changes } as unknown as Prisma.InputJsonValue,
           },
         }).catch(() => { /* a logging failure must not undo the update */ });
-        try { await dualWriteProjectionForListingId(prisma, l.listing_id); } catch (err) {
-          console.error('[cron/rls-follow] projection dual-write failed for', l.listing_id, err instanceof Error ? err.message : err);
-        }
       } catch (err) {
         summary.failed.push({ listing_id: l.listing_id, error: err instanceof Error ? err.message : String(err) });
       }
