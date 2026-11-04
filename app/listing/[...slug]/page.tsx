@@ -478,6 +478,10 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
           internet_entire_listing_display_yn: true,
           idx_display_yn: true,
           status: true,
+          // The raw type decides "unit" or "apt" in the twin's slug (slugUnitWord). Without it a commercial
+          // twin's redirect target said "apt", and the page then redirected that again to "unit".
+          property_type: true,
+          property_sub_type: true,
         },
       });
       // `slug` is DERIVED, not a column. Use the shared owner so the redirect

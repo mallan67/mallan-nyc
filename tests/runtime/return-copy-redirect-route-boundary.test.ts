@@ -132,6 +132,8 @@ const LOCAL_TWIN = {
   internet_entire_listing_display_yn: true,
   idx_display_yn: false,
   status: 'Active',
+  property_type: 'Residential',
+  property_sub_type: null,
 };
 
 beforeEach(() => {
@@ -170,6 +172,22 @@ describe('ListingPage on a return-copy URL', () => {
     expect(mockPermanentRedirect).toHaveBeenCalledWith(EXPECTED_TARGET);
     // A 307 would leave the return-copy URL canonical for crawlers.
     expect(mockRedirect).not.toHaveBeenCalled();
+  });
+
+  it('a commercial twin: ONE redirect, to the canonical \"unit\" URL, never through an \"apt\" one (the lookup reads the twin\'s raw type)', async () => {
+    mockFindMany.mockResolvedValue([{ ...LOCAL_TWIN, property_type: 'Commercial', property_sub_type: 'Commercial Condo' }]);
+    const mod = await import('@/app/listing/[...slug]/page');
+    await expect((mod.default as PageFn)(PARAMS)).rejects.toThrow(/NEXT_PERMANENT_REDIRECT/);
+    expect(mockPermanentRedirect).toHaveBeenCalledTimes(1);
+    expect(mockPermanentRedirect).toHaveBeenCalledWith('/listing/333-east-46th-street-unit-2g-new-york-ny-10017/sl-0999');
+    expect(mockPermanentRedirect).not.toHaveBeenCalledWith(expect.stringContaining('-apt-'));
+  });
+
+  it('the twin lookup asks the database for the raw type and subtype (the mock above answers whatever it is asked, so the select itself is checked)', async () => {
+    const mod = await import('@/app/listing/[...slug]/page');
+    await (mod.default as PageFn)(PARAMS).catch(() => undefined);
+    const select = (mockFindMany.mock.calls[0]?.[0] as { select: Record<string, boolean> }).select;
+    expect(select).toMatchObject({ property_type: true, property_sub_type: true });
   });
 
   it('still attaches the SOURCE return-copy cache tag', async () => {

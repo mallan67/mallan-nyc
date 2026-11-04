@@ -443,6 +443,8 @@ export function dbListingToPublicDTO(
     rls_eligible?: boolean | null;
     address?: unknown;
     borough?: string | null;
+    property_type: string | null;
+    property_sub_type: string | null;
   });
 
   const listPrice = numericOf(listing.list_price) ?? 0;

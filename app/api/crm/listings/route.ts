@@ -662,6 +662,8 @@ export async function POST(req: NextRequest) {
       rls_eligible: true,
       internet_entire_listing_display_yn: true,
       internet_address_display_yn: true,
+      property_type: true,
+      property_sub_type: true,
     },
   });
   const urls = createdListing
@@ -672,6 +674,8 @@ export async function POST(req: NextRequest) {
         rls_eligible?: boolean | null;
         internet_entire_listing_display_yn?: boolean | null;
         internet_address_display_yn?: boolean | null;
+        property_type?: string | null;
+        property_sub_type?: string | null;
       })
     : { publicUrl: null, realPlusUrl: null };
 

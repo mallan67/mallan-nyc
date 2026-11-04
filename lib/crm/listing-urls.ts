@@ -28,6 +28,9 @@ interface ListingForUrl {
   rls_eligible?: boolean | null;
   internet_entire_listing_display_yn?: boolean | null;
   internet_address_display_yn?: boolean | null;
+  /** The raw type: a commercial space's public URL says "unit", not "apt" (slugUnitWord). */
+  property_type?: string | null;
+  property_sub_type?: string | null;
 }
 
 export function buildListingUrls(listing: ListingForUrl): {
@@ -56,6 +59,8 @@ export function buildListingUrls(listing: ListingForUrl): {
     id: listing.listing_id,
     mlsId: listing.listing_id,
     internetAddressDisplayYN: addressDisplayable,
+    propertyType: listing.property_type,
+    propertySubType: listing.property_sub_type,
   });
 
   // Canonical URL guard: a published CRM listing with displayable address
