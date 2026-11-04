@@ -47,7 +47,11 @@ describe('the window the agent cards may be stale', () => {
     }
   });
 
-  it('the 5-minute timer stays as the safety net, so a quiet agent page costs the database nothing more than before', () => {
-    expect(AGENT_CARDS_FETCH.revalidate).toBe(300);
+  it('the page\'s copy lives no longer than the endpoint\'s: a view in the last seconds of the endpoint\'s 60 s refills the page with the OLD cards, and that refill must not outlive the window (Codex, #689)', () => {
+    const endpointSeconds = Number(AGENT_CARDS_CACHE_CONTROL.match(/s-maxage=(\d+)/)?.[1]);
+    expect(endpointSeconds).toBe(60);
+    expect(AGENT_CARDS_FETCH.revalidate).toBeLessThanOrEqual(endpointSeconds);
+    // so the worst case after a save is the endpoint's 60 s plus the page's 60 s
+    expect(endpointSeconds + AGENT_CARDS_FETCH.revalidate).toBeLessThanOrEqual(120);
   });
 });
