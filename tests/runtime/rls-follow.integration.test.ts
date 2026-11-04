@@ -11,6 +11,9 @@
  * Gating: runs ONLY when ONE_CYCLE_DB_INTEGRATION_URL is set (CI points it at the ephemeral PostgreSQL service; a local run needs a throwaway database). It never connects to production Neon:
  * @/lib/prisma (which would read .env.local) is replaced here by a client built from that URL.
  */
+// A module (not a script), so its `integrationUrl` is not a global that lead-upsert.integration.test.ts's collides with (tsc: TS2451).
+export {};
+
 const integrationUrl = process.env.ONE_CYCLE_DB_INTEGRATION_URL;
 
 if (!integrationUrl) {
