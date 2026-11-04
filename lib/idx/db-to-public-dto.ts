@@ -16,6 +16,7 @@
  */
 
 import type { PublicListingDTO } from './public-dto';
+import { isCommercialSpace } from '@/lib/listings/is-commercial-space';
 import { resolveMoveInFees } from './public-dto';
 import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { publicListOfficeName } from './public-attribution';
@@ -545,6 +546,8 @@ export function dbListingToPublicDTO(
       listing.property_type || 'Residential',
     ),
     propertySubType: listing.property_sub_type,
+    // from the RAW type (CommercialSale, Commercial, Office ...): the public propertyType above is the subtype for a commercial sale ("Business"), which names nothing commercial
+    isCommercial: isCommercialSpace(listing.property_type, listing.property_sub_type),
     bedroomsTotal: listing.bedrooms_total || 0,
     bathroomsFull: listing.bathrooms_full || 0,
     bathroomsHalf: listing.bathrooms_half || 0,

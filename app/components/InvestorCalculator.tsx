@@ -9,6 +9,12 @@ interface InvestorCalculatorProps {
   monthlyTaxes?: number;
   bedrooms?: number;
   neighborhood?: string;
+  /** A commercial space (an office, a medical office, a shop) is rented space by space: no rent is assumed for it. */
+  isCommercial?: boolean;
+  /** The monthly rent the listing itself states; the calculator opens at it. */
+  expectedMonthlyRent?: number;
+  /** Open the panel at first render (the page starts it closed). */
+  defaultExpanded?: boolean;
 }
 
 export default function InvestorCalculator({
@@ -17,11 +23,18 @@ export default function InvestorCalculator({
   monthlyTaxes = 0,
   bedrooms = 1,
   neighborhood: _neighborhood = '',
+  isCommercial = false,
+  expectedMonthlyRent,
+  defaultExpanded = false,
 }: InvestorCalculatorProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [downPaymentPercent, setDownPaymentPercent] = useState(25);
   const [interestRate, setInterestRate] = useState(7.0);
   const [estimatedRent, setEstimatedRent] = useState(() => {
+    // The rent the listing states opens the calculator at that figure.
+    if (expectedMonthlyRent && expectedMonthlyRent > 0) return expectedMonthlyRent;
+    // A commercial space has no bedroom-based rent: a studio's $2,500 is not an office's rent (Maya, 2026-11-04). The visitor enters it.
+    if (isCommercial) return 0;
     // NYC average rents by bedroom (rough estimates)
     const rentEstimates: { [key: number]: number } = {
       0: 2500,  // Studio
@@ -164,6 +177,7 @@ export default function InvestorCalculator({
       maintenanceFee, monthlyTaxes, annualAppreciation, holdingPeriod]);
 
   const isPositiveCashFlow = calculations.monthlyCashFlow > 0;
+  const hasRent = estimatedRent > 0;
 
   return (
     <div className="glass-card rounded-3xl overflow-hidden">
@@ -192,6 +206,8 @@ export default function InvestorCalculator({
 
       {isExpanded && (
         <div className="px-6 pb-6 border-t border-black/5">
+          {hasRent ? (
+          <>
           {/* Key Metrics Summary */}
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
@@ -238,6 +254,13 @@ export default function InvestorCalculator({
             </div>
           </div>
 
+          </>
+          ) : (
+          <div className="mt-4 p-3 rounded-2xl bg-gray-50/60 text-sm text-brand-dark/85" role="note">
+            Enter the monthly rent you expect for this space, under Investment Parameters, to see its cap rate, cash flow and return. A commercial space is rented space by space, so no rent is assumed.
+          </div>
+          )}
+
           {/* Inputs */}
           <div className="mt-6 space-y-4">
             <h4 className="font-display font-medium text-brand-dark text-sm">Investment Parameters</h4>
@@ -249,7 +272,8 @@ export default function InvestorCalculator({
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-dark/90">$</span>
                   <input
                     type="number"
-                    value={estimatedRent}
+                    value={estimatedRent > 0 ? estimatedRent : ''}
+                    placeholder="e.g. 8,500"
                     onChange={(e) => setEstimatedRent(Number(e.target.value))}
                     className="w-full pl-7 pr-3 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                   />
@@ -330,6 +354,8 @@ export default function InvestorCalculator({
             </div>
           </div>
 
+          {hasRent && (
+          <>
           {/* Financial Breakdown */}
           <div className="mt-6 pt-4 border-t border-black/5">
             <h4 className="font-display font-medium text-brand-dark text-sm mb-3">Monthly Breakdown</h4>
@@ -411,6 +437,9 @@ export default function InvestorCalculator({
             </div>
           </div>
 
+          </>
+          )}
+
           <p className="mt-4 text-xs text-brand-dark/90">
             *Estimates only. Assumes 4% closing costs, 6% selling costs, 3% annual rent growth, 2% expense growth.
             Consult a financial advisor and tax professional for investment decisions.
@@ -418,8 +447,8 @@ export default function InvestorCalculator({
 
           <CalculatorLeadCapture
             calculatorType="investor"
-            hasCalculated={isExpanded}
-            resultsSummary={`Price: $${purchasePrice.toLocaleString()}. Cap rate: ${calculations.capRate}%. Cash on cash: ${calculations.cashOnCash}%. Monthly cash flow: $${calculations.monthlyCashFlow.toLocaleString()}.`}
+            hasCalculated={isExpanded && hasRent}
+            resultsSummary={hasRent ? `Price: $${purchasePrice.toLocaleString()}. Cap rate: ${calculations.capRate}%. Cash on cash: ${calculations.cashOnCash}%. Monthly cash flow: $${calculations.monthlyCashFlow.toLocaleString()}.` : `Price: $${purchasePrice.toLocaleString()}. No rent entered.`}
           />
         </div>
       )}

@@ -12,6 +12,7 @@
  */
 
 import type { IDXListing } from './types';
+import { isCommercialSpace } from '@/lib/listings/is-commercial-space';
 import { generateListingSlug, stripListingIdSuffix } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { isComingSoonStatus } from '@/lib/compliance/status';
@@ -180,6 +181,8 @@ export interface PublicListingDTO {
   closePrice: number | null;
   propertyType: string;
   propertySubType: string | null;
+  /** The listing's RAW Cotality / Mallan property type says it is a commercial space (CommercialSale with a subtype such as Business, whose public propertyType is that subtype). */
+  isCommercial?: boolean;
   bedroomsTotal: number;
   bathroomsFull: number;
   bathroomsHalf: number;
@@ -445,6 +448,7 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     closePrice: listing.closePrice,
     propertyType: mapPropertyTypeToDisplay(listing.commonInterest, listing.propertySubType, listing.propertyType),
     propertySubType: listing.propertySubType,
+    isCommercial: isCommercialSpace(listing.propertyType, listing.propertySubType),
     bedroomsTotal: listing.bedroomsTotal,
     bathroomsFull: listing.bathroomsFull,
     bathroomsHalf: listing.bathroomsHalf,
