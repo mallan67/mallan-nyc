@@ -15,6 +15,8 @@ const baseRow = (over: Record<string, unknown> = {}) => ({
   listing_id: 'SL-0004',
   rls_eligible: false,
   borough: 'Manhattan',
+  property_type: 'Residential',
+  property_sub_type: null,
   address: {
     StreetNumber: '333',
     StreetDirPrefix: 'E',

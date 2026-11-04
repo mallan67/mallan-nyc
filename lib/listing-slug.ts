@@ -440,6 +440,12 @@ export function buildListingSlugFromDbRow(row: {
   rls_eligible?: boolean | null;
   address?: unknown;
   borough?: string | null;
+  /**
+   * REQUIRED, not optional: the raw type decides "unit" or "apt" in the slug (slugUnitWord). A caller's select that left them out would build the "apt" slug for a commercial space, and a
+   * redirect to it would then be redirected again to the real canonical (the Cotality return-copy lookup did exactly that). With the keys required, such a select does not compile.
+   */
+  property_type: string | null;
+  property_sub_type: string | null;
   [key: string]: unknown;
 }): string {
   // Imported lazily-by-reference at module scope would create a cycle
