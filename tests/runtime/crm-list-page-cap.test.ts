@@ -135,6 +135,10 @@ import { GET as leadsGET } from '@/app/api/crm/leads/route';
 import { GET as clientsGET } from '@/app/api/crm/clients/route';
 import { GET as listingsGET } from '@/app/api/crm/listings/route';
 
+// The listings route reads twice now: a small read of her own set (to leave the Cotality copy of a live listing out of the list, 2026-11-04) and the list
+// itself. These probes are about the list, which is the call that has a page size.
+const listQueryArg = () => listingFindMany.mock.calls.map((c) => c[0]).find((a) => a && (a as { take?: number }).take !== undefined);
+
 function clearAll() {
   leadFindMany.mockClear();
   leadCount.mockClear();
@@ -221,22 +225,22 @@ describe('PR-CRM.4 — listings GET enforces the [1, 200] cap at runtime', () =>
   it('?limit=99999 is capped to 200', async () => {
     const req = makeGetRequest('http://localhost/api/crm/listings?limit=99999');
     await listingsGET(req);
-    expect(listingFindMany).toHaveBeenCalledTimes(1);
-    const firstArg = listingFindMany.mock.calls[0][0] as { take: number };
+    expect(listingFindMany).toHaveBeenCalledTimes(2);                  // her own set (duplicate check) + the list
+    const firstArg = listQueryArg() as { take: number };
     expect(firstArg.take).toBe(200);
   });
 
   it('?limit=50 passes through unchanged', async () => {
     const req = makeGetRequest('http://localhost/api/crm/listings?limit=50');
     await listingsGET(req);
-    const firstArg = listingFindMany.mock.calls[0][0] as { take: number };
+    const firstArg = listQueryArg() as { take: number };
     expect(firstArg.take).toBe(50);
   });
 
   it('?limit=abc falls back to safe default + does not pass NaN to Prisma', async () => {
     const req = makeGetRequest('http://localhost/api/crm/listings?limit=abc');
     await listingsGET(req);
-    const firstArg = listingFindMany.mock.calls[0][0] as { take: number };
+    const firstArg = listQueryArg() as { take: number };
     expect(firstArg.take).toBe(50);
     expect(Number.isNaN(firstArg.take)).toBe(false);
   });
@@ -259,7 +263,7 @@ describe('PR-CRM.4 — pre-existing behavior is preserved', () => {
   it('listings route still honors ?type and ?status filters', async () => {
     const req = makeGetRequest('http://localhost/api/crm/listings?type=sale&status=Active&limit=50');
     await listingsGET(req);
-    const firstArg = listingFindMany.mock.calls[0][0] as unknown as { where: Record<string, unknown> };
+    const firstArg = listQueryArg() as unknown as { where: Record<string, unknown> };
     expect(firstArg.where.listing_type).toBe('sale');
     expect(firstArg.where.status).toBe('Active');
   });

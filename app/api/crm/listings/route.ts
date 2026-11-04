@@ -21,6 +21,7 @@ import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
 import { MALLAN_LIST_OFFICE_MLS_IDS } from "@/lib/listings/mallan-source-identity";
+import { cotalityCopiesOfOwnListings } from "@/lib/listings/dedupe-crm-vs-idx";
 import { assertRlsLinkFree, rlsLinkConflictBody, rlsLinkOf, RlsLinkConflict } from "@/lib/listings/rls-link";
 import type { Prisma } from "@prisma/client";
 
@@ -74,6 +75,9 @@ export async function GET(req: NextRequest) {
     where.AND = [{ OR: mallanOwn }, { OR: mine }];
   }
 
+  // The set the duplicate check reads: everything of hers this agent can see, BEFORE the tab / status / client filters below narrow it.
+  const ownScope = { ...where };
+
   if (type) where.listing_type = type;
   if (status) where.status = status;
 
@@ -84,6 +88,13 @@ export async function GET(req: NextRequest) {
     if (!ownerId) return NextResponse.json({ error: "Invalid owner_client_id" }, { status: 400 });
     where.owner_client_id = ownerId;
   }
+
+  // One listing, one row (Maya, 2026-11-04: "on the crm i have still two of the same listing"). Her own listing comes back through Cotality as an
+  // RLS* row and both were listed. The Cotality copy of a live listing is left out of the list AND the count, so the tab numbers and the pages
+  // add up; her closed history stays. The rule is lib/listings/dedupe-crm-vs-idx.ts (the same unit identity the public site uses).
+  const ownRows = await prisma.listing.findMany({ where: ownScope, select: { listing_id: true, status: true, address: true } });
+  const cotalityCopies = cotalityCopiesOfOwnListings(ownRows);
+  if (cotalityCopies.length > 0) where.NOT = { listing_id: { in: cotalityCopies } };
 
   const [listings, total] = await Promise.all([
     prisma.listing.findMany({

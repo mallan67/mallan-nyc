@@ -64,6 +64,8 @@ import {
   canonicalizeStreetName,
 } from '@/lib/address/nyc-address-normalizer';
 
+import { normalizeStatus, isTerminalStatus } from '@/lib/compliance/status';
+
 const CRM_PREFIXES = ['SL-', 'RL-'] as const;
 
 /**
@@ -336,4 +338,46 @@ export function dedupeRawDbRows<T extends {
 
   const deduped = preferCrmExclusiveOverIdxDuplicate(candidates);
   return deduped.map((c) => rows[(c as typeof c & { _idx: number })._idx]);
+}
+
+/** A row of the CRM's own set, as My Listings reads it for the duplicate check. */
+export interface CrmListRow {
+  listing_id: string;
+  status: string | null;
+  address: unknown;
+}
+
+/** A live listing: a status the CRM recognises that is not over (Closed, Expired, Withdrawn ...). */
+function isLiveStatus(status: unknown): boolean {
+  return normalizeStatus(status) !== null && !isTerminalStatus(status);
+}
+
+/**
+ * CRM My Listings: the `listing_id`s of the Cotality rows that are the COPY of one of the agent's own listings, so the list shows each
+ * listing once (Maya, 2026-11-04: "on the crm i have still two of the same listing").
+ *
+ * Her own listing comes back through Cotality as an `RLS*` row, and the list reads both kinds (her SL- / RL- records and every row whose list
+ * office is Mallan, which is how her closed history shows). A Cotality row is the copy of her listing when it is the same physical unit as one
+ * of her own SL- / RL- records (the identity this module uses everywhere else: street, unit, ZIP) AND both are live. What stays:
+ *   - her own SL- / RL- records, always;
+ *   - her closed history: an earlier deal of the same unit is over, so it is not the live listing's copy;
+ *   - a listing that is over on both sides (an expired record and its expired Cotality row), which is history, not a live duplicate;
+ *   - a row with no unit number, which cannot be proved the same unit.
+ * Read-only: nothing is deleted or changed, and the public surfaces keep using dedupeRawDbRows.
+ */
+export function cotalityCopiesOfOwnListings(rows: CrmListRow[]): string[] {
+  const liveOwnKeys = new Set<string>();
+  for (const r of rows) {
+    if (!isCrmId(r.listing_id) || !isLiveStatus(r.status)) continue;
+    const key = buildAddressKeyFromDbRow(r);
+    if (key) liveOwnKeys.add(key);
+  }
+  if (liveOwnKeys.size === 0) return [];
+  const copies: string[] = [];
+  for (const r of rows) {
+    if (isCrmId(r.listing_id) || !isLiveStatus(r.status)) continue;
+    const key = buildAddressKeyFromDbRow(r);
+    if (key && liveOwnKeys.has(key)) copies.push(r.listing_id);
+  }
+  return copies;
 }
