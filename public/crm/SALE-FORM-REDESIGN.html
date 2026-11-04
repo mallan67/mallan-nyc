@@ -591,15 +591,7 @@ body { font-family: Manrope, sans-serif; }
                     <option value="Rundba">RUNDBA</option>
                 </select>
             </div>
-            <!-- Commission Negotiability -->
-            <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div class="flex items-start gap-2">
-                    <input type="checkbox" id="saleCommNegotiabilityAck" class="w-4 h-4 mt-0.5" required data-concept-disposition="mallan-internal">
-                    <label class="text-sm text-gray-700">
-                        <span class="text-red-500">*</span> <strong>Commission Negotiability Disclosure:</strong> I confirm that the listing agreement includes a disclosure that commissions and fees are negotiable and not set by law. <span class="text-xs text-gray-500">(Required per REBNY UCBA 2026 and NAR settlement.)</span>
-                    </label>
-                </div>
-            </div>
+            <!-- Commission Negotiability confirmation removed (2026-11-01, owner decision): the executed listing agreement carries the UCBA disclosure. -->
             <!-- Buyer Representative Agreement acknowledgment removed (2026-05-30):
                  UCBA 2026 Art. II §16 places the executed Buyer Representation
                  Agreement obligation on the CO-BROKER (buyer's agent) before any
@@ -10429,7 +10421,6 @@ var SALE_FIELD_MAP = [
   // saleInternetConsumerCommentYN (RESO canonical, per-row opt-out,
   // fail-CLOSED per REBNY compliance §7 — the canonical write is in
   // collectSaleFormData below mirroring the AVM pattern).
-  { rls: 'saleCommNegotiabilityAck', form: 'saleCommNegotiabilityAck', type: 'bool', src: 'raw' },
   { rls: 'saleFairHousingAck', form: 'saleFairHousingAck', type: 'bool', src: 'raw' },
   // saleInternetConsumerCommentYN: form key. Canonical RESO is
   // `InternetConsumerCommentYN` (per-row opt-out, fail-CLOSED per
