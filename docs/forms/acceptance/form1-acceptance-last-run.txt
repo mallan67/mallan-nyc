@@ -1,0 +1,53 @@
+FORM 1 acceptance: BASE=http://localhost:3100 LISTING_TYPE=InHouseWebOnly
+PASS S1 live Cotality listing fetched (Property)  :: status 200 ListingKey 1193201950 RLS20121202 filter: StandardStatus eq 'Active' and PropertyType eq 'Residential' and CommonInterest eq 'Condominium' and PhotosCount gt 9 and VideosCount gt 0
+PASS S1 live metadata enums read (StandardStatus, MediaCategory, StructureType ...)  :: status 200 StandardStatus=Active|ActiveUnderContract|Canceled|Closed|ComingSoon|Delete|Expired|Hold|Incomplete|Pending|Withdrawn
+PASS S1 live Media categories for the listing (informational)  :: {"Photo":20,"FloorPlan":1} PhotosCount=21 VideosCount=1 Unbranded=https://vimeo.com/895961785
+PASS S0 broker session valid  :: {"id":"101","mlsId":"148848","role":"BROKER"}
+FAIL S2 building lookup is served from live Cotality, not from Mallan draft rows  [EXPECTED-FAIL-TODAY]  :: source=db year_built=null fee_freq=Weekly (source db = autofill built from CRM draft listings, can carry junk)
+PASS S2 building autofill from Cotality: BuildingName  :: CLAREMONT HALL vs live CLAREMONT HALL
+FAIL S2 autofill YearBuilt  [EXPECTED-FAIL-TODAY]  ::  vs 2022
+PASS S2 autofill StoriesTotal  :: 41 vs 41
+PASS S2 autofill TaxBlock/TaxLot  :: 01992/0123 vs 01992/0123
+PASS S2 autofill PostalCode + CityRegion  :: 10027/Manhattan vs 10027/Manhattan
+FAIL S2 autofill SubdivisionName exact string (no stripped spaces)  [EXPECTED-FAIL-TODAY]  :: MorningsideHeights vs live Morningside Heights
+PASS S2 autofill StructureType/CommonInterest valid live Lookup values  :: HighRise/Condominium
+PASS S2 unit maintenance NOT filled with a building-wide number  :: 1970 vs live unit fee 1970
+PASS S3 Save Draft creates the sale (POST /api/crm/listings 201)  :: 201 {"id":"145","listing_id":"SL-9416","status":"Draft","publicUrl":"https://www.mallan.nyc/listing/100-claremont-avenue-apt-20b-new-york-ny-10027/sl-9416","realPlusUrl":null,"featuredEligible":false,"exc
+PASS S3 failure (if any) shows the reason, not 'Request failed: 422'  :: success: Draft saved: SL-9416
+FAIL S4 every emitted capitalized payload key is a live Cotality Property field  [EXPECTED-FAIL-TODAY]  :: REJECTED by live $select: BathroomsTotal,CoBrokeAgreement,BuildingPetsAllowed,AttendanceType
+FAIL S4 StandardStatus/MlsStatus emitted value is a live enum member (Draft must not be sent)  [EXPECTED-FAIL-TODAY]  :: MlsStatus=Draft
+PASS S4 PropertyType/PropertySubType emitted are live enum members  :: Residential/Apartment
+PASS S4 StructureType emitted is a live enum member  :: HighRise
+PASS S4 ListingAgreement emitted is a live enum member  :: ExclusiveRightToSell
+FAIL S4 Heating/Cooling/View/PetsAllowed arrays only contain live enum members  [EXPECTED-FAIL-TODAY]  :: Heating: Cooling: View:Park,SeaOcean,RooftopsSky,Streets PetsAllowed:
+FAIL S4 list agent: ListAgentMlsId = session agent trestle id; ListAgentKey distinct  [EXPECTED-FAIL-TODAY]  :: session agent mlsId=148848 (null = session agent has no trestle_mls_id; give agents.trestle_mls_id a real Member.MemberMlsId) col list_agent_mls_id=null payload ListAge
+PASS S4 typed columns: list_price/bedrooms/bathrooms/living_area/borough/neighborhood  :: 2410000/2/2/1375/Manhattan/Morningside Heights
+FAIL S4 typed columns: expiration_date and bathrooms_half written  [EXPECTED-FAIL-TODAY]  :: expiration_date=null bathrooms_half=null
+FAIL S4 media/tour URLs stored under canonical Cotality keys (VirtualTourURLUnbranded[2])  [EXPECTED-FAIL-TODAY]  :: U=https://www.youtube.com/watch?v=5OLc_TDa5ss U2=undefined
+FAIL S4 commission-request fields are NOT stored in the listing row  [EXPECTED-FAIL-TODAY]  :: 23 commSale* keys in raw_data
+FAIL S4 a Draft listing is NOT publicly viewable  [EXPECTED-FAIL-TODAY]  :: GET /listing/100-claremont-avenue-apt-20b-new-york-ny-10027/sl-9416 -> 200
+FAIL S5 reopen restores every filled control (lost list below)  [EXPECTED-FAIL-TODAY]  :: 17 lost: saleShowRequiredOnly:on: true -> false; saleAdminComments: ACC27_saleAdminComment -> ""; saleFirstShowingDate: 2027-02-03T10:30 -> ""; saleLivingArea: 1375 -> ""; saleHalfBaths: 0 -
+FAIL S5 reopen: Living Area (required) restored  [EXPECTED-FAIL-TODAY]  :: saleLivingArea= saleUnitSqFt=1375
+PASS S5 reopen: autosave on load does not blank anything (no PATCH before user edit)  :: 0 automatic PATCH
+PASS S5 DB unchanged by merely opening the listing  :: 2026-10-15T22:03:30.973 -> 2026-10-15T22:03:30.973
+PASS S6 edit saves (PATCH 200)  :: 200
+FAIL S6 PATCH reports validation errors honestly (no 'Draft saved' toast with valid=false)  [EXPECTED-FAIL-TODAY]  :: valid=false toast=success: Draft saved: SL-9416
+PASS S6 price + description updated  :: 2405000
+FAIL S6 edit does not clobber untouched saved values (raw_data keys blanked)  [EXPECTED-FAIL-TODAY]  :: 17: saleDist_IDX,saleDist_RLS,saleDist_RPX,saleDist_WWW,saleHalfBaths,saleSendToAll,ActivationDate,saleDist_NYMLS,saleLivingArea,saleDist_Listhub,saleDist_Realtor,saleAdminComm
+FAIL S6 edit keeps list_agent_mls_id and YearBuilt  [EXPECTED-FAIL-TODAY]  :: list_agent_mls_id null->null YearBuilt null->null
+PASS S6 second reopen identical to first reopen  :: 0: 
+FAIL S7 photo + floor plan upload reach the server (POST media/upload 2xx)  [EXPECTED-FAIL-TODAY]  :: 404 Server action not found. | 404 Server action not found.
+FAIL S7 listing_media rows created (Photo + FloorPlan)  [EXPECTED-FAIL-TODAY]  :: rows=0
+FAIL S7 Document upload control does something  [EXPECTED-FAIL-TODAY]  :: saleDocInput has no change handler
+PASS S8 Submit publishes (PATCH status -> Active)  :: 200 status=Active toasts=info: 0 photo(s) added — uploading…|error: Upload failed for f1acc-photo.png: 404|warning: 1 upload(s) failed.|info: Skipping duplicate: f1acc-photo.png|info: 0 floorplan(s) added — uploading…|
+FAIL S8 publish blocked when REBNY/Cotality-required data is missing (not published with validation.valid=false)  [EXPECTED-FAIL-TODAY]  :: PATCH responses with valid=false before publish
+PASS S9 public page 200 after publish with price in title  :: status 200
+PASS S9 public page leaks no private data (admin comments / commission request / agent email not intended public)  :: leak scan
+FAIL S9 /api/listings returns the listing with videoUrl (youtube) and virtualTourURL (matterport)  [EXPECTED-FAIL-TODAY]  :: videoUrl=https://www.youtube.com/watch?v=5OLc_TDa5ss tour=undefined
+PASS S9 public listing exposes photosCount/media consistent with upload  :: 0 vs 0
+FAIL S10 status route accepts Cotality StandardStatus values Pending then Closed  [EXPECTED-FAIL-TODAY]  :: {"Pending":200,"Closed":422} (server today uses Sold/Rented/Cancelled)
+PASS S11 non-associated AGENT cannot read/edit another agent's local listing  :: GET -> 403
+FAIL S11 client/buyer session does not get the agent form  [EXPECTED-FAIL-TODAY]  :: form visible to buyer: true
+FAIL S11 third-party (source-owned) listing opens READ-ONLY with a banner and disabled Save  [EXPECTED-FAIL-TODAY]  :: {"banner":false,"disabled":false} id=92
+
+provider requests used: 8 | checks: 50 | FAILED: 24
