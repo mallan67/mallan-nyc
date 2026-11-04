@@ -28,10 +28,10 @@
   var LISTING_PROFILES = {
     'SL-0004': {
       subject: 'Investment Opportunity — 333 East 46th Street, #2G',
-      intro: 'Condo rules with co-op economics — lease from day one, no board interview.',
-      bullets: 'Leased — tenant in place paying $4,305/month through August 14, 2027 (4% cap), and open to renewing\n'
-             + 'Low closing costs — all-cash closing runs about $7,000 for this condop vs about $12,000 for a comparable condo (roughly $5,000 less)',
-      purchaseStructure: 'Condop ownership with no board interview. The sale is subject to the building’s Right of First Refusal and issuance of the applicable waiver.',
+      intro: 'Tenant-occupied Turtle Bay one-bedroom condop offered to investment buyers, with an existing lease in place.',
+      bullets: 'Current rent of $4,305/month; lease scheduled through August 14, 2027 (confirm against executed lease)\\n'
+             + 'Monthly maintenance of $1,748.65; request the offering plan and financial documents for complete cost analysis',
+      purchaseStructure: 'Condop ownership. Building approval, transfer requirements, and any applicable waiver must be verified from current building documents. A potential 1031 buyer should confirm eligibility with their qualified intermediary and tax adviser.',
       location: 'Full-service building — 24-hour doorman, live-in superintendent, laundry, and a roof deck\n'
               + 'Heart of Midtown East — steps to the United Nations, transportation, and shopping',
       maintenance: '$1,748.65/mo',
