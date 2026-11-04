@@ -126,7 +126,7 @@ function extractRecipients(rows: string[][]): RecipientParseResult {
   const eligibilityColumns = ['send_eligibility', 'outreach_permission',
     'permission_status', 'approved_for_eblast', 'eblast_eligibility'];
   const eligibilityIndices = hasHeader
-    ? header.map((h, i) => ({ h: h.replace(/\\s+/g, '_'), i }))
+    ? header.map((h, i) => ({ h: h.replace(/\s+/g, '_'), i }))
       .filter((p) => eligibilityColumns.includes(p.h)).map((p) => p.i)
     : [];
   const approved = new Set(['APPROVED', 'SEND_APPROVED', 'SEND_READY',
