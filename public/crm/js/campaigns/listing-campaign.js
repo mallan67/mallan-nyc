@@ -238,7 +238,7 @@
     var c = state.counts;
     return errorBanner() +
       '<div class="text-xs text-gray-600 mb-2">Upload a CSV or XLSX with an <b>email</b> column (optional name column). ' +
-        'Duplicates, invalid rows, and unsubscribed contacts are removed automatically.</div>' +
+        'Unapproved research contacts, duplicates, invalid rows and unsubscribed contacts are held or removed automatically.</div>' +
       '<input type="file" id="lcFile" accept=".csv,.tsv,.txt,.xlsx" class="text-xs mb-2">' +
       '<button onclick="window._lcUpload()" class="ml-2 px-3 py-1.5 bg-gray-800 text-white rounded text-xs"><i class="fas fa-upload mr-1"></i>Upload &amp; review</button>' +
       (c ? countsTable(c) : '') +
@@ -251,8 +251,8 @@
 
   function countsTable(c) {
     var rows = [
-      ['Rows received', c.received], ['Valid', c.valid], ['Duplicates removed', c.duplicate],
-      ['Invalid removed', c.invalid], ['Missing email', c.missing || 0],
+      ['Rows received', c.total], ['Valid', c.valid], ['Duplicates removed', c.duplicate],
+      ['Invalid removed', c.invalid], ['Research rows HELD', c.held || 0], ['Missing email', c.missing || 0],
       ['Unsubscribed (suppressed)', c.suppressed], ['Deliverable', c.deliverable],
     ];
     return '<table class="mt-3 text-xs border rounded w-full max-w-sm"><tbody>' +
