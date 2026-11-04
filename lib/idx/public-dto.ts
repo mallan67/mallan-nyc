@@ -432,6 +432,9 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     id: listing.listingId,
     mlsId: listing.mlsId,
     internetAddressDisplayYN: listing.internetAddressDisplayYN,
+    // the raw type (not the public label): a commercial space's slug says "unit" (slugUnitWord)
+    propertyType: listing.propertyType,
+    propertySubType: listing.propertySubType,
   });
 
   return {

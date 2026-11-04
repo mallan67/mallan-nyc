@@ -1,4 +1,5 @@
 import { isMallanWebsiteOnlyListing } from '@/lib/listings/mallan-source-identity';
+import { isCommercialSpace } from '@/lib/listings/is-commercial-space';
 /**
  * Address-based listing slug generation.
  *
@@ -9,6 +10,7 @@ import { isMallanWebsiteOnlyListing } from '@/lib/listings/mallan-source-identit
  *   Address slugs are standard practice (Compass, Corcoran, StreetEasy).
  *
  * Slug format:  400-east-90th-street-apt-17c-new-york-ny-10128
+ *                400-east-90th-street-unit-17c-new-york-ny-10128   (a commercial space: an office is not an apartment)
  * Fallback:     listing-RBNY-12345678  (when address is suppressed)
  *
  * @module lib/listing-slug
@@ -55,6 +57,20 @@ export function composeSlugStreetName(addr: Record<string, unknown>): string {
 }
 
 /**
+ * The word in front of the unit in a listing's slug: "unit" for a commercial space, "apt" for everything else.
+ *
+ * Maya, 2026-11-04: the slug of 800 2nd Avenue #806, a medical office condominium, said "apt" ("right now it appears as an apartment": .../800-2nd-avenue-apt-806-new-york-city-ny-10017/sl-0010)
+ * and it should say "unit" (or "commercial unit"). Ask it with the listing's RAW property type and subtype, the way the calculator and the DTO do (lib/listings/is-commercial-space.ts): the public
+ * label of a commercial sale is its subtype ("Business", "FlexibleSpace"), which names nothing commercial on its own.
+ *
+ * One rule, one place: the listing page's canonical, the sitemap, the cards and the CRM's "public URL" all build their slug through generateListingSlug, which calls this, so they cannot
+ * disagree (and an address URL that is not the canonical one is 308-redirected to it, so the old ".../apt-806-..." link keeps working).
+ */
+export function slugUnitWord(propertyType?: string | null, propertySubType?: string | null): 'unit' | 'apt' {
+  return isCommercialSpace(propertyType, propertySubType) ? 'unit' : 'apt';
+}
+
+/**
  * Generate a URL-safe slug from listing address fields.
  * Returns an MLS-ID-based fallback when address must be suppressed.
  *
@@ -95,6 +111,9 @@ export function generateListingSlug(listing: {
   mlsId?: string;
   /** If false, address MUST NOT appear in the URL (REBNY compliance). */
   internetAddressDisplayYN?: boolean;
+  /** The listing's RAW property type and subtype: a commercial space is "unit 806" in its slug, anything else "apt 806" (slugUnitWord). */
+  propertyType?: string | null;
+  propertySubType?: string | null;
 }): string {
   // COMPLIANCE GATE: InternetAddressDisplayYN
   // If seller opted out of address display, the address CANNOT appear in the URL.
@@ -140,7 +159,7 @@ export function generateListingSlug(listing: {
     // Collapse spaces/hyphens in unit numbers (e.g., "8 H" → "8h", "17-C" → "17c")
     // so the slug token stays as a single part after slugify splits on hyphens.
     const normalizedUnit = unitNumber.replace(/[\s-]+/g, '');
-    parts.push(`apt-${normalizedUnit}`);
+    parts.push(`${slugUnitWord(listing.propertyType, listing.propertySubType)}-${normalizedUnit}`);
   }
   if (city) parts.push(city);
   if (stateOrProvince) parts.push(stateOrProvince);
@@ -260,7 +279,7 @@ function publicIdSlug(publicId: string): string {
  * Parse an address slug back into approximate address components for Trestle lookup.
  * Returns null if the slug is MLS-ID-based or unparseable.
  *
- * Slug format: 400-east-90th-street-apt-17c-new-york-ny-10128
+ * Slug format: 400-east-90th-street-apt-17c-new-york-ny-10128   (a commercial space: ...-street-unit-17c-...)
  * Parses:      streetNumber=400, streetName=east 90th street, unitNumber=17c,
  *              city=new york, stateOrProvince=ny, postalCode=10128
  */
@@ -299,12 +318,13 @@ export function parseAddressSlug(slug: string): {
     streetNumber = parts.shift()!;
   }
 
-  // Find "apt" marker to split unit from street/city
+  // Find the "apt" (or, for a commercial space, "unit") marker to split unit from street/city. Both are read whatever the listing is: an old "apt" link to a commercial space must still
+  // find it, and the page then redirects it to the canonical one.
   let unitNumber: string | undefined;
-  const aptIndex = parts.indexOf('apt');
+  const aptIndex = parts.findIndex((p) => p === 'apt' || p === 'unit');
   if (aptIndex !== -1) {
     const afterApt = parts.splice(aptIndex);
-    afterApt.shift(); // remove "apt"
+    afterApt.shift(); // remove the marker
     if (afterApt.length > 0) {
       // Collect all unit-number tokens: short alphanumeric parts that aren't city words.
       // Handles multi-token units like "8-h" (from "8 H") or "17-c" (from "17-C").
@@ -452,5 +472,7 @@ export function buildListingSlugFromDbRow(row: {
     id: row.listing_id,
     mlsId: row.listing_id,
     internetAddressDisplayYN: !suppressAddress,
+    propertyType: typeof row.property_type === 'string' ? row.property_type : null,
+    propertySubType: typeof row.property_sub_type === 'string' ? row.property_sub_type : null,
   });
 }

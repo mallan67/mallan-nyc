@@ -107,6 +107,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         mls_id: true,
         address: true,
         internet_address_display_yn: true,
+        // the raw type decides "unit" or "apt" in the slug (slugUnitWord), so the sitemap URL is the page's canonical
+        property_type: true,
+        property_sub_type: true,
         modification_timestamp: true,
       },
     });
@@ -136,6 +139,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         id: l.listing_id,
         mlsId: l.mls_id || l.listing_id,
         internetAddressDisplayYN: l.internet_address_display_yn,
+        propertyType: l.property_type,
+        propertySubType: l.property_sub_type,
       });
 
       return {

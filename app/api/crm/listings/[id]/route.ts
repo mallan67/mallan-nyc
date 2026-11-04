@@ -640,6 +640,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     rls_eligible: updated.rls_eligible,
     internet_entire_listing_display_yn: updated.internet_entire_listing_display_yn,
     internet_address_display_yn: updated.internet_address_display_yn,
+    property_type: updated.property_type,
+    property_sub_type: updated.property_sub_type,
   });
 
   return NextResponse.json({

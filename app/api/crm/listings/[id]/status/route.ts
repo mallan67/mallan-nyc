@@ -406,6 +406,8 @@ export async function PATCH(
     rls_eligible: listing.rls_eligible,
     internet_entire_listing_display_yn: listing.internet_entire_listing_display_yn,
     internet_address_display_yn: listing.internet_address_display_yn,
+    property_type: listing.property_type,
+    property_sub_type: listing.property_sub_type,
   });
 
   return NextResponse.json({
