@@ -318,7 +318,7 @@ export default function SellPage() {
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
-                    <p className="text-brand-dark/95 text-[13px] font-light">Realtor.com &mdash; official site of the NAR</p>
+                    <p className="text-brand-dark/95 text-[13px] font-light">Realtor.com &mdash; nationwide home search</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-brand-gold" />
@@ -585,9 +585,9 @@ export default function SellPage() {
                 ))}
               </ul>
               <p className="text-brand-dark/85 text-[12px] font-light border-t border-black/5 pt-5">
-                Per the National Association of Realtors settlement (August 2024),
-                commission rates are fully negotiable between brokers and their clients.
-                Compensation is not fixed by any industry standard.
+                Broker commissions are not set by law and are fully negotiable
+                between brokers and their clients. Compensation is not fixed by
+                any industry standard.
               </p>
             </div>
           </div>

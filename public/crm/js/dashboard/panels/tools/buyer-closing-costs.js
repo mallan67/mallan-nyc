@@ -159,7 +159,7 @@ var BuyerClosingCalc = (function () {
     }
 
     h += '<div class="mt-3 p-2 bg-gray-50 rounded text-[10px] text-gray-400 border">';
-    h += '<strong>Note:</strong> Buyer agent fee is fully negotiable and not set by law (NAR Settlement Aug 2025). ';
+    h += '<strong>Note:</strong> Buyer agent fee is fully negotiable and not set by law (REBNY UCBA 2026). ';
     h += 'Amount must be agreed upon in a signed buyer representation agreement. ';
     h += 'Mansion Tax paid by buyer at closing. Mortgage Recording Tax paid by buyer if financing. ';
     h += 'All figures are estimates — consult your attorney for exact amounts.';

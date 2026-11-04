@@ -515,7 +515,7 @@ export default function UWSTownhousePage() {
                     { name: 'REBNY RLS', detail: '30,000+ NYC agents instantly' },
                     { name: 'StreetEasy', detail: "NYC's #1 property search" },
                     { name: 'Zillow + Trulia', detail: 'Most-visited nationally' },
-                    { name: 'Realtor.com', detail: 'Official NAR portal' },
+                    { name: 'Realtor.com', detail: 'Nationwide home search' },
                     { name: 'Redfin', detail: 'Tech-forward buyers' },
                     { name: 'Homes.com', detail: 'CoStar flagship' },
                     { name: 'mallan.nyc', detail: 'Featured with professional photos' },

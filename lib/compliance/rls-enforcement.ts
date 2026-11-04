@@ -243,7 +243,7 @@ export function assertRlsCompliantPayload(
         code: "RF-001",
         severity: "BLOCKER",
         field: key,
-        message: `Field "${key}" was removed from RLS (NAR Settlement, Aug 2025). Remove from payload.`,
+        message: `Field "${key}" was removed from the REBNY RLS (UCBA Art. IV Sec. 2: offers of compensation are not collected or displayed). Remove from payload.`,
         ucbaRef: "UCBA Art. IV",
       });
     }

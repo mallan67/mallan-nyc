@@ -677,7 +677,7 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                             { name: 'REBNY RLS', detail: '30,000+ NYC agents' },
                             { name: 'StreetEasy', detail: "NYC's #1 search" },
                             { name: 'Zillow + Trulia', detail: 'Most-visited nationally' },
-                            { name: 'Realtor.com', detail: 'Official NAR site' },
+                            { name: 'Realtor.com', detail: 'Nationwide home search' },
                             { name: 'Redfin', detail: 'Tech-forward buyers' },
                             { name: 'mallan.nyc', detail: 'Featured listing' },
                           ].map((p) => (
