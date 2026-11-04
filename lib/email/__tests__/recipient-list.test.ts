@@ -12,6 +12,25 @@ import {
 const buf = (s: string) => Buffer.from(s, 'utf8');
 
 describe('parseRecipientFile — CSV', () => {
+  it('never imports a scanner file explicitly marked BLOCKED_REVIEW', async () => {
+    const csv = 'email,name,send_eligibility,permission_status\n'
+      + 'blocked@example.com,Blocked,BLOCKED_REVIEW,NOT ESTABLISHED\n'
+      + 'cleared@example.com,Cleared,SEND_APPROVED,APPROVED\n'
+      + 'unknown@example.com,Unknown,,APPROVED\n';
+    const r = await parseRecipientFile(buf(csv), 'scanner-research.csv');
+    expect(r.recipients).toEqual([{ email: 'cleared@example.com', name: 'Cleared' }]);
+    expect(r.counts).toMatchObject({ total: 3, valid: 1, invalid: 2 });
+  });
+
+  it('honors approved_for_eblast and spaced Eblast eligibility headers', async () => {
+    const csv = 'Email,Name,approved_for_eblast,Eblast eligibility\n'
+      + 'no@example.com,No,NO,BLOCKED_REVIEW\n'
+      + 'yes@example.com,Yes,YES,APPROVED\n';
+    const r = await parseRecipientFile(buf(csv), 'reviewed.csv');
+    expect(r.recipients).toEqual([{ email: 'yes@example.com', name: 'Yes' }]);
+    expect(r.counts.invalid).toBe(1);
+  });
+
   it('parses a headered Email/Name CSV', async () => {
     const r = await parseRecipientFile(buf('Email,Name\nalice@x.com,Alice A\nbob@y.com,Bob B\n'), 'list.csv');
     expect(r.recipients).toEqual([
