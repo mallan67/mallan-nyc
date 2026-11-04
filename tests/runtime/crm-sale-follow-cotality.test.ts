@@ -159,6 +159,20 @@ describe("opening a saved listing that is linked to an RLS ID", () => {
   });
 });
 
+describe("nothing is saved until Submit (Codex, review of #688)", () => {
+  it("the facts Cotality changed are applied to the boxes, but the form's server autosave (it saves an opened listing 2 s after a change) does not send them", async () => {
+    const f = await opened(COTALITY_NOW);
+    try {
+      await settled(f);
+      expect(val(f, "saleBedrooms")).toBe("8");
+      await sleep(2800);                                                          // longer than the autosave's 2 s debounce
+      expect(f.saved).toEqual([]);
+      expect(f.requests.filter((r) => r.method !== "GET" && /\/api\/crm\/listings/.test(r.url))).toEqual([]);
+      expect((f.w as any)._salePopulateInProgress).toBe(false);                   // and the guard is released: the agent's own next edit autosaves as before
+    } finally { f.close(); }
+  });
+});
+
 describe("a listing that is not linked, or not saved yet", () => {
   it("a saved listing with no RLS link asks Cotality nothing and shows no banner", async () => {
     const unlinked = { ...SAVED, raw_data: { ...SAVED.raw_data, saleRlsId: "", saleRlsListingKey: "" } };
