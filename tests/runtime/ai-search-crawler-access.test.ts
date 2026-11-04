@@ -100,6 +100,9 @@ const OPEN_TO_AI_SEARCH = [
   '/resources/buyers-guide',
   '/resources/sellers-guide',
   '/resources/investors-guide',
+  // The file written for AI systems. proxy.ts runs on it (its matcher excludes only robots.txt and
+  // sitemap.xml), so without an explicit entry the allow-list would refuse the one file meant for them.
+  '/llms.txt',
 ];
 
 // Pages the matrix keeps from every AI fetcher: individual listings, search, private surfaces.

@@ -100,6 +100,11 @@ export const MLS_CATEGORY_ONLY_BLOCK_TRAINING = [
 //
 // `/resources` holds the buyer's, seller's and investor's guides: editorial pages with no listing
 // data (app/resources/[slug]/page.tsx renders data/resources/*.json only).
+//
+// `/llms.txt` is the plain-text brokerage description written for AI systems (public/llms.txt). The
+// proxy's matcher excludes only robots.txt and sitemap.xml, so bot-blocker runs on it: without an entry
+// here the allow-list would refuse the one file meant for them. Its content is Mallan-authored and is
+// Maya's to verify; this entry only decides who may fetch it.
 export const BRAND_ALLOW = [
   '/about',
   '/agents',
@@ -113,6 +118,7 @@ export const BRAND_ALLOW = [
   '/privacy',
   '/reasonable-accommodations',
   '/resources', '/resources/',
+  '/llms.txt',
 ];
 
 // ── AI-search fetchers ────────────────────────────────────────────────────
