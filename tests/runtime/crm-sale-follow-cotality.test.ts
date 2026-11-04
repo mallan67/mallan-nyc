@@ -73,8 +73,10 @@ describe("opening a saved listing that is linked to an RLS ID", () => {
   });
 
   it("a box the agent typed in before Cotality answered is not replaced; the rest follows, and the banner says what was kept", async () => {
-    const f = await opened(COTALITY_NOW, { boot: { rlsPullDelay: 400 } });
+    // Cotality answers 4 s after the page asks, however slow the machine: the agent types in that time, once the page has noted what its boxes held (a race on a fast answer is no test)
+    const f = await opened(COTALITY_NOW, { boot: { rlsPullDelay: 4000 } });
     try {
+      await waitUntil(() => !!(f.w as any)._saleFollow.loaded && (f.w as any)._saleFollow.busy);
       (f.d.getElementById("saleBedrooms") as HTMLInputElement).value = "2";      // typed while Cotality was answering
       await settled(f);
       expect(val(f, "saleBedrooms")).toBe("2");
