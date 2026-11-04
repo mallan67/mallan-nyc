@@ -5685,7 +5685,9 @@ async function saleFollowCotality(opts) {
         if (!_saleFollow.loaded) _saleFollowSnapshot();
         var changed = [], kept = [];
         // The change events below run the form's own handlers (totals, rules), and a change event also schedules the autosave, which in edit mode SAVES TO THE SERVER: the banner says nothing is
-        // saved until Submit, so the autosave is held off while the facts are applied (Codex, review of #688). The agent's own next edit autosaves as it always did.
+        // saved until Submit, so the autosave is held off while the facts are applied (Codex, review of #688): autoSaveDraft and performAutoSave both return while the flag is set, and the apply is
+        // synchronous, so nothing is scheduled or fired inside it. A save the AGENT had pending (an edit made while Cotality was answering) is not touched: clearing the timer here dropped it
+        // even when Cotality changed nothing (Vercel, review of #688).
         window._salePopulateInProgress = true;
         try {
         _saleFollowTargets(body.record).forEach(function (t) {
@@ -5704,7 +5706,7 @@ async function saleFollowCotality(opts) {
             _saleFollow.loaded[t.id] = String(el.value);
             changed.push(_saleFollowLabel(el) + ' ' + (now === '' ? 'blank' : now) + ' \u2192 ' + next);
         });
-        } finally { window._salePopulateInProgress = false; clearTimeout(autoSaveTimer); }
+        } finally { window._salePopulateInProgress = false; }
         var when = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         var keptText = kept.length ? ' Not replaced, because you changed them here: ' + kept.join('; ') + '.' : '';
         if (changed.length) _saleFollowShow('changed', 'Updated from Cotality (RLS ID ' + rls + ', checked ' + when + '): ' + changed.join('; ') + '. Press Submit to save them.' + keptText);
