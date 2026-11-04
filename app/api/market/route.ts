@@ -274,8 +274,10 @@ export async function GET(request: Request) {
     const allActiveDom = [
       ...activeListings.map(l => {
         if (l.days_on_market > 0) return l.days_on_market;
-        if (l.first_active_date) return Math.floor((now.getTime() - l.first_active_date.getTime()) / (1000 * 60 * 60 * 24));
-        return Math.floor((now.getTime() - l.created_at.getTime()) / (1000 * 60 * 60 * 24));
+        // cachedPublicRead (unstable_cache) JSON-serializes its result, so on a cache hit these
+        // Date columns arrive as ISO strings; coerce before reading the timestamp.
+        if (l.first_active_date) return Math.floor((now.getTime() - new Date(l.first_active_date).getTime()) / (1000 * 60 * 60 * 24));
+        return Math.floor((now.getTime() - new Date(l.created_at).getTime()) / (1000 * 60 * 60 * 24));
       }),
       ...cotalityActive.map(r => Number(r.DaysOnMarket || 0)),
     ].filter(d => d >= 0 && d < 3650);
