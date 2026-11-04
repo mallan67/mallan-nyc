@@ -4,7 +4,7 @@
  *
  * Mallan Real Estate Inc. is a REBNY member and has no membership of, or association with, the National Association of Realtors. The organization JSON-LD and public/llms.txt are held by
  * their own change (#691); this holds the rest of what is read: the public sell and building pages (Realtor.com was labelled "Official NAR site / portal / site of the NAR", and the
- * commission sentence cited the NAR settlement), the Commission Negotiability Disclosure label of the five forms, the message an agent gets when a removed compensation field is sent, and
+ * commission sentence cited the NAR settlement), the Commission Negotiability Disclosure label of the rental and buyer forms (the Sale forms no longer have it, #686), the message an agent gets when a removed compensation field is sent, and
  * the note in the buyer closing-cost tool. Comments are internal and are not read, so they are not held here. Realtor.com stays: it is a portal a listing appears on, not a membership claim.
  */
 import { readFileSync } from 'fs';
@@ -34,10 +34,14 @@ describe('the public pages name no NAR', () => {
   });
 });
 
-describe('the five forms name no NAR in what an agent reads', () => {
-  it.each(['public/crm/SALE-FORM-REDESIGN.html', 'public/crm/SALE-FORM-WITH-TOOLS.html', 'public/crm/RENTAL-FORM-REDESIGN.html', 'public/crm/RENTAL-FORM-WITH-TOOLS.html', 'public/crm/BUYER-DEAL-FORM.html'])('%s', (form) => {
+describe('the rental and buyer forms name no NAR, and say what the box is', () => {
+  // The two Sale forms are not listed here on purpose: the Sale form no longer asks for this confirmation at all (#686 removes the block), so there is no label left to hold, and listing
+  // them would make this test depend on which of #686 and this change reaches main first.
+  it.each(['public/crm/RENTAL-FORM-REDESIGN.html', 'public/crm/RENTAL-FORM-WITH-TOOLS.html', 'public/crm/BUYER-DEAL-FORM.html'])('%s', (form) => {
     expect(readable(form)).not.toMatch(NAR);
-    expect(read(form)).toContain('(Required per REBNY UCBA 2026.)');
+    // UCBA Art. I Sec. 17 requires the statement in the agreement or its accompanying disclosure; it does not require a box in Mallan's CRM, so the label must not say the box is "required per" the UCBA.
+    expect(read(form)).toContain("(UCBA Art. I, Sec. 17 requires this statement in the agreement or its accompanying disclosure. This box is Mallan's own confirmation that it is there.)");
+    expect(read(form)).not.toContain('(Required per REBNY UCBA 2026');
   });
 });
 
