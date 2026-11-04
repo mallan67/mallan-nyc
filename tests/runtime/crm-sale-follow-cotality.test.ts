@@ -168,6 +168,23 @@ describe("nothing is saved until Submit (Codex, review of #688)", () => {
       expect((f.w as any)._salePopulateInProgress).toBe(false);                   // and the guard is released: the agent's own next edit autosaves as before
     } finally { f.close(); }
   });
+
+  it("an edit the agent made while Cotality was answering is still autosaved when the answer changes nothing (Vercel, review of #688)", async () => {
+    // Cotality says what the listing already holds, 1 s after the page asks. The agent edits a box the follow does not touch in that second, which starts the form's own 2 s autosave debounce;
+    // the answer lands inside it. Holding the autosave off while facts are applied must not cancel that pending save.
+    const SAME = { BedroomsTotal: 0, BathroomsFull: 2, BathroomsHalf: 0, RoomsTotal: 8, LivingArea: 1482, ListPrice: 1200000, StoriesTotal: 18, YearBuilt: 1957, NumberOfUnitsTotal: 0 };
+    const f = await opened(SAME, { boot: { rlsPullDelay: 1000 } });
+    try {
+      await waitUntil(() => !!(f.w as any)._saleFollow.loaded && (f.w as any)._saleFollow.busy);
+      (f.d.getElementById("saleDescription") as HTMLTextAreaElement).value = "Our own words, changed while Cotality was answering.";
+      (f.w as any).autoSaveDraft();                                               // what the form's input handler runs: the 2 s debounce starts now
+      await settled(f);
+      expect(banner(f)).toMatch(/nothing has changed/);
+      expect(f.calls.filter((c) => /^update/.test(c))).toEqual([]);              // not yet: the debounce has not run out
+      await waitUntil(() => f.calls.some((c) => /^update/.test(c)), 5000);
+      expect((f.saved[f.saved.length - 1] as any).PublicRemarks).toBe("Our own words, changed while Cotality was answering.");
+    } finally { f.close(); }
+  });
 });
 
 describe("a listing that is not linked, or not saved yet", () => {
