@@ -407,6 +407,10 @@ body { font-family: Manrope, sans-serif; }
                     </div>
                 </div>
                 <p id="saleRlsLinkState" class="text-xs mt-2 text-gray-600">RLS link not verified. To link this listing, type its RLS ID (like RLS20123633) in the box above and choose Pull from Cotality.</p>
+                <div id="saleCotalityFollow" class="hidden mt-2 rounded border px-3 py-2 text-xs" role="status" aria-live="polite">
+                    <span id="saleCotalityFollowText"></span>
+                    <button type="button" id="saleCotalityFollowBtn" class="ml-2 underline font-semibold" onclick="saleFollowCotality({ force: true })">Check Cotality now</button>
+                </div>
             </div>
             <!-- IDX Match Indicator -->
             <div id="saleIdxMatchBanner" class="hidden mt-2 warning-banner bg-green-50 border border-green-200 text-green-800">
@@ -2065,16 +2069,17 @@ body { font-family: Manrope, sans-serif; }
                 <!-- Commercial Specifications -->
                 <div class="mb-5">
                     <label class="field-label mb-3">Commercial Specifications</label>
+                    <p id="saleCommercialUnitNote" class="hidden text-xs text-gray-500 mb-3" role="note">A commercial condo, condop or co-op is one unit in a building. The lot, building size, zoning, FAR, air rights and unit counts are the building's: they are in the Building window (the Building button at the top).</p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                        <div>
+                        <div data-bldg-scale>
                             <label class="text-xs text-gray-600 block mb-1">Lot Size (SqFt)</label>
                             <input id="saleCommercialLotSize" type="number" placeholder="0" class="field-input">
                         </div>
-                        <div>
+                        <div data-bldg-scale>
                             <label class="text-xs text-gray-600 block mb-1">Building Size (SqFt)</label>
                             <input id="saleCommercialBuildingSize" type="number" placeholder="0" class="field-input">
                         </div>
-                        <div>
+                        <div data-bldg-scale>
                             <label class="text-xs text-gray-600 block mb-1">Zoning</label>
                             <select id="saleCommercialZoning" class="field-input">
                                 <option value="">Select Zoning</option>
@@ -2090,11 +2095,11 @@ body { font-family: Manrope, sans-serif; }
                                 <option value="MX">MX - Mixed Use</option>
                             </select>
                         </div>
-                        <div>
+                        <div data-bldg-scale>
                             <label class="text-xs text-gray-600 block mb-1">FAR (Floor Area Ratio)</label>
                             <input id="saleCommercialFAR" type="number" step="0.01" placeholder="0.00" class="field-input">
                         </div>
-                        <div>
+                        <div data-bldg-scale>
                             <label class="text-xs text-gray-600 block mb-1">Air Rights (SqFt)</label>
                             <input id="saleCommercialAirRights" type="number" placeholder="0" class="field-input">
                         </div>
@@ -2114,11 +2119,11 @@ body { font-family: Manrope, sans-serif; }
                             <label class="text-xs text-gray-600 block mb-1">Net Operating Income (NOI)</label>
                             <input id="saleCommercialNOI" type="number" placeholder="$0" class="field-input">
                         </div>
-                        <div>
+                        <div data-bldg-scale>
                             <label class="text-xs text-gray-600 block mb-1">Number of Units (Total)</label>
                             <input id="saleCommercialUnitsTotal" type="number" placeholder="0" class="field-input">
                         </div>
-                        <div>
+                        <div data-bldg-scale>
                             <label class="text-xs text-gray-600 block mb-1">Number of Retail Units</label>
                             <input id="saleCommercialRetailUnits" type="number" placeholder="0" class="field-input">
                         </div>
@@ -5533,6 +5538,8 @@ function _saleApplyCommercialFromPull(rec) {
     var type = document.querySelector('input[name="salePropertyType"][value="Commercial"]');
     if (!type) return false;
     type.checked = true;
+    var unitType = document.querySelector('input[name="saleUnitType2"][value="Commercial"]');      // Unit Info: a commercial unit, not the residential types
+    if (unitType) unitType.checked = true;
     var ownership = SALE_PULL_COMMERCIAL_OWNERSHIP[String(rec.CommonInterest || '').trim()];
     if (ownership) { var o = document.querySelector('input[name="saleCommercialOwnership"][value="' + ownership + '"]'); if (o) o.checked = true; }
     commercial.forEach(function (use) {
@@ -5579,6 +5586,8 @@ async function pullFromCotalityByRlsId(rlsId) {
         // Cotality's AttendanceType "None" sits on 38% of live listings and cannot be told from an unfilled default, so it is not taken as "no doorman" (Maya): the staffing group is left for
         // the broker. A real value (DoormanFullTime, ConciergeFullTime ...) still fills it.
         if (String(rec.AttendanceType || '').trim() === 'None') delete rec.AttendanceType;
+        // NumberOfUnitsTotal 0 is "nobody counted" (live: RLS20123633, an 18-story building), not a building with no units: the box is left for the agent.
+        if (!(Number(rec.NumberOfUnitsTotal) > 0)) delete rec.NumberOfUnitsTotal;
         // Cotality's UnparsedAddress carries the unit ("800 2ND Avenue 806"). This form's street line is the BUILDING's street (the unit has its own box), and the building lookup and the street
         // parser read it, so the street line is built from the record's own street parts; only a record with none of them has its unit cut off the end of UnparsedAddress.
         var streetLine = [rec.StreetNumber, rec.StreetDirPrefix, rec.StreetName, rec.StreetSuffix, rec.StreetDirSuffix].filter(function (x) { return x !== undefined && x !== null && String(x).trim() !== ''; }).join(' ');
@@ -5621,6 +5630,86 @@ async function pullFromCotalityByRlsId(rlsId) {
         if (results) results.classList.add('hidden');
     }
 }
+
+// ── The form follows Cotality (Maya, 2026-11-04: "the form should auto updated when the information updates") ─────────────────────────────────────
+// A saved listing that is linked to an RLS ID is maintained in RealPlus, so the facts of its unit, its building and its price follow the Cotality record: the form asks Cotality when the listing
+// opens and again when the agent comes back to the page. Only these facts follow, never what the agent writes or decides here (description, notes, status, dates, agent and office, commission, media,
+// property type). A box Cotality has no value for is never blanked, and a count of 0 or the text "null" is no value. A box the agent changed since the listing opened is never replaced: it is listed as
+// kept. Every change is listed with its old and new value, and nothing is saved until the agent presses Submit. If Cotality cannot be reached the form says so.
+var SALE_COTALITY_FOLLOWS = ['BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'RoomsTotal', 'LivingArea', 'LivingAreaUnits', 'EntryLevel', 'TaxLot',
+    'ListPrice', 'AssociationFee', 'AssociationFeeFrequency', 'TaxAnnualAmount',
+    'YearBuilt', 'YearBuiltEffective', 'StoriesTotal', 'NumberOfUnitsTotal', 'ElevatorsTotal', 'BuildingName', 'StructureType', 'TaxBlock', 'BuildingTaxLot'];
+var _saleFollow = { at: 0, busy: false, loaded: null };
+function _saleFollowText(v) { var t = String(v === undefined || v === null ? '' : v).trim(); return /^(null|undefined)$/i.test(t) ? '' : t; }
+function _saleFollowTargets(rec) {
+    var out = [];
+    SALE_FIELD_MAP.forEach(function (f) {
+        if (SALE_COTALITY_FOLLOWS.indexOf(f.rls) < 0 || f.src === 'addr' || f.src === 'agentInfo') return;
+        var v = _saleFollowText(rec[f.rls]);
+        if (v === '') return;
+        if (f.rls === 'NumberOfUnitsTotal' && !(Number(v) > 0)) return;             // 0 = nobody counted
+        if (f.rls === 'StructureType' && /^none$/i.test(v)) return;
+        if (f.valueMap && Object.prototype.hasOwnProperty.call(f.valueMap, v)) v = f.valueMap[v];
+        out.push({ id: f.form, value: v, number: f.type === 'number' });
+    });
+    return out;
+}
+// what each followed box held when the listing finished opening: a box that holds something else later was typed in by the agent
+function _saleFollowSnapshot() {
+    _saleFollow.loaded = {};
+    SALE_FIELD_MAP.forEach(function (f) { if (SALE_COTALITY_FOLLOWS.indexOf(f.rls) >= 0) { var el = document.getElementById(f.form); if (el) _saleFollow.loaded[f.form] = String(el.value); } });
+}
+function _saleFollowLabel(el) {
+    var box = el.closest('div'), lab = box && box.querySelector('label');
+    return ((lab && lab.textContent) || el.id).replace(/\s+/g, ' ').replace(/\s*\*\s*$/, '').trim();
+}
+function _saleFollowShow(kind, text) {
+    var box = document.getElementById('saleCotalityFollow'), span = document.getElementById('saleCotalityFollowText');
+    if (!box || !span) return;
+    span.textContent = text;
+    box.className = 'mt-2 rounded border px-3 py-2 text-xs ' + (kind === 'changed' ? 'bg-green-50 border-green-300 text-green-900' : kind === 'error' ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-gray-50 border-gray-200 text-gray-600');
+}
+async function saleFollowCotality(opts) {
+    opts = opts || {};
+    var rls = (document.getElementById('saleRlsId') || {}).value || '';
+    if (!_saleEditMode || window._saleEditLoad !== 'loaded' || !SALE_RLS_ID.test(rls) || _saleFollow.busy) return;
+    if (!opts.force && Date.now() - _saleFollow.at < 60000) return;             // asking whenever the page gains focus must not become a request per click
+    _saleFollow.busy = true; _saleFollow.at = Date.now();
+    try {
+        var resp = await fetch('/api/crm/rls-pull?rlsId=' + encodeURIComponent(rls) + '&listingId=' + encodeURIComponent(_saleEditDbId), { credentials: 'same-origin' });
+        var body = {};
+        try { body = await resp.json(); } catch (e) { body = {}; }
+        if (!resp.ok || !body.record) { _saleFollowShow('error', 'Cotality could not be checked just now' + (body.error ? ' (' + body.error + ')' : '') + '. The facts shown are the ones saved with this listing.'); return; }
+        if (!_saleFollow.loaded) _saleFollowSnapshot();
+        var changed = [], kept = [];
+        _saleFollowTargets(body.record).forEach(function (t) {
+            var el = document.getElementById(t.id);
+            if (!el || el.disabled || el.readOnly) return;
+            var now = String(el.value || '').trim(), next = String(t.value);
+            if (t.number ? (now !== '' && Number(now) === Number(next)) : now.toLowerCase() === next.toLowerCase()) return;
+            if (el.tagName === 'SELECT') {                                     // a select takes only an option it has
+                var opt = Array.prototype.find.call(el.options, function (o) { return o.value.toLowerCase() === next.toLowerCase(); });
+                if (!opt) return;
+                next = opt.value;
+            }
+            if (_saleFollow.loaded[t.id] !== undefined && String(el.value) !== _saleFollow.loaded[t.id]) { kept.push(_saleFollowLabel(el) + ' (Cotality has ' + next + ')'); return; }
+            el.value = next;
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            _saleFollow.loaded[t.id] = String(el.value);
+            changed.push(_saleFollowLabel(el) + ' ' + (now === '' ? 'blank' : now) + ' \u2192 ' + next);
+        });
+        var when = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        var keptText = kept.length ? ' Not replaced, because you changed them here: ' + kept.join('; ') + '.' : '';
+        if (changed.length) _saleFollowShow('changed', 'Updated from Cotality (RLS ID ' + rls + ', checked ' + when + '): ' + changed.join('; ') + '. Press Submit to save them.' + keptText);
+        else _saleFollowShow(kept.length ? 'changed' : 'same', 'Checked against Cotality at ' + when + ': nothing has changed.' + keptText);
+    } catch (e) {
+        _saleFollowShow('error', 'Cotality could not be reached just now. The facts shown are the ones saved with this listing.');
+    } finally {
+        _saleFollow.busy = false;
+    }
+}
+window.addEventListener('focus', function () { saleFollowCotality(); });
+document.addEventListener('visibilitychange', function () { if (!document.hidden) saleFollowCotality(); });
 
 function searchBuildingForListing(query, prefix) {
     const results = document.getElementById(prefix + 'BuildingSearchResults');
@@ -5933,8 +6022,10 @@ function populateBuildingFromIDX(prefix, building) {
     setIfPresent(prefix + 'BldgYearBuilt', pick('year_built', 'yearBuilt'));
     setIfPresent(prefix + 'BldgYearRenovated', pick('year_renovated', 'yearRenovated'));
     setIfPresent(prefix + 'BldgTotalFloors', pick('stories_total', 'storiesTotal'));
-    setIfPresent(prefix + 'BldgTotalUnits', pick('units_total', 'unitsTotal'));
-    setIfPresent(prefix + 'BldgResidentialUnits', pick('units_total', 'unitsTotal'));
+    // Cotality serves ONE unit count for a building, NumberOfUnitsTotal. It never says how many are residential, commercial or professional, so it fills Total Units only: a building with medical offices does not
+    // have all its units residential. A 0 is "nobody counted" (live: 800 2nd Avenue, 18 stories, 0 units), not a building with no units, so it is left for the agent.
+    const unitsTotal = Number(pick('units_total', 'unitsTotal')) > 0 ? pick('units_total', 'unitsTotal') : null;
+    setIfPresent(prefix + 'BldgTotalUnits', unitsTotal);
 
     // ── 4. Type + ownership ──────────────────────────────────────────
     // Some records carry the text "None" as StructureType (live: 310 W 72nd Street, a 16-story co-op). "None (Land)" cannot describe a building the lookup typed, so it is left for the agent.
@@ -7828,6 +7919,21 @@ function applySalesFieldRules() {
             }
         }
     });
+    // Unit Info's Unit Type (Residential / Commercial) decides which panel shows; the page, a pull or a saved listing may set it, so it is applied here every time.
+    if (typeof toggleSaleUnitType === 'function') toggleSaleUnitType();
+    // A commercial condo, condop or co-op is ONE unit in a building (so is an office or retail condo). The Commercial Specifications panel also carries a whole building's facts (lot, building size, zoning, FAR,
+    // air rights, unit counts): those are the building's, they live in the Building window, and the unit does not ask for them (Maya, 2026-11-04: "it should not be expanding for commercial condo unit number of units").
+    // A building fact typed there earlier is cleared with the box: a hidden value would still be saved.
+    var officeRetailOwn = document.querySelector('input[name="saleOfficeRetailOwnership"]:checked');
+    var unitInBuilding = (propertyType === 'Commercial' && ['CommercialCondo', 'CommercialCondop', 'CommercialCoop'].indexOf(commercialOwnership) >= 0)
+        || ((propertyType === 'Office' || propertyType === 'Retail') && !!officeRetailOwn && ['Condo', 'Condop', 'Coop'].indexOf(officeRetailOwn.value) >= 0);
+    document.querySelectorAll('#saleCommercialSection2 [data-bldg-scale]').forEach(function (box) {
+        box.style.display = unitInBuilding ? 'none' : '';
+        if (unitInBuilding) box.querySelectorAll('input, select').forEach(function (el) { el.value = ''; });
+    });
+    var unitNote = document.getElementById('saleCommercialUnitNote');
+    if (unitNote) unitNote.classList.toggle('hidden', !unitInBuilding);
+
     // Handle Commercial/Mixed-Use distribution logic
     // UCBA Art. I, Sec. 5(F): Mixed-use in ≤5 unit buildings → RLS-eligible
     const isMixedUseSubtype = propertyType === 'MixedUse';
@@ -10268,6 +10374,8 @@ function _checkSaleEditMode() {
             clearTimeout(autoSaveTimer);
             window._saleAutoSaveReady = true;
             if (globalThis.saleUnitLotLookup) globalThis.saleUnitLotLookup();   // a saved listing whose unit's lot is still empty asks Cotality once
+            _saleFollowSnapshot();                                              // a listing linked to an RLS ID follows Cotality: what the boxes hold now is what "typed since" is measured from
+            saleFollowCotality({ force: true });
         });
         // Only release the blocking overlay once the correct record is loaded.
         if (String(_saleEditListingId) !== String(id) && String(listing.id) !== String(id)) {
@@ -10283,11 +10391,7 @@ function _checkSaleEditMode() {
         var lastUpdated = document.getElementById('saleLastUpdated');
         if (lastUpdated) lastUpdated.textContent = listing.updated_at ? new Date(listing.updated_at).toLocaleString() : '';
 
-        // Change submit button text
-        var submitBtns = document.querySelectorAll('[onclick*="submitSalesListing"]');
-        submitBtns.forEach(function(btn) {
-            btn.textContent = btn.textContent.replace(/Submit|Create/gi, 'Update');
-        });
+        // The buttons keep saying Submit on a saved listing: Submit saves it (Maya, 2026-11-04: "the button should not be update, it should say submit")
     }).catch(function(err) {
         var message = err && err.message ? err.message : 'unknown error';
         failEditLoad(message);

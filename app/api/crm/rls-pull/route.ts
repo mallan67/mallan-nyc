@@ -7,6 +7,9 @@
 // What comes back is the listing's PROPERTY FACTS under their Cotality names (the names the Sale form already restores from a saved listing), with the REBNY custom keys
 // (CustomProperty.CustomFields) flattened in. Everything that is the provider's own is withheld and listed in `skipped`: identity, status, permissions, display flags, agent/office,
 // timestamps, media and tour links. Nothing is defaulted: a field Cotality has no value for is simply absent.
+//
+// A saved listing that is linked to this RLS ID asks about ITS OWN link with `listingId` (its Mallan record id): the form re-checks Cotality when it opens, so facts changed in RealPlus follow
+// (Maya, 2026-11-04). Any other caller is told where the RLS ID already lives, as before.
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
@@ -45,6 +48,7 @@ export async function GET(request: NextRequest) {
   if (!allowed(ip)) return NextResponse.json({ error: 'Too many lookups. Wait a minute and try again.' }, { status: 429 });
 
   const rls = (request.nextUrl.searchParams.get('rlsId') ?? '').trim().toUpperCase();
+  const forListing = (request.nextUrl.searchParams.get('listingId') ?? '').trim();
   if (!RLS_ID.test(rls)) {
     return NextResponse.json({ error: 'That is not an RLS ID. It looks like RLS20123633.' }, { status: 400 });
   }
@@ -54,7 +58,8 @@ export async function GET(request: NextRequest) {
     where: { listing_id: { startsWith: 'SL-' }, raw_data: { path: ['saleRlsId'], equals: rls } },
     select: { id: true, listing_id: true },
   });
-  if (linked) {
+  const asksAboutItself = !!linked && forListing !== '' && (forListing === String(linked.id) || forListing.toUpperCase() === String(linked.listing_id).toUpperCase());
+  if (linked && !asksAboutItself) {
     return NextResponse.json({ existing: { id: String(linked.id), listing_id: linked.listing_id }, rls: { listing_id: rls } });
   }
 
