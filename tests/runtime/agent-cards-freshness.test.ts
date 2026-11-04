@@ -16,10 +16,13 @@ const ROOT = resolve(__dirname, '../..');
 const read = (p: string) => readFileSync(resolve(ROOT, p), 'utf8');
 
 describe('the window the agent cards may be stale', () => {
-  it('is the same 60 s window as the cards of Featured and Company Exclusives', () => {
-    const listings = read('app/api/listings/route.ts');
-    expect(listings).toContain(`'Cache-Control': '${AGENT_CARDS_CACHE_CONTROL}'`);
-    expect(AGENT_CARDS_CACHE_CONTROL).toBe('public, s-maxage=60, stale-while-revalidate=120');
+  it('is 60 s at the CDN and nothing is served stale beyond it (a stale-while-revalidate window would add up to 120 s, and a CRM save does not purge the endpoint\'s CDN copy)', () => {
+    expect(AGENT_CARDS_CACHE_CONTROL).toBe('public, s-maxage=60');
+    expect(AGENT_CARDS_CACHE_CONTROL).not.toMatch(/stale-while-revalidate/);
+  });
+
+  it('is the same 60 s as the cards of Featured and Company Exclusives, which keep their own stale-while-revalidate (so up to ~3 minutes)', () => {
+    expect(read('app/api/listings/route.ts')).toContain("'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120'");
   });
 
   it('the agent listings answer uses it, and no longer says 5 minutes', () => {

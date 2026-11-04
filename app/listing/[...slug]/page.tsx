@@ -1847,7 +1847,7 @@ export default async function ListingPage({ params }: Props) {
                     monthlyTaxes={listing.taxAnnualAmount ? Math.round(listing.taxAnnualAmount / 12) : 0}
                     bedrooms={listing.bedroomsTotal}
                     neighborhood={neighborhood || borough}
-                    isCommercial={isCommercialSpace(listing.propertyType, listing.propertySubType)}
+                    isCommercial={listing.isCommercial === true || isCommercialSpace(listing.propertyType, listing.propertySubType)}
                   />
                 ) : (
                   <RentVsBuyCalculator

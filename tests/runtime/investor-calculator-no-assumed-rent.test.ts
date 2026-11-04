@@ -13,6 +13,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import InvestorCalculator from '@/app/components/InvestorCalculator';
 import { isCommercialSpace } from '@/lib/listings/is-commercial-space';
+import { dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
 
 const render = (props: Record<string, unknown>) =>
   renderToStaticMarkup(createElement(InvestorCalculator, { purchasePrice: 1200000, maintenanceFee: 1588, monthlyTaxes: 1571, defaultExpanded: true, ...props } as never));
@@ -58,7 +59,7 @@ describe('a residential listing is unchanged', () => {
 });
 
 describe('what is a commercial space', () => {
-  it.each(['Commercial', 'Commercial Condo', 'Commercial Condop', 'Commercial Co-op', 'Office', 'Retail', 'MedicalOffice', 'RetailCondo', 'Industrial', 'Warehouse', 'Commercial Sale'])('%s is', (type) => {
+  it.each(['Commercial', 'Commercial Condo', 'Commercial Condop', 'Commercial Co-op', 'Office', 'Retail', 'MedicalOffice', 'RetailCondo', 'Industrial', 'Warehouse', 'Commercial Sale', 'CommercialSale', 'BusinessOpportunity'])('%s is', (type) => {
     expect(isCommercialSpace(type)).toBe(true);
     expect(isCommercialSpace('Residential', type)).toBe(true);
   });
@@ -73,9 +74,48 @@ describe('what is a commercial space', () => {
   });
 });
 
+// A Cotality commercial sale is PropertyType CommercialSale, and its public propertyType is its SUBTYPE: "Business", "FlexibleSpace", "HotelMotel", "SpecialPurpose" name nothing commercial (Codex, #689).
+const dbRow = (over: Record<string, unknown>) => ({
+  id: '1', listing_id: 'RLS20200001', status: 'Active', listing_type: 'sale', property_type: 'CommercialSale', property_sub_type: 'Business', list_price: '900000',
+  bedrooms_total: 0, bathrooms_full: 1, bathrooms_half: 0, living_area: '1200', borough: 'manhattan', neighborhood: 'Midtown',
+  address: { StreetNumber: '1', StreetName: 'MAIN', StreetSuffix: 'Street', City: 'New York', PostalCode: '10001', Borough: 'manhattan' },
+  features: {}, media: [], agent_info: {}, agent_id: null, owner_client_id: null, raw_data: {},
+  rls_eligible: true, idx_display_yn: true, internet_entire_listing_display_yn: true, internet_address_display_yn: true, owner_opt_out: false, participant_only: false,
+  listing_contract_date: '2026-11-03T00:00:00Z', modification_timestamp: '2026-11-03T08:00:00Z', created_at: '2026-11-03T08:00:00Z', updated_at: '2026-11-03T08:00:00Z',
+  ...over,
+}) as unknown as DbListing;
+
+describe('the public listing says it is commercial from its RAW type', () => {
+  it.each(['Business', 'FlexibleSpace', 'HotelMotel', 'SpecialPurpose', 'Office', 'Retail', 'Industrial', 'Warehouse'])('a CommercialSale with the subtype %s is commercial, although its public type is the subtype', (sub) => {
+    const dto = dbListingToPublicDTO(dbRow({ property_sub_type: sub }));
+    expect(dto.isCommercial).toBe(true);
+  });
+
+  it('shows why the raw type is needed: the public type of a Business sale names nothing commercial', () => {
+    const dto = dbListingToPublicDTO(dbRow({ property_sub_type: 'FlexibleSpace' }));
+    expect(isCommercialSpace(dto.propertyType, dto.propertySubType)).toBe(false);
+    expect(dto.isCommercial).toBe(true);
+  });
+
+  it('a Mallan website-only commercial listing (raw type Commercial, Office, Retail) is commercial', () => {
+    for (const type of ['Commercial', 'Office', 'Retail']) expect(dbListingToPublicDTO(dbRow({ listing_id: 'SL-0010', property_type: type, property_sub_type: '' })).isCommercial).toBe(true);
+  });
+
+  it('a residential listing is not, whatever its subtype', () => {
+    for (const [type, sub] of [['Residential', 'Apartment'], ['Residential', 'Condo'], ['Residential', 'Townhouse'], ['ResidentialLease', 'Apartment'], ['ResidentialIncome', 'MultiFamily'], ['Residential', '']]) {
+      expect(dbListingToPublicDTO(dbRow({ property_type: type, property_sub_type: sub })).isCommercial).toBe(false);
+    }
+  });
+
+  it('the Cotality-feed builder (toPublicDTO) says it the same way', () => {
+    const src = readFileSync(resolve(__dirname, '../../lib/idx/public-dto.ts'), 'utf8');
+    expect(src).toMatch(/isCommercial: isCommercialSpace\(listing\.propertyType, listing\.propertySubType\)/);
+  });
+});
+
 describe('the listing page tells the calculator', () => {
   it('passes the listing\'s own type, so a commercial condo gets the no-rent calculator', () => {
     const page = readFileSync(resolve(__dirname, '../../app/listing/[...slug]/page.tsx'), 'utf8');
-    expect(page).toMatch(/isCommercial=\{isCommercialSpace\(listing\.propertyType, listing\.propertySubType\)\}/);
+    expect(page).toMatch(/isCommercial=\{listing\.isCommercial === true \|\| isCommercialSpace\(listing\.propertyType, listing\.propertySubType\)\}/);
   });
 });
