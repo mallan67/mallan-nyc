@@ -26,6 +26,8 @@ export interface RecipientParseCounts {
   duplicate: number;
   /** Dropped because the email cell failed syntax validation. */
   invalid: number;
+  /** Research-export row blocked by missing/negative explicit outreach approval. */
+  held: number;
   /** Dropped because the row had no email cell at all. */
   missing: number;
 }
@@ -114,7 +116,7 @@ function cellText(cell: ExcelJS.Cell): string {
 // ─── Header detection + normalization ───────────────────────────────────────
 
 function extractRecipients(rows: string[][]): RecipientParseResult {
-  const counts: RecipientParseCounts = { total: 0, valid: 0, duplicate: 0, invalid: 0, missing: 0 };
+  const counts: RecipientParseCounts = { total: 0, valid: 0, duplicate: 0, invalid: 0, held: 0, missing: 0 };
   const invalidSamples: string[] = [];
   if (rows.length === 0) return { recipients: [], counts, invalidSamples };
 
@@ -156,7 +158,7 @@ function extractRecipients(rows: string[][]): RecipientParseResult {
     // must never flow into the deliverable audience. Plain opted-in Email/Name
     // files without research-export gates retain their existing behavior.
     if (eligibilityIndices.some((i) => !approved.has((r[i] ?? '').trim().toUpperCase()))) {
-      counts.invalid++;
+      counts.held++;
       continue;
     }
 
