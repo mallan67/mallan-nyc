@@ -8894,6 +8894,7 @@ function _salePublishRefusalLines(err) {
 function submitSalesListing() {
     if (_saleSendInFlight) { showToast('Still sending the last save — please wait.', 'info'); return; }
     if (_saleRefuseWhileLoading()) return;
+    if (_saleWaitForAutoSave(submitSalesListing)) return;       // an autosave is out: this save follows it
     // A Draft (any status that does not advertise the listing) is saved as it is — the required-field and REBNY checks apply when the listing is published (the server's gate too).
     var _submitStatusEl = document.getElementById('saleStatus');
     var _submitIsDraft = !_saleStatusAdvertises(_submitStatusEl ? _submitStatusEl.value : '');
@@ -8998,6 +8999,7 @@ function submitSalesListing() {
         var _statusNow = document.getElementById('saleStatus') ? document.getElementById('saleStatus').value : '';
         if (!_saleStatusAdvertises(_statusNow)) { var _flaggedNow = _saleBlockedWording(); if (_flaggedNow.length) showToast('Saved as Draft with flagged wording in ' + _flaggedNow.join(', ') + ' — fix it before publishing.', 'warning'); }
         var _savedId = '';                                            // set once the server has taken the listing: a later failure is not a failed submit
+        var _mediaFailed = 0;                                         // files that did not upload: they are still in the list, and the page stays open
         apiCall.then(async function(result) {
             _saleSetSending(false);
             _saleServerSaved();
@@ -9014,6 +9016,7 @@ function submitSalesListing() {
             if (pendingCount > 0 && lid) {
                 showToast('Uploading ' + pendingCount + ' media file(s)...', 'info');
                 var mediaResult = await uploadPendingMedia(lid);
+                _mediaFailed = mediaResult.failed || 0;
                 if (mediaResult.failed > 0) {
                     showToast(mediaResult.failed + ' media upload(s) failed.', 'warning');
                 }
@@ -9051,7 +9054,7 @@ function submitSalesListing() {
             try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
             try { localStorage.removeItem('saleListings'); } catch (e) {}
             clearTimeout(autoSaveTimer);
-            _pendingMediaFiles = [];
+            if (!_mediaFailed) _pendingMediaFiles = [];    // a file that did not go up is saved nowhere: it stays in the list, and Save Draft sends it again
             // Determine the best URL from status transition or create/update result
             var publicUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.publicUrl) || result.publicUrl || null;
             var realPlusUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.realPlusUrl) || result.realPlusUrl || null;
@@ -9062,6 +9065,9 @@ function submitSalesListing() {
             } else if (_publishRefusal) {
                 // The listing IS saved (as a Draft) and stays open here: the agent reads WHY it is not live, fixes it, and submits again. Nothing redirects before the reason is read.
                 _saleShowPublishRefusal(lid, _publishRefusal.message, _publishRefusal.lines, (currentCanonical && currentCanonical !== 'Draft' && currentCanonical !== 'Incomplete') ? currentCanonical : '');   // only a Draft is "not live"; any other status is the one the listing keeps
+            } else if (_mediaFailed) {
+                // The listing IS saved; leaving the page would lose the files that did not upload, so it stays open until the agent has read this
+                showToast('Listing ' + lid + ' saved, but ' + _mediaFailed + ' media file(s) did not upload. They are still in the list: press Save Draft to send them again.', 'warning', 15000);
             } else {
                 showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
                 setTimeout(function() { window.location.href = '/crm/dashboard#/ops/listings'; }, 1500);
@@ -9218,6 +9224,15 @@ function _saleSetAutoSaveState(kind, text) {
 }
 function _saleClock() { return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
 var _saleServerSaveInFlight = false, _saleServerSavePending = false, _saleServerSaveFailure = '', _saleServerRetryTimer = null, _saleServerFailCount = 0;
+// Save Draft and Submit wait for the autosave that is out: a request already on its way cannot be recalled, and two in flight can land out of order (the older form would replace the newer).
+// When the autosave is answered the waiting save runs at once and reads the form as it is then, so every change made meanwhile goes with it; the autosave that was queued behind is dropped.
+var _saleAfterAutoSave = [];
+function _saleWaitForAutoSave(run) {
+    if (!_saleServerSaveInFlight) return false;
+    if (_saleAfterAutoSave.indexOf(run) < 0) _saleAfterAutoSave.push(run);
+    showToast('Finishing the automatic save first — your save follows it.', 'info');
+    return true;
+}
 // One request at a time: two saves in flight can land out of order, and the older, smaller form state would replace the newer one. A change made meanwhile is sent once
 // the request in flight is answered. A refusal is shown, kept, and tried again; leaving the page while it stands asks first.
 function _saleServerAutoSave(updateId) {
@@ -9245,6 +9260,8 @@ function _saleServerAutoSave(updateId) {
         }
     }).then(function () {
         _saleServerSaveInFlight = false;
+        var handSaves = _saleAfterAutoSave; _saleAfterAutoSave = [];
+        if (handSaves.length) { _saleServerSavePending = false; handSaves.forEach(function (run) { run(); }); return; }
         if (_saleServerSavePending) { _saleServerSavePending = false; performAutoSave(); }
     });
 }
@@ -9261,6 +9278,7 @@ window.addEventListener('beforeunload', function (e) {
 async function manualSaveDraft() {
     if (_saleRefuseWhileLoading()) return;
     if (_saleSendInFlight) { showToast('Still sending the last save — please wait.', 'info'); return; }
+    if (_saleWaitForAutoSave(manualSaveDraft)) return;          // an autosave is out: this save follows it
     // Capture the current autosave timer so we only cancel this one, not a newer one
     var preFlightTimer = autoSaveTimer;
     // Step 1: Save/create listing via API
@@ -9280,17 +9298,20 @@ async function manualSaveDraft() {
     if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
         try {
             var result;
-            if (_saleEditMode && dbId) {
-                result = await MallanAPI.listings.update(dbId, fullData);
-                listingId = result.listing_id || listingId;
-            } else {
-                result = await MallanAPI.listings.create(fullData);
-                listingId = result.listing_id;
-                dbId = result.id;
-                _saleEditMode = true;
-                _saleEditDbId = dbId;
-                _saleEditListingId = listingId;
-            }
+            _saleSetSending(true);                          // an autosave due meanwhile waits, and Submit is refused, until the server has answered this save (two requests out can land in the wrong order)
+            try {
+                if (_saleEditMode && dbId) {
+                    result = await MallanAPI.listings.update(dbId, fullData);
+                    listingId = result.listing_id || listingId;
+                } else {
+                    result = await MallanAPI.listings.create(fullData);
+                    listingId = result.listing_id;
+                    dbId = result.id;
+                    _saleEditMode = true;
+                    _saleEditDbId = dbId;
+                    _saleEditListingId = listingId;
+                }
+            } finally { _saleSetSending(false); }
             _saleShowServerWording(result);
             _saleServerSaved();
 
@@ -12243,7 +12264,19 @@ async function renderServerMediaRows(listingId, fallbackId) {
     // ONLY to the original (already-canonical) first arg, never to the numeric
     // fallbackId. (Codex review on #295 + Maya directive.)
     var actionId = String((data && data.listing_id) || listingId || '');
-    if (!data || !Array.isArray(data.media) || !data.media.length) return;   // no keyed rows yet: the legacy preview stays
+    if (!data || !Array.isArray(data.media)) return;
+    if (!data.media.length) {
+        // The server says which empty it is. `_legacyPreview`: no keyed rows were ever imported, so the preview drawn from the listing's own list stays. Without it the gallery had rows and every one was removed:
+        // what that list still draws is gone from the gallery and must not come back on screen (a file still waiting to upload keeps its tile: it carries data-media-index).
+        if (data._legacyPreview) return;
+        [photoContainer, floorContainer, document.getElementById('saleDocPreview')].forEach(function (box) {
+            if (!box) return;
+            Array.prototype.slice.call(box.children).forEach(function (el) { if (!el.hasAttribute('data-media-index')) box.removeChild(el); });
+        });
+        var emptyCount = document.getElementById('salePhotoCount');
+        if (emptyCount) emptyCount.textContent = (photoContainer ? photoContainer.children.length : 0) + ' / 100 uploaded';
+        return;
+    }
     // Replace the legacy JSON preview with the authoritative keyed rows.
     if (photoContainer) photoContainer.innerHTML = '';
     if (floorContainer) floorContainer.innerHTML = '';

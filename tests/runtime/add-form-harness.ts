@@ -48,6 +48,7 @@ export type AddFormOpts = {
   storage?: Record<string, string>;                  // localStorage entries present when the page starts (a saved browser draft)
   showings?: unknown;                                // what GET /api/crm/showings answers as its list of showings (anything: the rows are the server's); a POST is answered with { showing: { id: 'S-1' } }
   mediaRows?: unknown;                               // what GET /api/crm/listings/:id/media answers as its list of media rows (anything: the rows are the server's)
+  mediaLegacyPreview?: boolean;                      // that answer carries `_legacyPreview: true` (no keyed rows were ever imported); without it an empty list means every row was removed
   created?: Record<string, unknown>;                 // what MallanAPI.listings.create answers, over the default { id, listing_id, status: 'Draft' } (the server's ids and addresses are the server's)
   updated?: Record<string, unknown>;                 // what MallanAPI.listings.update answers (default {}: the real route answers with the record's status, which is the server's)
   statusDetails?: Record<string, unknown>;           // the body of the server's refusal that goes with statusError (the API client keeps it as err.details)
@@ -123,7 +124,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
         const u = String(url);
         requests.push({ url: u, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : '' });
         if (o.mediaRows !== undefined && (init?.method ?? 'GET') === 'GET' && /^\/api\/crm\/listings\/[^/?]+\/media(\?.*)?$/.test(u)) {
-          return { ok: true, status: 200, json: async () => ({ listing_id: 'L-1', media: o.mediaRows }), text: async () => '' };
+          return { ok: true, status: 200, json: async () => ({ listing_id: 'L-1', media: o.mediaRows, ...(o.mediaLegacyPreview ? { _legacyPreview: true } : {}) }), text: async () => '' };
         }
         if (u.startsWith('/api/crm/showings')) {
           const method = init?.method ?? 'GET';
