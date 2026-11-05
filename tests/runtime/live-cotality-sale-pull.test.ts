@@ -38,20 +38,36 @@ const BASE = (process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle")
 // the box of the Sale form that shows each Cotality fact (the facts the form follows that have one box each)
 const BOX: Record<string, string> = {
   BedroomsTotal: "saleBedrooms", BathroomsFull: "saleFullBaths", BathroomsHalf: "saleHalfBaths", RoomsTotal: "saleTotalRooms", LivingArea: "saleUnitSqFt", ListPrice: "salePrice",
+  AssociationFee: "saleMaintCC", TaxMonthlyAmount: "saleTaxMonthly", EntryLevel: "saleFloorInBuilding", TaxLot: "saleUnitTaxLot", YearBuilt: "saleBldgYearBuilt", StoriesTotal: "saleBldgTotalFloors",
 };
+// a box holds text; live holds a number or a string such as "1571.00": the same amount is the same fact
+const sameValue = (box: string, live: unknown) => box === String(live) || (box !== "" && String(live).trim() !== "" && Number.isFinite(Number(box)) && Number.isFinite(Number(live)) && Number(box) === Number(live));
 
 let oracle: Record<string, unknown> = {};        // the live Property record, read independently of the route under test
 let pulled: { status: number; body: any } = { status: 0, body: {} };
 let followed: string[] = [];                     // SALE_COTALITY_FOLLOWS, read from the form itself
 
+// A Property row with its REBNY custom keys (CustomProperty.CustomFields, a JSON text) flattened in: RE tax, for one, arrives there as TaxMonthlyAmount. A Property column wins over a custom key of the same name.
+const flat = (row: Record<string, unknown>): Record<string, unknown> => {
+  let custom: Record<string, unknown> = {};
+  try {
+    const cp = row.CustomProperty as Array<{ CustomFields?: unknown }> | undefined;
+    const raw = cp && cp[0] && cp[0].CustomFields;
+    custom = typeof raw === "string" ? JSON.parse(raw) : ((raw as Record<string, unknown>) || {});
+  } catch { custom = {}; }
+  const out = { ...custom, ...row };
+  delete out.CustomProperty;
+  return out;
+};
+
 beforeAll(async () => {
   if (!LIVE) return;
   const token = await getAccessToken();
-  const r = await fetch(`${BASE}/odata/Property?$filter=${encodeURIComponent(`ListingId eq '${RLS}'`)}&$top=2`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
+  const r = await fetch(`${BASE}/odata/Property?$filter=${encodeURIComponent(`ListingId eq '${RLS}'`)}&$top=2&$expand=${encodeURIComponent("CustomProperty($select=CustomFields,ListingKey)")}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } });
   if (!r.ok) throw new Error(`the oracle query failed: HTTP ${r.status}`);
   const rows = (await r.json()).value as Array<Record<string, unknown>>;
   if (rows.length !== 1) throw new Error(`expected one live record for ${RLS}, found ${rows.length}`);
-  oracle = rows[0];
+  oracle = flat(rows[0]);
 
   requireAgentOrBroker.mockReset().mockResolvedValue({ role: "BROKER" });
   findFirst.mockReset().mockResolvedValue({ id: BigInt(7), listing_id: "SL-0010" });      // the listing is linked to this RLS ID and asks about its own link, as the form does
@@ -121,7 +137,12 @@ live("LIVE: the Sale form matches what the real route pulled", () => {
       for (const [field, box] of Object.entries(BOX)) {
         const liveValue = oracle[field];
         if (liveValue === null || liveValue === undefined || liveValue === "") continue;
-        if (val(f, box) !== String(liveValue)) wrong.push(`${field} (${box}): live ${liveValue}, form ${JSON.stringify(val(f, box))}`);
+        if (!sameValue(String(val(f, box) ?? ""), liveValue)) wrong.push(`${field} (${box}): live ${JSON.stringify(liveValue)}, form ${JSON.stringify(val(f, box))}`);
+      }
+      // RealPlus and Cotality send the RE tax as a MONTHLY figure; the form keeps the annual one beside it (monthly x 12)
+      const monthly = oracle.TaxMonthlyAmount;
+      if (monthly !== null && monthly !== undefined && oracle.TaxAnnualAmount == null && !sameValue(String(val(f, "saleRETaxes") ?? ""), Number(monthly) * 12)) {
+        wrong.push(`annual RE tax (saleRETaxes): live monthly ${JSON.stringify(monthly)} x 12 = ${Number(monthly) * 12}, form ${JSON.stringify(val(f, "saleRETaxes"))}`);
       }
       expect(wrong).toEqual([]);
       expect(f.saved).toEqual([]);
@@ -154,7 +175,7 @@ live("LIVE: the committed copy of the live record still says what live says", ()
   it("rls-fixtures.ts LIVE_RLS20123633 equals the live record for every fact the form follows (refresh the fixture from a new live read when this fails)", () => {
     const drift: string[] = [];
     for (const field of followed) {
-      const was = (LIVE_RLS20123633 as Record<string, unknown>)[field] ?? null;
+      const was = flat(LIVE_RLS20123633 as Record<string, unknown>)[field] ?? null;
       const now = oracle[field] ?? null;
       if (JSON.stringify(was) !== JSON.stringify(now)) drift.push(`${field}: committed ${JSON.stringify(was)}, live now ${JSON.stringify(now)}`);
     }

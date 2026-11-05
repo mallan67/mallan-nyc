@@ -5637,7 +5637,7 @@ async function pullFromCotalityByRlsId(rlsId) {
 // property type). A box Cotality has no value for is never blanked, and a count of 0 or the text "null" is no value. A box the agent changed since the listing opened is never replaced: it is listed as
 // kept. Every change is listed with its old and new value, and nothing is saved until the agent presses Submit. If Cotality cannot be reached the form says so.
 var SALE_COTALITY_FOLLOWS = ['BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'RoomsTotal', 'LivingArea', 'LivingAreaUnits', 'EntryLevel', 'TaxLot',
-    'ListPrice', 'AssociationFee', 'AssociationFeeFrequency', 'TaxAnnualAmount',
+    'ListPrice', 'AssociationFee', 'AssociationFeeFrequency', 'TaxAnnualAmount', 'TaxMonthlyAmount',
     'YearBuilt', 'YearBuiltEffective', 'StoriesTotal', 'NumberOfUnitsTotal', 'ElevatorsTotal', 'BuildingName', 'StructureType', 'TaxBlock', 'BuildingTaxLot'];
 var _saleFollow = { at: 0, busy: false, loaded: null };
 function _saleFollowText(v) { var t = String(v === undefined || v === null ? '' : v).trim(); return /^(null|undefined)$/i.test(t) ? '' : t; }
@@ -5652,6 +5652,10 @@ function _saleFollowTargets(rec) {
         if (f.valueMap && Object.prototype.hasOwnProperty.call(f.valueMap, v)) v = f.valueMap[v];
         out.push({ id: f.form, value: v, number: f.type === 'number' });
     });
+    // RealPlus and Cotality send the RE tax as a MONTHLY amount (TaxMonthlyAmount, a REBNY custom key; live record of RLS20123633, 2026-11-05: no TaxAnnualAmount). The form stores the ANNUAL tax, so the annual
+    // box follows as monthly x 12 (a programmatic set fires no oninput, so the form's own monthly -> annual handler would not run). When Cotality does send an annual amount, that one wins.
+    var monthlyTax = Number(_saleFollowText(rec.TaxMonthlyAmount));
+    if (_saleFollowText(rec.TaxAnnualAmount) === '' && monthlyTax > 0) out.push({ id: 'saleRETaxes', value: String(Math.round(monthlyTax * 12 * 100) / 100), number: true });
     return out;
 }
 // what each followed box held when the listing finished opening: a box that holds something else later was typed in by the agent
@@ -5704,6 +5708,7 @@ async function saleFollowCotality(opts) {
             _saleFollow.loaded[t.id] = String(el.value);
             changed.push(_saleFollowLabel(el) + ' ' + (now === '' ? 'blank' : now) + ' \u2192 ' + next);
         });
+        if (typeof calculateSaleTotalMonthly === 'function') calculateSaleTotalMonthly();          // the carrying-cost total reads the boxes that were just set
         } finally { window._salePopulateInProgress = false; }
         var when = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         var keptText = kept.length ? ' Not replaced, because you changed them here: ' + kept.join('; ') + '.' : '';
@@ -8057,9 +8062,8 @@ function calculateSaleTotalMonthly() {
     }
 }
 
-// Monthly RE tax is a DERIVED DISPLAY only. There is NO Cotality monthly tax field
-// (verified: artifacts/metadata.xml exposes only TaxAnnualAmount on Property); we store
-// the ANNUAL value (TaxAnnualAmount) and show monthly = annual / 12. Two-way: editing
+// The form STORES the ANNUAL RE tax (TaxAnnualAmount) and shows monthly = annual / 12. Live Cotality (RLS20123633, read 2026-11-05) carries the tax as the REBNY custom key
+// TaxMonthlyAmount and no TaxAnnualAmount, so a pull takes the monthly amount and fills the annual box with monthly x 12 (_saleFollowTargets). Two-way: editing
 // either box fills the other. Programmatic `.value` sets do NOT fire `oninput`, so the
 // two handlers never loop. (2026-06-23)
 function autoCalcTaxMonthly() {
