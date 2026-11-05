@@ -99,7 +99,11 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Code valid — create real session ──
-    const sessionToken = await createSession("agent", agent.id, agent.role, ip, ua);
+    // This is the ONLY path that may mint a principal-broker session in
+    // production: the OTP was just verified immediately above.
+    const sessionToken = await createSession("agent", agent.id, agent.role, ip, ua, {
+      kind: "mfa_verified",
+    });
 
     await prisma.agent.update({
       where: { id: agent.id },
