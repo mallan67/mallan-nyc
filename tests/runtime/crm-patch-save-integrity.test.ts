@@ -150,3 +150,50 @@ describe("PATCH /api/crm/listings/:id: two saves that read the same listing at t
     expect(row.raw_data).not.toHaveProperty(loser);                                 // ... and the refused one was never half-applied
   });
 });
+
+describe("PATCH /api/crm/listings/:id: inactiveProviderFields is an explicit, separate deletion of provider fields that do not apply", () => {
+  const withStored = () => {
+    m().listing.findUnique = jest.fn(async () => crmListing({
+      features: { TaxAnnualAmount: 18852, PercentOfCommonElements: 3.77, YearBuilt: 1957 },
+      raw_data: { ListPrice: 1200000, TaxAnnualAmount: 18852, PercentOfCommonElements: 3.77, saleRETaxes: "18852", salePercentCommon: "3.77", YearBuilt: 1957 },
+    }));
+  };
+  const sent = () => m().listing.update.mock.calls[0][0].data as Record<string, any>;
+
+  it("removes the named provider fields from the public copy (features) and from the provider keys of raw_data, and keeps everything else, the agent's own form entries included", async () => {
+    withStored();
+    const res = await patch({ PublicRemarks: "Bright office.", inactiveProviderFields: ["TaxAnnualAmount", "PercentOfCommonElements"] });
+    expect(res.status).toBe(200);
+    expect(sent().features).toEqual({ YearBuilt: 1957, PublicRemarks: "Bright office." });
+    expect(sent().raw_data).toEqual(expect.objectContaining({ saleRETaxes: "18852", salePercentCommon: "3.77", YearBuilt: 1957 }));
+    expect(sent().raw_data).not.toHaveProperty("TaxAnnualAmount");
+    expect(sent().raw_data).not.toHaveProperty("PercentOfCommonElements");
+  });
+
+  it("the instruction itself is not stored", async () => {
+    withStored();
+    await patch({ PublicRemarks: "x", inactiveProviderFields: ["TaxAnnualAmount"] });
+    expect(sent().raw_data).not.toHaveProperty("inactiveProviderFields");
+    expect(JSON.stringify(sent().features)).not.toContain("inactiveProviderFields");
+  });
+
+  it("only a provider field the persistence map routes to features can be named: a form key, a typed column, an unknown name and a non-text entry are ignored", async () => {
+    withStored();
+    await patch({ PublicRemarks: "x", inactiveProviderFields: ["saleRETaxes", "salePercentCommon", "BedroomsTotal", "ListPrice", "NoSuchField", 5, null, { a: 1 }] });
+    expect(sent().raw_data).toEqual(expect.objectContaining({ saleRETaxes: "18852", salePercentCommon: "3.77", ListPrice: 1200000 }));
+    expect(sent().features).toEqual(expect.objectContaining({ TaxAnnualAmount: 18852, PercentOfCommonElements: 3.77 }));
+  });
+
+  it("a field the same request sets to a value is kept, whatever the list says", async () => {
+    withStored();
+    await patch({ TaxAnnualAmount: 20000, inactiveProviderFields: ["TaxAnnualAmount"] });
+    expect(sent().features.TaxAnnualAmount).toBe(20000);
+    expect(sent().raw_data.TaxAnnualAmount).toBe(20000);
+  });
+
+  it("without the list nothing is removed: a request that leaves a provider field out leaves it as stored", async () => {
+    withStored();
+    await patch({ PublicRemarks: "x" });
+    expect(sent().features).toEqual(expect.objectContaining({ TaxAnnualAmount: 18852, PercentOfCommonElements: 3.77 }));
+  });
+});

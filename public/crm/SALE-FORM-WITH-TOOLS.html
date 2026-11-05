@@ -1737,7 +1737,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         <div class="form-card">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="field-label">Property Condition</label>
+                    <label class="field-label">Condition of Apartment</label>
                     <select id="saleCondition" class="field-input" data-concept="PropertyCondition">
                         <option value="">Select Condition</option>
                         <option value="Fair" hidden>Fair (earlier list - choose a condition from the list)</option>
@@ -1768,6 +1768,30 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <option value="Unknown">Unknown</option>
                         <option value="UpdatedRemodeled">Updated / Remodeled</option>
                         <option value="VeryGoodCondition">Very Good Condition</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Condition of Kitchen</label>
+                    <select id="saleKitchenCondition" class="field-input" data-concept="KitchenCondition">
+                        <option value="">Select Condition</option>
+                        <option value="Excellent">Excellent</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Good">Good</option>
+                        <option value="New">New</option>
+                        <option value="Poor">Poor</option>
+                        <option value="Wrecked">Wrecked</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Condition of Bathroom</label>
+                    <select id="saleBathroomCondition" class="field-input" data-concept="BathroomCondition">
+                        <option value="">Select Condition</option>
+                        <option value="Excellent">Excellent</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Good">Good</option>
+                        <option value="New">New</option>
+                        <option value="Poor">Poor</option>
+                        <option value="Wrecked">Wrecked</option>
                     </select>
                 </div>
             </div>
@@ -2075,6 +2099,10 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="RooftopsSky" class="w-4 h-4" data-concept-disposition="mallan-internal"> Rooftops/Sky</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Skyline" class="w-4 h-4" data-concept-disposition="mallan-internal"> Skyline</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Street" class="w-4 h-4" data-concept-disposition="mallan-internal"> Streets</label>
+            </div>
+            <div class="mt-3">
+                <label class="field-label">Views Comments</label>
+                <input type="text" id="saleViewRemarks" class="field-input" maxlength="255" placeholder="Anything to add about the views" data-concept="ViewRemarks">
             </div>
         </div>
 

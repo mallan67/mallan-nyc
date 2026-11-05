@@ -4,7 +4,8 @@
  * everything else is suppressed"). Before, a section the type does not use was only hidden: its boxes stayed enabled and what was typed in them was still sent (measured on 8 types: 0 locked, every hidden
  * value still sent: a co-op sent the Condo-only percent of common elements and the RE tax; a condo sent the co-op Unit Shares; a townhouse sent shares, flip tax and maintenance).
  *
- * Now a section the type does not use is LOCKED (its boxes disabled) and never sent, by whichever code reads it; what it holds stays on the page, so the type chosen again brings it back.
+ * Now a section the type does not use is LOCKED (its boxes disabled): what the agent entered there is KEPT in the record under the box's own key (never blanked: the edit route merges what it is sent over what is stored),
+ * and no provider field (the Cotality name) is sent from it. The persisted round trips are in crm-sale-type-roundtrip.test.ts.
  * The real page runs: the type is chosen the way an agent (or the address pull) chooses it.
  */
 import { bootAddForm, type BootedForm } from "./add-form-harness";
@@ -36,23 +37,26 @@ const typed = (box: HTMLElement) => [...box.querySelectorAll("input[type=text],i
 const sent = (f: BootedForm) => JSON.stringify((f.w as any).collectSaleFormData());
 
 describe.each(TYPES)("%s", (label, radio, own) => {
-  it("every box in a section this type does not use is locked, and nothing typed there is sent", async () => {
+  it("every box in a section this type does not use is locked; what is typed there is kept under its own key and feeds no provider field", async () => {
     const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 700 });
     try {
       chooseType(f, radio, own);
       const { hidden } = sections(f, subtypeOf(f, radio, own));
       expect(hidden.length).toBeGreaterThan(0);
-      const open: string[] = [], leaks: string[] = [];
+      const open: string[] = [], leaks: string[] = [], notKept: string[] = [];
       let n = 0;
       for (const box of hidden) {
         for (const c of box.querySelectorAll("input,select,textarea") as NodeListOf<HTMLInputElement>) if (!c.disabled) open.push(`${box.id}.${c.id || c.name}`);
         const first = typed(box)[0]; if (!first) continue;
         n++; const marker = first.type === "number" ? String(900000 + n) : `ZQ${n}`;
         first.value = marker;                                                   // set from outside: a person cannot type into a disabled box, but a script (a pull, a restore) can
-        if (sent(f).includes(marker)) leaks.push(`${box.id}.${first.id || first.name}`);
+        const p = (f.w as any).collectSaleFormData(); const own = first.id || first.name;
+        const holders = Object.keys(p).filter((k) => JSON.stringify(p[k]).includes(marker));
+        if (holders.some((k) => k !== own)) leaks.push(`${box.id}.${own} also sent as ${holders.filter((k) => k !== own).join("/")}`);
+        if (String(p[own]) !== marker) notKept.push(`${box.id}.${own}`);          // the agent's entry must still be in what is saved
         first.value = "";
       }
-      expect({ notLocked: open, stillSent: leaks }).toEqual({ notLocked: [], stillSent: [] });
+      expect({ notLocked: open, alsoSentAsAProviderField: leaks, notKept }).toEqual({ notLocked: [], alsoSentAsAProviderField: [], notKept: [] });
     } finally { f.close(); }
   });
 
@@ -87,7 +91,7 @@ describe("changing the type", () => {
       chooseType(f, "Condo");
       expect(shares.disabled).toBe(true);
       expect(shares.value).toBe("500");                                         // kept on the page
-      expect(sent(f)).not.toContain('"saleUnitShares":"500"');                  // but not sent for a condo
+      expect(sent(f)).toContain('"saleUnitShares":"500"');                      // and in the record: a save as a condo must not blank it (the edit route merges what it is sent)
       chooseType(f, "Coop");
       expect(shares.disabled).toBe(false);
       expect(shares.value).toBe("500");
@@ -105,7 +109,8 @@ describe("changing the type", () => {
       expect(sent(f)).toContain("18852");
       chooseType(f, "Coop");
       expect(tax.disabled).toBe(true);
-      expect(sent(f)).not.toContain("18852");                                   // the derived TaxAnnualAmount too: the readers that look the box up by id see it empty
+      expect(sent(f)).not.toContain('"TaxAnnualAmount"');                         // no provider tax for a co-op: the readers that look the box up by id see it empty
+      expect(sent(f)).toContain('"saleRETaxes":"18852"');                         // the agent's entry is kept
       chooseType(f, "Condo");
       expect(tax.value).toBe("18852");
       expect(sent(f)).toContain("18852");

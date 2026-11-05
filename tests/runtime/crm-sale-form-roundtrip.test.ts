@@ -61,6 +61,12 @@ async function fillNewListing(): Promise<{ entered: Entered[]; payload: Record<s
     for (const e of entered) {
       if (e.kind === 'value' && ['saleTaxMonthly', 'saleBldgStreetAddress', 'saleNeighborhoodFromAddress', 'saleTotalMonthly'].includes(e.key)) e.expected = (f.d.getElementById(e.key) as HTMLInputElement).value;
     }
+    // The unit's living area is ONE fact in three boxes (Unit Sq Ft, Living Area, Approx Interior SqFt): typing in one fills the others, so an agent cannot enter three different numbers. The filler sets values without typing and
+    // gave each box its own number; the form's own sync is run from the box that is live for every type, and all three are expected back as that one value.
+    f.w._saleMirrorArea('saleInteriorSqFt');
+    for (const e of entered) {
+      if (['saleInteriorSqFt', 'saleUnitSqFt', 'saleLivingArea'].includes(e.key)) e.expected = (f.d.getElementById(e.key) as HTMLInputElement).value;
+    }
     return { entered, payload: f.w.collectSaleFormData() };
   } finally { f.close(); }
 }

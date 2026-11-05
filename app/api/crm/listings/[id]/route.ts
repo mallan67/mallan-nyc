@@ -161,6 +161,15 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  // An EXPLICIT, SEPARATE instruction, never a side effect of a blank: `inactiveProviderFields` names the provider fields (the Cotality names) that do not apply to the listing's type now, because the Sale form
+  // has locked the sections that feed them. They are removed from the public copy of the facts (features) and from the provider keys of raw_data, so nothing inapplicable is published or sent to REBNY. Only a key the
+  // persistence map routes to the features bucket can be named (anything else is ignored), a key this same request sets to a value is kept, and the agent's own entries (the form's control keys, kept in raw_data)
+  // are never touched: they come back with the type. The list is an instruction, not data: it is not stored.
+  const inactiveProviderFields: string[] = Array.isArray(body.inactiveProviderFields)
+    ? (body.inactiveProviderFields as unknown[]).filter((k): k is string => typeof k === "string" && FEATURE_KEYS.includes(k))
+    : [];
+  delete body.inactiveProviderFields;
+
   // The remark slots are text. The Fair Housing scans read text only, PATCH copies PublicRemarks into the features bucket as it is, and the public listing page calls string methods on it:
   // an array or an object there answers 400. So does a list or an object under any other key the scan reads as free text (a headline, a comment, the layout / financing boxes ...), which would be saved unread.
   const nonTextSlot = nonTextRemarkSlot(body) ?? nonTextFreeTextKey(body);
@@ -489,6 +498,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   for (const k of featureKeys) {
     if (body[k] !== undefined) updatedFeatures[k] = body[k];
   }
+  for (const k of inactiveProviderFields) if (body[k] === undefined) delete updatedFeatures[k];
   update.features = updatedFeatures as Prisma.InputJsonValue;
 
   const agentKeys = [
@@ -577,6 +587,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   } as unknown as Prisma.InputJsonValue;
 
   // Store full merged data as raw_data
+  for (const k of inactiveProviderFields) if (body[k] === undefined) delete merged[k];
   update.raw_data = merged as Prisma.InputJsonValue;
 
   if (body.media !== undefined) update.media = body.media as Prisma.InputJsonValue;

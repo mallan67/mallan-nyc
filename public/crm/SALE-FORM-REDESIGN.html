@@ -7984,21 +7984,20 @@ function applySalesFieldRules() {
             }
         }
     });
-    _saleLockUnusedSections();                       // a section this type does not use is locked as well as hidden
     // Unit Info's Unit Type (Residential / Commercial) decides which panel shows; the page, a pull or a saved listing may set it, so it is applied here every time.
     if (typeof toggleSaleUnitType === 'function') toggleSaleUnitType();
     // A commercial condo, condop or co-op is ONE unit in a building (so is an office or retail condo). The Commercial Specifications panel also carries a whole building's facts (lot, building size, zoning, FAR,
     // air rights, unit counts): those are the building's, they live in the Building window, and the unit does not ask for them (Maya, 2026-11-04: "it should not be expanding for commercial condo unit number of units").
-    // A building fact typed there earlier is cleared with the box: a hidden value would still be saved.
+    // A building fact typed there earlier is KEPT (locked with the box, and never sent as a provider fact of the unit): it is the agent's entry, and it comes back if the listing is a whole building again.
     var officeRetailOwn = document.querySelector('input[name="saleOfficeRetailOwnership"]:checked');
     var unitInBuilding = (propertyType === 'Commercial' && ['CommercialCondo', 'CommercialCondop', 'CommercialCoop'].indexOf(commercialOwnership) >= 0)
         || ((propertyType === 'Office' || propertyType === 'Retail') && !!officeRetailOwn && ['Condo', 'Condop', 'Coop'].indexOf(officeRetailOwn.value) >= 0);
     document.querySelectorAll('#saleCommercialSection2 [data-bldg-scale]').forEach(function (box) {
         box.style.display = unitInBuilding ? 'none' : '';
-        if (unitInBuilding) box.querySelectorAll('input, select').forEach(function (el) { el.value = ''; });
     });
     var unitNote = document.getElementById('saleCommercialUnitNote');
     if (unitNote) unitNote.classList.toggle('hidden', !unitInBuilding);
+    _saleLockUnusedSections();                       // a section this type does not use is locked as well as hidden (after every decision above)
 
     // Handle Commercial/Mixed-Use distribution logic
     // UCBA Art. I, Sec. 5(F): Mixed-use in ≤5 unit buildings → RLS-eligible
@@ -8181,6 +8180,10 @@ function _saleLockUnusedSections() {
         var box = document.getElementById(id);
         if (box && (box.classList.contains('hidden') || box.style.display === 'none')) Array.prototype.forEach.call(box.querySelectorAll('input, select, textarea'), function (c) { locked.push(c); });
     });
+    // a commercial UNIT in a building does not ask for the building's own facts (lot, building size, zoning, FAR ...): those boxes are LOCKED, not cleared: what was typed stays on the page and in the record, and comes back with the kind
+    Array.prototype.forEach.call(document.querySelectorAll('#saleCommercialSection2 [data-bldg-scale]'), function (box) {
+        if (box.style.display === 'none') Array.prototype.forEach.call(box.querySelectorAll('input, select, textarea'), function (c) { locked.push(c); });
+    });
     Array.prototype.forEach.call(document.querySelectorAll('[data-type-locked]'), function (c) { if (locked.indexOf(c) < 0) { c.disabled = false; c.removeAttribute('data-type-locked'); } });
     locked.forEach(function (c) { if (!c.hasAttribute('data-type-locked')) { c.setAttribute('data-type-locked', '1'); c.disabled = true; } });
 }
@@ -8209,7 +8212,17 @@ function _saleMirrorArea(fromId) {
     var empty = function (e) { return String(e.value).trim() === ''; };
     var src = fromId ? document.getElementById(fromId) : (els.filter(function (e) { return !empty(e) && !e.hasAttribute('data-type-locked'); })[0] || els.filter(function (e) { return !empty(e); })[0]);
     if (!src) return;
-    els.forEach(function (e) { if (e !== src && e.value !== src.value && (fromId || empty(e))) e.value = src.value; });
+    els.forEach(function (e) { if (e !== src && e.value !== src.value) e.value = src.value; });      // all three take the source's value, a conflicting non-empty one included
+}
+// On load the typed value of the record (the living_area column, which is what the public pages and the REBNY payload read) is the canonical one: all three boxes are set to it, whatever a box holds from an earlier save.
+// A record with no typed value has no canonical one: Approx Interior SqFt (live for every type) wins when it holds a value, else the box that is live for the type, and the others take its value.
+function _saleReconcileArea(listing) {
+    var typed = listing && listing.living_area !== undefined && listing.living_area !== null ? String(listing.living_area).trim() : '';
+    if (typed !== '' && isFinite(Number(typed))) {
+        SALE_AREA_BOXES.forEach(function (id) { var el = document.getElementById(id); if (el) el.value = String(Number(typed)); });
+        return;
+    }
+    _saleMirrorArea(null);
 }
 document.addEventListener('input', function (e) { if (e.target && SALE_AREA_BOXES.indexOf(e.target.id) >= 0) _saleMirrorArea(e.target.id); }, true);
 document.addEventListener('change', function (e) { if (e.target && SALE_AREA_BOXES.indexOf(e.target.id) >= 0) _saleMirrorArea(e.target.id); }, true);
@@ -8222,9 +8235,34 @@ function _saleHoldLockedSections() {                  // the locked boxes' value
     return held;
 }
 function _saleReleaseLockedSections(held) { held.forEach(function (h) { h[0].value = h[1]; h[0].checked = h[2]; }); }
+// What a locked box holds is the agent's entry: it is KEPT in the record (the form's own storage, raw_data, under the box's own key) and is never sent as an instruction to clear. What the form sends as provider
+// fields (the Cotality names) is read with the locked boxes set aside, so a value that does not apply to the type never reaches the public record or the REBNY payload, and a canonical field that is blank only
+// because its box is locked is simply not sent (the PATCH merge keeps what is stored). Clearing is a separate act: emptying a box that is LIVE still clears it.
+function _saleMergeApplicable(full, applicable) {
+    var lockedKeys = {};
+    Array.prototype.forEach.call(document.querySelectorAll('[data-type-locked]'), function (c) { var k = c.id || c.name; if (k) lockedKeys[k] = true; });
+    var blank = function (v) { return v === '' || v === null || v === undefined || v === false || (Array.isArray(v) && v.length === 0); };
+    var out = {}, dropped = [];
+    Object.keys(applicable).forEach(function (k) {
+        if (lockedKeys[k]) return;
+        if (JSON.stringify(applicable[k]) !== JSON.stringify(full[k]) && blank(applicable[k])) { if (!blank(full[k])) dropped.push(k); return; }   // blank only because an inactive box was set aside: no blank is sent
+        out[k] = applicable[k];
+    });
+    Object.keys(full).forEach(function (k) { if (!lockedKeys[k] && !(k in applicable) && !blank(full[k])) dropped.push(k); });                    // a provider field that exists only because an inactive box holds a value
+    Object.keys(lockedKeys).forEach(function (k) { if (k in full) out[k] = full[k]; });                  // the agent's own entries in the inactive boxes, as they are
+    return { data: out, dropped: dropped };
+}
 function collectSaleFormData() {
-    var _held = _saleHoldLockedSections();
-    try {
+    var _pass = arguments[0];                        // 'full' / 'applicable' on the two reads below; none for a caller
+    if (_pass === undefined) {
+        var full = collectSaleFormData('full');
+        var _held = _saleHoldLockedSections(), applicable;
+        try { applicable = collectSaleFormData('applicable'); } finally { _saleReleaseLockedSections(_held); }
+        var merged = _saleMergeApplicable(full, applicable);
+        // The provider fields that do not apply to this type are named in a SEPARATE list (never as blanks): the edit route removes only those from the public copy; the agent's own entries stay (see _saleMergeApplicable).
+        if (_saleEditMode || _saleEditListingId || _saleEditDbId) { if (merged.dropped.length) merged.data.inactiveProviderFields = merged.dropped; }
+        return merged.data;
+    }
     var data = { listing_type: 'sale' };
     // `add-sales-listing` was the legacy shell container — doesn't exist in
     // the redesigned form. `.flex-1` is the real container used in the shell.
@@ -8861,7 +8899,6 @@ function collectSaleFormData() {
     if (saleBuyerOfferWithdrawn()) { data.saleBuyerComp = ''; data.saleBuyerCompType = 'Percent'; }
     _saleEmitClaims(data);
     return data;
-    } finally { _saleReleaseLockedSections(_held); }
 }
 
 var _saleSendInFlight = false;
@@ -10490,7 +10527,7 @@ function _checkSaleEditMode() {
         window._salePopulateInProgress = true;
         try {
             _populateSaleFormFromApi(listing);
-            _saleMirrorArea(null);                                       // one living area, whichever box the record filled
+            _saleReconcileArea(listing);                                 // one living area: the record's typed value first, then the box that is live for the type
             _saleDeriveCommercialOwnership();                            // a Commercial listing whose ownership is not chosen takes it from the building it sits in, when the record says which
             window._saleEditLoad = 'loaded';
             if (typeof MallanFairHousing !== 'undefined') MallanFairHousing.blockedFields();   // what the boxes hold is shown as soon as the listing loads
