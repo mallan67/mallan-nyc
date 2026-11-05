@@ -139,6 +139,12 @@ live("LIVE: the Sale form matches what the real route pulled", () => {
         if (liveValue === null || liveValue === undefined || liveValue === "") continue;
         if (!sameValue(String(val(f, box) ?? ""), liveValue)) wrong.push(`${field} (${box}): live ${JSON.stringify(liveValue)}, form ${JSON.stringify(val(f, box))}`);
       }
+      // the Unit tab's checkbox groups: every value live Cotality lists that the form has a box for is ticked (Exposure "North", View "City", ceilings "HighCeilings" on SL-0010)
+      for (const [field, name] of [["Exposures", "saleExposure"], ["View", "saleViewList"], ["InteriorFeatures", "saleCeilings"]]) {
+        const listed = String(oracle[field] ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+        const boxes = [...f.d.querySelectorAll(`input[name="${name}"]`)] as HTMLInputElement[];
+        for (const v of listed) { const b = boxes.find((x) => x.value === v); if (b && !b.checked) wrong.push(`${field} "${v}" (${name}): live lists it, the box is not ticked`); }
+      }
       // RealPlus and Cotality send the RE tax as a MONTHLY figure; the form keeps the annual one beside it (monthly x 12)
       const monthly = oracle.TaxMonthlyAmount;
       if (monthly !== null && monthly !== undefined && oracle.TaxAnnualAmount == null && !sameValue(String(val(f, "saleRETaxes") ?? ""), Number(monthly) * 12)) {

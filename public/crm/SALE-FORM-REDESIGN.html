@@ -5640,6 +5640,11 @@ var SALE_COTALITY_FOLLOWS = ['BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 
     'ListPrice', 'AssociationFee', 'AssociationFeeFrequency', 'TaxAnnualAmount', 'TaxMonthlyAmount',
     'YearBuilt', 'YearBuiltEffective', 'StoriesTotal', 'NumberOfUnitsTotal', 'ElevatorsTotal', 'BuildingName', 'StructureType', 'TaxBlock', 'BuildingTaxLot'];
 var _saleFollow = { at: 0, busy: false, loaded: null };
+// The Unit tab's checkbox groups that Cotality carries as comma-separated lookup values in the very words the boxes use (live record of RLS20123633, 2026-11-05: Exposures "North", View "City", InteriorFeatures
+// "HighCeilings"). The follow only TICKS what Cotality lists and never unticks anything (the agent's own extras stay); a group the agent changed since the listing opened is left as it is. (The boxes are still
+// Mallan-internal for what the form sends: this is the pull direction only.)
+var SALE_FOLLOW_GROUPS = [{ rls: 'Exposures', name: 'saleExposure', label: 'Exposure' }, { rls: 'View', name: 'saleViewList', label: 'View' }, { rls: 'InteriorFeatures', name: 'saleCeilings', label: 'Ceilings' }];
+function _saleGroupChecked(name) { return Array.prototype.map.call(document.querySelectorAll('input[name="' + name + '"]:checked'), function (c) { return c.value; }).sort().join(','); }
 function _saleFollowText(v) { var t = String(v === undefined || v === null ? '' : v).trim(); return /^(null|undefined)$/i.test(t) ? '' : t; }
 function _saleFollowTargets(rec) {
     var out = [];
@@ -5656,12 +5661,18 @@ function _saleFollowTargets(rec) {
     // box follows as monthly x 12 (a programmatic set fires no oninput, so the form's own monthly -> annual handler would not run). When Cotality does send an annual amount, that one wins.
     var monthlyTax = Number(_saleFollowText(rec.TaxMonthlyAmount));
     if (_saleFollowText(rec.TaxAnnualAmount) === '' && monthlyTax > 0) out.push({ id: 'saleRETaxes', value: String(Math.round(monthlyTax * 12 * 100) / 100), number: true });
+    SALE_FOLLOW_GROUPS.forEach(function (g) {
+        var want = _saleFollowText(rec[g.rls]).split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+        var boxes = Array.prototype.filter.call(document.querySelectorAll('input[name="' + g.name + '"]'), function (c) { return want.indexOf(c.value) >= 0 && !c.disabled; });
+        if (boxes.length) out.push({ group: g, boxes: boxes });
+    });
     return out;
 }
 // what each followed box held when the listing finished opening: a box that holds something else later was typed in by the agent
 function _saleFollowSnapshot() {
     _saleFollow.loaded = {};
     SALE_FIELD_MAP.forEach(function (f) { if (SALE_COTALITY_FOLLOWS.indexOf(f.rls) >= 0) { var el = document.getElementById(f.form); if (el) _saleFollow.loaded[f.form] = String(el.value); } });
+    SALE_FOLLOW_GROUPS.forEach(function (g) { _saleFollow.loaded['group:' + g.name] = _saleGroupChecked(g.name); });
 }
 function _saleFollowLabel(el) {
     var box = el.closest('div'), lab = box && box.querySelector('label');
@@ -5693,6 +5704,16 @@ async function saleFollowCotality(opts) {
         window._salePopulateInProgress = true;
         try {
         _saleFollowTargets(body.record).forEach(function (t) {
+            if (t.group) {                                                     // a checkbox group: tick what Cotality lists, untick nothing
+                var key = 'group:' + t.group.name, was = _saleGroupChecked(t.group.name);
+                var add = t.boxes.filter(function (b) { return !b.checked; });
+                if (!add.length) return;
+                if (_saleFollow.loaded[key] !== undefined && was !== _saleFollow.loaded[key]) { kept.push(t.group.label + ' (Cotality has ' + t.boxes.map(function (b) { return b.value; }).join(', ') + ')'); return; }
+                add.forEach(function (b) { b.checked = true; b.dispatchEvent(new Event('change', { bubbles: true })); });
+                _saleFollow.loaded[key] = _saleGroupChecked(t.group.name);
+                changed.push(t.group.label + ' ' + (was === '' ? 'blank' : was.replace(/,/g, ', ')) + ' \u2192 ' + _saleGroupChecked(t.group.name).replace(/,/g, ', '));
+                return;
+            }
             var el = document.getElementById(t.id);
             if (!el || el.disabled || el.readOnly) return;
             var now = String(el.value || '').trim(), next = String(t.value);
