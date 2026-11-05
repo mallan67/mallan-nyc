@@ -13,12 +13,14 @@ import { REBNY_FIELD_TABLES } from '@/lib/compliance/rebny-field-tables';
 const LIVE_RLS20123633 = {
   BathroomsFull: 3, LivingArea: 1482, RoomsTotal: 8, BedroomsTotal: 8, BuildingName: null, AssociationFeeFrequency: 'Monthly', ListOfficeMlsId: '7041', BathroomsHalf: 0,
   ListPrice: 1200000, StandardStatus: 'Active', TaxAnnualAmount: null, ListingId: 'RLS20123633', AssociationFee: 1588, StoriesTotal: 18, YearBuilt: 1957, ListingKey: '1194314473',
+  // a REBNY custom key (CustomProperty.CustomFields, flattened in by fetchRlsRecords): live 2026-11-05, "1571.00", with no TaxAnnualAmount
+  TaxMonthlyAmount: '1571.00',
 };
 
 // SL-0010 as the first pull saved it
 const SL0010: ListingFollowState = {
   list_price: '1200000', bedrooms_total: 0, bathrooms_full: 2, bathrooms_half: 0, living_area: '1482',
-  features: { YearBuilt: 1957, StoriesTotal: 18, RoomsTotal: 8, AssociationFee: 1588, AssociationFeeFrequency: 'Monthly' },
+  features: { YearBuilt: 1957, StoriesTotal: 18, RoomsTotal: 8, AssociationFee: 1588, AssociationFeeFrequency: 'Monthly', TaxMonthlyAmount: 1571, TaxAnnualAmount: 18852 },
   address: { StreetNumber: '800', StreetName: '2ND' },
   raw_data: { saleRlsId: 'RLS20123633', saleBedrooms: '0', saleFullBaths: '2', BedroomsTotal: 0, BathroomsFull: 2, RoomsTotal: 8, saleTotalRooms: '8', PublicRemarks: 'Our own description.' },
 };
@@ -65,7 +67,7 @@ describe('what is no fact', () => {
 
   it('0 is a fact for bedrooms, full and half baths (a studio, an office) and no fact for a price, an area, rooms, a year, stories, a fee or a tax', () => {
     for (const n of ['BedroomsTotal', 'BathroomsFull', 'BathroomsHalf']) expect(cleanFact(byName(n), 0)).toBe(0);
-    for (const n of ['ListPrice', 'LivingArea', 'RoomsTotal', 'YearBuilt', 'StoriesTotal', 'AssociationFee', 'TaxAnnualAmount']) expect(cleanFact(byName(n), 0)).toBeUndefined();
+    for (const n of ['ListPrice', 'LivingArea', 'RoomsTotal', 'YearBuilt', 'StoriesTotal', 'AssociationFee', 'TaxAnnualAmount', 'TaxMonthlyAmount']) expect(cleanFact(byName(n), 0)).toBeUndefined();
     expect(planRlsFollow(SL0010, { ...LIVE_RLS20123633, AssociationFee: 0, TaxAnnualAmount: 0, ListPrice: 0 }).changes.map((c) => c.field)).toEqual(['BedroomsTotal', 'BathroomsFull']);
   });
 
@@ -110,6 +112,44 @@ describe('where each fact goes: the same place a save from the Sale form puts it
     expect(p.columns).toEqual({ bedrooms_total: 8 });
     expect(p.address).toEqual({ BuildingName: 'The Tudor' });
     expect(p.changes.map((c) => c.field)).toEqual(['BedroomsTotal', 'BuildingName']);
+  });
+});
+
+describe('the RE tax: Cotality sends it MONTHLY (a REBNY custom key), the form keeps the ANNUAL tax', () => {
+  const bare = (features: Record<string, unknown> = {}, raw_data: Record<string, unknown> = {}) => ({ list_price: 1, bedrooms_total: 1, bathrooms_full: 1, bathrooms_half: 1, living_area: 1, features, address: {}, raw_data });
+
+  it("a monthly amount and no annual one: both are written, the annual as monthly x 12, each under its Cotality name AND the Sale form's own box id (live RLS20123633: \"1571.00\")", () => {
+    const p = planRlsFollow(bare(), { TaxMonthlyAmount: '1571.00', TaxAnnualAmount: null });
+    expect(p.changes).toEqual([{ field: 'TaxMonthlyAmount', from: null, to: 1571 }, { field: 'TaxAnnualAmount', from: null, to: 18852 }]);
+    expect(p.features).toEqual({ TaxMonthlyAmount: 1571, TaxAnnualAmount: 18852 });
+    expect(p.raw).toEqual({ TaxMonthlyAmount: 1571, saleTaxMonthly: 1571, TaxAnnualAmount: 18852, saleRETaxes: 18852 });
+  });
+
+  it('an annual amount Cotality does send wins over monthly x 12', () => {
+    const p = planRlsFollow(bare(), { TaxMonthlyAmount: 1571, TaxAnnualAmount: 19000 });
+    expect(p.features).toEqual({ TaxMonthlyAmount: 1571, TaxAnnualAmount: 19000 });
+  });
+
+  it('cents are kept (monthly 1571.10 is 18853.20 a year), and a listing that already holds both has an empty plan', () => {
+    expect(planRlsFollow(bare(), { TaxMonthlyAmount: 1571.1 }).features.TaxAnnualAmount).toBe(18853.2);
+    expect(planRlsFollow(bare({ TaxMonthlyAmount: 1571, TaxAnnualAmount: 18852 }), { TaxMonthlyAmount: '1571.00' }).changes).toEqual([]);
+  });
+
+  it('a monthly tax that changed moves the annual tax with it', () => {
+    const p = planRlsFollow(bare({ TaxMonthlyAmount: 1571, TaxAnnualAmount: 18852 }), { TaxMonthlyAmount: 1600 });
+    expect(p.changes).toEqual([{ field: 'TaxMonthlyAmount', from: 1571, to: 1600 }, { field: 'TaxAnnualAmount', from: 18852, to: 19200 }]);
+  });
+
+  it('no monthly amount, 0 or the text "null": no annual tax is made up and nothing is blanked', () => {
+    for (const monthly of [undefined, null, 0, '0.00', 'null', '']) expect(planRlsFollow(bare({ TaxAnnualAmount: 18852 }), { TaxMonthlyAmount: monthly }).changes).toEqual([]);
+  });
+});
+
+describe('the living area is one fact with three boxes on the Sale form: the server writes all three', () => {
+  it('LivingArea is written under its Cotality name and under every box the form keeps it in', () => {
+    const p = planRlsFollow({ list_price: 1, bedrooms_total: 1, bathrooms_full: 1, bathrooms_half: 1, living_area: 1, features: {}, address: {}, raw_data: {} }, { LivingArea: 1500 });
+    expect(p.columns).toEqual({ living_area: 1500 });
+    expect(p.raw).toEqual({ LivingArea: 1500, saleUnitSqFt: 1500, saleLivingArea: 1500, saleInteriorSqFt: 1500 });
   });
 });
 

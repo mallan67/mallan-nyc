@@ -7,7 +7,7 @@
  */
 import { getAccessToken } from '@/lib/idx/auth';
 import { sanitizeOData } from '@/lib/sanitize';
-import { FOLLOW_SELECT } from '@/lib/listings/rls-followed-facts';
+import { CUSTOM_FOLLOW_KEYS, FOLLOW_SELECT } from '@/lib/listings/rls-followed-facts';
 import { MALLAN_LIST_OFFICE_MLS_IDS } from '@/lib/listings/mallan-source-identity';
 
 const COTALITY_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
@@ -17,6 +17,23 @@ const CHUNK = 20;
 export type RlsFetchResult =
   | { ok: true; records: Map<string, Record<string, unknown>>; refused: Array<{ rls: string; reason: string }> }
   | { ok: false; error: string };
+
+/**
+ * A Property row with the REBNY custom keys that follow (CustomProperty.CustomFields, a JSON text) flattened in, so the plan reads them like any other fact. Only the keys that follow are copied
+ * (never the rest of the custom fields), and a Property column of the same name wins.
+ */
+function withFollowedCustomKeys(row: Record<string, unknown>): Record<string, unknown> {
+  let custom: Record<string, unknown> = {};
+  try {
+    const cp = row.CustomProperty as Array<{ CustomFields?: unknown }> | undefined;
+    const raw = cp && cp[0] && cp[0].CustomFields;
+    custom = typeof raw === 'string' ? JSON.parse(raw) : ((raw as Record<string, unknown>) ?? {});
+  } catch { custom = {}; }
+  const out: Record<string, unknown> = { ...row };
+  delete out.CustomProperty;
+  for (const key of CUSTOM_FOLLOW_KEYS) if (out[key] === undefined && custom[key] !== undefined) out[key] = custom[key];
+  return out;
+}
 
 export async function fetchRlsRecords(rlsIds: string[]): Promise<RlsFetchResult> {
   const ids = [...new Set(rlsIds.map((i) => String(i).trim().toUpperCase()))];
@@ -34,13 +51,14 @@ export async function fetchRlsRecords(rlsIds: string[]): Promise<RlsFetchResult>
     const params = new URLSearchParams({
       $filter: chunk.map((id) => `ListingId eq '${sanitizeOData(id)}'`).join(' or '),
       $select: FOLLOW_SELECT.join(','),
+      $expand: 'CustomProperty($select=CustomFields)',        // the REBNY custom keys (the monthly RE tax): a JSON text reached through Property
       $top: String(chunk.length * 2),                       // two per id: a duplicate is seen, and refused
     });
     let rows: Array<Record<string, unknown>>;
     try {
       const res = await fetch(`${COTALITY_URL}/odata/Property?${params}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, cache: 'no-store' });
       if (!res.ok) return { ok: false, error: `Cotality answered HTTP ${res.status}` };
-      rows = ((await res.json()).value ?? []) as Array<Record<string, unknown>>;
+      rows = (((await res.json()).value ?? []) as Array<Record<string, unknown>>).map(withFollowedCustomKeys);
     } catch (err) {
       return { ok: false, error: `Cotality could not be reached: ${err instanceof Error ? err.message : String(err)}` };
     }

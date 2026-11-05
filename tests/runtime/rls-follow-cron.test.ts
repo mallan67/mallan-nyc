@@ -113,6 +113,36 @@ describe('SL-0010 follows RLS20123633', () => {
     expect(where.AND[0].OR.map((c: { listing_id: { startsWith: string } }) => c.listing_id.startsWith)).toEqual(['SL-', 'RL-']);
   });
 
+  it('asks for the REBNY custom fields (CustomProperty.CustomFields) through $expand, and never puts a custom key in $select (it is not a Property column)', async () => {
+    await run();
+    expect(asked[0]).toContain('$expand=CustomProperty($select=CustomFields)');
+    const select = (asked[0].match(/\$select=([^&]+)/)?.[1] ?? '').split(',');
+    expect(select).not.toContain('TaxMonthlyAmount');
+    expect(select).not.toContain('CustomProperty');
+  });
+
+  it("the monthly RE tax in the custom fields reaches the listing: the monthly tax and the annual tax (monthly x 12) go to the features bucket and to the form's own keys", async () => {
+    cotality([{ ...LIVE, BedroomsTotal: 0, BathroomsFull: 2, CustomProperty: [{ CustomFields: JSON.stringify({ TaxMonthlyAmount: '1571.00', KitchenCondition: 'Good', CertificateOfOccupancyYN: true }) }] }]);
+    const { body } = await run();
+    expect(body).toMatchObject({ changed: 1, failed: [] });
+    const { data } = updateMany.mock.calls[0][0];
+    expect(data.features).toEqual({ YearBuilt: 1957, StoriesTotal: 18, RoomsTotal: 8, AssociationFee: 1588, AssociationFeeFrequency: 'Monthly', TaxMonthlyAmount: 1571, TaxAnnualAmount: 18852 });
+    expect(data.raw_data).toMatchObject({ TaxMonthlyAmount: 1571, saleTaxMonthly: 1571, TaxAnnualAmount: 18852, saleRETaxes: 18852 });
+    // only the custom keys that follow are read: nothing else in the custom fields is copied anywhere
+    expect(JSON.stringify(data)).not.toContain('KitchenCondition');
+    expect(JSON.stringify(data)).not.toContain('CertificateOfOccupancyYN');
+    const audit = (auditCreate.mock.calls[0] as unknown as [{ data: Record<string, any> }])[0].data;
+    expect(audit.changes.changes.map((c: { field: string }) => c.field)).toEqual(['TaxMonthlyAmount', 'TaxAnnualAmount']);
+  });
+
+  it('a listing that already holds the monthly and the annual tax is not touched', async () => {
+    findMany.mockResolvedValue([sl0010({ bedrooms_total: 8, bathrooms_full: 3, features: { YearBuilt: 1957, StoriesTotal: 18, RoomsTotal: 8, AssociationFee: 1588, AssociationFeeFrequency: 'Monthly', TaxMonthlyAmount: 1571, TaxAnnualAmount: 18852 } })]);
+    cotality([{ ...LIVE, CustomProperty: [{ CustomFields: JSON.stringify({ TaxMonthlyAmount: '1571.00' }) }] }]);
+    const { body } = await run();
+    expect(body).toMatchObject({ linked: 1, changed: 0, unchanged: 1 });
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
   it('records the change (old and new) as an audit event, expires the public caches, and refreshes the search projection', async () => {
     await run();
     expect(auditCreate).toHaveBeenCalledTimes(1);

@@ -43,7 +43,7 @@ describe('the RLS ID of a Mallan listing is pulled from Cotality', () => {
     const { status, body } = await pull('RLS20123633');
     expect(status).toBe(200);
     expect(body.rls).toEqual({ listing_id: 'RLS20123633', listing_key: '1194314473', status: 'Active', list_office_mls_id: '7041' });
-    expect(body.record).toMatchObject({ ListPrice: 1200000, UnitNumber: '806', TaxLot: '1025', BuildingTaxLot: '7501', LivingArea: 1482, BathroomsFull: 2, YearBuilt: 1957, CommonInterest: 'Condominium', CurrentUse: 'MedicalDental' });
+    expect(body.record).toMatchObject({ ListPrice: 1200000, UnitNumber: '806', TaxLot: '1025', BuildingTaxLot: '7501', LivingArea: 1482, BathroomsFull: 3, YearBuilt: 1957, CommonInterest: 'Condominium', CurrentUse: 'MedicalDental' });
   });
 
   it('withholds what is the provider\'s own, and says so: identity, status, permissions, display flags, agent/office, activation, media and tour links', async () => {
@@ -126,7 +126,7 @@ describe('a saved listing asks about its own RLS link (the form follows RealPlus
     const { status, body } = await pull('RLS20123633', '7');
     expect(status).toBe(200);
     expect(body.existing).toBeUndefined();
-    expect(body.record).toMatchObject({ BathroomsFull: 2, RoomsTotal: 8, YearBuilt: 1957 });
+    expect(body.record).toMatchObject({ BathroomsFull: 3, RoomsTotal: 8, YearBuilt: 1957 });
     expect(body.rls.listing_id).toBe('RLS20123633');
     const bySl = await pull('RLS20123633', 'sl-0010');                       // the form may have been opened by the SL id
     expect(bySl.body.record).toBeDefined();

@@ -74,7 +74,7 @@ describe("800 2nd Avenue, pulled from Cotality: Unit Info is the unit's own", ()
     } finally { f.close(); }
   });
 
-  it("a building fact typed while the listing was a whole building is cleared when it becomes a condo: a hidden value would still be saved", async () => {
+  it("a building fact typed while the listing was a whole building is KEPT and LOCKED when it becomes a condo (never cleared, never sent as a provider fact of the unit), and is back when it is a whole building again", async () => {
     const f = await pulled();
     try {
       click(f, 'input[name="saleCommercialOwnership"][value="WholeBuilding"]');
@@ -82,9 +82,18 @@ describe("800 2nd Avenue, pulled from Cotality: Unit Info is the unit's own", ()
         const el = f.d.getElementById(id) as HTMLInputElement | HTMLSelectElement; el.value = v;
       }
       (f.d.getElementById("saleCommercialCeilingHeightFt") as HTMLInputElement).value = "11";
+      const BUILDING_ONLY = ["saleCommercialUnitsTotal", "saleCommercialRetailUnits", "saleCommercialLotSize", "saleCommercialZoning"];
       click(f, 'input[name="saleCommercialOwnership"][value="CommercialCondo"]');
-      expect(["saleCommercialUnitsTotal", "saleCommercialRetailUnits", "saleCommercialLotSize", "saleCommercialZoning"].map((id) => val(f, id))).toEqual(["", "", "", ""]);
+      expect(BUILDING_ONLY.map((id) => val(f, id))).toEqual(["12", "3", "2500", "C5"]);                 // the agent's entries are NOT cleared with the box
+      expect(BUILDING_ONLY.map((id) => (f.d.getElementById(id) as HTMLInputElement).disabled)).toEqual([true, true, true, true]);   // they are locked
       expect(val(f, "saleCommercialCeilingHeightFt")).toBe("11");                  // the unit's own fact is never touched
+      const sent = (f.w as any).collectSaleFormData();
+      for (const [id, marker] of [["saleCommercialLotSize", "2500"], ["saleCommercialZoning", "C5"]]) {
+        expect(Object.keys(sent).filter((k) => String(sent[k]) === marker)).toEqual([id]);   // kept under the box's own key; no provider fact carries that exact value (the pulled record's own zoning, C5-2, is another value)
+      }
+      click(f, 'input[name="saleCommercialOwnership"][value="WholeBuilding"]');
+      expect(BUILDING_ONLY.map((id) => (f.d.getElementById(id) as HTMLInputElement).disabled)).toEqual([false, false, false, false]);
+      expect(BUILDING_ONLY.map((id) => val(f, id))).toEqual(["12", "3", "2500", "C5"]);                 // and it is all still there
     } finally { f.close(); }
   });
 

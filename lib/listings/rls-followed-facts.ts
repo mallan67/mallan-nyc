@@ -28,6 +28,8 @@ export type FollowedFact = {
   positiveOnly: boolean;
   /** The raw_data keys that carry it: the Cotality name, then the Sale form's own box ids. */
   raw: string[];
+  /** A REBNY custom key (CustomProperty.CustomFields, a JSON text reached through Property), not a Property column: it is never in $select, it is read from the expanded custom fields. */
+  custom?: boolean;
 };
 
 export const FOLLOWED_FACTS: readonly FollowedFact[] = [
@@ -35,18 +37,23 @@ export const FOLLOWED_FACTS: readonly FollowedFact[] = [
   { cotality: 'BedroomsTotal', kind: 'int', bucket: 'column', column: 'bedrooms_total', positiveOnly: false, raw: ['BedroomsTotal', 'saleBedrooms'] },
   { cotality: 'BathroomsFull', kind: 'int', bucket: 'column', column: 'bathrooms_full', positiveOnly: false, raw: ['BathroomsFull', 'saleFullBaths'] },
   { cotality: 'BathroomsHalf', kind: 'int', bucket: 'column', column: 'bathrooms_half', positiveOnly: false, raw: ['BathroomsHalf', 'saleHalfBaths'] },
-  { cotality: 'LivingArea', kind: 'number', bucket: 'column', column: 'living_area', positiveOnly: true, raw: ['LivingArea', 'saleUnitSqFt', 'saleLivingArea'] },
+  { cotality: 'LivingArea', kind: 'number', bucket: 'column', column: 'living_area', positiveOnly: true, raw: ['LivingArea', 'saleUnitSqFt', 'saleLivingArea', 'saleInteriorSqFt'] },
   { cotality: 'RoomsTotal', kind: 'int', bucket: 'features', positiveOnly: true, raw: ['RoomsTotal', 'saleTotalRooms'] },
   { cotality: 'YearBuilt', kind: 'int', bucket: 'features', positiveOnly: true, raw: ['YearBuilt', 'saleBldgYearBuilt'] },
   { cotality: 'StoriesTotal', kind: 'int', bucket: 'features', positiveOnly: true, raw: ['StoriesTotal', 'saleBldgTotalFloors'] },
   { cotality: 'AssociationFee', kind: 'number', bucket: 'features', positiveOnly: true, raw: ['AssociationFee', 'saleMaintCC'] },
   { cotality: 'AssociationFeeFrequency', kind: 'text', bucket: 'features', positiveOnly: false, raw: ['AssociationFeeFrequency', 'saleMaintCCFreq'] },
   { cotality: 'TaxAnnualAmount', kind: 'number', bucket: 'features', positiveOnly: true, raw: ['TaxAnnualAmount', 'saleRETaxes'] },
+  // RealPlus and Cotality send the RE tax as a MONTHLY amount: a REBNY custom key (live RLS20123633, 2026-11-05: TaxMonthlyAmount "1571.00", no TaxAnnualAmount). planRlsFollow derives the annual tax from it.
+  { cotality: 'TaxMonthlyAmount', kind: 'number', bucket: 'features', positiveOnly: true, raw: ['TaxMonthlyAmount', 'saleTaxMonthly'], custom: true },
   { cotality: 'BuildingName', kind: 'text', bucket: 'address', positiveOnly: false, raw: ['BuildingName', 'saleBldgName'] },
 ];
 
 /** The Cotality fields to ask for: the followed facts, and what proves the record is the listing's (its id, its office, and its address and unit: rls-follow-identity.ts). */
-export const FOLLOW_SELECT = ['ListingId', 'ListingKey', 'ListOfficeMlsId', 'StandardStatus', ...IDENTITY_SELECT, ...FOLLOWED_FACTS.map((f) => f.cotality)];
+export const FOLLOW_SELECT = ['ListingId', 'ListingKey', 'ListOfficeMlsId', 'StandardStatus', ...IDENTITY_SELECT, ...FOLLOWED_FACTS.filter((f) => !f.custom).map((f) => f.cotality)];
+
+/** The REBNY custom keys that follow: they are read from CustomProperty.CustomFields (fetchRlsRecords expands it), never asked for in $select (a custom key is not a Property column). */
+export const CUSTOM_FOLLOW_KEYS: readonly string[] = FOLLOWED_FACTS.filter((f) => f.custom).map((f) => f.cotality);
 
 const NO_VALUE_TEXT = /^(null|undefined|none|n\/a)?$/i;
 
@@ -120,6 +127,19 @@ export function planRlsFollow(listing: ListingFollowState, cotality: Record<stri
     else if (fact.bucket === 'features') plan.features[fact.cotality] = to;
     else plan.address[fact.cotality] = to;
     for (const key of fact.raw) plan.raw[key] = to;
+  }
+  // The Sale form keeps the ANNUAL tax (what the cards and the listing page show), and Cotality sends it as TaxMonthlyAmount with no TaxAnnualAmount: the annual tax is monthly x 12, as the form
+  // takes it when it opens (_saleFollowTargets). An annual amount Cotality does send wins.
+  const annualFact = FOLLOWED_FACTS.find((f) => f.cotality === 'TaxAnnualAmount') as FollowedFact;
+  const monthly = cleanFact(FOLLOWED_FACTS.find((f) => f.cotality === 'TaxMonthlyAmount') as FollowedFact, cotality.TaxMonthlyAmount);
+  if (cleanFact(annualFact, cotality.TaxAnnualAmount) === undefined && typeof monthly === 'number') {
+    const to = Math.round(monthly * 12 * 100) / 100;
+    const from = heldNow(annualFact, listing);
+    if (!same(annualFact, from, to)) {
+      plan.changes.push({ field: 'TaxAnnualAmount', from, to });
+      plan.features.TaxAnnualAmount = to;
+      for (const key of annualFact.raw) plan.raw[key] = to;
+    }
   }
   return plan;
 }

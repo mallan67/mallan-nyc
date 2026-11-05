@@ -226,3 +226,42 @@ describe("the buttons of a saved listing", () => {
     } finally { f.close(); }
   });
 });
+
+describe("the Unit tab's checkbox groups follow Cotality (Exposure, View, Ceilings): it ticks, it never unticks", () => {
+  const ticked = (f: BootedForm, name: string) => ([...f.d.querySelectorAll(`input[name="${name}"]:checked`)] as HTMLInputElement[]).map((c) => c.value).sort();
+  const withOwnTicks = { ...SAVED, raw_data: { ...SAVED.raw_data, saleExposure: ["South"], saleViewList: ["River"] } };
+
+  it("ticks what Cotality lists, keeps the agent's own ticks, ignores a value the form has no box for, and lists each change", async () => {
+    const f = await opened({ ...COTALITY_NOW, Exposures: "North,East,Sideways", View: "City", InteriorFeatures: "HighCeilings" }, { listing: withOwnTicks });
+    try {
+      await settled(f);
+      expect(ticked(f, "saleExposure")).toEqual(["East", "North", "South"]);      // South was the agent's own: it stays; Sideways has no box
+      expect(ticked(f, "saleViewList")).toEqual(["City", "River"]);
+      expect(ticked(f, "saleCeilings")).toEqual(["HighCeilings"]);
+      expect(banner(f)).toMatch(/Exposure South → East, North, South/);
+      expect(banner(f)).toMatch(/View River → City, River/);
+      expect(banner(f)).toMatch(/Ceilings blank → HighCeilings/);
+      expect(f.saved).toEqual([]);                                               // nothing is saved by the check itself
+    } finally { f.close(); }
+  });
+
+  it("a group the agent changed while Cotality was answering is left as it is, and the banner says so", async () => {
+    const f = await opened({ ...COTALITY_NOW, Exposures: "North" }, { listing: withOwnTicks, boot: { rlsPullDelay: 4000 } });
+    try {
+      await waitUntil(() => !!(f.w as any)._saleFollow.loaded && (f.w as any)._saleFollow.busy);
+      (f.d.querySelector('input[name="saleExposure"][value="West"]') as HTMLInputElement).checked = true;     // typed while Cotality was answering
+      await settled(f);
+      expect(ticked(f, "saleExposure")).toEqual(["South", "West"]);              // North was not added
+      expect(banner(f)).toMatch(/Not replaced, because you changed them here: .*Exposure \(Cotality has North\)/);
+    } finally { f.close(); }
+  });
+
+  it("when Cotality lists nothing for a group, the group is untouched", async () => {
+    const f = await opened({ ...COTALITY_NOW }, { listing: withOwnTicks });
+    try {
+      await settled(f);
+      expect(ticked(f, "saleExposure")).toEqual(["South"]);
+      expect(ticked(f, "saleViewList")).toEqual(["River"]);
+    } finally { f.close(); }
+  });
+});

@@ -374,3 +374,68 @@ describe('the "Listing Published" panel', () => {
     } finally { f.close(); }
   });
 });
+
+
+describe('the gallery the server reports, against the saved photos the listing still carries', () => {
+  const LEGACY = [{ url: 'https://example.test/old1.jpg', id: 'old1' }, { url: 'https://example.test/old2.jpg', id: 'old2' }];
+  const open = (media: unknown, mediaLegacyPreview?: boolean) =>
+    bootAddForm('SALE-FORM-REDESIGN', { search: '?id=1', listing: listing({ media: LEGACY }), mediaRows: media, mediaLegacyPreview, settle: 1500 });
+
+  it('every row removed from the gallery: the photos the listing\'s own list still carries are NOT drawn again', async () => {
+    const f = await open([]);                                           // the server: rows existed, all removed (no _legacyPreview)
+    try {
+      expect(tiles(f, 'salePhotoPreview')).toHaveLength(0);
+      expect(f.d.getElementById('salePhotoCount')!.textContent).toBe('0 / 100 uploaded');
+    } finally { f.close(); }
+  });
+
+  it('no keyed rows were ever imported (_legacyPreview): the saved photos stay', async () => {
+    const f = await open([], true);
+    try {
+      expect(tiles(f, 'salePhotoPreview')).toHaveLength(2);
+    } finally { f.close(); }
+  });
+
+  it('a file still waiting to upload keeps its tile when the gallery answers empty', async () => {
+    const f = await open([]);
+    try {
+      f.w.URL.createObjectURL = () => 'blob:wait';                       // jsdom has none; a browser has
+      f.w.eval("var _t = _pendingTile(new File(['x'], 'wait.jpg', { type: 'image/jpeg' }), 'photo', 0); document.getElementById('salePhotoPreview').appendChild(_t)");
+      await f.w.renderServerMediaRows('L-1', '1');
+      expect(tiles(f, 'salePhotoPreview').map((t) => t.hasAttribute('data-media-index'))).toEqual([true]);
+    } finally { f.close(); }
+  });
+});
+
+describe('Submit and a file that does not upload', () => {
+  // one photo queued on the open listing; the upload route answers as the test says
+  async function submitWithPhoto(uploadOk: boolean) {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { search: '?id=1', listing: listing({}), settle: 1500 });
+    const orig = f.w.fetch;
+    f.w.fetch = async (url: string, init?: any) => /\/media\/upload/.test(String(url)) && !uploadOk
+      ? { ok: false, status: 500, json: async () => ({ error: 'boom' }), text: async () => '' }
+      : orig(url, init);
+    f.w._pendingMediaFiles.push({ file: new f.w.File(['x'], 'front.jpg', { type: 'image/jpeg' }), type: 'photo', order: 0, uploaded: false, url: null });
+    f.w.submitSalesListing();
+    await sleep(2300);                                                  // past the 1.5 s the page waits before it leaves for the dashboard
+    return f;
+  }
+  const waiting = (f: BootedForm) => f.w._pendingMediaFiles.filter((m: any) => !m.uploaded && !m._removed).length;
+  const left = (f: BootedForm) => f.errors.some((e) => /navigation/i.test(e));      // jsdom reports the page's move to the dashboard as an unimplemented navigation
+
+  it('control: every file uploaded, the list is emptied and the page moves on', async () => {
+    const f = await submitWithPhoto(true);
+    try {
+      expect(f.w._pendingMediaFiles).toHaveLength(0);
+      expect(left(f)).toBe(true);
+    } finally { f.close(); }
+  });
+
+  it('a file that failed to upload stays in the list to be sent again, and the page does not leave', async () => {
+    const f = await submitWithPhoto(false);
+    try {
+      expect(waiting(f)).toBe(1);                                       // it was saved nowhere: dropping it would lose it
+      expect(left(f)).toBe(false);
+    } finally { f.close(); }
+  });
+});

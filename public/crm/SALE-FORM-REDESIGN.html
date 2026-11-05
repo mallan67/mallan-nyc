@@ -996,7 +996,7 @@ body { font-family: Manrope, sans-serif; }
 
             <!-- Commercial Section -->
             <div class="border border-gray-200 rounded-lg" id="saleCommercialMasterSection">
-                <div class="section-collapse flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-t-lg" onclick="toggleFormSection(this); selectSaleCommercial(this)">
+                <div class="section-collapse flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-t-lg collapsed" onclick="toggleFormSection(this); selectSaleCommercial(this)">
                     <i class="fas fa-building text-purple-600 text-sm"></i>
                     <span class="text-xs font-bold text-gray-800 uppercase tracking-wide">Commercial</span>
                     <span class="text-[10px] text-gray-400 ml-1">(Click to expand)</span>
@@ -1939,7 +1939,7 @@ body { font-family: Manrope, sans-serif; }
         <div class="form-card">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="field-label">Property Condition</label>
+                    <label class="field-label">Condition of Apartment</label>
                     <select id="saleCondition" class="field-input" data-concept="PropertyCondition">
                         <option value="">Select Condition</option>
                         <option value="Fair" hidden>Fair (earlier list - choose a condition from the list)</option>
@@ -1970,6 +1970,30 @@ body { font-family: Manrope, sans-serif; }
                         <option value="Unknown">Unknown</option>
                         <option value="UpdatedRemodeled">Updated / Remodeled</option>
                         <option value="VeryGoodCondition">Very Good Condition</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Condition of Kitchen</label>
+                    <select id="saleKitchenCondition" class="field-input" data-concept="KitchenCondition">
+                        <option value="">Select Condition</option>
+                        <option value="Excellent">Excellent</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Good">Good</option>
+                        <option value="New">New</option>
+                        <option value="Poor">Poor</option>
+                        <option value="Wrecked">Wrecked</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Condition of Bathroom</label>
+                    <select id="saleBathroomCondition" class="field-input" data-concept="BathroomCondition">
+                        <option value="">Select Condition</option>
+                        <option value="Excellent">Excellent</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Good">Good</option>
+                        <option value="New">New</option>
+                        <option value="Poor">Poor</option>
+                        <option value="Wrecked">Wrecked</option>
                     </select>
                 </div>
             </div>
@@ -2278,6 +2302,10 @@ body { font-family: Manrope, sans-serif; }
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="RooftopsSky" class="w-4 h-4" data-concept-disposition="mallan-internal"> Rooftops/Sky</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Skyline" class="w-4 h-4" data-concept-disposition="mallan-internal"> Skyline</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Street" class="w-4 h-4" data-concept-disposition="mallan-internal"> Street</label>
+            </div>
+            <div class="mt-3">
+                <label class="field-label">Views Comments</label>
+                <input type="text" id="saleViewRemarks" class="field-input" maxlength="255" placeholder="Anything to add about the views" data-concept="ViewRemarks">
             </div>
         </div>
 
@@ -5637,11 +5665,17 @@ async function pullFromCotalityByRlsId(rlsId) {
 // property type). A box Cotality has no value for is never blanked, and a count of 0 or the text "null" is no value. A box the agent changed since the listing opened is never replaced: it is listed as
 // kept. Every change is listed with its old and new value, and nothing is saved until the agent presses Submit. If Cotality cannot be reached the form says so.
 var SALE_COTALITY_FOLLOWS = ['BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'RoomsTotal', 'LivingArea', 'LivingAreaUnits', 'EntryLevel', 'TaxLot',
-    'ListPrice', 'AssociationFee', 'AssociationFeeFrequency', 'TaxAnnualAmount',
-    'YearBuilt', 'YearBuiltEffective', 'StoriesTotal', 'NumberOfUnitsTotal', 'ElevatorsTotal', 'BuildingName', 'StructureType', 'TaxBlock', 'BuildingTaxLot'];
-// 0 is "nobody filled it" for these (a $0 maintenance, a 0-story building), not a fact; a bedroom or bathroom count of 0 is one. The scheduled job (lib/listings/rls-followed-facts.ts) holds the same list.
-var SALE_COTALITY_POSITIVE = ['ListPrice', 'LivingArea', 'RoomsTotal', 'YearBuilt', 'StoriesTotal', 'AssociationFee', 'TaxAnnualAmount'];
+    'ListPrice', 'AssociationFee', 'AssociationFeeFrequency', 'TaxAnnualAmount', 'TaxMonthlyAmount',
+    'YearBuilt', 'YearBuiltEffective', 'StoriesTotal', 'NumberOfUnitsTotal', 'ElevatorsTotal', 'BuildingName', 'StructureType', 'TaxBlock', 'BuildingTaxLot',
+    'KitchenCondition', 'BathroomCondition', 'ViewRemarks'];
+// 0 is "nobody filled it" for these (a $0 maintenance, a 0-story building, a $0 tax), not a fact; a bedroom or bathroom count of 0 is one. The scheduled job (lib/listings/rls-followed-facts.ts) holds the same list.
+var SALE_COTALITY_POSITIVE = ['ListPrice', 'LivingArea', 'RoomsTotal', 'YearBuilt', 'StoriesTotal', 'AssociationFee', 'TaxAnnualAmount', 'TaxMonthlyAmount'];
 var _saleFollow = { at: 0, busy: false, loaded: null };
+// The Unit tab's checkbox groups that Cotality carries as comma-separated lookup values in the very words the boxes use (live record of RLS20123633, 2026-11-05: Exposures "North", View "City", InteriorFeatures
+// "HighCeilings"). The follow only TICKS what Cotality lists and never unticks anything (the agent's own extras stay); a group the agent changed since the listing opened is left as it is. (The boxes are still
+// Mallan-internal for what the form sends: this is the pull direction only.)
+var SALE_FOLLOW_GROUPS = [{ rls: 'Exposures', name: 'saleExposure', label: 'Exposure' }, { rls: 'View', name: 'saleViewList', label: 'View' }, { rls: 'InteriorFeatures', name: 'saleCeilings', label: 'Ceilings' }];
+function _saleGroupChecked(name) { return Array.prototype.map.call(document.querySelectorAll('input[name="' + name + '"]:checked'), function (c) { return c.value; }).sort().join(','); }
 function _saleFollowText(v) { var t = String(v === undefined || v === null ? '' : v).trim(); return /^(null|undefined)$/i.test(t) ? '' : t; }
 function _saleFollowTargets(rec) {
     var out = [];
@@ -5654,12 +5688,22 @@ function _saleFollowTargets(rec) {
         if (f.valueMap && Object.prototype.hasOwnProperty.call(f.valueMap, v)) v = f.valueMap[v];
         out.push({ id: f.form, value: v, number: f.type === 'number' });
     });
+    // RealPlus and Cotality send the RE tax as a MONTHLY amount (TaxMonthlyAmount, a REBNY custom key; live record of RLS20123633, 2026-11-05: no TaxAnnualAmount). The form stores the ANNUAL tax, so the annual
+    // box follows as monthly x 12 (a programmatic set fires no oninput, so the form's own monthly -> annual handler would not run). When Cotality does send an annual amount, that one wins.
+    var monthlyTax = Number(_saleFollowText(rec.TaxMonthlyAmount));
+    if (_saleFollowText(rec.TaxAnnualAmount) === '' && monthlyTax > 0) out.push({ id: 'saleRETaxes', value: String(Math.round(monthlyTax * 12 * 100) / 100), number: true });
+    SALE_FOLLOW_GROUPS.forEach(function (g) {
+        var want = _saleFollowText(rec[g.rls]).split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+        var boxes = Array.prototype.filter.call(document.querySelectorAll('input[name="' + g.name + '"]'), function (c) { return want.indexOf(c.value) >= 0 && !c.disabled; });
+        if (boxes.length) out.push({ group: g, boxes: boxes });
+    });
     return out;
 }
 // what each followed box held when the listing finished opening: a box that holds something else later was typed in by the agent
 function _saleFollowSnapshot() {
     _saleFollow.loaded = {};
     SALE_FIELD_MAP.forEach(function (f) { if (SALE_COTALITY_FOLLOWS.indexOf(f.rls) >= 0) { var el = document.getElementById(f.form); if (el) _saleFollow.loaded[f.form] = String(el.value); } });
+    SALE_FOLLOW_GROUPS.forEach(function (g) { _saleFollow.loaded['group:' + g.name] = _saleGroupChecked(g.name); });
 }
 function _saleFollowLabel(el) {
     var box = el.closest('div'), lab = box && box.querySelector('label');
@@ -5684,6 +5728,8 @@ async function saleFollowCotality(opts) {
         if (!resp.ok || !body.record) { _saleFollowShow('error', 'Cotality could not be checked just now' + (body.error ? ' (' + body.error + ')' : '') + '. The facts shown are the ones saved with this listing.'); return; }
         if (!_saleFollow.loaded) _saleFollowSnapshot();
         var changed = [], kept = [];
+        var _derivedOwnership = _saleDeriveCommercialOwnership(body.record.CommonInterest);       // before the facts are applied: the unit's boxes are locked until the ownership is set
+        if (_derivedOwnership) changed.push('Commercial ownership blank \u2192 ' + _derivedOwnership.replace('Commercial', 'Commercial '));
         // The change events below run the form's own handlers (totals, rules), and a change event also schedules the autosave, which in edit mode SAVES TO THE SERVER: the banner says nothing is
         // saved until Submit, so the autosave is held off while the facts are applied (Codex, review of #688): autoSaveDraft and performAutoSave both return while the flag is set, and the apply is
         // synchronous, so nothing is scheduled or fired inside it. A save the AGENT had pending (an edit made while Cotality was answering) is not touched: clearing the timer here dropped it
@@ -5691,6 +5737,16 @@ async function saleFollowCotality(opts) {
         window._salePopulateInProgress = true;
         try {
         _saleFollowTargets(body.record).forEach(function (t) {
+            if (t.group) {                                                     // a checkbox group: tick what Cotality lists, untick nothing
+                var key = 'group:' + t.group.name, was = _saleGroupChecked(t.group.name);
+                var add = t.boxes.filter(function (b) { return !b.checked; });
+                if (!add.length) return;
+                if (_saleFollow.loaded[key] !== undefined && was !== _saleFollow.loaded[key]) { kept.push(t.group.label + ' (Cotality has ' + t.boxes.map(function (b) { return b.value; }).join(', ') + ')'); return; }
+                add.forEach(function (b) { b.checked = true; b.dispatchEvent(new Event('change', { bubbles: true })); });
+                _saleFollow.loaded[key] = _saleGroupChecked(t.group.name);
+                changed.push(t.group.label + ' ' + (was === '' ? 'blank' : was.replace(/,/g, ', ')) + ' \u2192 ' + _saleGroupChecked(t.group.name).replace(/,/g, ', '));
+                return;
+            }
             var el = document.getElementById(t.id);
             if (!el || el.disabled || el.readOnly) return;
             var now = String(el.value || '').trim(), next = String(t.value);
@@ -5706,6 +5762,7 @@ async function saleFollowCotality(opts) {
             _saleFollow.loaded[t.id] = String(el.value);
             changed.push(_saleFollowLabel(el) + ' ' + (now === '' ? 'blank' : now) + ' \u2192 ' + next);
         });
+        if (typeof calculateSaleTotalMonthly === 'function') calculateSaleTotalMonthly();          // the carrying-cost total reads the boxes that were just set
         } finally { window._salePopulateInProgress = false; }
         var when = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         var keptText = kept.length ? ' Not replaced, because you changed them here: ' + kept.join('; ') + '.' : '';
@@ -5804,6 +5861,7 @@ function selectBuildingFromIDX(prefix, picked) {
 
     // 6. Populate building modal fields based on model
     populateBuildingFromIDX(prefix, building);
+    _saleDeriveCommercialOwnership(building.common_interest || building.commonInterestRaw);
     if (globalThis.saleUnitLotLookup) globalThis.saleUnitLotLookup();       // the building's lot came with the address; the unit's follows from the unit number
 }
 
@@ -7932,16 +7990,16 @@ function applySalesFieldRules() {
     if (typeof toggleSaleUnitType === 'function') toggleSaleUnitType();
     // A commercial condo, condop or co-op is ONE unit in a building (so is an office or retail condo). The Commercial Specifications panel also carries a whole building's facts (lot, building size, zoning, FAR,
     // air rights, unit counts): those are the building's, they live in the Building window, and the unit does not ask for them (Maya, 2026-11-04: "it should not be expanding for commercial condo unit number of units").
-    // A building fact typed there earlier is cleared with the box: a hidden value would still be saved.
+    // A building fact typed there earlier is KEPT (locked with the box, and never sent as a provider fact of the unit): it is the agent's entry, and it comes back if the listing is a whole building again.
     var officeRetailOwn = document.querySelector('input[name="saleOfficeRetailOwnership"]:checked');
     var unitInBuilding = (propertyType === 'Commercial' && ['CommercialCondo', 'CommercialCondop', 'CommercialCoop'].indexOf(commercialOwnership) >= 0)
         || ((propertyType === 'Office' || propertyType === 'Retail') && !!officeRetailOwn && ['Condo', 'Condop', 'Coop'].indexOf(officeRetailOwn.value) >= 0);
     document.querySelectorAll('#saleCommercialSection2 [data-bldg-scale]').forEach(function (box) {
         box.style.display = unitInBuilding ? 'none' : '';
-        if (unitInBuilding) box.querySelectorAll('input, select').forEach(function (el) { el.value = ''; });
     });
     var unitNote = document.getElementById('saleCommercialUnitNote');
     if (unitNote) unitNote.classList.toggle('hidden', !unitInBuilding);
+    _saleLockUnusedSections();                       // a section this type does not use is locked as well as hidden (after every decision above)
 
     // Handle Commercial/Mixed-Use distribution logic
     // UCBA Art. I, Sec. 5(F): Mixed-use in ≤5 unit buildings → RLS-eligible
@@ -8059,9 +8117,8 @@ function calculateSaleTotalMonthly() {
     }
 }
 
-// Monthly RE tax is a DERIVED DISPLAY only. There is NO Cotality monthly tax field
-// (verified: artifacts/metadata.xml exposes only TaxAnnualAmount on Property); we store
-// the ANNUAL value (TaxAnnualAmount) and show monthly = annual / 12. Two-way: editing
+// The form STORES the ANNUAL RE tax (TaxAnnualAmount) and shows monthly = annual / 12. Live Cotality (RLS20123633, read 2026-11-05) carries the tax as the REBNY custom key
+// TaxMonthlyAmount and no TaxAnnualAmount, so a pull takes the monthly amount and fills the annual box with monthly x 12 (_saleFollowTargets). Two-way: editing
 // either box fills the other. Programmatic `.value` sets do NOT fire `oninput`, so the
 // two handlers never loop. (2026-06-23)
 function autoCalcTaxMonthly() {
@@ -8116,7 +8173,98 @@ function toggleSaleRequiredFields() {
  * Collect all sale form fields into a flat object with RESO field names.
  * Used by both submit and auto-save.
  */
+// The type of the listing (condo, co-op, condop, townhouse, mixed use, commercial condo ...) decides which sections are live (SALES_FIELD_VISIBILITY_RULES). A section the type does not use is LOCKED, not only
+// hidden: its boxes are disabled (nothing can be typed or ticked there) and what they hold is never sent, whichever code reads them (the generic sweep and the readers that look a box up by id alike).
+// What they hold stays on the page, so choosing the type again brings it back.
+function _saleLockUnusedSections() {
+    var locked = [];
+    Object.keys(SALES_FIELD_VISIBILITY_RULES).forEach(function (id) {
+        var box = document.getElementById(id);
+        if (box && (box.classList.contains('hidden') || box.style.display === 'none')) Array.prototype.forEach.call(box.querySelectorAll('input, select, textarea'), function (c) { locked.push(c); });
+    });
+    // a commercial UNIT in a building does not ask for the building's own facts (lot, building size, zoning, FAR ...): those boxes are LOCKED, not cleared: what was typed stays on the page and in the record, and comes back with the kind
+    Array.prototype.forEach.call(document.querySelectorAll('#saleCommercialSection2 [data-bldg-scale]'), function (box) {
+        if (box.style.display === 'none') Array.prototype.forEach.call(box.querySelectorAll('input, select, textarea'), function (c) { locked.push(c); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-type-locked]'), function (c) { if (locked.indexOf(c) < 0) { c.disabled = false; c.removeAttribute('data-type-locked'); } });
+    locked.forEach(function (c) { if (!c.hasAttribute('data-type-locked')) { c.setAttribute('data-type-locked', '1'); c.disabled = true; } });
+}
+// The unit's living area is ONE Cotality fact (LivingArea) with three boxes on this form, which of them is live depending on the type (Unit Sq Ft: co-op / condop; Living Area: condo; Approx Interior SqFt: every type).
+// They are kept as one value: a change in any of them is copied to the others, so the one the agent sees, the one the REBNY checklist asks for, the one a Cotality pull fills and the one the form sends always agree
+// (before, a stale hidden box could outrank the one typed in, and a pull wrote to a box that was locked for the type).
+// The ADDRESS dictates the type. A Commercial listing is one of several commercial kinds by ownership (Commercial Condo, Co-op, Condop), and the form shows a commercial BUILDING's boxes until the ownership is set, which hid the
+// unit's own boxes (maintenance, taxes ...) on 800 2nd Avenue #806. When the ownership has not been chosen it is taken from the building's own Cotality CommonInterest (the address pull, the Ownership Type box, or a Cotality
+// pull of the unit's record). An ownership the agent chose is never replaced.
+var SALE_COMMERCIAL_OWNERSHIP_FROM = { Condominium: 'CommercialCondo', StockCooperative: 'CommercialCoop', Condop: 'CommercialCondop' };
+function _saleDeriveCommercialOwnership(commonInterest) {
+    var type = document.querySelector('input[name="salePropertyType"]:checked');
+    if (!type || type.value !== 'Commercial') return '';
+    if (document.querySelector('input[name="saleCommercialOwnership"]:checked')) return '';
+    var ci = String(commonInterest || (document.getElementById('saleCommonInterest') || {}).value || '').trim();
+    var kind = SALE_COMMERCIAL_OWNERSHIP_FROM[ci];
+    var radio = kind && document.querySelector('input[name="saleCommercialOwnership"][value="' + kind + '"]');
+    if (!radio) return '';
+    radio.checked = true;
+    if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
+    return kind;
+}
+var SALE_AREA_BOXES = ['saleInteriorSqFt', 'saleUnitSqFt', 'saleLivingArea'];
+function _saleMirrorArea(fromId) {
+    var els = SALE_AREA_BOXES.map(function (id) { return document.getElementById(id); }).filter(Boolean);
+    var empty = function (e) { return String(e.value).trim() === ''; };
+    var src = fromId ? document.getElementById(fromId) : (els.filter(function (e) { return !empty(e) && !e.hasAttribute('data-type-locked'); })[0] || els.filter(function (e) { return !empty(e); })[0]);
+    if (!src) return;
+    els.forEach(function (e) { if (e !== src && e.value !== src.value) e.value = src.value; });      // all three take the source's value, a conflicting non-empty one included
+}
+// On load the typed value of the record (the living_area column, which is what the public pages and the REBNY payload read) is the canonical one: all three boxes are set to it, whatever a box holds from an earlier save.
+// A record with no typed value has no canonical one: Approx Interior SqFt (live for every type) wins when it holds a value, else the box that is live for the type, and the others take its value.
+function _saleReconcileArea(listing) {
+    var typed = listing && listing.living_area !== undefined && listing.living_area !== null ? String(listing.living_area).trim() : '';
+    if (typed !== '' && isFinite(Number(typed))) {
+        SALE_AREA_BOXES.forEach(function (id) { var el = document.getElementById(id); if (el) el.value = String(Number(typed)); });
+        return;
+    }
+    _saleMirrorArea(null);
+}
+document.addEventListener('input', function (e) { if (e.target && SALE_AREA_BOXES.indexOf(e.target.id) >= 0) _saleMirrorArea(e.target.id); }, true);
+document.addEventListener('change', function (e) { if (e.target && SALE_AREA_BOXES.indexOf(e.target.id) >= 0) _saleMirrorArea(e.target.id); }, true);
+function _saleHoldLockedSections() {                  // the locked boxes' values are set aside while the form is read, and put back after (by _saleReleaseLockedSections)
+    var held = [];
+    Array.prototype.forEach.call(document.querySelectorAll('[data-type-locked]'), function (c) {
+        held.push([c, c.value, c.checked]);
+        if (c.type === 'checkbox' || c.type === 'radio') c.checked = false; else c.value = '';
+    });
+    return held;
+}
+function _saleReleaseLockedSections(held) { held.forEach(function (h) { h[0].value = h[1]; h[0].checked = h[2]; }); }
+// What a locked box holds is the agent's entry: it is KEPT in the record (the form's own storage, raw_data, under the box's own key) and is never sent as an instruction to clear. What the form sends as provider
+// fields (the Cotality names) is read with the locked boxes set aside, so a value that does not apply to the type never reaches the public record or the REBNY payload, and a canonical field that is blank only
+// because its box is locked is simply not sent (the PATCH merge keeps what is stored). Clearing is a separate act: emptying a box that is LIVE still clears it.
+function _saleMergeApplicable(full, applicable) {
+    var lockedKeys = {};
+    Array.prototype.forEach.call(document.querySelectorAll('[data-type-locked]'), function (c) { var k = c.id || c.name; if (k) lockedKeys[k] = true; });
+    var blank = function (v) { return v === '' || v === null || v === undefined || v === false || (Array.isArray(v) && v.length === 0); };
+    var out = {}, dropped = [];
+    Object.keys(applicable).forEach(function (k) {
+        if (lockedKeys[k]) return;
+        if (JSON.stringify(applicable[k]) !== JSON.stringify(full[k]) && blank(applicable[k])) { if (!blank(full[k])) dropped.push(k); return; }   // blank only because an inactive box was set aside: no blank is sent
+        out[k] = applicable[k];
+    });
+    Object.keys(full).forEach(function (k) { if (!lockedKeys[k] && !(k in applicable) && !blank(full[k])) dropped.push(k); });                    // a provider field that exists only because an inactive box holds a value
+    Object.keys(lockedKeys).forEach(function (k) { if (k in full) out[k] = full[k]; });                  // the agent's own entries in the inactive boxes, as they are
+    return { data: out, dropped: dropped };
+}
 function collectSaleFormData() {
+    var _pass = arguments[0];                        // 'full' / 'applicable' on the two reads below; none for a caller
+    if (_pass === undefined) {
+        var full = collectSaleFormData('full');
+        var _held = _saleHoldLockedSections(), applicable;
+        try { applicable = collectSaleFormData('applicable'); } finally { _saleReleaseLockedSections(_held); }
+        var merged = _saleMergeApplicable(full, applicable);
+        // The provider fields that do not apply to this type are named in a SEPARATE list (never as blanks): the edit route removes only those from the public copy; the agent's own entries stay (see _saleMergeApplicable).
+        if (_saleEditMode || _saleEditListingId || _saleEditDbId) { if (merged.dropped.length) merged.data.inactiveProviderFields = merged.dropped; }
+        return merged.data;
+    }
     var data = { listing_type: 'sale' };
     // `add-sales-listing` was the legacy shell container — doesn't exist in
     // the redesigned form. `.flex-1` is the real container used in the shell.
@@ -8205,7 +8353,7 @@ function collectSaleFormData() {
     data.BathroomsFull = _saleInt(data.saleFullBaths);
     data.BathroomsHalf = _saleInt(data.saleHalfBaths);
     data.BathroomsTotal = (data.BathroomsFull == null && data.BathroomsHalf == null) ? null : ((data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5));
-    data.LivingArea = _saleNum(data.saleUnitSqFt || data.saleLivingArea || data.saleInteriorSqFt);
+    data.LivingArea = _saleNum(data.saleInteriorSqFt || data.saleUnitSqFt || data.saleLivingArea);
     data.StreetNumber = data.saleStreetNumber || '';
     data.StreetName = data.saleStreetName || '';
     data.StreetSuffix = data.saleStreetSuffix || '';
@@ -8896,6 +9044,7 @@ function _salePublishRefusalLines(err) {
 function submitSalesListing() {
     if (_saleSendInFlight) { showToast('Still sending the last save — please wait.', 'info'); return; }
     if (_saleRefuseWhileLoading()) return;
+    if (_saleWaitForAutoSave(submitSalesListing)) return;       // an autosave is out: this save follows it
     // A Draft (any status that does not advertise the listing) is saved as it is — the required-field and REBNY checks apply when the listing is published (the server's gate too).
     var _submitStatusEl = document.getElementById('saleStatus');
     var _submitIsDraft = !_saleStatusAdvertises(_submitStatusEl ? _submitStatusEl.value : '');
@@ -9000,6 +9149,7 @@ function submitSalesListing() {
         var _statusNow = document.getElementById('saleStatus') ? document.getElementById('saleStatus').value : '';
         if (!_saleStatusAdvertises(_statusNow)) { var _flaggedNow = _saleBlockedWording(); if (_flaggedNow.length) showToast('Saved as Draft with flagged wording in ' + _flaggedNow.join(', ') + ' — fix it before publishing.', 'warning'); }
         var _savedId = '';                                            // set once the server has taken the listing: a later failure is not a failed submit
+        var _mediaFailed = 0;                                         // files that did not upload: they are still in the list, and the page stays open
         apiCall.then(async function(result) {
             _saleSetSending(false);
             _saleServerSaved();
@@ -9016,6 +9166,7 @@ function submitSalesListing() {
             if (pendingCount > 0 && lid) {
                 showToast('Uploading ' + pendingCount + ' media file(s)...', 'info');
                 var mediaResult = await uploadPendingMedia(lid);
+                _mediaFailed = mediaResult.failed || 0;
                 if (mediaResult.failed > 0) {
                     showToast(mediaResult.failed + ' media upload(s) failed.', 'warning');
                 }
@@ -9053,7 +9204,7 @@ function submitSalesListing() {
             try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
             try { localStorage.removeItem('saleListings'); } catch (e) {}
             clearTimeout(autoSaveTimer);
-            _pendingMediaFiles = [];
+            if (!_mediaFailed) _pendingMediaFiles = [];    // a file that did not go up is saved nowhere: it stays in the list, and Save Draft sends it again
             // Determine the best URL from status transition or create/update result
             var publicUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.publicUrl) || result.publicUrl || null;
             var realPlusUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.realPlusUrl) || result.realPlusUrl || null;
@@ -9064,6 +9215,9 @@ function submitSalesListing() {
             } else if (_publishRefusal) {
                 // The listing IS saved (as a Draft) and stays open here: the agent reads WHY it is not live, fixes it, and submits again. Nothing redirects before the reason is read.
                 _saleShowPublishRefusal(lid, _publishRefusal.message, _publishRefusal.lines, (currentCanonical && currentCanonical !== 'Draft' && currentCanonical !== 'Incomplete') ? currentCanonical : '');   // only a Draft is "not live"; any other status is the one the listing keeps
+            } else if (_mediaFailed) {
+                // The listing IS saved; leaving the page would lose the files that did not upload, so it stays open until the agent has read this
+                showToast('Listing ' + lid + ' saved, but ' + _mediaFailed + ' media file(s) did not upload. They are still in the list: press Save Draft to send them again.', 'warning', 15000);
             } else {
                 showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
                 setTimeout(function() { window.location.href = '/crm/dashboard#/ops/listings'; }, 1500);
@@ -9220,6 +9374,15 @@ function _saleSetAutoSaveState(kind, text) {
 }
 function _saleClock() { return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
 var _saleServerSaveInFlight = false, _saleServerSavePending = false, _saleServerSaveFailure = '', _saleServerRetryTimer = null, _saleServerFailCount = 0;
+// Save Draft and Submit wait for the autosave that is out: a request already on its way cannot be recalled, and two in flight can land out of order (the older form would replace the newer).
+// When the autosave is answered the waiting save runs at once and reads the form as it is then, so every change made meanwhile goes with it; the autosave that was queued behind is dropped.
+var _saleAfterAutoSave = [];
+function _saleWaitForAutoSave(run) {
+    if (!_saleServerSaveInFlight) return false;
+    if (_saleAfterAutoSave.indexOf(run) < 0) _saleAfterAutoSave.push(run);
+    showToast('Finishing the automatic save first — your save follows it.', 'info');
+    return true;
+}
 // One request at a time: two saves in flight can land out of order, and the older, smaller form state would replace the newer one. A change made meanwhile is sent once
 // the request in flight is answered. A refusal is shown, kept, and tried again; leaving the page while it stands asks first.
 function _saleServerAutoSave(updateId) {
@@ -9247,6 +9410,8 @@ function _saleServerAutoSave(updateId) {
         }
     }).then(function () {
         _saleServerSaveInFlight = false;
+        var handSaves = _saleAfterAutoSave; _saleAfterAutoSave = [];
+        if (handSaves.length) { _saleServerSavePending = false; handSaves.forEach(function (run) { run(); }); return; }
         if (_saleServerSavePending) { _saleServerSavePending = false; performAutoSave(); }
     });
 }
@@ -9263,6 +9428,7 @@ window.addEventListener('beforeunload', function (e) {
 async function manualSaveDraft() {
     if (_saleRefuseWhileLoading()) return;
     if (_saleSendInFlight) { showToast('Still sending the last save — please wait.', 'info'); return; }
+    if (_saleWaitForAutoSave(manualSaveDraft)) return;          // an autosave is out: this save follows it
     // Capture the current autosave timer so we only cancel this one, not a newer one
     var preFlightTimer = autoSaveTimer;
     // Step 1: Save/create listing via API
@@ -9282,17 +9448,20 @@ async function manualSaveDraft() {
     if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
         try {
             var result;
-            if (_saleEditMode && dbId) {
-                result = await MallanAPI.listings.update(dbId, fullData);
-                listingId = result.listing_id || listingId;
-            } else {
-                result = await MallanAPI.listings.create(fullData);
-                listingId = result.listing_id;
-                dbId = result.id;
-                _saleEditMode = true;
-                _saleEditDbId = dbId;
-                _saleEditListingId = listingId;
-            }
+            _saleSetSending(true);                          // an autosave due meanwhile waits, and Submit is refused, until the server has answered this save (two requests out can land in the wrong order)
+            try {
+                if (_saleEditMode && dbId) {
+                    result = await MallanAPI.listings.update(dbId, fullData);
+                    listingId = result.listing_id || listingId;
+                } else {
+                    result = await MallanAPI.listings.create(fullData);
+                    listingId = result.listing_id;
+                    dbId = result.id;
+                    _saleEditMode = true;
+                    _saleEditDbId = dbId;
+                    _saleEditListingId = listingId;
+                }
+            } finally { _saleSetSending(false); }
             _saleShowServerWording(result);
             _saleServerSaved();
 
@@ -10360,6 +10529,8 @@ function _checkSaleEditMode() {
         window._salePopulateInProgress = true;
         try {
             _populateSaleFormFromApi(listing);
+            _saleReconcileArea(listing);                                 // one living area: the record's typed value first, then the box that is live for the type
+            _saleDeriveCommercialOwnership();                            // a Commercial listing whose ownership is not chosen takes it from the building it sits in, when the record says which
             window._saleEditLoad = 'loaded';
             if (typeof MallanFairHousing !== 'undefined') MallanFairHousing.blockedFields();   // what the boxes hold is shown as soon as the listing loads
             // Auto-confirm logged-in agent if saved data left fields empty.
@@ -10437,6 +10608,7 @@ var SALE_FIELD_MAP = [
   { rls: 'BathroomsFull', form: 'saleFullBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_full' },
   { rls: 'BathroomsHalf', form: 'saleHalfBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_half' },
   { rls: 'LivingArea', form: 'saleUnitSqFt', type: 'number', src: 'listing', listingKey: 'living_area' },
+  { rls: 'LivingArea', form: 'saleInteriorSqFt', type: 'number', src: 'raw' },   // the one area box that is live for every type: a pull and a restore always have somewhere to land
   { rls: 'LivingArea', form: 'saleLivingArea', type: 'number', src: 'raw' },   // the Condo Details box the Active checklist asks for: the same fact, restored from the record too
   { rls: 'RoomsTotal', form: 'saleTotalRooms', type: 'number', src: 'raw' },
   { rls: 'EntryLevel', form: 'saleFloorInBuilding', type: 'text', src: 'raw' },
@@ -10558,6 +10730,9 @@ var SALE_FIELD_MAP = [
   // ── Unit additional ──
   { rls: 'saleCondition', form: 'saleCondition', type: 'text', src: 'raw', valueMap: { Good: 'GoodCondition', Poor: 'PoorCondition', Updated: 'UpdatedRemodeled' } },
   { rls: 'PropertyCondition', form: 'saleCondition', type: 'text', src: 'raw', firstMember: true },
+  { rls: 'KitchenCondition', form: 'saleKitchenCondition', type: 'text', src: 'raw' },
+  { rls: 'BathroomCondition', form: 'saleBathroomCondition', type: 'text', src: 'raw' },
+  { rls: 'ViewRemarks', form: 'saleViewRemarks', type: 'text', src: 'raw' },
   { rls: 'saleInteriorSqFt', form: 'saleInteriorSqFt', type: 'number', src: 'raw' },
   { rls: 'saleExteriorSqFt', form: 'saleExteriorSqFt', type: 'number', src: 'raw' },
   { rls: 'saleLineInBuilding', form: 'saleLineInBuilding', type: 'text', src: 'raw' },
@@ -12245,7 +12420,19 @@ async function renderServerMediaRows(listingId, fallbackId) {
     // ONLY to the original (already-canonical) first arg, never to the numeric
     // fallbackId. (Codex review on #295 + Maya directive.)
     var actionId = String((data && data.listing_id) || listingId || '');
-    if (!data || !Array.isArray(data.media) || !data.media.length) return;   // no keyed rows yet: the legacy preview stays
+    if (!data || !Array.isArray(data.media)) return;
+    if (!data.media.length) {
+        // The server says which empty it is. `_legacyPreview`: no keyed rows were ever imported, so the preview drawn from the listing's own list stays. Without it the gallery had rows and every one was removed:
+        // what that list still draws is gone from the gallery and must not come back on screen (a file still waiting to upload keeps its tile: it carries data-media-index).
+        if (data._legacyPreview) return;
+        [photoContainer, floorContainer, document.getElementById('saleDocPreview')].forEach(function (box) {
+            if (!box) return;
+            Array.prototype.slice.call(box.children).forEach(function (el) { if (!el.hasAttribute('data-media-index')) box.removeChild(el); });
+        });
+        var emptyCount = document.getElementById('salePhotoCount');
+        if (emptyCount) emptyCount.textContent = (photoContainer ? photoContainer.children.length : 0) + ' / 100 uploaded';
+        return;
+    }
     // Replace the legacy JSON preview with the authoritative keyed rows.
     if (photoContainer) photoContainer.innerHTML = '';
     if (floorContainer) floorContainer.innerHTML = '';
