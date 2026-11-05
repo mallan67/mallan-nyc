@@ -901,9 +901,9 @@ body { font-family: Manrope, sans-serif; }
                             <!-- Small Multi-Family -->
                             <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Small Multi-Family (Whole Building)</p>
                             <div class="grid grid-cols-3 gap-1.5 mb-3">
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Duplex" class="w-4 h-4" onchange="applySalesFieldRules()"> Duplex (2 Unit)</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Triplex" class="w-4 h-4" onchange="applySalesFieldRules()"> Triplex (3 Unit)</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Quadruplex" class="w-4 h-4" onchange="applySalesFieldRules()"> Quadruplex (4 Unit)</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Duplex" class="w-4 h-4" onchange="applySalesFieldRules()"> Duplex (2 Floors)</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Triplex" class="w-4 h-4" onchange="applySalesFieldRules()"> Triplex (3 Floors)</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Quadruplex" class="w-4 h-4" onchange="applySalesFieldRules()"> Quadruplex (4 Floors)</label>
                             </div>
                             <!-- Commercial (RLS-eligible) -->
                             <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Commercial (RLS-eligible)</p>
@@ -1885,13 +1885,13 @@ body { font-family: Manrope, sans-serif; }
             <div class="form-card-header"><i class="fas fa-layer-group"></i> Number of Floors In The Unit</div>
             <div class="flex flex-wrap gap-6">
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleNumFloors" value="SingleLevelUnit" class="w-4 h-4" checked data-concept="Levels"> Single Floor
+                    <input type="radio" name="saleNumFloors" value="SingleLevelUnit" class="w-4 h-4" checked> Single Floor
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleNumFloors" value="BiLevel" class="w-4 h-4"> Duplex
+                    <input type="radio" name="saleNumFloors" value="BiLevel" class="w-4 h-4" data-concept="Levels"> Duplex
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleNumFloors" value="TriLevel" class="w-4 h-4"> Triplex
+                    <input type="radio" name="saleNumFloors" value="TriLevel" class="w-4 h-4" data-concept="Levels"> Triplex
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
                     <input type="radio" name="saleNumFloors" value="QuadLevel" class="w-4 h-4"> Quadruplex
@@ -8741,7 +8741,11 @@ function collectSaleFormData() {
     data.EntryLevel = data.saleFloorInBuilding || '';
     data.Stories = _saleInt(data.saleTHStories);
     data.BuildingAreaTotal = _saleNum(data.saleTHBuildingArea);
-    if (data.saleTHLevels) data.Levels = [data.saleTHLevels]; else delete data.Levels;   // the townhouse tab's levels; else the unit's floors radio (Levels) through the claim pass
+    // Levels is one Cotality fact with two places on this form: the townhouse tab's select holds Cotality's own words, and the Unit tab's floors radios (Duplex, Triplex) are sent in the same words. Live Cotality
+    // 2026-11-05 (Active sales): every Duplex unit of a condo, co-op or condop says Two (319 of 319) and every Triplex unit TriLevel (47 of 47). Single Floor is the page's default, and live holds no Levels on 6,747 of
+    // 7,439 apartments, so it sends nothing (a default is not an answer); a Quadruplex floors answer has no live word (none of the 2 live quadruplex units says), so it sends nothing either.
+    var _levelsOfFloors = { BiLevel: 'Two', TriLevel: 'TriLevel' };
+    if (data.saleTHLevels) data.Levels = [data.saleTHLevels]; else if (Object.prototype.hasOwnProperty.call(_levelsOfFloors, data.saleNumFloors)) data.Levels = [_levelsOfFloors[data.saleNumFloors]]; else delete data.Levels;
     data.ZoningDescription = data.saleTHZoning || '';
     data.GarageSpaces = _saleInt(data.saleTHGarageSpaces);
     // A garage assigned to the unit (some condos and co-ops): the Unit tab's answer fills Cotality's GarageYN / GarageSpaces when the townhouse tab (a house's own
@@ -11129,7 +11133,7 @@ var SALE_RADIO_MAP = [
   { rls: 'saleLight', name: 'saleLight', src: 'raw' },
   { rls: 'saleLiveWorkAllowed', name: 'saleLiveWorkAllowed', src: 'raw' },
   { rls: 'saleMeetAndGreet', name: 'saleMeetAndGreet', src: 'raw' },
-  { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw', rawKey: 'saleNumFloors', fallback: 'Levels', valueMap: { Single: 'SingleLevelUnit', Duplex: 'BiLevel', Triplex: 'TriLevel', Quadruplex: 'QuadLevel' } },
+  { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw', rawKey: 'saleNumFloors', fallback: 'Levels', valueMap: { Single: 'SingleLevelUnit', Duplex: 'BiLevel', Triplex: 'TriLevel', Quadruplex: 'QuadLevel', One: 'SingleLevelUnit', Two: 'BiLevel', TriLevel: 'TriLevel' } },   // the earlier words, then Cotality's own (live 2026-11-05: Duplex units say Two, Triplex units TriLevel)
   { rls: 'saleOfficeRetailOwnership', name: 'saleOfficeRetailOwnership', src: 'raw' },
   { rls: 'saleParentsBuying', name: 'saleParentsBuying', src: 'raw' },
   { rls: 'salePiedATerre', name: 'salePiedATerre', src: 'raw' },
@@ -11354,7 +11358,7 @@ function _salePropTypeLabel(value) { if (!value) return ''; var el = document.qu
 // i whole number, n number, b yes / no, d date, m list, e one member, s text). Runs after the explicit emits; a key already set is left as it is; a control the
 // page marks Mallan-internal is skipped; an unticked box or an empty control asserts nothing. ──
 // The keys the collector builds itself (a unit with its amount, one member of a list, the views): the claim pass leaves them alone
-var SALE_COLLECTOR_OWNED = { LivingAreaUnits: 1, BuildingAreaUnits: 1, LotSizeUnits: 1, PropertyCondition: 1, SpecialListingConditions: 1, View: 1, ViewYN: 1, HeatingYN: 1, CoolingYN: 1, LaundryFeatures: 1, LandmarkStatusYN: 1 };
+var SALE_COLLECTOR_OWNED = { Levels: 1, LivingAreaUnits: 1, BuildingAreaUnits: 1, LotSizeUnits: 1, PropertyCondition: 1, SpecialListingConditions: 1, View: 1, ViewYN: 1, HeatingYN: 1, CoolingYN: 1, LaundryFeatures: 1, LandmarkStatusYN: 1 };
 function _saleEmitClaims(data) {
     var kinds = (typeof window !== 'undefined' && window.COTALITY_FIELD_KINDS) || {};
     var zones = [document.querySelector('.flex-1'), document.getElementById('saleBuildingModal'), document.getElementById('saleMediaModal')].filter(Boolean);
@@ -11585,6 +11589,10 @@ function _populateSaleFormFromApi(listing) {
         }
         if (val === undefined || val === null) return;
         window._saleTouched[r.name] = true;
+        if (r.valueMap && (Array.isArray(val) || (typeof val === 'string' && val.indexOf(',') >= 0))) {   // a Multi value: the first member the map knows
+            var _members = (Array.isArray(val) ? val : val.split(',')).map(function (m) { return String(m).trim(); }).filter(function (m) { return r.valueMap[m] !== undefined; });
+            if (_members.length) val = _members[0];
+        }
         if (r.valueMap) {
             var mapped = r.valueMap[val] !== undefined
                 ? r.valueMap[val]
