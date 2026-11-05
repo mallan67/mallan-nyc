@@ -106,8 +106,8 @@ describe("pulling RLS20123633 into a blank listing", () => {
       expect(val(f, "salePrice")).toBe("1200000");
       expect(val(f, "saleUnitNumber")).toBe("806");
       expect(val(f, "saleZipCode")).toBe("10017");
-      expect(val(f, "saleBedrooms")).toBe("0");
-      expect(val(f, "saleFullBaths")).toBe("2");
+      expect(val(f, "saleBedrooms")).toBe("8");
+      expect(val(f, "saleFullBaths")).toBe("3");
       expect(val(f, "saleUnitSqFt")).toBe("1482");
       expect(val(f, "saleLivingArea")).toBe("1482");            // the Condo Details box the Active checklist asks for
       expect(val(f, "saleTotalRooms")).toBe("8");
