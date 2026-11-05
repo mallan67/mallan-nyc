@@ -56,6 +56,7 @@ async function pullOf(row: Record<string, unknown>): Promise<BootedForm> {
   return f;
 }
 const floors = (f: BootedForm) => (f.d.querySelector('input[name="saleNumFloors"]:checked') as HTMLInputElement | null)?.value ?? "";
+const propertyType = (f: BootedForm) => (f.d.querySelector('input[name="salePropertyType"]:checked') as HTMLInputElement | null)?.value ?? "";
 
 live("LIVE: Cotality's Levels and the unit's floors", () => {
   it("BASIS: live Duplex units say Levels Two, and live Triplex units say TriLevel (at least 95%: an agent can leave it out)", async () => {
@@ -70,14 +71,16 @@ live("LIVE: Cotality's Levels and the unit's floors", () => {
   });
 
   it.each([
-    ["a live Duplex unit (Levels Two)", `${ACTIVE_SALE} and PropertySubType eq 'Duplex' and ${UNIT} and Levels has 'Two'`, "BiLevel"],
-    ["a live Triplex unit (Levels TriLevel)", `${ACTIVE_SALE} and PropertySubType eq 'Triplex' and ${UNIT} and Levels has 'TriLevel'`, "TriLevel"],
-    ["a live one-floor apartment (Levels One)", `${ACTIVE_SALE} and PropertySubType eq 'Apartment' and ${UNIT} and Levels has 'One'`, "SingleLevelUnit"],
-  ])("FORM: %s, fed to the real form as the pull's answer, ends with the %s radio, and the form sends Cotality's word back", async (_label, filter, radio) => {
+    ["a live Duplex unit (Levels Two)", "BiLevel", `${ACTIVE_SALE} and PropertySubType eq 'Duplex' and ${UNIT} and Levels has 'Two'`],
+    ["a live Triplex unit (Levels TriLevel)", "TriLevel", `${ACTIVE_SALE} and PropertySubType eq 'Triplex' and ${UNIT} and Levels has 'TriLevel'`],
+    ["a live one-floor apartment (Levels One)", "SingleLevelUnit", `${ACTIVE_SALE} and PropertySubType eq 'Apartment' and ${UNIT} and Levels has 'One'`],
+  ])("FORM: %s, fed to the real form as the pull's answer, ends with the %s radio, keeps its own unit type, and the form sends Cotality's word back", async (_label, radio, filter) => {
     const row = await one(filter);
     const f = await pullOf(row);
     try {
       expect(floors(f)).toBe(radio);
+      // Duplex and Triplex here are the UNIT's floors (Maya, 2026-11-05: simplex 1 floor, duplex 2, triplex 3): the unit stays a condo, co-op or condop, and never becomes the whole-building Duplex/Triplex type
+      expect(["Duplex", "Triplex", "Quadruplex"]).not.toContain(propertyType(f));
       const sent = (f.w as any).collectSaleFormData().Levels;
       if (radio === "BiLevel") expect(sent).toEqual(["Two"]);
       else if (radio === "TriLevel") expect(sent).toEqual(["TriLevel"]);
