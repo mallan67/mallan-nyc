@@ -539,7 +539,7 @@
     { rls: 'saleLight', name: 'saleLight', src: 'raw' },
     { rls: 'saleLiveWorkAllowed', name: 'saleLiveWorkAllowed', src: 'raw' },
     { rls: 'saleMeetAndGreet', name: 'saleMeetAndGreet', src: 'raw' },
-    { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw', rawKey: 'saleNumFloors', fallback: 'Levels', valueMap: { Single: 'SingleLevelUnit', Duplex: 'BiLevel', Triplex: 'TriLevel', Quadruplex: 'QuadLevel' } },
+    { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw', rawKey: 'saleNumFloors', fallback: 'Levels', valueMap: { Single: 'SingleLevelUnit', Duplex: 'BiLevel', Triplex: 'TriLevel', Quadruplex: 'QuadLevel', One: 'SingleLevelUnit', Two: 'BiLevel', TriLevel: 'TriLevel' } },   // the earlier words, then Cotality's own (live 2026-11-05: Duplex units say Two, Triplex units TriLevel)
     { rls: 'saleOfficeRetailOwnership', name: 'saleOfficeRetailOwnership', src: 'raw' },
     { rls: 'saleParentsBuying', name: 'saleParentsBuying', src: 'raw' },
     { rls: 'salePiedATerre', name: 'salePiedATerre', src: 'raw' },
