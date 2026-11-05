@@ -181,9 +181,9 @@ describe.each([
     const texts = await toastsAfter(422, { blockers: [{ field: 'LivingAreaUnits' }, { field: 'PropertyCondition' }, { field: 'SpecialListingConditions' }] });
     const refusal = texts.find((t) => /Submission failed/.test(t));
     expect(refusal).toBeTruthy();
-    // each box is named by the label the page gives it ("Property Condition" on the Sale form, "Condition" and "Area Units" on the Rental form, whose Cotality names are longer); a field the page
+    // each box is named by the label the page gives it ("Condition of Apartment" on the Sale form, "Condition" and "Area Units" on the Rental form, whose Cotality names are longer); a field the page
     // has no box for by its Cotality name, spaced
-    const names = form.startsWith('SALE') ? 'Living Area Units, Property Condition, Special Listing Conditions' : 'Area Units, Condition, Special Listing Conditions';
+    const names = form.startsWith('SALE') ? 'Living Area Units, Condition of Apartment, Special Listing Conditions' : 'Area Units, Condition, Special Listing Conditions';
     expect(refusal).toContain(`Submission failed: Listing blocked by RLS enforcement gate: ${names}. Nothing was saved to the CRM`);
   });
 

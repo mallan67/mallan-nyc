@@ -38,7 +38,7 @@ const BASE = (process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle")
 // the box of the Sale form that shows each Cotality fact (the facts the form follows that have one box each)
 const BOX: Record<string, string> = {
   BedroomsTotal: "saleBedrooms", BathroomsFull: "saleFullBaths", BathroomsHalf: "saleHalfBaths", RoomsTotal: "saleTotalRooms", LivingArea: "saleUnitSqFt", ListPrice: "salePrice",
-  AssociationFee: "saleMaintCC", TaxMonthlyAmount: "saleTaxMonthly", EntryLevel: "saleFloorInBuilding", TaxLot: "saleUnitTaxLot", YearBuilt: "saleBldgYearBuilt", StoriesTotal: "saleBldgTotalFloors",
+  AssociationFee: "saleMaintCC", TaxMonthlyAmount: "saleTaxMonthly", EntryLevel: "saleFloorInBuilding", TaxLot: "saleUnitTaxLot", YearBuilt: "saleBldgYearBuilt", StoriesTotal: "saleBldgTotalFloors", KitchenCondition: "saleKitchenCondition", BathroomCondition: "saleBathroomCondition", ViewRemarks: "saleViewRemarks",
 };
 // a box holds text; live holds a number or a string such as "1571.00": the same amount is the same fact
 const sameValue = (box: string, live: unknown) => box === String(live) || (box !== "" && String(live).trim() !== "" && Number.isFinite(Number(box)) && Number.isFinite(Number(live)) && Number(box) === Number(live));
