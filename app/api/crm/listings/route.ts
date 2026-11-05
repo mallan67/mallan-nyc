@@ -22,8 +22,12 @@ import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-as
 import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
 import { MALLAN_LIST_OFFICE_MLS_IDS } from "@/lib/listings/mallan-source-identity";
 import { cotalityCopiesOfOwnListings } from "@/lib/listings/dedupe-crm-vs-idx";
+import { TERMINAL_VALUES } from "@/lib/compliance/status";
 import { assertRlsLinkFree, rlsLinkConflictBody, rlsLinkOf, RlsLinkConflict } from "@/lib/listings/rls-link";
 import type { Prisma } from "@prisma/client";
+
+// Most live listings the duplicate check reads (the office's live inventory is a few dozen; this is a ceiling, not a page size).
+const OWN_SET_CAP = 2000;
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -92,7 +96,13 @@ export async function GET(req: NextRequest) {
   // One listing, one row (Maya, 2026-11-04: "on the crm i have still two of the same listing"). Her own listing comes back through Cotality as an
   // RLS* row and both were listed. The Cotality copy of a live listing is left out of the list AND the count, so the tab numbers and the pages
   // add up; her closed history stays. The rule is lib/listings/dedupe-crm-vs-idx.ts (the same unit identity the public site uses).
-  const ownRows = await prisma.listing.findMany({ where: ownScope, select: { listing_id: true, status: true, address: true } });
+  // Only a listing that can still be live matters to the rule (closed history is ignored by it), so the read leaves the terminal statuses out in the database and is capped: it grows with the live inventory,
+  // not with every sale the office ever closed. The database filter may let through a spelling the rule then ignores (a superset is safe); past the cap a copy may stay listed, never a listing be hidden.
+  const ownRows = await prisma.listing.findMany({
+    where: { ...ownScope, status: { notIn: [...TERMINAL_VALUES] } },
+    select: { listing_id: true, status: true, address: true },
+    take: OWN_SET_CAP,
+  });
   const cotalityCopies = cotalityCopiesOfOwnListings(ownRows);
   if (cotalityCopies.length > 0) where.NOT = { listing_id: { in: cotalityCopies } };
 

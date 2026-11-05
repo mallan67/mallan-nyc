@@ -137,7 +137,7 @@ import { GET as listingsGET } from '@/app/api/crm/listings/route';
 
 // The listings route reads twice now: a small read of her own set (to leave the Cotality copy of a live listing out of the list, 2026-11-04) and the list
 // itself. These probes are about the list, which is the call that has a page size.
-const listQueryArg = () => listingFindMany.mock.calls.map((c) => c[0]).find((a) => a && (a as { take?: number }).take !== undefined);
+const listQueryArg = () => listingFindMany.mock.calls.map((c) => c[0]).find((a) => a && (a as { select?: { id?: true } }).select?.id);
 
 function clearAll() {
   leadFindMany.mockClear();

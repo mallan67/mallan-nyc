@@ -151,7 +151,7 @@ describe("GET — the owner link is read back, and the list is filtered by it", 
     expect(res.status).toBe(200);
     // two reads now: her own set (the duplicate check, 2026-11-04), then the list, which is the one with a page size
     type ListArgs = { take?: number; where: Record<string, unknown>; select: Record<string, unknown> };
-    const args = m().listing.findMany.mock.calls.map((c: unknown[]) => c[0] as ListArgs).find((a: ListArgs) => a.take !== undefined) as ListArgs;
+    const args = m().listing.findMany.mock.calls.map((c: unknown[]) => c[0] as ListArgs).find((a: ListArgs) => !!a.select.id) as ListArgs;
     expect(args.where.owner_client_id).toBe(BigInt(56));
     expect(args.select.owner_client_id).toBe(true);
     const json = await readJson<{ listings: Array<{ listing_id: string; owner_client_id: unknown }> }>(res);

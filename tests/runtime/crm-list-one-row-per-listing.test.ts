@@ -124,13 +124,13 @@ function getReq(url: string): NextRequest {
 }
 
 /** The list query (it has a page size); the duplicate check is the other findMany, which reads three small columns. */
-const listQuery = () => listingFindMany.mock.calls.map((c) => c[0]).find((a: any) => a && a.take !== undefined) as any;
-const ownSetQuery = () => listingFindMany.mock.calls.map((c) => c[0]).find((a: any) => a && a.take === undefined) as any;
+const listQuery = () => listingFindMany.mock.calls.map((c) => c[0]).find((a: any) => a && a.select && a.select.id) as any;
+const ownSetQuery = () => listingFindMany.mock.calls.map((c) => c[0]).find((a: any) => a && a.select && !a.select.id) as any;
 
 function arrange(ownRows: unknown[]) {
   listingFindMany.mockReset(); listingCount.mockReset(); agentFindUnique.mockReset(); requireAgentOrBroker.mockReset();
   requireAgentOrBroker.mockResolvedValue({ userId: 'agent-1', userType: 'agent', role: 'BROKER' });
-  listingFindMany.mockImplementation(async (args: any) => (args && args.take !== undefined ? [] : ownRows));
+  listingFindMany.mockImplementation(async (args: any) => (args && args.select && args.select.id ? [] : ownRows));
   listingCount.mockResolvedValue(0);
 }
 
@@ -155,13 +155,14 @@ describe('GET /api/crm/listings asks for one row per listing', () => {
     expect(list.where.OR).toHaveLength(3);                                                  // SL-, RL-, and Mallan's own office rows
   });
 
-  it('checks for duplicates over her WHOLE own set, not the filtered page, and reads only three columns', async () => {
+  it('checks for duplicates over her whole LIVE set (not the filtered page): three columns, terminal statuses left out in the database, and capped', async () => {
     arrange([SL_0010, RLS_0010]);
     await GET(getReq('http://localhost/api/crm/listings?type=sale&status=Active&limit=5'));
     const own = ownSetQuery();
     expect(own.select).toEqual({ listing_id: true, status: true, address: true });
     expect(own.where.listing_type).toBeUndefined();                                          // not narrowed by the tab the agent is on
-    expect(own.where.status).toBeUndefined();
+    expect(own.where.status).toEqual({ notIn: ['Cancelled', 'Closed', 'Expired', 'Leased', 'Rented', 'Sold', 'Withdrawn'] });   // what can still be live; never the tab's status filter
+    expect(own.take).toBe(2000);                                                             // bounded: it grows with the live inventory, not with every sale ever closed
     expect(own.where.OR).toHaveLength(3);
   });
 
