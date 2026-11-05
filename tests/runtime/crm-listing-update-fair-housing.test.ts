@@ -242,7 +242,7 @@ describe('PATCH /api/crm/listings/[id]: where the scan sits', () => {
     const scan = patch.indexOf('scanListingBodyForFairHousing(body)');
     expect(bodyRead).toBeGreaterThan(-1);
     expect(scan).toBeGreaterThan(bodyRead);
-    for (const later of ['const merged =', 'classifyRlsEligibility(', 'assertRlsCompliantPayload(', 'validateListing(', 'prisma.listing.update(']) {
+    for (const later of ['const merged =', 'classifyRlsEligibility(', 'assertRlsCompliantPayload(', 'validateListing(', 'tx.listing.update(']) {
       expect(patch.indexOf(later)).toBeGreaterThan(scan);
     }
     const gate = patch.slice(scan, scan + 700);

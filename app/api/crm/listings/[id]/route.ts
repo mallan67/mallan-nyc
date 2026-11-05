@@ -29,6 +29,7 @@ import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
 import { REBNY_FIELD_TABLES } from "@/lib/compliance/rebny-field-tables";
 import { assertRlsLinkFree, rlsLinkConflictBody, rlsLinkOf, RlsLinkConflict } from "@/lib/listings/rls-link";
+import { NULLABLE_NUMBER_COLUMNS, readNullableNumber } from "@/lib/listings/nullable-number";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -57,6 +58,11 @@ const FEATURE_KEYS: string[] = Array.from(new Set([
 /**
  * Resolve a listing by numeric ID or listing_id string.
  */
+// The search projection could not be written inside the save's transaction: the save is rolled back (see the PATCH handler).
+class ProjectionWriteFailed extends Error {
+  constructor(readonly reason: unknown) { super("search projection write failed"); }
+}
+
 async function findListing(id: string) {
   const numericId = parseInt(id);
   let listing;
@@ -312,10 +318,14 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.commercial_ownership !== undefined) update.commercial_ownership = String(body.commercial_ownership) || null;
   if (body.commercial_sub_type !== undefined) update.commercial_sub_type = String(body.commercial_sub_type) || null;
   if (body.ListPrice !== undefined) update.list_price = Number(body.ListPrice);
-  if (body.BedroomsTotal !== undefined) update.bedrooms_total = Number(body.BedroomsTotal);
-  if (body.BathroomsFull !== undefined) update.bathrooms_full = Number(body.BathroomsFull);
-  if (body.BathroomsHalf !== undefined) update.bathrooms_half = Number(body.BathroomsHalf);
-  if (body.LivingArea !== undefined) update.living_area = Number(body.LivingArea);
+  // Beds, baths and area are read as the create route reads them (lib/listings/nullable-number.ts): a blank box is NULL and a typed 0 is 0. Number(null) is 0, which stored "not entered" as "0 bedrooms"
+  // on every edit of a commercial or townhouse listing whose form sends the blank box as null.
+  for (const [key, column] of NULLABLE_NUMBER_COLUMNS) {
+    if (body[key] === undefined) continue;
+    const n = readNullableNumber(body[key]);
+    if (!n.ok) return NextResponse.json({ error: key + " must be a number, or empty", field: key }, { status: 400 });
+    update[column] = n.value;
+  }
   // borough/neighborhood column mirroring — accept canonical (Borough/Neighborhood)
   // OR the alias keys (CityRegion/SubdivisionName) the CRM sale form actually
   // emits in collectSaleFormData (see normalizer.ts aliasToCanonical: the form
@@ -571,19 +581,40 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
   if (body.media !== undefined) update.media = body.media as Prisma.InputJsonValue;
 
+  // ONE transaction, three guarantees:
+  //   1. the RLS link is still free (behind its advisory lock);
+  //   2. the row is written only if nobody saved it since THIS request read it: compare-and-set on modification_timestamp, which every CRM save, status change and sync stamps. The merge above
+  //      ({ ...existingRaw, ...body }) was built from that read, so without the check two saves in flight each wrote from a stale read and the later write silently replaced the earlier one;
+  //   3. the search projection is written with it (listing_search_projection is what Search reads). It used to follow the save in its own try/catch, so a failed projection left a saved listing that
+  //      Search still showed in its old state. Now a failed projection undoes the save and the agent is told: the same rule as the Cotality follow job (lib/listings/rls-follow-run.ts).
   let updated: Awaited<ReturnType<typeof prisma.listing.update>>;
   try {
-    updated = newRlsLink
-      ? await prisma.$transaction(async (tx) => {
-          await assertRlsLinkFree(tx, newRlsLink, listing.id);
-          return tx.listing.update({ where: { id: listing.id }, data: update });
-        })
-      : await prisma.listing.update({
-          where: { id: listing.id },
-          data: update,
-        });
+    updated = await prisma.$transaction(async (tx) => {
+      if (newRlsLink) await assertRlsLinkFree(tx, newRlsLink, listing.id);
+      const row = await tx.listing.update({ where: { id: listing.id, modification_timestamp: listing.modification_timestamp }, data: update });
+      try {
+        await dualWriteProjectionForListingId(tx as unknown as Parameters<typeof dualWriteProjectionForListingId>[0], row.listing_id);
+      } catch (err) {
+        throw new ProjectionWriteFailed(err);
+      }
+      return row;
+    });
   } catch (err) {
     if (err instanceof RlsLinkConflict) return NextResponse.json(rlsLinkConflictBody(err), { status: 409 });
+    // P2025: no row matched id + modification_timestamp: someone saved this listing after this request read it. Nothing was written.
+    if ((err as { code?: string } | null)?.code === "P2025") {
+      return NextResponse.json(
+        { error: "This listing was changed by another save while this one was being processed. Nothing was overwritten: reload the listing, or save again.", code: "STALE_WRITE" },
+        { status: 409 },
+      );
+    }
+    if (err instanceof ProjectionWriteFailed) {
+      console.error("[crm-listing-patch] search projection write failed; the save was rolled back", listing.listing_id, err.reason);
+      return NextResponse.json(
+        { error: "Not saved: the search index could not be updated, so nothing was changed. Try again.", code: "PROJECTION_WRITE_FAILED" },
+        { status: 500 },
+      );
+    }
     throw err;
   }
 
@@ -596,35 +627,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     SEARCH_CACHE_TAG,
   ]);
 
-  // Phase A W3 — dual-write the listing_search_projection so any reader
-  // (including the PR 5B-future projection reader) sees the updated row
-  // immediately. CRM PATCH can change `list_price`, address fields,
-  // `idx_display_yn` (via IDXEntireListingDisplayYN guard above),
-  // `rls_eligible`, status, and other projection-mirrored columns; without
-  // this dual-write the projection would lag until the next idx-sync run
-  // (Cotality path only) or the data-retention cron (terminal rows only).
-  //
-  // See docs/idx/post-reconciliation-tightening-audit-2026-05-20.md W3 for
-  // the gap analysis. Failure logged to AuditEvent + does NOT block the
-  // agent's edit (matches per-row-failure semantics of lib/idx/sync.ts).
-  try {
-    await dualWriteProjectionForListingId(prisma, updated.listing_id);
-  } catch (err) {
-    await prisma.auditEvent.create({
-      data: {
-        action: "projection_dual_write_failed",
-        entity_type: "listing",
-        entity_id: updated.id.toString(),
-        user_type: auth.userType,
-        user_id: auth.userId,
-        changes: {
-          source: "crm_listing_patch",
-          listing_id: updated.listing_id,
-          error: err instanceof Error ? err.message : String(err),
-        },
-      },
-    }).catch(() => { /* swallow — don't fail user edit on a logging failure */ });
-  }
+  // The listing_search_projection is written inside the save's transaction above (Phase A W3 dual-write): a CRM edit can change list_price, the address, idx_display_yn, rls_eligible, the status and the other
+  // projection-mirrored columns, and Search reads the projection, so the two are committed together or not at all.
 
   await logAuditEvent(
     "update",
