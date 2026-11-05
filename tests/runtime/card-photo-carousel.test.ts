@@ -163,9 +163,22 @@ describe('SearchListingCard wiring — ONE carousel implementation, three cards'
   });
 
   it('all three cards declare a rendered-size profile so cards stop downloading originals', () => {
-    expect(src).toMatch(/sizeProfile="grid"/);
+    // GridCard's profile is now caller-supplied: it serves two layouts
+    // that render at materially different widths (501px all-listings vs
+    // 326px grid view at 1024), so one hardcoded profile over-declared
+    // the narrower one by up to 1.67x.
+    expect(src).toMatch(/sizeProfile\?: CardSizeKey/);
+    expect(src).toMatch(/sizeProfile = 'grid'/);   // default = all-listings
+    expect(src).toMatch(/sizeProfile=\{sizeProfile\}/);
     expect(src).toMatch(/sizeProfile="list"/);
     expect(src).toMatch(/sizeProfile="split"/);
+  });
+
+  it('the 3-column grid view opts into the narrower gridTight profile', () => {
+    const page = readFileSync(resolve(__dirname, '../../app/search/page.tsx'), 'utf8');
+    expect(page).toMatch(/sizeProfile="gridTight"/);
+    // …and only there. all-listings keeps the default `grid`.
+    expect((page.match(/sizeProfile="gridTight"/g) || [])).toHaveLength(1);
   });
 });
 
