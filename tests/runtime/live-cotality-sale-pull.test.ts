@@ -103,13 +103,13 @@ live("LIVE: pulling RLS20123633 from Cotality", () => {
 });
 
 live("LIVE: the Sale form matches what the real route pulled", () => {
-  // SL-0010 as Mallan holds it before the check: the numbers the first pull saved, and Mallan's own classification
+  // SL-0010 as Mallan holds it before the check: the numbers the first pull saved, and Mallan's own classification (the form stores the unit type in raw_data.salePropertyType as well as the property_type column)
   const SAVED = {
     id: 7, listing_id: "SL-0010", status: "Active", listing_type: "sale", property_type: "Commercial",
     list_price: 1200000, bedrooms_total: 0, bathrooms_full: 2, bathrooms_half: 0, living_area: 1482,
     address: { StreetNumber: "800", StreetName: "2ND", StreetSuffix: "Avenue", UnitNumber: "806", City: "New York City", StateOrProvince: "NY", PostalCode: "10017", CityRegion: "Manhattan" },
     features: {}, agent_info: {}, media: [],
-    raw_data: { saleRlsId: RLS, saleRlsListingKey: "1194314473", PublicRemarks: "Our own description of the office.", PrivateRemarks: "Broker note." },
+    raw_data: { salePropertyType: "Commercial", saleRlsId: RLS, saleRlsListingKey: "1194314473",PublicRemarks: "Our own description of the office.", PrivateRemarks: "Broker note." },
   };
 
   it("the boxes hold what live Cotality holds for beds, baths, rooms, area and price, and the form saves nothing by itself", async () => {
@@ -129,7 +129,18 @@ live("LIVE: the Sale form matches what the real route pulled", () => {
     } finally { f.close(); }
   });
 
-  it("the agent's own words and Mallan's classification are not overwritten by the pull", async () => {
+  it("a commercial unit stays commercial: the pull never turns it into the Residential / Apartment that Cotality's type fields say (SL-0010 is a commercial medical office; RealPlus carries that as CurrentUse)", async () => {
+    const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 800, search: "?id=7", listing: SAVED, rlsPull: () => ({ status: pulled.status, body: pulled.body }) });
+    try {
+      await waitUntil(() => (f.w as any)._saleEditLoad === "loaded");
+      await waitUntil(() => (f.d.getElementById("saleCotalityFollowText") as HTMLElement).textContent !== "");
+      const chosen = (f.d.querySelector('input[name="salePropertyType"]:checked') as HTMLInputElement | null)?.value ?? null;
+      const sent = (f.w as any).collectSaleFormData();
+      expect({ unitType: chosen, PropertyType: sent.PropertyType, PropertySubType: sent.PropertySubType }).toEqual({ unitType: "Commercial", PropertyType: "Commercial", PropertySubType: "" });
+    } finally { f.close(); }
+  });
+
+  it("the agent's own words are not overwritten by the pull", async () => {
     const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 800, search: "?id=7", listing: SAVED, rlsPull: () => ({ status: pulled.status, body: pulled.body }) });
     try {
       await waitUntil(() => (f.w as any)._saleEditLoad === "loaded");
