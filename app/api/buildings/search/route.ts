@@ -10,6 +10,8 @@ import { parseCustomFields } from '@/lib/search/crm-idx-filter';
 
 const COTALITY_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
+const HOUSE_KINDS = new Set(['SingleFamilyTownhouse', 'MultiFamilyTownhouse', 'MultiFamily', 'MixedUse', 'SingleFamily']);
+
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function checkRateLimit(ip: string): boolean {
@@ -1239,6 +1241,8 @@ export async function GET(request: NextRequest) {
             const c = classifyBuilding(all && all.length > 0 ? all : recs);
             const target = b as Record<string, unknown>;
             if (c.commonInterest) target.common_interest = c.commonInterest;
+            // A house has no ownership tag: when the building is classified a house, a Condominium / Co-op tag left on the record by one stray listing is dropped, not sent beside the house kind.
+            else if (c.kind && HOUSE_KINDS.has(c.kind)) target.common_interest = '';
             target.building_kind = c.kind;
             target.ownership_votes = c.votes;
           }
@@ -1272,6 +1276,16 @@ export async function GET(request: NextRequest) {
         errorHint = 'Building lookup temporarily unavailable.';
       } else {
         errorHint = 'No Cotality building match found.';
+      }
+    }
+
+    // Cotality, and rows stored from it, carry the TEXT "null" in plain fields (live 2026-11-03: TaxBlock and BuildingTaxLot of 34 E 70th Street, ZoningDescription of 770 Park Avenue and
+    // 150 Charles Street) and "0.0 x 0.0" as a lot size. That is no value: left in, the form types it into Tax Block / Tax Lot / Zoning / Lot Dimensions and saves it. Cleaned once, for every building.
+    for (const b of buildings) {
+      for (const k of Object.keys(b)) {
+        const v = b[k];
+        if (typeof v !== 'string' || v === '') continue;
+        if (cleanText(v) === '' || (k === 'lot_size_dimensions' && /^0(\.0+)?\s*x\s*0(\.0+)?$/i.test(v.trim()))) b[k] = '';
       }
     }
 

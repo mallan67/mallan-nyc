@@ -62,6 +62,7 @@
     { rls: 'BathroomsFull', form: 'saleFullBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_full' },
     { rls: 'BathroomsHalf', form: 'saleHalfBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_half' },
     { rls: 'LivingArea', form: 'saleUnitSqFt', type: 'number', src: 'listing', listingKey: 'living_area' },
+    { rls: 'LivingArea', form: 'saleInteriorSqFt', type: 'number', src: 'raw' },
     { rls: 'LivingArea', form: 'saleLivingArea', type: 'number', src: 'raw' },
     { rls: 'RoomsTotal', form: 'saleTotalRooms', type: 'number', src: 'raw' },
     { rls: 'EntryLevel', form: 'saleFloorInBuilding', type: 'text', src: 'raw' },
@@ -183,6 +184,9 @@
     // ── Unit additional ──
     { rls: 'saleCondition', form: 'saleCondition', type: 'text', src: 'raw', valueMap: { Good: 'GoodCondition', Poor: 'PoorCondition', Updated: 'UpdatedRemodeled' } },
     { rls: 'PropertyCondition', form: 'saleCondition', type: 'text', src: 'raw', firstMember: true },
+    { rls: 'KitchenCondition', form: 'saleKitchenCondition', type: 'text', src: 'raw' },
+    { rls: 'BathroomCondition', form: 'saleBathroomCondition', type: 'text', src: 'raw' },
+    { rls: 'ViewRemarks', form: 'saleViewRemarks', type: 'text', src: 'raw' },
     { rls: 'saleInteriorSqFt', form: 'saleInteriorSqFt', type: 'number', src: 'raw' },
     { rls: 'saleExteriorSqFt', form: 'saleExteriorSqFt', type: 'number', src: 'raw' },
     { rls: 'saleLineInBuilding', form: 'saleLineInBuilding', type: 'text', src: 'raw' },
@@ -535,7 +539,7 @@
     { rls: 'saleLight', name: 'saleLight', src: 'raw' },
     { rls: 'saleLiveWorkAllowed', name: 'saleLiveWorkAllowed', src: 'raw' },
     { rls: 'saleMeetAndGreet', name: 'saleMeetAndGreet', src: 'raw' },
-    { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw', rawKey: 'saleNumFloors', fallback: 'Levels', valueMap: { Single: 'SingleLevelUnit', Duplex: 'BiLevel', Triplex: 'TriLevel', Quadruplex: 'QuadLevel' } },
+    { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw', rawKey: 'saleNumFloors', fallback: 'Levels', valueMap: { Single: 'SingleLevelUnit', Duplex: 'BiLevel', Triplex: 'TriLevel', Quadruplex: 'QuadLevel', One: 'SingleLevelUnit', Two: 'BiLevel', TriLevel: 'TriLevel' } },   // the earlier words, then Cotality's own (live 2026-11-05: Duplex units say Two, Triplex units TriLevel)
     { rls: 'saleOfficeRetailOwnership', name: 'saleOfficeRetailOwnership', src: 'raw' },
     { rls: 'saleParentsBuying', name: 'saleParentsBuying', src: 'raw' },
     { rls: 'salePiedATerre', name: 'salePiedATerre', src: 'raw' },

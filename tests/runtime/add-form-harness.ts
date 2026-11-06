@@ -48,6 +48,7 @@ export type AddFormOpts = {
   storage?: Record<string, string>;                  // localStorage entries present when the page starts (a saved browser draft)
   showings?: unknown;                                // what GET /api/crm/showings answers as its list of showings (anything: the rows are the server's); a POST is answered with { showing: { id: 'S-1' } }
   mediaRows?: unknown;                               // what GET /api/crm/listings/:id/media answers as its list of media rows (anything: the rows are the server's)
+  mediaLegacyPreview?: boolean;                      // that answer carries `_legacyPreview: true` (no keyed rows were ever imported); without it an empty list means every row was removed
   created?: Record<string, unknown>;                 // what MallanAPI.listings.create answers, over the default { id, listing_id, status: 'Draft' } (the server's ids and addresses are the server's)
   updated?: Record<string, unknown>;                 // what MallanAPI.listings.update answers (default {}: the real route answers with the record's status, which is the server's)
   statusDetails?: Record<string, unknown>;           // the body of the server's refusal that goes with statusError (the API client keeps it as err.details)
@@ -59,6 +60,7 @@ export type AddFormOpts = {
   updateError?: string;                              // make MallanAPI.listings.update fail with this message
   updateErrorStatus?: number | null;                 // the HTTP status of that failure (see createErrorStatus)
   updateGate?: Promise<void>;                        // MallanAPI.listings.update answers once this promise is settled
+  onUpdate?: (id: string, payload: Record<string, unknown>) => void;   // called with every update the form sends, before it answers: a test makes the fake CRM remember it (so listings.get reads it back)
   settle?: number;                                   // ms to let page init finish
 };
 export type Request = { url: string; method: string; body: string };
@@ -123,7 +125,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
         const u = String(url);
         requests.push({ url: u, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : '' });
         if (o.mediaRows !== undefined && (init?.method ?? 'GET') === 'GET' && /^\/api\/crm\/listings\/[^/?]+\/media(\?.*)?$/.test(u)) {
-          return { ok: true, status: 200, json: async () => ({ listing_id: 'L-1', media: o.mediaRows }), text: async () => '' };
+          return { ok: true, status: 200, json: async () => ({ listing_id: 'L-1', media: o.mediaRows, ...(o.mediaLegacyPreview ? { _legacyPreview: true } : {}) }), text: async () => '' };
         }
         if (u.startsWith('/api/crm/showings')) {
           const method = init?.method ?? 'GET';
@@ -181,7 +183,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
         listings: {
           get: async () => { await later('listings.get', o.getDelay ?? 10); await held(o.getGate); if (o.getError) throw new Error(o.getError); return o.listing ?? {}; },
           create: async (payload: Record<string, unknown>) => { calls.push('create'); await held(o.createGate); if (o.createError) throw failure(o.createError, o.createErrorStatus); saved.push(payload); return { id: '1', listing_id: 'L-1', status: 'Draft', ...(o.created ?? {}) }; },
-          update: async (id: string, payload: Record<string, unknown>) => { calls.push(`update ${id}`); await held(o.updateGate); if (o.updateError) throw failure(o.updateError, o.updateErrorStatus); saved.push(payload); return { ...(o.updated ?? {}) }; },
+          update: async (id: string, payload: Record<string, unknown>) => { calls.push(`update ${id}`); await held(o.updateGate); if (o.updateError) throw failure(o.updateError, o.updateErrorStatus); saved.push(payload); if (o.onUpdate) o.onUpdate(id, payload); return { ...(o.updated ?? {}) }; },
           updateStatus: async (id: unknown, status: unknown) => { statusCalls.push([id, status]); if (o.statusError) { const e: any = new Error(o.statusError); e.details = o.statusDetails; e.data = o.statusDetails; throw e; } return { ...(o.statusAnswer ?? {}) }; },
         },
         idx: { search: async () => ({ results: [] }) },

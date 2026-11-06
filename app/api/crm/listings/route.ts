@@ -22,6 +22,7 @@ import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-as
 import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
 import { MALLAN_LIST_OFFICE_MLS_IDS } from "@/lib/listings/mallan-source-identity";
 import { assertRlsLinkFree, rlsLinkConflictBody, rlsLinkOf, RlsLinkConflict } from "@/lib/listings/rls-link";
+import { NULLABLE_NUMBER_COLUMNS, readNullableNumber } from "@/lib/listings/nullable-number";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -444,6 +445,14 @@ export async function POST(req: NextRequest) {
     },
   };
 
+  // Beds, baths and area are read as the edit route reads them (lib/listings/nullable-number.ts): a blank box is NULL and a typed 0 stays 0 (a truthy test stored a studio's 0 bedrooms as "not entered").
+  const numberColumns: Record<string, number | null> = {};
+  for (const [key, column] of NULLABLE_NUMBER_COLUMNS) {
+    const n = readNullableNumber(persistence.topLevel[column] ?? null);
+    if (!n.ok) return NextResponse.json({ error: key + " must be a number, or empty", field: key }, { status: 400 });
+    numberColumns[column] = n.value;
+  }
+
   const now = new Date();
   const ipAddress = req.headers.get("x-forwarded-for") ?? undefined;
 
@@ -497,10 +506,10 @@ export async function POST(req: NextRequest) {
         property_type: (persistence.topLevel.property_type as string) ?? null,
         property_sub_type: (persistence.topLevel.property_sub_type as string) ?? null,
         list_price: persistence.topLevel.list_price ? Number(persistence.topLevel.list_price) : 0,
-        bedrooms_total: persistence.topLevel.bedrooms_total ? Number(persistence.topLevel.bedrooms_total) : null,
-        bathrooms_full: persistence.topLevel.bathrooms_full ? Number(persistence.topLevel.bathrooms_full) : null,
-        bathrooms_half: persistence.topLevel.bathrooms_half ? Number(persistence.topLevel.bathrooms_half) : null,
-        living_area: persistence.topLevel.living_area ? Number(persistence.topLevel.living_area) : null,
+        bedrooms_total: numberColumns.bedrooms_total,
+        bathrooms_full: numberColumns.bathrooms_full,
+        bathrooms_half: numberColumns.bathrooms_half,
+        living_area: numberColumns.living_area,
         // CityRegion → borough (normalizer already resolved Borough→CityRegion alias)
         borough: (persistence.topLevel.borough as string) ?? null,
         // SubdivisionName → neighborhood (normalizer already resolved Neighborhood→SubdivisionName alias)

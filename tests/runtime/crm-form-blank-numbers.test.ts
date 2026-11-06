@@ -16,7 +16,7 @@ const FORMS: Form[] = [
   {
     form: 'SALE-FORM-REDESIGN', prefix: 'sale', collector: 'collectSaleFormData',
     boxes: [
-      ['BedroomsTotal', 'saleBedrooms', '3', 3], ['BathroomsFull', 'saleFullBaths', '2', 2], ['BathroomsHalf', 'saleHalfBaths', '1', 1], ['LivingArea', 'saleUnitSqFt', '1234.5', 1234.5],
+      ['BedroomsTotal', 'saleBedrooms', '3', 3], ['BathroomsFull', 'saleFullBaths', '2', 2], ['BathroomsHalf', 'saleHalfBaths', '1', 1], ['LivingArea', 'saleInteriorSqFt', '1234.5', 1234.5],
       ['OriginalListPrice', 'saleOriginalPrice', '1300000', 1300000], ['ClosePrice', 'saleSoldPrice', '1250000', 1250000], ['AssociationFee', 'saleMaintCC', '1250.5', 1250.5],
       ['BuildingAreaTotal', 'saleTHBuildingArea', '4200', 4200], ['FoundationArea', 'saleTHFoundationArea', '900', 900], ['LotSizeArea', 'saleTHLotSize', '2500', 2500],
     ],
@@ -134,7 +134,7 @@ describe('SALE-FORM-REDESIGN: whole numbers and decimals', () => {
       set(f, 'saleBedrooms', '2.9');
       set(f, 'saleFullBaths', '1.5');
       set(f, 'saleHalfBaths', '1.9');
-      set(f, 'saleUnitSqFt', '850.75');
+      set(f, 'saleInteriorSqFt', '850.75');        // the area box that is live for every type (Unit Sq Ft and Living Area are locked for some, and mirror this one)
       const payload = f.w.collectSaleFormData();
       expect([payload.BedroomsTotal, payload.BathroomsFull, payload.BathroomsHalf, payload.LivingArea, payload.BathroomsTotal]).toEqual([2, 1, 1, 850.75, 1.5]);
     } finally { f.close(); }

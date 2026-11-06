@@ -1,6 +1,8 @@
 /**
  * The Cotality Property record for RLS20123633 (800 2ND Avenue #806), read in FULL from the live API on 2026-11-03 with Maya's loader: every Property field that carried a value (110),
  * and the 19 REBNY custom keys of CustomProperty.CustomFields, as the API returns them. The agent's contact details were removed (they are not test data).
+ * REFRESHED from the live API on 2026-11-05 where RealPlus changed it after that read (record modified 2026-11-04): BedroomsTotal 0 -> 8, BathroomsFull 2 -> 3. tests/runtime/live-cotality-sale-pull.test.ts
+ * compares this copy with the live record for every fact the Sale form follows and fails when they differ, so a stale copy is found the day it goes stale, not by an agent.
  * RLS ID = ListingId (RLS20123633). ListingKey (1194314473) is a different Cotality identifier. Mallan's own listing id is the SL ID.
  */
 export const LIVE_RLS20123633: Record<string, unknown> = {
@@ -35,7 +37,7 @@ export const LIVE_RLS20123633: Record<string, unknown> = {
   "StandardStatus": "Active",
   "PetsComments": ",",
   "PropertySubType": "Apartment",
-  "BathroomsFull": 2,
+  "BathroomsFull": 3,
   "SubdivisionName": "Turtle Bay",
   "VideosCount": 1,
   "StoriesTotal": 18,
@@ -57,7 +59,7 @@ export const LIVE_RLS20123633: Record<string, unknown> = {
   "InternetAutomatedValuationDisplayYN": true,
   "InternetConsumerCommentYN": true,
   "UniversalParcelId": "urn:reso:upi:2.0:US:36061:1335-1025",
-  "BedroomsTotal": 0,
+  "BedroomsTotal": 8,
   "CoolingYN": false,
   "ListAgentKey": "25272030",
   "OnMarketDate": "2026-11-01",

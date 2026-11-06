@@ -122,4 +122,65 @@ describe("autosave does not hammer a refusal that waiting cannot cure", () => {
       expect(text(f)).not.toMatch(/tries again/);
     } finally { f.close(); }
   });
+  // The hand saves (Save Draft, Submit) and the autosave all write the same listing: a request already out cannot be recalled, and two out at once can land in the wrong order.
+  const handSave = (f: BootedForm, how: "submitSalesListing" | "manualSaveDraft") => (f.w as any)[how]();
+  const prices = (f: BootedForm) => f.saved.map((p: any) => p.ListPrice).filter((x) => x !== undefined).map(String);
+
+  for (const how of ["submitSalesListing", "manualSaveDraft"] as const) {
+    it(`${how} pressed while an autosave is out waits for it, then sends the form as it is by then (never two requests at once)`, async () => {
+      const listing = await savedCondo();
+      let release!: () => void;
+      const gate = new Promise<void>((r) => { release = r; });
+      const f = await openSaved(listing, { updateGate: gate });
+      try {
+        setValue(f, "salePrice", "1250000");
+        (f.w as any).performAutoSave();                              // request 1 (held)
+        await waitUntil(() => updates(f) === 1);
+        setValue(f, "salePrice", "1300000");
+        handSave(f, how);                                            // would be request 2: it waits for the answer
+        await sleep(200);
+        expect(updates(f)).toBe(1);                                  // not two in flight
+        release();
+        await waitUntil(() => updates(f) >= 2);
+        expect(prices(f)).toEqual(["1250000", "1300000"]);           // the autosave first; the hand save read the form after it, so the newest value is the last one the server got
+      } finally { f.close(); }
+    });
+  }
+
+  it("an autosave that falls due while Save Draft is out waits for the answer, and then sends the newest form", async () => {
+    const listing = await savedCondo();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    const f = await openSaved(listing, { updateGate: gate });
+    try {
+      setValue(f, "salePrice", "1250000");
+      handSave(f, "manualSaveDraft");                                // request 1 (held)
+      await waitUntil(() => updates(f) === 1);
+      setValue(f, "salePrice", "1300000");
+      (f.w as any).performAutoSave();                                // falls due now: it must not go out beside the Save Draft
+      await sleep(200);
+      expect(updates(f)).toBe(1);
+      release();
+      await waitUntil(() => updates(f) === 2 && state(f) === "saved");
+      expect(prices(f)).toEqual(["1250000", "1300000"]);
+    } finally { f.close(); }
+  });
+
+  it("Submit pressed while Save Draft is out is refused (the buttons were free to press twice before)", async () => {
+    const listing = await savedCondo();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    const f = await openSaved(listing, { updateGate: gate });
+    try {
+      handSave(f, "manualSaveDraft");                                // held
+      await waitUntil(() => updates(f) === 1);
+      handSave(f, "submitSalesListing");
+      await sleep(200);
+      expect(updates(f)).toBe(1);                                    // one save at a time
+      release();
+      await sleep(300);
+      expect(updates(f)).toBe(1);                                    // and the refused one is not sent later behind the first's back
+    } finally { f.close(); }
+  });
+
 });

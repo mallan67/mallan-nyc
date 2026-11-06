@@ -145,20 +145,20 @@ describe("PATCH /api/crm/listings/:id — saving a listing that carries an RLS l
     expect(m().listing.update).not.toHaveBeenCalled();
   });
 
-  it("saving a listing that already carries its own RLS ID again is an ordinary save: no check, no lock, no transaction", async () => {
+  it("saving a listing that already carries its own RLS ID again is an ordinary save: no check and no RLS-link lock (its one transaction is the save's own: the write and the search projection)", async () => {
     m().listing.findUnique = jest.fn(async () => crmListing({ raw_data: { ListPrice: 1200000, saleRlsId: "RLS20123633" } }));
     taken();                                                                       // would be refused if the check ran
     const res = await patch({ saleRlsId: "RLS20123633", PublicRemarks: "Bright two bedroom with a terrace." });
     expect(res.status).toBe(200);
     expect(m().listing.findFirst).not.toHaveBeenCalled();
-    expect(transaction).not.toHaveBeenCalled();
+    expect(lockCalls().length).toBe(0);
   });
 
   it("an edit without any RLS link is an ordinary save", async () => {
     const res = await patch({ PublicRemarks: "Bright two bedroom with a terrace." });
     expect(res.status).toBe(200);
     expect(m().listing.findFirst).not.toHaveBeenCalled();
-    expect(transaction).not.toHaveBeenCalled();
+    expect(lockCalls().length).toBe(0);
   });
 
   it("something that is not an RLS ID is refused (400)", async () => {

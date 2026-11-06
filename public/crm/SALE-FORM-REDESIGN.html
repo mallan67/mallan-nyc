@@ -104,6 +104,8 @@ body { font-family: Manrope, sans-serif; }
 @media (min-width: 768px) {
   .mobile-tabs { display: none !important; }
 }
+.mobile-th-note { padding: 6px 12px; font-size: 11px; line-height: 1.35; color: #6b7280; background: #fff; border-bottom: 1px solid #e5e7eb; }
+@media (min-width: 768px) { .mobile-th-note { display: none !important; } }
 /* Media window: drop boxes, upload progress, photo tiles (Maya, 2026-11-03: "looks very outdated") */
 .mm-drop { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px 16px; border: 2px dashed #d1d5db; border-radius: 14px; background: #fafafa; text-align: center; cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
 .mm-drop:hover, .mm-drop:focus-visible { border-color: #B8860B; background: #fffbeb; outline: none; }
@@ -260,14 +262,14 @@ body { font-family: Manrope, sans-serif; }
             <span id="saleAutoSaveIndicator" class="hidden text-xs" role="status" aria-live="polite"><i class="fas fa-cloud"></i> <span id="saleAutoSaveText"></span></span>
             <span id="saleDraftBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300"><i class="fas fa-file-alt"></i> DRAFT</span>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
             <button onclick="showSaleMediaDocs()" class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium transition">
                 <i class="fas fa-images text-gray-900"></i> <span class="font-semibold text-gray-900">Media</span>
             </button>
             <button onclick="showSaleBuildingInfo()" class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium transition">
                 <i class="fas fa-building text-gray-900"></i> <span class="font-semibold text-gray-900">Building</span>
             </button>
-            <button onclick="manualSaveDraft('sale')" class="px-4 py-1.5 bg-brand-gold text-white rounded-lg text-xs font-semibold hover:opacity-90 transition">
+            <button onclick="manualSaveDraft('sale')" class="px-4 py-1.5 bg-brand-gold text-white rounded-lg text-xs font-semibold hover:opacity-90 transition whitespace-nowrap">
                 <i class="fas fa-save mr-1"></i> Save Draft
             </button>
             <button onclick="submitSalesListing()" class="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition">
@@ -292,6 +294,7 @@ body { font-family: Manrope, sans-serif; }
     <button onclick="showSaleMainTab(6)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600 whitespace-nowrap">History</button>
     <button onclick="showSaleMainTab(7)" class="mobile-tab px-3 py-1.5 text-xs font-semibold rounded-full bg-gray-200 text-gray-400 whitespace-nowrap pointer-events-none" id="mobileTab7" disabled>Commission</button>
 </div>
+<p id="saleTHTabNoteMobile" class="mobile-th-note hidden" role="note"></p>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- MAIN LAYOUT: SIDEBAR + CONTENT                             -->
@@ -316,6 +319,7 @@ body { font-family: Manrope, sans-serif; }
                 <span class="tab-dot"></span>
                 <i class="fas fa-home text-xs w-4 text-center"></i>
                 <span>TH / Building</span>
+                <i class="fas fa-lock text-[10px] ml-auto text-gray-400 hidden" id="saleTHTabLock"></i>
             </button>
             <button id="sidebarTab4" onclick="showSaleMainTab(4)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700">
                 <span class="tab-dot"></span>
@@ -339,6 +343,7 @@ body { font-family: Manrope, sans-serif; }
                 <i class="fas fa-lock text-[10px] ml-auto text-gray-300" id="saleCommTabLock"></i>
             </button>
         </div>
+        <p id="saleTHTabNote" class="hidden border-t px-4 py-2 text-[11px] leading-snug text-gray-500"></p>
         <!-- Validation toggle -->
         <div class="border-t px-4 py-3">
             <div class="flex items-center gap-2">
@@ -353,7 +358,7 @@ body { font-family: Manrope, sans-serif; }
         <!-- Validation summary -->
         <div class="border-t px-4 py-3">
             <div id="saleValidationSummary" class="text-xs">
-                <p class="text-green-600 font-medium"><i class="fas fa-check-circle mr-1"></i> All fields OK</p>
+                <p class="text-gray-500"><i class="fas fa-clipboard-list mr-1"></i> Required fields are checked when you press Next or Submit.</p>
             </div>
         </div>
     </aside>
@@ -379,7 +384,7 @@ body { font-family: Manrope, sans-serif; }
         <!-- IDX Address Search -->
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-search-location"></i> Property Address — Building Lookup</div>
-            <p class="text-xs text-gray-500 mb-3">Search by address to auto-detect property type and populate building data from Trestle/RLS reference.</p>
+            <p class="text-xs text-gray-500 mb-3">Search by address to auto-detect the property type and fill in the building's facts from Cotality.</p>
             <div class="mb-3 relative">
                 <input type="text" id="saleBuildingSearch"
                        placeholder="Start typing address (e.g., 200 East 66th, 15 Central Park West)..."
@@ -402,6 +407,10 @@ body { font-family: Manrope, sans-serif; }
                     </div>
                 </div>
                 <p id="saleRlsLinkState" class="text-xs mt-2 text-gray-600">RLS link not verified. To link this listing, type its RLS ID (like RLS20123633) in the box above and choose Pull from Cotality.</p>
+                <div id="saleCotalityFollow" class="hidden mt-2 rounded border px-3 py-2 text-xs" role="status" aria-live="polite">
+                    <span id="saleCotalityFollowText"></span>
+                    <button type="button" id="saleCotalityFollowBtn" class="ml-2 underline font-semibold" onclick="saleFollowCotality({ force: true })">Check Cotality now</button>
+                </div>
             </div>
             <!-- IDX Match Indicator -->
             <div id="saleIdxMatchBanner" class="hidden mt-2 warning-banner bg-green-50 border border-green-200 text-green-800">
@@ -409,7 +418,7 @@ body { font-family: Manrope, sans-serif; }
                 <div class="text-xs">
                     <p class="font-semibold">Building Match Found</p>
                     <p>Property type: <strong id="saleIdxDetectedType">--</strong> | Building: <strong id="saleIdxDetectedBuilding">--</strong></p>
-                    <p class="mt-0.5 text-green-600">Building data populated from Trestle/RLS reference. Review and adjust if needed.</p>
+                    <p class="mt-0.5 text-green-600">Building facts filled in from Cotality. Review and adjust if needed.</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
@@ -892,9 +901,9 @@ body { font-family: Manrope, sans-serif; }
                             <!-- Small Multi-Family -->
                             <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Small Multi-Family (Whole Building)</p>
                             <div class="grid grid-cols-3 gap-1.5 mb-3">
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Duplex" class="w-4 h-4" onchange="applySalesFieldRules()"> Duplex (2 Unit)</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Triplex" class="w-4 h-4" onchange="applySalesFieldRules()"> Triplex (3 Unit)</label>
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Quadruplex" class="w-4 h-4" onchange="applySalesFieldRules()"> Quadruplex (4 Unit)</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Duplex" class="w-4 h-4" onchange="applySalesFieldRules()"> Duplex (2 Floors)</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Triplex" class="w-4 h-4" onchange="applySalesFieldRules()"> Triplex (3 Floors)</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Quadruplex" class="w-4 h-4" onchange="applySalesFieldRules()"> Quadruplex (4 Floors)</label>
                             </div>
                             <!-- Commercial (RLS-eligible) -->
                             <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Commercial (RLS-eligible)</p>
@@ -987,7 +996,7 @@ body { font-family: Manrope, sans-serif; }
 
             <!-- Commercial Section -->
             <div class="border border-gray-200 rounded-lg" id="saleCommercialMasterSection">
-                <div class="section-collapse flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-t-lg" onclick="toggleFormSection(this); selectSaleCommercial(this)">
+                <div class="section-collapse flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-t-lg collapsed" onclick="toggleFormSection(this); selectSaleCommercial(this)">
                     <i class="fas fa-building text-purple-600 text-sm"></i>
                     <span class="text-xs font-bold text-gray-800 uppercase tracking-wide">Commercial</span>
                     <span class="text-[10px] text-gray-400 ml-1">(Click to expand)</span>
@@ -1876,13 +1885,13 @@ body { font-family: Manrope, sans-serif; }
             <div class="form-card-header"><i class="fas fa-layer-group"></i> Number of Floors In The Unit</div>
             <div class="flex flex-wrap gap-6">
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleNumFloors" value="SingleLevelUnit" class="w-4 h-4" checked data-concept="Levels"> Single Floor
+                    <input type="radio" name="saleNumFloors" value="SingleLevelUnit" class="w-4 h-4" checked> Single Floor
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleNumFloors" value="BiLevel" class="w-4 h-4"> Duplex
+                    <input type="radio" name="saleNumFloors" value="BiLevel" class="w-4 h-4" data-concept="Levels"> Duplex
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleNumFloors" value="TriLevel" class="w-4 h-4"> Triplex
+                    <input type="radio" name="saleNumFloors" value="TriLevel" class="w-4 h-4" data-concept="Levels"> Triplex
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
                     <input type="radio" name="saleNumFloors" value="QuadLevel" class="w-4 h-4"> Quadruplex
@@ -1930,7 +1939,7 @@ body { font-family: Manrope, sans-serif; }
         <div class="form-card">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label class="field-label">Property Condition</label>
+                    <label class="field-label">Condition of Apartment</label>
                     <select id="saleCondition" class="field-input" data-concept="PropertyCondition">
                         <option value="">Select Condition</option>
                         <option value="Fair" hidden>Fair (earlier list - choose a condition from the list)</option>
@@ -1961,6 +1970,30 @@ body { font-family: Manrope, sans-serif; }
                         <option value="Unknown">Unknown</option>
                         <option value="UpdatedRemodeled">Updated / Remodeled</option>
                         <option value="VeryGoodCondition">Very Good Condition</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Condition of Kitchen</label>
+                    <select id="saleKitchenCondition" class="field-input" data-concept="KitchenCondition">
+                        <option value="">Select Condition</option>
+                        <option value="Excellent">Excellent</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Good">Good</option>
+                        <option value="New">New</option>
+                        <option value="Poor">Poor</option>
+                        <option value="Wrecked">Wrecked</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Condition of Bathroom</label>
+                    <select id="saleBathroomCondition" class="field-input" data-concept="BathroomCondition">
+                        <option value="">Select Condition</option>
+                        <option value="Excellent">Excellent</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Good">Good</option>
+                        <option value="New">New</option>
+                        <option value="Poor">Poor</option>
+                        <option value="Wrecked">Wrecked</option>
                     </select>
                 </div>
             </div>
@@ -2060,16 +2093,17 @@ body { font-family: Manrope, sans-serif; }
                 <!-- Commercial Specifications -->
                 <div class="mb-5">
                     <label class="field-label mb-3">Commercial Specifications</label>
+                    <p id="saleCommercialUnitNote" class="hidden text-xs text-gray-500 mb-3" role="note">A commercial condo, condop or co-op is one unit in a building. The lot, building size, zoning, FAR, air rights and unit counts are the building's: they are in the Building window (the Building button at the top).</p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                        <div>
+                        <div data-bldg-scale>
                             <label class="text-xs text-gray-600 block mb-1">Lot Size (SqFt)</label>
                             <input id="saleCommercialLotSize" type="number" placeholder="0" class="field-input">
                         </div>
-                        <div>
+                        <div data-bldg-scale>
                             <label class="text-xs text-gray-600 block mb-1">Building Size (SqFt)</label>
                             <input id="saleCommercialBuildingSize" type="number" placeholder="0" class="field-input">
                         </div>
-                        <div>
+                        <div data-bldg-scale>
                             <label class="text-xs text-gray-600 block mb-1">Zoning</label>
                             <select id="saleCommercialZoning" class="field-input">
                                 <option value="">Select Zoning</option>
@@ -2085,11 +2119,11 @@ body { font-family: Manrope, sans-serif; }
                                 <option value="MX">MX - Mixed Use</option>
                             </select>
                         </div>
-                        <div>
+                        <div data-bldg-scale>
                             <label class="text-xs text-gray-600 block mb-1">FAR (Floor Area Ratio)</label>
                             <input id="saleCommercialFAR" type="number" step="0.01" placeholder="0.00" class="field-input">
                         </div>
-                        <div>
+                        <div data-bldg-scale>
                             <label class="text-xs text-gray-600 block mb-1">Air Rights (SqFt)</label>
                             <input id="saleCommercialAirRights" type="number" placeholder="0" class="field-input">
                         </div>
@@ -2109,11 +2143,11 @@ body { font-family: Manrope, sans-serif; }
                             <label class="text-xs text-gray-600 block mb-1">Net Operating Income (NOI)</label>
                             <input id="saleCommercialNOI" type="number" placeholder="$0" class="field-input">
                         </div>
-                        <div>
+                        <div data-bldg-scale>
                             <label class="text-xs text-gray-600 block mb-1">Number of Units (Total)</label>
                             <input id="saleCommercialUnitsTotal" type="number" placeholder="0" class="field-input">
                         </div>
-                        <div>
+                        <div data-bldg-scale>
                             <label class="text-xs text-gray-600 block mb-1">Number of Retail Units</label>
                             <input id="saleCommercialRetailUnits" type="number" placeholder="0" class="field-input">
                         </div>
@@ -2268,6 +2302,10 @@ body { font-family: Manrope, sans-serif; }
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="RooftopsSky" class="w-4 h-4" data-concept-disposition="mallan-internal"> Rooftops/Sky</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Skyline" class="w-4 h-4" data-concept-disposition="mallan-internal"> Skyline</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Street" class="w-4 h-4" data-concept-disposition="mallan-internal"> Street</label>
+            </div>
+            <div class="mt-3">
+                <label class="field-label">Views Comments</label>
+                <input type="text" id="saleViewRemarks" class="field-input" maxlength="255" placeholder="Anything to add about the views" data-concept="ViewRemarks">
             </div>
         </div>
 
@@ -5348,6 +5386,12 @@ function _commonInterestToFormType(ci) {
     return map[ci] || ci;
 }
 
+// The building index also says what KIND of building an address is (building_kind, read from every Cotality listing of it): a townhouse, a multi-family house, a single-family house or a
+// mixed-use building has no CommonInterest, so its ownership tag cannot name it. These are the kinds that are a Sale property type of their own; a kind the Sale form has no type for
+// (a rental building) names nothing here.
+var _SALE_BUILDING_TYPES = ['Condo', 'Coop', 'Condop', 'SingleFamilyTownhouse', 'MultiFamilyTownhouse', 'SingleFamily', 'MultiFamily', 'MixedUse'];
+function _saleBuildingKindToFormType(kind) { return _SALE_BUILDING_TYPES.indexOf(kind) >= 0 ? kind : ''; }
+
 // Fetch buildings from API by address query
 async function fetchBuildingsFromAPI(query) {
     if (!query || query.length < 3) return [];
@@ -5375,10 +5419,17 @@ async function fetchBuildingsFromAPI(query) {
             var ci = b.common_interest == null ? '' : b.common_interest;               // the building's Cotality CommonInterest; PropertyType is not an ownership
             ci = txt(ci);
             var formType = _commonInterestToFormType(ci);
+            // A house is a house whatever an ownership tag still on the record says: the kind is read from ALL of the building's listings (152 W 121st Street is a townhouse with one listing tagged
+            // Condominium), the tag from one. A kind that names a house decides, and the stray tag is dropped (it must not fill Ownership Type); otherwise the tag decides, and a kind the form has
+            // no type for (Condo, a rental building) leaves it to the tag.
+            var kindType = _saleBuildingKindToFormType(txt(b.building_kind));
+            if (kindType && ['Condo', 'Coop', 'Condop'].indexOf(kindType) < 0) { formType = kindType; ci = ''; }
+            else if (_SALE_BUILDING_TYPES.indexOf(formType) < 0) formType = kindType || formType;
             var rawAddr = txt(b.address || b.street_address);                      // the address as text (a list or an object is no value)
             var bldgName = txt(b.name) || txt(b.building_name) || '';
-            var streetNum = rawAddr.match(/^\d+/);
-            var displayAddr = (bldgName && streetNum && bldgName.indexOf(streetNum[0]) !== -1) ? bldgName : rawAddr;
+            // The address is Cotality's address. A name that happens to contain the street number is still a name (live: 310 W 72nd Street is "310/72 Owners Corp.", and it was taking
+            // the Street Address box, so the listing was addressed to a corporation). The name stands in only when Cotality gave no address.
+            var displayAddr = rawAddr || bldgName;
             // Preserve EVERY field the API returned (tax_block/tax_lot,
             // association_*, cross_street, stories_total/units_total,
             // structure_type, subdivisionName, and the expanded amenities
@@ -5426,7 +5477,7 @@ function _saleBuildingCandidateRow(b, subtitle, onPick) {
     if (b.model) {
         var badge = document.createElement('span');
         badge.className = 'px-2 py-0.5 text-[10px] font-bold rounded-full ' + (b.model === 'Coop' ? 'bg-purple-100 text-purple-700' : b.model === 'Condo' ? 'bg-blue-100 text-blue-700' : b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' : 'bg-green-100 text-green-700');
-        badge.textContent = b.model; line.appendChild(badge);
+        badge.textContent = _salePropTypeLabel(b.model) || b.model; line.appendChild(badge);
     }
     row.appendChild(line);
     return row;
@@ -5515,6 +5566,8 @@ function _saleApplyCommercialFromPull(rec) {
     var type = document.querySelector('input[name="salePropertyType"][value="Commercial"]');
     if (!type) return false;
     type.checked = true;
+    var unitType = document.querySelector('input[name="saleUnitType2"][value="Commercial"]');      // Unit Info: a commercial unit, not the residential types
+    if (unitType) unitType.checked = true;
     var ownership = SALE_PULL_COMMERCIAL_OWNERSHIP[String(rec.CommonInterest || '').trim()];
     if (ownership) { var o = document.querySelector('input[name="saleCommercialOwnership"][value="' + ownership + '"]'); if (o) o.checked = true; }
     commercial.forEach(function (use) {
@@ -5561,6 +5614,8 @@ async function pullFromCotalityByRlsId(rlsId) {
         // Cotality's AttendanceType "None" sits on 38% of live listings and cannot be told from an unfilled default, so it is not taken as "no doorman" (Maya): the staffing group is left for
         // the broker. A real value (DoormanFullTime, ConciergeFullTime ...) still fills it.
         if (String(rec.AttendanceType || '').trim() === 'None') delete rec.AttendanceType;
+        // NumberOfUnitsTotal 0 is "nobody counted" (live: RLS20123633, an 18-story building), not a building with no units: the box is left for the agent.
+        if (!(Number(rec.NumberOfUnitsTotal) > 0)) delete rec.NumberOfUnitsTotal;
         // Cotality's UnparsedAddress carries the unit ("800 2ND Avenue 806"). This form's street line is the BUILDING's street (the unit has its own box), and the building lookup and the street
         // parser read it, so the street line is built from the record's own street parts; only a record with none of them has its unit cut off the end of UnparsedAddress.
         var streetLine = [rec.StreetNumber, rec.StreetDirPrefix, rec.StreetName, rec.StreetSuffix, rec.StreetDirSuffix].filter(function (x) { return x !== undefined && x !== null && String(x).trim() !== ''; }).join(' ');
@@ -5603,6 +5658,122 @@ async function pullFromCotalityByRlsId(rlsId) {
         if (results) results.classList.add('hidden');
     }
 }
+
+// ── The form follows Cotality (Maya, 2026-11-04: "the form should auto updated when the information updates") ─────────────────────────────────────
+// A saved listing that is linked to an RLS ID is maintained in RealPlus, so the facts of its unit, its building and its price follow the Cotality record: the form asks Cotality when the listing
+// opens and again when the agent comes back to the page. Only these facts follow, never what the agent writes or decides here (description, notes, status, dates, agent and office, commission, media,
+// property type). A box Cotality has no value for is never blanked, and a count of 0 or the text "null" is no value. A box the agent changed since the listing opened is never replaced: it is listed as
+// kept. Every change is listed with its old and new value, and nothing is saved until the agent presses Submit. If Cotality cannot be reached the form says so.
+var SALE_COTALITY_FOLLOWS = ['BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'RoomsTotal', 'LivingArea', 'LivingAreaUnits', 'EntryLevel', 'TaxLot',
+    'ListPrice', 'AssociationFee', 'AssociationFeeFrequency', 'TaxAnnualAmount', 'TaxMonthlyAmount',
+    'YearBuilt', 'YearBuiltEffective', 'StoriesTotal', 'NumberOfUnitsTotal', 'ElevatorsTotal', 'BuildingName', 'StructureType', 'TaxBlock', 'BuildingTaxLot',
+    'KitchenCondition', 'BathroomCondition', 'ViewRemarks'];
+var _saleFollow = { at: 0, busy: false, loaded: null };
+// The Unit tab's checkbox groups that Cotality carries as comma-separated lookup values in the very words the boxes use (live record of RLS20123633, 2026-11-05: Exposures "North", View "City", InteriorFeatures
+// "HighCeilings"). The follow only TICKS what Cotality lists and never unticks anything (the agent's own extras stay); a group the agent changed since the listing opened is left as it is. (The boxes are still
+// Mallan-internal for what the form sends: this is the pull direction only.)
+var SALE_FOLLOW_GROUPS = [{ rls: 'Exposures', name: 'saleExposure', label: 'Exposure' }, { rls: 'View', name: 'saleViewList', label: 'View' }, { rls: 'InteriorFeatures', name: 'saleCeilings', label: 'Ceilings' }];
+function _saleGroupChecked(name) { return Array.prototype.map.call(document.querySelectorAll('input[name="' + name + '"]:checked'), function (c) { return c.value; }).sort().join(','); }
+function _saleFollowText(v) { var t = String(v === undefined || v === null ? '' : v).trim(); return /^(null|undefined)$/i.test(t) ? '' : t; }
+function _saleFollowTargets(rec) {
+    var out = [];
+    SALE_FIELD_MAP.forEach(function (f) {
+        if (SALE_COTALITY_FOLLOWS.indexOf(f.rls) < 0 || f.src === 'addr' || f.src === 'agentInfo') return;
+        var v = _saleFollowText(rec[f.rls]);
+        if (v === '') return;
+        if (f.rls === 'NumberOfUnitsTotal' && !(Number(v) > 0)) return;             // 0 = nobody counted
+        if (f.rls === 'StructureType' && /^none$/i.test(v)) return;
+        if (f.valueMap && Object.prototype.hasOwnProperty.call(f.valueMap, v)) v = f.valueMap[v];
+        out.push({ id: f.form, value: v, number: f.type === 'number' });
+    });
+    // RealPlus and Cotality send the RE tax as a MONTHLY amount (TaxMonthlyAmount, a REBNY custom key; live record of RLS20123633, 2026-11-05: no TaxAnnualAmount). The form stores the ANNUAL tax, so the annual
+    // box follows as monthly x 12 (a programmatic set fires no oninput, so the form's own monthly -> annual handler would not run). When Cotality does send an annual amount, that one wins.
+    var monthlyTax = Number(_saleFollowText(rec.TaxMonthlyAmount));
+    if (_saleFollowText(rec.TaxAnnualAmount) === '' && monthlyTax > 0) out.push({ id: 'saleRETaxes', value: String(Math.round(monthlyTax * 12 * 100) / 100), number: true });
+    SALE_FOLLOW_GROUPS.forEach(function (g) {
+        var want = _saleFollowText(rec[g.rls]).split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+        var boxes = Array.prototype.filter.call(document.querySelectorAll('input[name="' + g.name + '"]'), function (c) { return want.indexOf(c.value) >= 0 && !c.disabled; });
+        if (boxes.length) out.push({ group: g, boxes: boxes });
+    });
+    return out;
+}
+// what each followed box held when the listing finished opening: a box that holds something else later was typed in by the agent
+function _saleFollowSnapshot() {
+    _saleFollow.loaded = {};
+    SALE_FIELD_MAP.forEach(function (f) { if (SALE_COTALITY_FOLLOWS.indexOf(f.rls) >= 0) { var el = document.getElementById(f.form); if (el) _saleFollow.loaded[f.form] = String(el.value); } });
+    SALE_FOLLOW_GROUPS.forEach(function (g) { _saleFollow.loaded['group:' + g.name] = _saleGroupChecked(g.name); });
+}
+function _saleFollowLabel(el) {
+    var box = el.closest('div'), lab = box && box.querySelector('label');
+    return ((lab && lab.textContent) || el.id).replace(/\s+/g, ' ').replace(/\s*\*\s*$/, '').trim();
+}
+function _saleFollowShow(kind, text) {
+    var box = document.getElementById('saleCotalityFollow'), span = document.getElementById('saleCotalityFollowText');
+    if (!box || !span) return;
+    span.textContent = text;
+    box.className = 'mt-2 rounded border px-3 py-2 text-xs ' + (kind === 'changed' ? 'bg-green-50 border-green-300 text-green-900' : kind === 'error' ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-gray-50 border-gray-200 text-gray-600');
+}
+async function saleFollowCotality(opts) {
+    opts = opts || {};
+    var rls = (document.getElementById('saleRlsId') || {}).value || '';
+    if (!_saleEditMode || window._saleEditLoad !== 'loaded' || !SALE_RLS_ID.test(rls) || _saleFollow.busy) return;
+    if (!opts.force && Date.now() - _saleFollow.at < 60000) return;             // asking whenever the page gains focus must not become a request per click
+    _saleFollow.busy = true; _saleFollow.at = Date.now();
+    try {
+        var resp = await fetch('/api/crm/rls-pull?rlsId=' + encodeURIComponent(rls) + '&listingId=' + encodeURIComponent(_saleEditDbId), { credentials: 'same-origin' });
+        var body = {};
+        try { body = await resp.json(); } catch (e) { body = {}; }
+        if (!resp.ok || !body.record) { _saleFollowShow('error', 'Cotality could not be checked just now' + (body.error ? ' (' + body.error + ')' : '') + '. The facts shown are the ones saved with this listing.'); return; }
+        if (!_saleFollow.loaded) _saleFollowSnapshot();
+        var changed = [], kept = [];
+        var _derivedOwnership = _saleDeriveCommercialOwnership(body.record.CommonInterest);       // before the facts are applied: the unit's boxes are locked until the ownership is set
+        if (_derivedOwnership) changed.push('Commercial ownership blank \u2192 ' + _derivedOwnership.replace('Commercial', 'Commercial '));
+        // The change events below run the form's own handlers (totals, rules), and a change event also schedules the autosave, which in edit mode SAVES TO THE SERVER: the banner says nothing is
+        // saved until Submit, so the autosave is held off while the facts are applied (Codex, review of #688): autoSaveDraft and performAutoSave both return while the flag is set, and the apply is
+        // synchronous, so nothing is scheduled or fired inside it. A save the AGENT had pending (an edit made while Cotality was answering) is not touched: clearing the timer here dropped it
+        // even when Cotality changed nothing (Vercel, review of #688).
+        window._salePopulateInProgress = true;
+        try {
+        _saleFollowTargets(body.record).forEach(function (t) {
+            if (t.group) {                                                     // a checkbox group: tick what Cotality lists, untick nothing
+                var key = 'group:' + t.group.name, was = _saleGroupChecked(t.group.name);
+                var add = t.boxes.filter(function (b) { return !b.checked; });
+                if (!add.length) return;
+                if (_saleFollow.loaded[key] !== undefined && was !== _saleFollow.loaded[key]) { kept.push(t.group.label + ' (Cotality has ' + t.boxes.map(function (b) { return b.value; }).join(', ') + ')'); return; }
+                add.forEach(function (b) { b.checked = true; b.dispatchEvent(new Event('change', { bubbles: true })); });
+                _saleFollow.loaded[key] = _saleGroupChecked(t.group.name);
+                changed.push(t.group.label + ' ' + (was === '' ? 'blank' : was.replace(/,/g, ', ')) + ' \u2192 ' + _saleGroupChecked(t.group.name).replace(/,/g, ', '));
+                return;
+            }
+            var el = document.getElementById(t.id);
+            if (!el || el.disabled || el.readOnly) return;
+            var now = String(el.value || '').trim(), next = String(t.value);
+            if (t.number ? (now !== '' && Number(now) === Number(next)) : now.toLowerCase() === next.toLowerCase()) return;
+            if (el.tagName === 'SELECT') {                                     // a select takes only an option it has
+                var opt = Array.prototype.find.call(el.options, function (o) { return o.value.toLowerCase() === next.toLowerCase(); });
+                if (!opt) return;
+                next = opt.value;
+            }
+            if (_saleFollow.loaded[t.id] !== undefined && String(el.value) !== _saleFollow.loaded[t.id]) { kept.push(_saleFollowLabel(el) + ' (Cotality has ' + next + ')'); return; }
+            el.value = next;
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            _saleFollow.loaded[t.id] = String(el.value);
+            changed.push(_saleFollowLabel(el) + ' ' + (now === '' ? 'blank' : now) + ' \u2192 ' + next);
+        });
+        if (typeof calculateSaleTotalMonthly === 'function') calculateSaleTotalMonthly();          // the carrying-cost total reads the boxes that were just set
+        } finally { window._salePopulateInProgress = false; }
+        var when = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        var keptText = kept.length ? ' Not replaced, because you changed them here: ' + kept.join('; ') + '.' : '';
+        if (changed.length) _saleFollowShow('changed', 'Updated from Cotality (RLS ID ' + rls + ', checked ' + when + '): ' + changed.join('; ') + '. Press Submit to save them.' + keptText);
+        else _saleFollowShow(kept.length ? 'changed' : 'same', 'Checked against Cotality at ' + when + ': nothing has changed.' + keptText);
+    } catch (e) {
+        _saleFollowShow('error', 'Cotality could not be reached just now. The facts shown are the ones saved with this listing.');
+    } finally {
+        _saleFollow.busy = false;
+    }
+}
+window.addEventListener('focus', function () { saleFollowCotality(); });
+document.addEventListener('visibilitychange', function () { if (!document.hidden) saleFollowCotality(); });
 
 function searchBuildingForListing(query, prefix) {
     const results = document.getElementById(prefix + 'BuildingSearchResults');
@@ -5674,8 +5845,9 @@ function selectBuildingFromIDX(prefix, picked) {
     var banner = document.getElementById(prefix + 'IdxMatchBanner');
     if (banner) {
         banner.classList.remove('hidden');
-        document.getElementById(prefix + 'IdxDetectedType').textContent = building.model;
-        document.getElementById(prefix + 'IdxDetectedBuilding').textContent = building.name;
+        // the type as the form names it ("Co-op", "Single Family Townhouse"), not the code; a building Cotality does not classify says so, and a building with no name is named by its address
+        document.getElementById(prefix + 'IdxDetectedType').textContent = _salePropTypeLabel(building.type) || building.model || 'not named by Cotality: choose it below';
+        document.getElementById(prefix + 'IdxDetectedBuilding').textContent = building.name || building.address || '--';
     }
 
     // 4. Hide search results
@@ -5687,6 +5859,7 @@ function selectBuildingFromIDX(prefix, picked) {
 
     // 6. Populate building modal fields based on model
     populateBuildingFromIDX(prefix, building);
+    _saleDeriveCommercialOwnership(building.common_interest || building.commonInterestRaw);
     if (globalThis.saleUnitLotLookup) globalThis.saleUnitLotLookup();       // the building's lot came with the address; the unit's follows from the unit number
 }
 
@@ -5914,11 +6087,15 @@ function populateBuildingFromIDX(prefix, building) {
     setIfPresent(prefix + 'BldgYearBuilt', pick('year_built', 'yearBuilt'));
     setIfPresent(prefix + 'BldgYearRenovated', pick('year_renovated', 'yearRenovated'));
     setIfPresent(prefix + 'BldgTotalFloors', pick('stories_total', 'storiesTotal'));
-    setIfPresent(prefix + 'BldgTotalUnits', pick('units_total', 'unitsTotal'));
-    setIfPresent(prefix + 'BldgResidentialUnits', pick('units_total', 'unitsTotal'));
+    // Cotality serves ONE unit count for a building, NumberOfUnitsTotal. It never says how many are residential, commercial or professional, so it fills Total Units only: a building with medical offices does not
+    // have all its units residential. A 0 is "nobody counted" (live: 800 2nd Avenue, 18 stories, 0 units), not a building with no units, so it is left for the agent.
+    const unitsTotal = Number(pick('units_total', 'unitsTotal')) > 0 ? pick('units_total', 'unitsTotal') : null;
+    setIfPresent(prefix + 'BldgTotalUnits', unitsTotal);
 
     // ── 4. Type + ownership ──────────────────────────────────────────
-    const stVal = pick('structure_type', 'structureType');
+    // Some records carry the text "None" as StructureType (live: 310 W 72nd Street, a 16-story co-op). "None (Land)" cannot describe a building the lookup typed, so it is left for the agent.
+    const stRaw = pick('structure_type', 'structureType');
+    const stVal = String(stRaw || '').trim().toLowerCase() === 'none' ? '' : stRaw;
     if (stVal) {
         const stEl = document.getElementById(prefix + 'StructureType');
         if (stEl) stEl.value = stVal;
@@ -5930,7 +6107,16 @@ function populateBuildingFromIDX(prefix, building) {
 
     // ── 5. Tax + association ─────────────────────────────────────────
     setIfPresent(prefix + 'BldgTaxBlock', pick('tax_block', 'taxBlock'));
-    setIfPresent(prefix + 'BldgTaxLot', pick('building_tax_lot', 'buildingTaxLot'));      // not tax_lot: a record's TaxLot is one UNIT's lot
+    // The building's lot is the REBNY custom key BuildingTaxLot, which not every record carries. A CO-OP has ONE lot, the building's, and a record's TaxLot IS it (live 2026-11-05, 333 E 46th, a co-op: every
+    // record says 0012; Maya: "tax lot for coop should be automatic"). A condo's record carries one UNIT's lot (1xxx), which is never the building's: only a building the lookup calls a co-op, on a form that
+    // is not already a condo, takes the record's TaxLot when the key is missing. "0", "0000" and "NA" are what Cotality sends for a lot nobody entered: not an answer.
+    var _bldgLot = pick('building_tax_lot', 'buildingTaxLot');
+    if (_bldgLot === null && prefix === 'sale' && typeof saleHasOwnUnitLot === 'function' && !saleHasOwnUnitLot()
+        && (/^(StockCooperative|Cooperative|Coop)$/i.test(String(building.commonInterestRaw || building.common_interest || '')) || building.model === 'Coop')) {
+        var _recLot = pick('tax_lot', 'taxLot');
+        if (_recLot !== null && /^\d{1,6}$/.test(String(_recLot).trim()) && Number(_recLot) > 0) _bldgLot = _recLot;
+    }
+    setIfPresent(prefix + 'BldgTaxLot', _bldgLot);      // not tax_lot for a condo: a record's TaxLot is one UNIT's lot
     setIfPresent(prefix + 'BldgAnnualTaxes', pick('tax_annual_amount', 'taxAnnualAmount'));
     setIfPresent(prefix + 'BldgAssociationName', pick('association_name', 'associationName'));
     // AssociationFee / AssociationFeeFrequency are real Cotality fields returned
@@ -7462,12 +7648,47 @@ function saveSalesDraft() {
     }
 }
 
-function saveSaleMedia() {
-    // Upload any pending media files for the current listing
+// "Save Media" saves what the Media window holds: the new files AND the video and tour links. The links belong to the listing, and only Save Draft / Update used to save them, so a link typed here and "saved" here
+// was lost (Maya, 2026-11-05: the video of 333 E 46th #2G, typed into both boxes, never reached the site). The links go to the listing as their own small save (just the link boxes: the server merges them into
+// the record and keeps everything else), and are READ BACK from the CRM: the toast says which listing holds them, or that they are not saved.
+async function _saleSaveTourLinks(editId) {
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.listings || !MallanAPI.listings.update || !MallanAPI.listings.get) return false;
+    if (_saleSendInFlight) { showToast('Still sending the last save — press Save Media again in a moment.', 'info'); return true; }
+    var slots = _saleTourSlots();
+    var body = {
+        VirtualTourURLUnbranded: slots[0], VirtualTourURLUnbranded2: slots[1], VirtualTourURLUnbranded3: slots[2],
+        VirtualTourURLBranded: _saleTourBox(_SALE_TOUR_BOXES.branded),
+        VideosCount: slots.filter(function (u) { return u && _saleTourKind(u) === 'video'; }).length
+    };
+    Object.keys(_SALE_TOUR_BOXES).forEach(function (k) { body[_SALE_TOUR_BOXES[k]] = _saleTourBox(_SALE_TOUR_BOXES[k]); });     // the form's own boxes too: a reload puts each link back in the box it was typed in
+    _saleSetSending(true);
+    try {
+        try { await MallanAPI.listings.update(editId, body); }
+        catch (e) { showToast('The video and tour links were NOT saved: ' + ((e && e.message) || 'the CRM refused the save') + '.', 'error', 15000); return true; }
+        var back = null;
+        try { back = await MallanAPI.listings.get(editId); } catch (e) { back = null; }
+        var raw = (back && back.raw_data) || {};
+        var holds = back && String(back.listing_id || back.id) === String(window._saleEditListingId || back.listing_id || back.id);
+        var wrong = ['VirtualTourURLUnbranded', 'VirtualTourURLUnbranded2', 'VirtualTourURLUnbranded3', 'VirtualTourURLBranded'].filter(function (k) { return String(raw[k] || '') !== String(body[k] || ''); });
+        if (!back) showToast('The links were sent, but the CRM did not answer when they were read back: open the listing again to check them.', 'warning', 15000);
+        else if (!holds) showToast('The links were sent, but the CRM answered with a different listing (' + (back.listing_id || back.id) + '): check them before relying on them.', 'error', 15000);
+        else if (wrong.length) showToast('The CRM answered but does not hold: ' + wrong.join(', ') + '. Nothing is shown on the public page until it does.', 'error', 15000);
+        else {
+            var n = [body.VirtualTourURLUnbranded, body.VirtualTourURLUnbranded2, body.VirtualTourURLUnbranded3, body.VirtualTourURLBranded].filter(Boolean).length;
+            showToast((n ? n + ' video / tour link' + (n === 1 ? '' : 's') + ' saved to ' + (back.listing_id || back.id) + ' and read back from the CRM.' : 'The video and tour links of ' + (back.listing_id || back.id) + ' are cleared.') + ' The public page shows them once it refreshes.', 'success', 10000);
+        }
+        return true;
+    } finally { _saleSetSending(false); }
+}
+
+async function saveSaleMedia() {
+    if (_saleRefuseWhileLoading()) return;
     var editId = window._saleEditDbId || window._saleEditListingId;
-    if (!editId) { showToast('Save the listing first before uploading media.', 'warning'); return; }
+    if (!editId) { showToast('Save the listing first: the video and tour links, like the photos, are saved with the listing.', 'warning'); return; }
+    var linksHandled = await _saleSaveTourLinks(editId);
+    // Upload any pending media files for the current listing
     var pending = _pendingMediaFiles.filter(function(m) { return !m.uploaded && !m._removed; });
-    if (pending.length === 0) { showToast('No new media to upload.', 'info'); return; }
+    if (pending.length === 0) { if (!linksHandled) showToast('No new media to upload.', 'info'); return; }
     showToast('Uploading ' + pending.length + ' file(s)...', 'info');
     uploadPendingMedia(editId).then(function(result) {
         showToast(result.uploaded + ' uploaded' + (result.failed > 0 ? ', ' + result.failed + ' failed' : ''), result.failed > 0 ? 'warning' : 'success');
@@ -7807,6 +8028,21 @@ function applySalesFieldRules() {
             }
         }
     });
+    // Unit Info's Unit Type (Residential / Commercial) decides which panel shows; the page, a pull or a saved listing may set it, so it is applied here every time.
+    if (typeof toggleSaleUnitType === 'function') toggleSaleUnitType();
+    // A commercial condo, condop or co-op is ONE unit in a building (so is an office or retail condo). The Commercial Specifications panel also carries a whole building's facts (lot, building size, zoning, FAR,
+    // air rights, unit counts): those are the building's, they live in the Building window, and the unit does not ask for them (Maya, 2026-11-04: "it should not be expanding for commercial condo unit number of units").
+    // A building fact typed there earlier is KEPT (locked with the box, and never sent as a provider fact of the unit): it is the agent's entry, and it comes back if the listing is a whole building again.
+    var officeRetailOwn = document.querySelector('input[name="saleOfficeRetailOwnership"]:checked');
+    var unitInBuilding = (propertyType === 'Commercial' && ['CommercialCondo', 'CommercialCondop', 'CommercialCoop'].indexOf(commercialOwnership) >= 0)
+        || ((propertyType === 'Office' || propertyType === 'Retail') && !!officeRetailOwn && ['Condo', 'Condop', 'Coop'].indexOf(officeRetailOwn.value) >= 0);
+    document.querySelectorAll('#saleCommercialSection2 [data-bldg-scale]').forEach(function (box) {
+        box.style.display = unitInBuilding ? 'none' : '';
+    });
+    var unitNote = document.getElementById('saleCommercialUnitNote');
+    if (unitNote) unitNote.classList.toggle('hidden', !unitInBuilding);
+    _saleLockUnusedSections();                       // a section this type does not use is locked as well as hidden (after every decision above)
+
     // Handle Commercial/Mixed-Use distribution logic
     // UCBA Art. I, Sec. 5(F): Mixed-use in ≤5 unit buildings → RLS-eligible
     const isMixedUseSubtype = propertyType === 'MixedUse';
@@ -7838,6 +8074,19 @@ function applySalesFieldRules() {
         tab3Mobile.style.display = '';
         tab3Mobile.style.opacity = skipTab3 ? '0.4' : '1';
         tab3Mobile.style.pointerEvents = skipTab3 ? 'none' : '';
+    }
+    // A tab that is greyed out says why (a hover hint cannot: a disabled tab takes no pointer events)
+    var tab3Lock = document.getElementById('saleTHTabLock'), tab3Note = document.getElementById('saleTHTabNote');
+    if (tab3Lock) tab3Lock.classList.toggle('hidden', !skipTab3);
+    if (tab3Note) {
+        var ownLabel = (commercialOwnershipEl && propertyType === 'Commercial') ? ('Commercial ' + (commercialOwnershipEl.closest('label') || commercialOwnershipEl.parentElement).textContent.replace(/\s+/g, ' ').trim().replace(/^Commercial\s*/i, '')) : _salePropTypeLabel(propertyType);
+        var noteText = skipTab3 ? 'TH / Building is not used for ' + (ownLabel || 'this property type') + ': the building\'s facts are in the Building window (the Building button at the top).' : '';
+        tab3Note.textContent = noteText;
+        tab3Note.classList.toggle('hidden', !skipTab3);
+        // the sidebar is hidden under 768px: the phone's tab bar carries the same words, and the greyed tab points at them
+        var tab3NoteMobile = document.getElementById('saleTHTabNoteMobile');
+        if (tab3NoteMobile) { tab3NoteMobile.textContent = noteText; tab3NoteMobile.classList.toggle('hidden', !skipTab3); }
+        if (tab3Mobile) { tab3Mobile.setAttribute('aria-disabled', skipTab3 ? 'true' : 'false'); if (skipTab3) tab3Mobile.setAttribute('aria-describedby', 'saleTHTabNoteMobile'); else tab3Mobile.removeAttribute('aria-describedby'); }
     }
 
 
@@ -7910,9 +8159,8 @@ function calculateSaleTotalMonthly() {
     }
 }
 
-// Monthly RE tax is a DERIVED DISPLAY only. There is NO Cotality monthly tax field
-// (verified: artifacts/metadata.xml exposes only TaxAnnualAmount on Property); we store
-// the ANNUAL value (TaxAnnualAmount) and show monthly = annual / 12. Two-way: editing
+// The form STORES the ANNUAL RE tax (TaxAnnualAmount) and shows monthly = annual / 12. Live Cotality (RLS20123633, read 2026-11-05) carries the tax as the REBNY custom key
+// TaxMonthlyAmount and no TaxAnnualAmount, so a pull takes the monthly amount and fills the annual box with monthly x 12 (_saleFollowTargets). Two-way: editing
 // either box fills the other. Programmatic `.value` sets do NOT fire `oninput`, so the
 // two handlers never loop. (2026-06-23)
 function autoCalcTaxMonthly() {
@@ -7967,7 +8215,98 @@ function toggleSaleRequiredFields() {
  * Collect all sale form fields into a flat object with RESO field names.
  * Used by both submit and auto-save.
  */
+// The type of the listing (condo, co-op, condop, townhouse, mixed use, commercial condo ...) decides which sections are live (SALES_FIELD_VISIBILITY_RULES). A section the type does not use is LOCKED, not only
+// hidden: its boxes are disabled (nothing can be typed or ticked there) and what they hold is never sent, whichever code reads them (the generic sweep and the readers that look a box up by id alike).
+// What they hold stays on the page, so choosing the type again brings it back.
+function _saleLockUnusedSections() {
+    var locked = [];
+    Object.keys(SALES_FIELD_VISIBILITY_RULES).forEach(function (id) {
+        var box = document.getElementById(id);
+        if (box && (box.classList.contains('hidden') || box.style.display === 'none')) Array.prototype.forEach.call(box.querySelectorAll('input, select, textarea'), function (c) { locked.push(c); });
+    });
+    // a commercial UNIT in a building does not ask for the building's own facts (lot, building size, zoning, FAR ...): those boxes are LOCKED, not cleared: what was typed stays on the page and in the record, and comes back with the kind
+    Array.prototype.forEach.call(document.querySelectorAll('#saleCommercialSection2 [data-bldg-scale]'), function (box) {
+        if (box.style.display === 'none') Array.prototype.forEach.call(box.querySelectorAll('input, select, textarea'), function (c) { locked.push(c); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-type-locked]'), function (c) { if (locked.indexOf(c) < 0) { c.disabled = false; c.removeAttribute('data-type-locked'); } });
+    locked.forEach(function (c) { if (!c.hasAttribute('data-type-locked')) { c.setAttribute('data-type-locked', '1'); c.disabled = true; } });
+}
+// The unit's living area is ONE Cotality fact (LivingArea) with three boxes on this form, which of them is live depending on the type (Unit Sq Ft: co-op / condop; Living Area: condo; Approx Interior SqFt: every type).
+// They are kept as one value: a change in any of them is copied to the others, so the one the agent sees, the one the REBNY checklist asks for, the one a Cotality pull fills and the one the form sends always agree
+// (before, a stale hidden box could outrank the one typed in, and a pull wrote to a box that was locked for the type).
+// The ADDRESS dictates the type. A Commercial listing is one of several commercial kinds by ownership (Commercial Condo, Co-op, Condop), and the form shows a commercial BUILDING's boxes until the ownership is set, which hid the
+// unit's own boxes (maintenance, taxes ...) on 800 2nd Avenue #806. When the ownership has not been chosen it is taken from the building's own Cotality CommonInterest (the address pull, the Ownership Type box, or a Cotality
+// pull of the unit's record). An ownership the agent chose is never replaced.
+var SALE_COMMERCIAL_OWNERSHIP_FROM = { Condominium: 'CommercialCondo', StockCooperative: 'CommercialCoop', Condop: 'CommercialCondop' };
+function _saleDeriveCommercialOwnership(commonInterest) {
+    var type = document.querySelector('input[name="salePropertyType"]:checked');
+    if (!type || type.value !== 'Commercial') return '';
+    if (document.querySelector('input[name="saleCommercialOwnership"]:checked')) return '';
+    var ci = String(commonInterest || (document.getElementById('saleCommonInterest') || {}).value || '').trim();
+    var kind = SALE_COMMERCIAL_OWNERSHIP_FROM[ci];
+    var radio = kind && document.querySelector('input[name="saleCommercialOwnership"][value="' + kind + '"]');
+    if (!radio) return '';
+    radio.checked = true;
+    if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
+    return kind;
+}
+var SALE_AREA_BOXES = ['saleInteriorSqFt', 'saleUnitSqFt', 'saleLivingArea'];
+function _saleMirrorArea(fromId) {
+    var els = SALE_AREA_BOXES.map(function (id) { return document.getElementById(id); }).filter(Boolean);
+    var empty = function (e) { return String(e.value).trim() === ''; };
+    var src = fromId ? document.getElementById(fromId) : (els.filter(function (e) { return !empty(e) && !e.hasAttribute('data-type-locked'); })[0] || els.filter(function (e) { return !empty(e); })[0]);
+    if (!src) return;
+    els.forEach(function (e) { if (e !== src && e.value !== src.value) e.value = src.value; });      // all three take the source's value, a conflicting non-empty one included
+}
+// On load the typed value of the record (the living_area column, which is what the public pages and the REBNY payload read) is the canonical one: all three boxes are set to it, whatever a box holds from an earlier save.
+// A record with no typed value has no canonical one: Approx Interior SqFt (live for every type) wins when it holds a value, else the box that is live for the type, and the others take its value.
+function _saleReconcileArea(listing) {
+    var typed = listing && listing.living_area !== undefined && listing.living_area !== null ? String(listing.living_area).trim() : '';
+    if (typed !== '' && isFinite(Number(typed))) {
+        SALE_AREA_BOXES.forEach(function (id) { var el = document.getElementById(id); if (el) el.value = String(Number(typed)); });
+        return;
+    }
+    _saleMirrorArea(null);
+}
+document.addEventListener('input', function (e) { if (e.target && SALE_AREA_BOXES.indexOf(e.target.id) >= 0) _saleMirrorArea(e.target.id); }, true);
+document.addEventListener('change', function (e) { if (e.target && SALE_AREA_BOXES.indexOf(e.target.id) >= 0) _saleMirrorArea(e.target.id); }, true);
+function _saleHoldLockedSections() {                  // the locked boxes' values are set aside while the form is read, and put back after (by _saleReleaseLockedSections)
+    var held = [];
+    Array.prototype.forEach.call(document.querySelectorAll('[data-type-locked]'), function (c) {
+        held.push([c, c.value, c.checked]);
+        if (c.type === 'checkbox' || c.type === 'radio') c.checked = false; else c.value = '';
+    });
+    return held;
+}
+function _saleReleaseLockedSections(held) { held.forEach(function (h) { h[0].value = h[1]; h[0].checked = h[2]; }); }
+// What a locked box holds is the agent's entry: it is KEPT in the record (the form's own storage, raw_data, under the box's own key) and is never sent as an instruction to clear. What the form sends as provider
+// fields (the Cotality names) is read with the locked boxes set aside, so a value that does not apply to the type never reaches the public record or the REBNY payload, and a canonical field that is blank only
+// because its box is locked is simply not sent (the PATCH merge keeps what is stored). Clearing is a separate act: emptying a box that is LIVE still clears it.
+function _saleMergeApplicable(full, applicable) {
+    var lockedKeys = {};
+    Array.prototype.forEach.call(document.querySelectorAll('[data-type-locked]'), function (c) { var k = c.id || c.name; if (k) lockedKeys[k] = true; });
+    var blank = function (v) { return v === '' || v === null || v === undefined || v === false || (Array.isArray(v) && v.length === 0); };
+    var out = {}, dropped = [];
+    Object.keys(applicable).forEach(function (k) {
+        if (lockedKeys[k]) return;
+        if (JSON.stringify(applicable[k]) !== JSON.stringify(full[k]) && blank(applicable[k])) { if (!blank(full[k])) dropped.push(k); return; }   // blank only because an inactive box was set aside: no blank is sent
+        out[k] = applicable[k];
+    });
+    Object.keys(full).forEach(function (k) { if (!lockedKeys[k] && !(k in applicable) && !blank(full[k])) dropped.push(k); });                    // a provider field that exists only because an inactive box holds a value
+    Object.keys(lockedKeys).forEach(function (k) { if (k in full) out[k] = full[k]; });                  // the agent's own entries in the inactive boxes, as they are
+    return { data: out, dropped: dropped };
+}
 function collectSaleFormData() {
+    var _pass = arguments[0];                        // 'full' / 'applicable' on the two reads below; none for a caller
+    if (_pass === undefined) {
+        var full = collectSaleFormData('full');
+        var _held = _saleHoldLockedSections(), applicable;
+        try { applicable = collectSaleFormData('applicable'); } finally { _saleReleaseLockedSections(_held); }
+        var merged = _saleMergeApplicable(full, applicable);
+        // The provider fields that do not apply to this type are named in a SEPARATE list (never as blanks): the edit route removes only those from the public copy; the agent's own entries stay (see _saleMergeApplicable).
+        if (_saleEditMode || _saleEditListingId || _saleEditDbId) { if (merged.dropped.length) merged.data.inactiveProviderFields = merged.dropped; }
+        return merged.data;
+    }
     var data = { listing_type: 'sale' };
     // `add-sales-listing` was the legacy shell container — doesn't exist in
     // the redesigned form. `.flex-1` is the real container used in the shell.
@@ -8056,7 +8395,7 @@ function collectSaleFormData() {
     data.BathroomsFull = _saleInt(data.saleFullBaths);
     data.BathroomsHalf = _saleInt(data.saleHalfBaths);
     data.BathroomsTotal = (data.BathroomsFull == null && data.BathroomsHalf == null) ? null : ((data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5));
-    data.LivingArea = _saleNum(data.saleUnitSqFt || data.saleLivingArea || data.saleInteriorSqFt);
+    data.LivingArea = _saleNum(data.saleInteriorSqFt || data.saleUnitSqFt || data.saleLivingArea);
     data.StreetNumber = data.saleStreetNumber || '';
     data.StreetName = data.saleStreetName || '';
     data.StreetSuffix = data.saleStreetSuffix || '';
@@ -8444,7 +8783,11 @@ function collectSaleFormData() {
     data.EntryLevel = data.saleFloorInBuilding || '';
     data.Stories = _saleInt(data.saleTHStories);
     data.BuildingAreaTotal = _saleNum(data.saleTHBuildingArea);
-    if (data.saleTHLevels) data.Levels = [data.saleTHLevels]; else delete data.Levels;   // the townhouse tab's levels; else the unit's floors radio (Levels) through the claim pass
+    // Levels is one Cotality fact with two places on this form: the townhouse tab's select holds Cotality's own words, and the Unit tab's floors radios (Duplex, Triplex) are sent in the same words. Live Cotality
+    // 2026-11-05 (Active sales): every Duplex unit of a condo, co-op or condop says Two (319 of 319) and every Triplex unit TriLevel (47 of 47). Single Floor is the page's default, and live holds no Levels on 6,747 of
+    // 7,439 apartments, so it sends nothing (a default is not an answer); a Quadruplex floors answer has no live word (none of the 2 live quadruplex units says), so it sends nothing either.
+    var _levelsOfFloors = { BiLevel: 'Two', TriLevel: 'TriLevel' };
+    if (data.saleTHLevels) data.Levels = [data.saleTHLevels]; else if (Object.prototype.hasOwnProperty.call(_levelsOfFloors, data.saleNumFloors)) data.Levels = [_levelsOfFloors[data.saleNumFloors]]; else delete data.Levels;
     data.ZoningDescription = data.saleTHZoning || '';
     data.GarageSpaces = _saleInt(data.saleTHGarageSpaces);
     // A garage assigned to the unit (some condos and co-ops): the Unit tab's answer fills Cotality's GarageYN / GarageSpaces when the townhouse tab (a house's own
@@ -8696,7 +9039,42 @@ function _saleSubmitFailed(err, creating) {
     }
 }
 
+// The REBNY / Cotality copy of a listing is owned by the feed: the CRM refuses every save of it (403 SOURCE_OWNED_LISTING, in the server's own words), and an Update there "did nothing" while this page offered
+// it (Maya, 2026-11-05: two records of 333 E 46th #2G, "i cannot tell which is which"). The server says so when it sends the record (`source_owned`, and `mallan_twin`: the Mallan listing of the same unit, found
+// by the rule the public page uses to redirect the copy). The page then says so at the top, points at that listing, and offers no save that cannot work.
+function _saleApplySourceOwned(listing) {
+    if (!listing || listing.source_owned !== true) return;
+    window._saleSourceOwned = true;
+    var rls = listing.listing_id || '';
+    var twin = listing.mallan_twin && listing.mallan_twin.listing_id ? String(listing.mallan_twin.listing_id) : '';
+    var idEl = document.getElementById('saleListingIdDisplay');
+    var bar = idEl && idEl.closest ? idEl.closest('.sticky') : null;
+    var box = document.getElementById('saleSourceOwnedBanner');
+    if (!box) {
+        box = document.createElement('div'); box.id = 'saleSourceOwnedBanner';
+        if (bar && bar.parentNode) bar.parentNode.insertBefore(box, bar.nextSibling); else document.body.insertBefore(box, document.body.firstChild);
+    }
+    box.className = 'bg-amber-50 border-b border-amber-300 px-6 py-3 text-sm text-amber-900';
+    box.setAttribute('role', 'alert');
+    while (box.firstChild) box.removeChild(box.firstChild);
+    var head = document.createElement('strong'); head.textContent = 'Read-only: this is the REBNY / Cotality copy of the listing' + (rls ? ' (' + rls + ')' : '') + '. '; box.appendChild(head);
+    if (twin) {
+        box.appendChild(document.createTextNode('The feed owns it, so a save is refused. Your Mallan listing for this unit is '));
+        var a = document.createElement('a'); a.href = window.location.pathname + '?id=' + encodeURIComponent(twin); a.className = 'underline font-semibold'; a.textContent = twin; box.appendChild(a);
+        box.appendChild(document.createTextNode(': open it to make changes.'));
+    } else if (listing.mallan_twin && listing.mallan_twin.reason === 'ambiguous-local-twins') {
+        box.appendChild(document.createTextNode('The feed owns it, so a save is refused. More than one Mallan listing matches this unit: settle that in the CRM list first.'));
+    } else {
+        box.appendChild(document.createTextNode('The feed owns it, so a save is refused, and no Mallan listing of this unit was found. Create the Mallan listing (SL-) in this form.'));
+    }
+    var why = 'Read-only: the feed owns this copy.' + (twin ? ' Open ' + twin + ' to make changes.' : '');
+    document.querySelectorAll('button[onclick^="manualSaveDraft"], button[onclick^="submitSalesListing"], button[onclick^="saveSalesDraft"]').forEach(function (b) {
+        b.disabled = true; b.classList.add('opacity-50', 'cursor-not-allowed'); b.title = why;
+    });
+}
+
 function _saleRefuseWhileLoading() {
+    if (window._saleSourceOwned) { showToast('This is the read-only REBNY / Cotality copy of the listing: nothing was saved. Open the Mallan listing of this unit to make changes.', 'error', 10000); return true; }
     if (window._saleEditLoad === 'loading') { showToast('The saved listing is still loading — nothing was sent. Try again in a moment.', 'warning'); return true; }
     if (window._saleEditLoad === 'failed') { showToast('The saved listing did not load — nothing was sent, so a blank form cannot replace it. Reload the page.', 'error'); return true; }
     return false;
@@ -8747,6 +9125,7 @@ function _salePublishRefusalLines(err) {
 function submitSalesListing() {
     if (_saleSendInFlight) { showToast('Still sending the last save — please wait.', 'info'); return; }
     if (_saleRefuseWhileLoading()) return;
+    if (_saleWaitForAutoSave(submitSalesListing)) return;       // an autosave is out: this save follows it
     // A Draft (any status that does not advertise the listing) is saved as it is — the required-field and REBNY checks apply when the listing is published (the server's gate too).
     var _submitStatusEl = document.getElementById('saleStatus');
     var _submitIsDraft = !_saleStatusAdvertises(_submitStatusEl ? _submitStatusEl.value : '');
@@ -8851,6 +9230,7 @@ function submitSalesListing() {
         var _statusNow = document.getElementById('saleStatus') ? document.getElementById('saleStatus').value : '';
         if (!_saleStatusAdvertises(_statusNow)) { var _flaggedNow = _saleBlockedWording(); if (_flaggedNow.length) showToast('Saved as Draft with flagged wording in ' + _flaggedNow.join(', ') + ' — fix it before publishing.', 'warning'); }
         var _savedId = '';                                            // set once the server has taken the listing: a later failure is not a failed submit
+        var _mediaFailed = 0;                                         // files that did not upload: they are still in the list, and the page stays open
         apiCall.then(async function(result) {
             _saleSetSending(false);
             _saleServerSaved();
@@ -8867,6 +9247,7 @@ function submitSalesListing() {
             if (pendingCount > 0 && lid) {
                 showToast('Uploading ' + pendingCount + ' media file(s)...', 'info');
                 var mediaResult = await uploadPendingMedia(lid);
+                _mediaFailed = mediaResult.failed || 0;
                 if (mediaResult.failed > 0) {
                     showToast(mediaResult.failed + ' media upload(s) failed.', 'warning');
                 }
@@ -8904,7 +9285,7 @@ function submitSalesListing() {
             try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
             try { localStorage.removeItem('saleListings'); } catch (e) {}
             clearTimeout(autoSaveTimer);
-            _pendingMediaFiles = [];
+            if (!_mediaFailed) _pendingMediaFiles = [];    // a file that did not go up is saved nowhere: it stays in the list, and Save Draft sends it again
             // Determine the best URL from status transition or create/update result
             var publicUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.publicUrl) || result.publicUrl || null;
             var realPlusUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.realPlusUrl) || result.realPlusUrl || null;
@@ -8915,6 +9296,9 @@ function submitSalesListing() {
             } else if (_publishRefusal) {
                 // The listing IS saved (as a Draft) and stays open here: the agent reads WHY it is not live, fixes it, and submits again. Nothing redirects before the reason is read.
                 _saleShowPublishRefusal(lid, _publishRefusal.message, _publishRefusal.lines, (currentCanonical && currentCanonical !== 'Draft' && currentCanonical !== 'Incomplete') ? currentCanonical : '');   // only a Draft is "not live"; any other status is the one the listing keeps
+            } else if (_mediaFailed) {
+                // The listing IS saved; leaving the page would lose the files that did not upload, so it stays open until the agent has read this
+                showToast('Listing ' + lid + ' saved, but ' + _mediaFailed + ' media file(s) did not upload. They are still in the list: press Save Draft to send them again.', 'warning', 15000);
             } else {
                 showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
                 setTimeout(function() { window.location.href = '/crm/dashboard#/ops/listings'; }, 1500);
@@ -9071,6 +9455,15 @@ function _saleSetAutoSaveState(kind, text) {
 }
 function _saleClock() { return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
 var _saleServerSaveInFlight = false, _saleServerSavePending = false, _saleServerSaveFailure = '', _saleServerRetryTimer = null, _saleServerFailCount = 0;
+// Save Draft and Submit wait for the autosave that is out: a request already on its way cannot be recalled, and two in flight can land out of order (the older form would replace the newer).
+// When the autosave is answered the waiting save runs at once and reads the form as it is then, so every change made meanwhile goes with it; the autosave that was queued behind is dropped.
+var _saleAfterAutoSave = [];
+function _saleWaitForAutoSave(run) {
+    if (!_saleServerSaveInFlight) return false;
+    if (_saleAfterAutoSave.indexOf(run) < 0) _saleAfterAutoSave.push(run);
+    showToast('Finishing the automatic save first — your save follows it.', 'info');
+    return true;
+}
 // One request at a time: two saves in flight can land out of order, and the older, smaller form state would replace the newer one. A change made meanwhile is sent once
 // the request in flight is answered. A refusal is shown, kept, and tried again; leaving the page while it stands asks first.
 function _saleServerAutoSave(updateId) {
@@ -9098,6 +9491,8 @@ function _saleServerAutoSave(updateId) {
         }
     }).then(function () {
         _saleServerSaveInFlight = false;
+        var handSaves = _saleAfterAutoSave; _saleAfterAutoSave = [];
+        if (handSaves.length) { _saleServerSavePending = false; handSaves.forEach(function (run) { run(); }); return; }
         if (_saleServerSavePending) { _saleServerSavePending = false; performAutoSave(); }
     });
 }
@@ -9114,6 +9509,7 @@ window.addEventListener('beforeunload', function (e) {
 async function manualSaveDraft() {
     if (_saleRefuseWhileLoading()) return;
     if (_saleSendInFlight) { showToast('Still sending the last save — please wait.', 'info'); return; }
+    if (_saleWaitForAutoSave(manualSaveDraft)) return;          // an autosave is out: this save follows it
     // Capture the current autosave timer so we only cancel this one, not a newer one
     var preFlightTimer = autoSaveTimer;
     // Step 1: Save/create listing via API
@@ -9133,17 +9529,20 @@ async function manualSaveDraft() {
     if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
         try {
             var result;
-            if (_saleEditMode && dbId) {
-                result = await MallanAPI.listings.update(dbId, fullData);
-                listingId = result.listing_id || listingId;
-            } else {
-                result = await MallanAPI.listings.create(fullData);
-                listingId = result.listing_id;
-                dbId = result.id;
-                _saleEditMode = true;
-                _saleEditDbId = dbId;
-                _saleEditListingId = listingId;
-            }
+            _saleSetSending(true);                          // an autosave due meanwhile waits, and Submit is refused, until the server has answered this save (two requests out can land in the wrong order)
+            try {
+                if (_saleEditMode && dbId) {
+                    result = await MallanAPI.listings.update(dbId, fullData);
+                    listingId = result.listing_id || listingId;
+                } else {
+                    result = await MallanAPI.listings.create(fullData);
+                    listingId = result.listing_id;
+                    dbId = result.id;
+                    _saleEditMode = true;
+                    _saleEditDbId = dbId;
+                    _saleEditListingId = listingId;
+                }
+            } finally { _saleSetSending(false); }
             _saleShowServerWording(result);
             _saleServerSaved();
 
@@ -9317,7 +9716,6 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleNeighborhoodFromAddress', orIds: ['saleBldgNeighborhood'], label: 'Neighborhood', type: 'input', tab: 1, section: 'Listing Information/Address' },
     { id: 'saleStructureType', orIds: ['saleBldgType'], label: 'Structure Type', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleCommonInterest', label: 'Ownership Type', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
-    { id: 'saleShowingInstructions', label: 'Showing Instructions', type: 'input', tab: 1, section: 'Listing Information/Description' },
     { id: 'saleTotalRooms', label: 'Total Rooms', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
     // Found by posting the real form's payload to the real validator (tests/runtime/crm-sale-publish-contract.test.ts): the backend refused these with the form satisfied.
     { id: 'saleUnitNumber', label: 'Unit / Apt Number', type: 'input', tab: 1, section: 'Listing Information/Address', conditional: ['COOP','CONDO','CONDOP','COMMERCIAL_CONDO','COMMERCIAL_COOP','LOFT','DEEDED_PARKING'] },
@@ -10211,6 +10609,8 @@ function _checkSaleEditMode() {
         window._salePopulateInProgress = true;
         try {
             _populateSaleFormFromApi(listing);
+            _saleReconcileArea(listing);                                 // one living area: the record's typed value first, then the box that is live for the type
+            _saleDeriveCommercialOwnership();                            // a Commercial listing whose ownership is not chosen takes it from the building it sits in, when the record says which
             window._saleEditLoad = 'loaded';
             if (typeof MallanFairHousing !== 'undefined') MallanFairHousing.blockedFields();   // what the boxes hold is shown as soon as the listing loads
             // Auto-confirm logged-in agent if saved data left fields empty.
@@ -10228,12 +10628,16 @@ function _checkSaleEditMode() {
             // Always release the lock, even if any step above threw.
             window._salePopulateInProgress = false;
         }
+        _saleApplySourceOwned(listing);                                  // the feed's copy of a listing: read-only, with the Mallan listing of the same unit named (after the lock is released, so the populate code the tests pin is as it was)
         // Enable autosave AFTER lock is released, in a microtask, and clear
         // any timer that change handlers may have scheduled during populate.
         Promise.resolve().then(function() {
             clearTimeout(autoSaveTimer);
             window._saleAutoSaveReady = true;
+            if (window._saleSourceOwned) window._saleAutoSaveReady = false;     // a read-only copy is never sent: the CRM would refuse it
             if (globalThis.saleUnitLotLookup) globalThis.saleUnitLotLookup();   // a saved listing whose unit's lot is still empty asks Cotality once
+            _saleFollowSnapshot();                                              // a listing linked to an RLS ID follows Cotality: what the boxes hold now is what "typed since" is measured from
+            saleFollowCotality({ force: true });
         });
         // Only release the blocking overlay once the correct record is loaded.
         if (String(_saleEditListingId) !== String(id) && String(listing.id) !== String(id)) {
@@ -10249,11 +10653,7 @@ function _checkSaleEditMode() {
         var lastUpdated = document.getElementById('saleLastUpdated');
         if (lastUpdated) lastUpdated.textContent = listing.updated_at ? new Date(listing.updated_at).toLocaleString() : '';
 
-        // Change submit button text
-        var submitBtns = document.querySelectorAll('[onclick*="submitSalesListing"]');
-        submitBtns.forEach(function(btn) {
-            btn.textContent = btn.textContent.replace(/Submit|Create/gi, 'Update');
-        });
+        // The buttons keep saying Submit on a saved listing: Submit saves it (Maya, 2026-11-04: "the button should not be update, it should say submit")
     }).catch(function(err) {
         var message = err && err.message ? err.message : 'unknown error';
         failEditLoad(message);
@@ -10290,6 +10690,7 @@ var SALE_FIELD_MAP = [
   { rls: 'BathroomsFull', form: 'saleFullBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_full' },
   { rls: 'BathroomsHalf', form: 'saleHalfBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_half' },
   { rls: 'LivingArea', form: 'saleUnitSqFt', type: 'number', src: 'listing', listingKey: 'living_area' },
+  { rls: 'LivingArea', form: 'saleInteriorSqFt', type: 'number', src: 'raw' },   // the one area box that is live for every type: a pull and a restore always have somewhere to land
   { rls: 'LivingArea', form: 'saleLivingArea', type: 'number', src: 'raw' },   // the Condo Details box the Active checklist asks for: the same fact, restored from the record too
   { rls: 'RoomsTotal', form: 'saleTotalRooms', type: 'number', src: 'raw' },
   { rls: 'EntryLevel', form: 'saleFloorInBuilding', type: 'text', src: 'raw' },
@@ -10411,6 +10812,9 @@ var SALE_FIELD_MAP = [
   // ── Unit additional ──
   { rls: 'saleCondition', form: 'saleCondition', type: 'text', src: 'raw', valueMap: { Good: 'GoodCondition', Poor: 'PoorCondition', Updated: 'UpdatedRemodeled' } },
   { rls: 'PropertyCondition', form: 'saleCondition', type: 'text', src: 'raw', firstMember: true },
+  { rls: 'KitchenCondition', form: 'saleKitchenCondition', type: 'text', src: 'raw' },
+  { rls: 'BathroomCondition', form: 'saleBathroomCondition', type: 'text', src: 'raw' },
+  { rls: 'ViewRemarks', form: 'saleViewRemarks', type: 'text', src: 'raw' },
   { rls: 'saleInteriorSqFt', form: 'saleInteriorSqFt', type: 'number', src: 'raw' },
   { rls: 'saleExteriorSqFt', form: 'saleExteriorSqFt', type: 'number', src: 'raw' },
   { rls: 'saleLineInBuilding', form: 'saleLineInBuilding', type: 'text', src: 'raw' },
@@ -10807,7 +11211,7 @@ var SALE_RADIO_MAP = [
   { rls: 'saleLight', name: 'saleLight', src: 'raw' },
   { rls: 'saleLiveWorkAllowed', name: 'saleLiveWorkAllowed', src: 'raw' },
   { rls: 'saleMeetAndGreet', name: 'saleMeetAndGreet', src: 'raw' },
-  { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw', rawKey: 'saleNumFloors', fallback: 'Levels', valueMap: { Single: 'SingleLevelUnit', Duplex: 'BiLevel', Triplex: 'TriLevel', Quadruplex: 'QuadLevel' } },
+  { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw', rawKey: 'saleNumFloors', fallback: 'Levels', valueMap: { Single: 'SingleLevelUnit', Duplex: 'BiLevel', Triplex: 'TriLevel', Quadruplex: 'QuadLevel', One: 'SingleLevelUnit', Two: 'BiLevel', TriLevel: 'TriLevel' } },   // the earlier words, then Cotality's own (live 2026-11-05: Duplex units say Two, Triplex units TriLevel)
   { rls: 'saleOfficeRetailOwnership', name: 'saleOfficeRetailOwnership', src: 'raw' },
   { rls: 'saleParentsBuying', name: 'saleParentsBuying', src: 'raw' },
   { rls: 'salePiedATerre', name: 'salePiedATerre', src: 'raw' },
@@ -11032,7 +11436,7 @@ function _salePropTypeLabel(value) { if (!value) return ''; var el = document.qu
 // i whole number, n number, b yes / no, d date, m list, e one member, s text). Runs after the explicit emits; a key already set is left as it is; a control the
 // page marks Mallan-internal is skipped; an unticked box or an empty control asserts nothing. ──
 // The keys the collector builds itself (a unit with its amount, one member of a list, the views): the claim pass leaves them alone
-var SALE_COLLECTOR_OWNED = { LivingAreaUnits: 1, BuildingAreaUnits: 1, LotSizeUnits: 1, PropertyCondition: 1, SpecialListingConditions: 1, View: 1, ViewYN: 1, HeatingYN: 1, CoolingYN: 1, LaundryFeatures: 1, LandmarkStatusYN: 1 };
+var SALE_COLLECTOR_OWNED = { Levels: 1, LivingAreaUnits: 1, BuildingAreaUnits: 1, LotSizeUnits: 1, PropertyCondition: 1, SpecialListingConditions: 1, View: 1, ViewYN: 1, HeatingYN: 1, CoolingYN: 1, LaundryFeatures: 1, LandmarkStatusYN: 1 };
 function _saleEmitClaims(data) {
     var kinds = (typeof window !== 'undefined' && window.COTALITY_FIELD_KINDS) || {};
     var zones = [document.querySelector('.flex-1'), document.getElementById('saleBuildingModal'), document.getElementById('saleMediaModal')].filter(Boolean);
@@ -11263,6 +11667,10 @@ function _populateSaleFormFromApi(listing) {
         }
         if (val === undefined || val === null) return;
         window._saleTouched[r.name] = true;
+        if (r.valueMap && (Array.isArray(val) || (typeof val === 'string' && val.indexOf(',') >= 0))) {   // a Multi value: the first member the map knows
+            var _members = (Array.isArray(val) ? val : val.split(',')).map(function (m) { return String(m).trim(); }).filter(function (m) { return r.valueMap[m] !== undefined; });
+            if (_members.length) val = _members[0];
+        }
         if (r.valueMap) {
             var mapped = r.valueMap[val] !== undefined
                 ? r.valueMap[val]
@@ -12098,7 +12506,19 @@ async function renderServerMediaRows(listingId, fallbackId) {
     // ONLY to the original (already-canonical) first arg, never to the numeric
     // fallbackId. (Codex review on #295 + Maya directive.)
     var actionId = String((data && data.listing_id) || listingId || '');
-    if (!data || !Array.isArray(data.media) || !data.media.length) return;   // no keyed rows yet: the legacy preview stays
+    if (!data || !Array.isArray(data.media)) return;
+    if (!data.media.length) {
+        // The server says which empty it is. `_legacyPreview`: no keyed rows were ever imported, so the preview drawn from the listing's own list stays. Without it the gallery had rows and every one was removed:
+        // what that list still draws is gone from the gallery and must not come back on screen (a file still waiting to upload keeps its tile: it carries data-media-index).
+        if (data._legacyPreview) return;
+        [photoContainer, floorContainer, document.getElementById('saleDocPreview')].forEach(function (box) {
+            if (!box) return;
+            Array.prototype.slice.call(box.children).forEach(function (el) { if (!el.hasAttribute('data-media-index')) box.removeChild(el); });
+        });
+        var emptyCount = document.getElementById('salePhotoCount');
+        if (emptyCount) emptyCount.textContent = (photoContainer ? photoContainer.children.length : 0) + ' / 100 uploaded';
+        return;
+    }
     // Replace the legacy JSON preview with the authoritative keyed rows.
     if (photoContainer) photoContainer.innerHTML = '';
     if (floorContainer) floorContainer.innerHTML = '';

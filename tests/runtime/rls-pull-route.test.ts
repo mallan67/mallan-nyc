@@ -27,8 +27,8 @@ function stubCotality(rows: Record<string, unknown>[], ok = true) {
 }
 
 let callerSeq = 0;
-async function pull(rlsId: string) {
-  const res = await GET(new NextRequest(`http://localhost/api/crm/rls-pull?rlsId=${encodeURIComponent(rlsId)}`, { headers: { 'x-forwarded-for': `10.20.${Math.floor(++callerSeq / 250)}.${callerSeq % 250}` } }));
+async function pull(rlsId: string, listingId?: string) {
+  const res = await GET(new NextRequest(`http://localhost/api/crm/rls-pull?rlsId=${encodeURIComponent(rlsId)}${listingId ? `&listingId=${listingId}` : ''}`, { headers: { 'x-forwarded-for': `10.20.${Math.floor(++callerSeq / 250)}.${callerSeq % 250}` } }));
   return { status: res.status, body: (await res.json()) as Record<string, any> };
 }
 
@@ -43,7 +43,7 @@ describe('the RLS ID of a Mallan listing is pulled from Cotality', () => {
     const { status, body } = await pull('RLS20123633');
     expect(status).toBe(200);
     expect(body.rls).toEqual({ listing_id: 'RLS20123633', listing_key: '1194314473', status: 'Active', list_office_mls_id: '7041' });
-    expect(body.record).toMatchObject({ ListPrice: 1200000, UnitNumber: '806', TaxLot: '1025', BuildingTaxLot: '7501', LivingArea: 1482, BathroomsFull: 2, YearBuilt: 1957, CommonInterest: 'Condominium', CurrentUse: 'MedicalDental' });
+    expect(body.record).toMatchObject({ ListPrice: 1200000, UnitNumber: '806', TaxLot: '1025', BuildingTaxLot: '7501', LivingArea: 1482, BathroomsFull: 3, YearBuilt: 1957, CommonInterest: 'Condominium', CurrentUse: 'MedicalDental' });
   });
 
   it('withholds what is the provider\'s own, and says so: identity, status, permissions, display flags, agent/office, activation, media and tour links', async () => {
@@ -116,5 +116,38 @@ describe('the RLS ID of a Mallan listing is pulled from Cotality', () => {
     stubCotality([LIVE_RLS20123633]);
     expect((await pull('RLS20123633')).status).toBe(401);
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('a saved listing asks about its own RLS link (the form follows RealPlus)', () => {
+  it('the listing linked to the RLS ID, asking with its own id, is given the record (not "already linked")', async () => {
+    stubCotality([LIVE_RLS20123633]);
+    findFirst.mockResolvedValue({ id: 7, listing_id: 'SL-0010' });
+    const { status, body } = await pull('RLS20123633', '7');
+    expect(status).toBe(200);
+    expect(body.existing).toBeUndefined();
+    expect(body.record).toMatchObject({ BathroomsFull: 3, RoomsTotal: 8, YearBuilt: 1957 });
+    expect(body.rls.listing_id).toBe('RLS20123633');
+    const bySl = await pull('RLS20123633', 'sl-0010');                       // the form may have been opened by the SL id
+    expect(bySl.body.record).toBeDefined();
+  });
+
+  it('another listing, or no listing, asking about that RLS ID is still told it is already linked to SL-0010, and Cotality is not asked', async () => {
+    stubCotality([LIVE_RLS20123633]);
+    findFirst.mockResolvedValue({ id: 7, listing_id: 'SL-0010' });
+    for (const asker of [undefined, '8', '']) {
+      const { status, body } = await pull('RLS20123633', asker);
+      expect(status).toBe(200);
+      expect(body.existing).toEqual({ id: '7', listing_id: 'SL-0010' });
+      expect(body.record).toBeUndefined();
+    }
+    expect(asked).toEqual([]);
+  });
+
+  it('asking with its own id still checks the listing office: a record of another office is refused, as for any pull', async () => {
+    stubCotality([{ ...LIVE_RLS20123633, ListOfficeMlsId: '9999' }]);
+    findFirst.mockResolvedValue({ id: 7, listing_id: 'SL-0010' });
+    const { status } = await pull('RLS20123633', '7');
+    expect(status).toBe(403);
   });
 });

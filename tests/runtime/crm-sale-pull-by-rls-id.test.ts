@@ -106,8 +106,8 @@ describe("pulling RLS20123633 into a blank listing", () => {
       expect(val(f, "salePrice")).toBe("1200000");
       expect(val(f, "saleUnitNumber")).toBe("806");
       expect(val(f, "saleZipCode")).toBe("10017");
-      expect(val(f, "saleBedrooms")).toBe("0");
-      expect(val(f, "saleFullBaths")).toBe("2");
+      expect(val(f, "saleBedrooms")).toBe("8");
+      expect(val(f, "saleFullBaths")).toBe("3");
       expect(val(f, "saleUnitSqFt")).toBe("1482");
       expect(val(f, "saleLivingArea")).toBe("1482");            // the Condo Details box the Active checklist asks for
       expect(val(f, "saleTotalRooms")).toBe("8");
@@ -298,9 +298,10 @@ describe("pulling RLS20123633 into a blank listing", () => {
     const f = await pulled();
     try {
       // Live (1,982 active Cotality listings sampled 2026-11-03): ExpirationDate, ShowingInstructions, PropertyCondition and every compensation field are never populated for
-      // this license (Concessions is a rental field and no longer on the Sale form), there is no co-broke field in any section, and this listing has no Heating. The broker enters them; nothing is defaulted.
+      // this license (Concessions is a rental field and no longer on the Sale form; Showing Instructions no longer locks a sale: Maya, 2026-11-05), there is no co-broke field in any section, and this
+      // listing has no Heating. The broker enters them; nothing is defaulted.
       expect(missingLabels(f).sort()).toEqual([
-        "Buyer Agent Commission", "CoBroke Agreement Type", "Condition of Apartment", "Exclusive Agent Commission", "Exclusive Expires", "Heating", "Showing Instructions",
+        "Buyer Agent Commission", "CoBroke Agreement Type", "Condition of Apartment", "Exclusive Agent Commission", "Exclusive Expires", "Heating",
       ].sort());
     } finally { f.close(); }
   });

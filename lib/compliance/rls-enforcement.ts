@@ -58,6 +58,9 @@ const REMOVED_FIELDS = new Set<string>(REBNY_FIELD_TABLES.removedFields);
 // Agent-submitted mandatory fields from REBNY_FIELD_TABLES
 const MANDATORY_FIELDS = REBNY_FIELD_TABLES.requiredFields.agentSubmitted;
 
+// Required of a rental, not of a sale (REBNY_FIELD_TABLES.requiredFields.notRequiredOfSales: Maya, 2026-11-05).
+const NOT_REQUIRED_OF_SALES = new Set<string>(REBNY_FIELD_TABLES.requiredFields.notRequiredOfSales);
+
 // System-generated fields — NEVER block agent payloads for these.
 // The gate does not require them from the agent payload; some (e.g. OnMarketDate)
 // may still arrive in it from the listing forms.
@@ -257,6 +260,8 @@ export function assertRlsCompliantPayload(
   for (const field of MANDATORY_FIELDS) {
     // Skip any system-generated field that leaked into the agent list
     if (SYSTEM_GENERATED_FIELDS.has(field)) continue;
+    // A sale is not asked for the fields a rental still is (Maya, 2026-11-05: ShowingInstructions should not lock the file).
+    if (ctx.listingType !== "rent" && NOT_REQUIRED_OF_SALES.has(field)) continue;
 
     const value = payload[field];
     if (value === undefined || value === null || value === "") {
