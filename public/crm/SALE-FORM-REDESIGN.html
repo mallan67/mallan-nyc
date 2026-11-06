@@ -5729,6 +5729,7 @@ async function saleFollowCotality(opts) {
             changed.push(_saleFollowLabel(el) + ' ' + (now === '' ? 'blank' : now) + ' \u2192 ' + next);
         });
         if (typeof calculateSaleTotalMonthly === 'function') calculateSaleTotalMonthly();          // the carrying-cost total reads the boxes that were just set
+        if (typeof computeSaleBathroomsTotal === 'function') computeSaleBathroomsTotal();          // a value set from code fires no input event: the read-only Total Bathrooms follows Full + Half
         } finally { window._salePopulateInProgress = false; }
         var when = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
         var keptText = kept.length ? ' Not replaced, because you changed them here: ' + kept.join('; ') + '.' : '';

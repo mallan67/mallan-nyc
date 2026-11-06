@@ -1222,14 +1222,14 @@ Still open, in frozen public search and Maya's to decide (see "Decisions that ar
 
 ## Maya decision 2026-11-05 - Showing Instructions does not lock a Sale listing
 
-- Maya (owner/broker), 2026-11-05: Showing Instructions "should not lock the file"; it is not a field the agent fills in the Sale form. Recorded here because the compliance gate on the
+- Maya (owner/broker), 2026-11-05: Showing Instructions "should not lock the file": on a Sale it is optional, not required. Recorded here because the compliance gate on the
   Sale-form stack (2026-11-06) found the decision only in code comments and tests, which is not authority.
-- Applied: `ShowingInstructions` is not asked for in the Sale form and is no longer a required field of a sale (`notRequiredOfSales` in `lib/compliance/rebny-field-tables.ts`; its use in
+- Applied: `ShowingInstructions` stays on the Sale form as an optional box and is no longer a required field of a sale (`notRequiredOfSales` in `lib/compliance/rebny-field-tables.ts`; its use in
   `lib/compliance/rebny-validator.ts` and `lib/compliance/rls-enforcement.ts`; the `saleShowingInstructions` row left `SALE_REQUIRED_FIELDS` in `SALE-FORM-REDESIGN.html`). A sale no longer
   stays a draft for want of it. It stays out of every public output (`lib/compliance/dto.ts`).
 - **Recorded difference, not a defect to chase:** REBNY's LMP.RLS Data Rules sheet (the Google Sheet linked from rebny.com/compliance/, tab "Property") reads Requirements = Yes for
-  `ShowingInstructions` and calls it a privileged remark that is not for public viewing. Live Cotality, read 2026-11-06 by the gate: `Property.ShowingInstructions` exists and is served, is
-  null on 0 of 9,933 Active listings, and the API refuses to filter on it, so the field cannot be a working requirement of the feed Mallan reads. The decision stands until Maya or REBNY says
+  `ShowingInstructions` and calls it a privileged remark that is not for public viewing. Live Cotality, read 2026-11-06 by the gate: `Property.ShowingInstructions` exists and is served, carries
+  no value on any of the 9,933 Active listings (non-null on 0), and the API refuses to filter on it; it is not served by the IDX feed Mallan reads, which is expected of a privileged remark. The decision stands until Maya or REBNY says
   otherwise; it does not say how RealPlus enters the value (not known, to be asked, not guessed).
 - **RLS feed prerequisite (search this document for it when a feed is scoped):** no code path sends listings to the RLS/Cotality today. If Mallan ever submits SALE listings to the RLS, the
   feed must map `ShowingInstructions` explicitly (an owner decision at that time); do not read the Sale form's silence as a REBNY-compliant value.

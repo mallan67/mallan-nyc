@@ -56,6 +56,29 @@ describe("Total Bathrooms follows Full + Half however the boxes were filled", ()
   });
 });
 
+describe("Total Bathrooms after the form follows Cotality (SL-0010: RealPlus changed full baths 2 -> 3)", () => {
+  it("the follow sets Full Bathrooms from code with a change event, and the Total follows it", async () => {
+    const saved = {
+      id: 7, listing_id: "SL-0010", status: "Active", listing_type: "sale", property_type: "Commercial",
+      list_price: 1200000, bedrooms_total: 0, bathrooms_full: 2, bathrooms_half: 0, living_area: 1482,
+      address: { StreetNumber: "800", StreetName: "2ND", StreetSuffix: "Avenue", UnitNumber: "806", City: "New York City", StateOrProvince: "NY", PostalCode: "10017", CityRegion: "Manhattan" },
+      features: {}, agent_info: {}, media: [],
+      raw_data: { saleRlsId: "RLS20123633", saleRlsListingKey: "1194314473", RoomsTotal: 8, LivingArea: 1482, StoriesTotal: 18, YearBuilt: 1957 },
+    };
+    const record = { BedroomsTotal: 8, BathroomsFull: 3, BathroomsHalf: 0, RoomsTotal: 8, LivingArea: 1482, ListPrice: 1200000, StoriesTotal: 18, YearBuilt: 1957, NumberOfUnitsTotal: 0 };
+    const f = await bootAddForm("SALE-FORM-REDESIGN", {
+      settle: 800, search: "?id=7", listing: saved,
+      rlsPull: () => ({ body: { rls: { listing_id: "RLS20123633", listing_key: "1194314473", status: "Active", list_office_mls_id: "7041" }, record, skipped: [] } }),
+    });
+    try {
+      await waitUntil(() => (f.w as any)._saleEditLoad === "loaded");
+      await waitUntil(() => val(f, "saleFullBaths") === "3");                  // Cotality's answer arrives and is applied
+      await sleep(100);
+      expect(val(f, "saleBathroomsTotal")).toBe("3");                          // 2 as saved, then 3 + 0 after the follow: not left at 2
+    } finally { f.close(); }
+  });
+});
+
 describe("the Preview lists the Views the agent ticked", () => {
   it("shows the ticked views, and '--' when none is ticked", async () => {
     const f = await bootAddForm("SALE-FORM-REDESIGN", { settle: 600 });
