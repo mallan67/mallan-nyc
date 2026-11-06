@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import CalculatorLeadCapture from '@/app/components/CalculatorLeadCapture';
 import { calculateInvestment, formatMoney } from '@/lib/calculators/investor-analysis';
+import { marketRentDefault } from '@/lib/calculators/rent-estimate';
 
 interface InvestorCalculatorProps {
   purchasePrice: number;
@@ -12,6 +13,12 @@ interface InvestorCalculatorProps {
   neighborhood?: string;
   /** Open on first render (the section is collapsed by default; tests render it open). */
   defaultExpanded?: boolean;
+  /** The listing's borough: a home's starting rent is the median asking rent of live rentals of its size there. */
+  borough?: string;
+  /** The rent a month entered for THIS listing (a commercial listing's rate per SF x its area): it replaces the borough's median. */
+  defaultMonthlyRent?: number;
+  /** Where that rent comes from, as it is told under the box. */
+  rentBasis?: string;
 }
 
 export default function InvestorCalculator({
@@ -21,21 +28,18 @@ export default function InvestorCalculator({
   bedrooms = 1,
   neighborhood: _neighborhood = '',
   defaultExpanded = false,
+  borough,
+  defaultMonthlyRent,
+  rentBasis,
 }: InvestorCalculatorProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [downPaymentPercent, setDownPaymentPercent] = useState(25);
   const [interestRate, setInterestRate] = useState(7.0);
-  const [estimatedRent, setEstimatedRent] = useState(() => {
-    // NYC average rents by bedroom (rough estimates)
-    const rentEstimates: { [key: number]: number } = {
-      0: 2500,  // Studio
-      1: 3200,  // 1BR
-      2: 4500,  // 2BR
-      3: 6000,  // 3BR
-      4: 8000,  // 4BR+
-    };
-    return rentEstimates[Math.min(bedrooms, 4)] || 3500;
-  });
+  // The rent starts from the listing's own (a commercial listing's, entered by the broker) or, for a home, the median asking rent of live rentals of its size in its borough (lib/calculators/rent-estimate.ts)
+  const market = marketRentDefault(bedrooms, borough);
+  const ownRent = defaultMonthlyRent && defaultMonthlyRent > 0 ? defaultMonthlyRent : 0;
+  const rentBasisText = ownRent ? (rentBasis || 'The rent entered for this listing') : market.basis;
+  const [estimatedRent, setEstimatedRent] = useState(ownRent || market.monthly);
   const [vacancyRate, setVacancyRate] = useState(5);
   const [annualAppreciation, setAnnualAppreciation] = useState(3);
   const [holdingPeriod, setHoldingPeriod] = useState(5);
@@ -101,26 +105,7 @@ export default function InvestorCalculator({
             </div>
           </div>
 
-          {/* Cash Flow Status */}
-          <div className={`mt-4 p-3 rounded-2xl ${isPositiveCashFlow ? 'bg-green-50/60' : 'bg-amber-50/60'}`}>
-            <div className="flex items-center gap-2">
-              {isPositiveCashFlow ? (
-                <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              )}
-              <span className={`text-sm font-medium ${isPositiveCashFlow ? 'text-green-700' : 'text-amber-700'}`}>
-                {isPositiveCashFlow
-                  ? 'Positive cash flow property'
-                  : 'Negative cash flow - relies on appreciation'}
-              </span>
-            </div>
-          </div>
-
+          {/* No verdict on the cash flow: the figures are information (Maya, 2026-11-05: "this is informational"), so there is no banner either way */}
           {/* Inputs */}
           <div className="mt-6 space-y-4">
             <h4 className="font-display font-medium text-brand-dark text-sm">Investment Parameters</h4>
@@ -137,6 +122,7 @@ export default function InvestorCalculator({
                     className="w-full pl-7 pr-3 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                   />
                 </div>
+                <p className="mt-1 text-[11px] leading-snug text-brand-dark/70">{rentBasisText}. Change it to your own estimate.</p>
               </div>
               <div>
                 <label className="block text-xs text-brand-dark/85 mb-1">Down Payment</label>

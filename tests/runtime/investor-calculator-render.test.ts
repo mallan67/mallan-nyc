@@ -10,14 +10,14 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import InvestorCalculator from '@/app/components/InvestorCalculator';
 import { calculateInvestment, formatMoney } from '@/lib/calculators/investor-analysis';
 
-// 333 E 46th St #2G as the page passes it: a co-op, $765,000, maintenance $1,748.65, no separate tax, one bedroom (the page's own default inputs: $3,200 rent, 7%, 5 years)
+// 333 E 46th St #2G as the page passes it: a co-op, $765,000, maintenance $1,748.65, no separate tax, one bedroom (the page's own default inputs: the Manhattan one-bedroom median rent, $4,995, 7%, 5 years)
 const PAGE_PROPS = { purchasePrice: 765000, maintenanceFee: 1748.65, monthlyTaxes: 0, bedrooms: 1, neighborhood: 'Turtle Bay' };
 const text = (html: string) => html.replace(/<!-- -->/g, '').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
 
 describe('the opened Investment Analysis', () => {
   const html = renderToStaticMarkup(createElement(InvestorCalculator, { ...PAGE_PROPS, defaultExpanded: true }));
   const shown = text(html);
-  const r = calculateInvestment({ purchasePrice: 765000, maintenanceFee: 1748.65, monthlyTaxes: 0, estimatedRent: 3200, downPaymentPercent: 25, interestRate: 7, vacancyRate: 5, annualAppreciation: 3, holdingPeriod: 5 });
+  const r = calculateInvestment({ purchasePrice: 765000, maintenanceFee: 1748.65, monthlyTaxes: 0, estimatedRent: 4995, downPaymentPercent: 25, interestRate: 7, vacancyRate: 5, annualAppreciation: 3, holdingPeriod: 5 });
 
   it('is a loss for this listing at the page\'s default inputs, so the loss formatting is what is being tested', () => {
     expect(r.monthlyCashFlow).toBeLessThan(0);
@@ -63,5 +63,60 @@ describe('the opened Investment Analysis', () => {
     expect(closed).toContain('Investment Analysis');
     expect(closed).not.toContain('Investment Parameters');
     expect(closed).not.toContain('Monthly Breakdown');
+  });
+});
+
+describe('the rent the calculator starts from, and where it says it comes from', () => {
+  const rentBox = (html: string) => /Est\. Monthly Rent.*?value="(\d+)"/s.exec(html)?.[1];
+  const open = (props: Record<string, unknown>) => renderToStaticMarkup(createElement(InvestorCalculator, { ...PAGE_PROPS, defaultExpanded: true, ...props }));
+
+  it('a Manhattan one-bedroom starts from the median asking rent of live Manhattan one-bedrooms, and says so under the box (it was $3,200)', () => {
+    const html = open({ borough: 'Manhattan' });
+    expect(rentBox(html)).toBe('4995');
+    expect(text(html)).toContain('Median asking rent of 1-bedroom rentals active in Manhattan (Cotality, November 2026). Change it to your own estimate.');
+  });
+
+  it('nothing in Manhattan starts from $2,500: a Manhattan studio is $3,900', () => {
+    expect(rentBox(open({ borough: 'Manhattan', bedrooms: 0 }))).toBe('3900');
+    expect(text(open({ borough: 'Manhattan', bedrooms: 0 }))).not.toMatch(/2500|2,500/);
+  });
+
+  it('a commercial listing starts from the rent entered for it: 800 2nd Ave #806, $40 per SF on 1,482 SF, is $4,940 a month', () => {
+    const html = open({ purchasePrice: 1200000, maintenanceFee: 1588, bedrooms: 0, borough: 'Manhattan', defaultMonthlyRent: 4940, rentBasis: '$40 per SF a year on 1,482 SF, the rent entered for this listing' });
+    expect(rentBox(html)).toBe('4940');
+    expect(text(html)).toContain('$40 per SF a year on 1,482 SF, the rent entered for this listing. Change it to your own estimate.');
+    expect(text(html)).not.toContain('Median asking rent');
+  });
+
+  it('a rent of 0 or less is no rent: the borough\'s median is used, never an empty calculator', () => {
+    expect(rentBox(open({ defaultMonthlyRent: 0 }))).toBe('4995');
+    expect(rentBox(open({ defaultMonthlyRent: -10 }))).toBe('4995');
+  });
+
+  it('Brooklyn and the other boroughs start from their own medians', () => {
+    expect(rentBox(open({ borough: 'Brooklyn' }))).toBe('4050');
+    expect(rentBox(open({ borough: 'Queens' }))).toBe('3688');
+  });
+});
+
+describe('no verdict on the cash flow (Maya, 2026-11-05: "remove the yellow banner, this is informational")', () => {
+  const open = (props: Record<string, unknown>) => text(renderToStaticMarkup(createElement(InvestorCalculator, { ...PAGE_PROPS, defaultExpanded: true, ...props })));
+
+  it('a negative cash flow has no "relies on appreciation" banner, and nothing amber', () => {
+    const html = renderToStaticMarkup(createElement(InvestorCalculator, { ...PAGE_PROPS, defaultExpanded: true }));
+    expect(calculateInvestment({ purchasePrice: 765000, maintenanceFee: 1748.65, monthlyTaxes: 0, estimatedRent: 4995, downPaymentPercent: 25, interestRate: 7, vacancyRate: 5, annualAppreciation: 3, holdingPeriod: 5 }).monthlyCashFlow).toBeLessThan(0);
+    expect(text(html)).not.toMatch(/Negative cash flow|relies on appreciation/);
+    expect(html).not.toContain('amber');
+  });
+
+  it('a positive cash flow has no congratulating banner either', () => {
+    const shown = open({ defaultMonthlyRent: 30000 });
+    expect(shown).not.toMatch(/Positive cash flow property|Negative cash flow/);
+    expect(shown).toContain('Monthly Cash Flow $');                    // the figure itself is still there, as a positive amount
+  });
+
+  it('the figures that sat under the banner are all still there', () => {
+    const shown = open({});
+    for (const label of ['Cap Rate', 'Cash on Cash', 'Monthly Cash Flow', 'Total ROI (Yr 1)', 'Investment Parameters', 'Monthly Breakdown']) expect(shown).toContain(label);
   });
 });

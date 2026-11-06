@@ -2062,6 +2062,11 @@ body { font-family: Manrope, sans-serif; }
                             <input id="saleCommercialNOI" type="number" placeholder="$0" class="field-input">
                         </div>
                         <div>
+                            <label class="text-xs text-gray-600 block mb-1">Rent ($ per SF per year)</label>
+                            <input id="saleCommercialRentPSF" type="number" step="0.01" min="0" placeholder="e.g., 40" class="field-input" data-concept-disposition="mallan-internal">
+                            <p class="text-[10px] text-gray-400 mt-1">The last advertised or expected asking rent. The Investment Analysis on the listing page starts from it: $ per SF times this unit's area, over 12 months. Without it, a commercial listing shows no Investment Analysis.</p>
+                        </div>
+                        <div>
                             <label class="text-xs text-gray-600 block mb-1">Number of Units (Total)</label>
                             <input id="saleCommercialUnitsTotal" type="number" placeholder="0" class="field-input">
                         </div>

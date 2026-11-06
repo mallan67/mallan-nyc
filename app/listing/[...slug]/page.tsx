@@ -12,6 +12,7 @@ import PriceWithCalculator from '@/app/components/PriceWithCalculator';
 import AuctionBanner from '@/app/components/AuctionBanner';
 import InvestorCalculator from '@/app/components/InvestorCalculator';
 import ListingDescription from '@/app/components/ListingDescription';
+import { showsInvestorCalculator } from '@/lib/calculators/rent-estimate';
 import RentVsBuyCalculator from '@/app/components/RentVsBuyCalculator';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import ListingMediaGallery from '@/app/components/ListingMediaGallery';
@@ -1832,6 +1833,8 @@ export default async function ListingPage({ params }: Props) {
               </section>
 
               {/* ── 9. CALCULATORS (collapsed by default) ── */}
+              {/* a Mallan commercial listing with no rent entered has no Investment Analysis: there is no residential rent to guess for an office (Maya, 2026-11-05) */}
+              {(isRental || showsInvestorCalculator({ isRental, isCommercial: listing.isCommercial, estimatedRent: listing.estimatedRent })) && (
               <section id="investor-calculator" className="py-6 border-t border-black/[0.06] scroll-mt-24">
                 {!isRental ? (
                   <InvestorCalculator
@@ -1840,6 +1843,9 @@ export default async function ListingPage({ params }: Props) {
                     monthlyTaxes={listing.taxAnnualAmount ? Math.round(listing.taxAnnualAmount / 12) : 0}
                     bedrooms={listing.bedroomsTotal}
                     neighborhood={neighborhood || borough}
+                    borough={borough}
+                    defaultMonthlyRent={listing.estimatedRent?.monthly}
+                    rentBasis={listing.estimatedRent ? `$${listing.estimatedRent.perSqFtYear} per SF a year on ${listing.estimatedRent.sqFt.toLocaleString('en-US')} SF, the rent entered for this listing` : undefined}
                   />
                 ) : (
                   <RentVsBuyCalculator
@@ -1851,6 +1857,7 @@ export default async function ListingPage({ params }: Props) {
                   />
                 )}
               </section>
+              )}
 
               {/* ── 10. TRANSIT & COMMUTE ── */}
               {listing.address.latitude && listing.address.longitude && (
