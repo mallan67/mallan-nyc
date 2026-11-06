@@ -106,6 +106,11 @@ const listingFindUnique = (prisma as unknown as {
 const listingFindMany = (prisma as unknown as {
   listing: { findMany: jest.Mock };
 }).listing.findMany;
+
+// The listings route reads twice (2026-11-04): her own set first (to leave the Cotality copy of a live listing out of the list), then the list itself.
+// These tests are about the list, so the grid answer is queued second.
+const queueListAnswer = (rows: unknown[]) => listingFindMany.mockResolvedValueOnce([]).mockResolvedValueOnce(rows);
+const LIST_CALL = 1;
 const listingCount = (prisma as unknown as {
   listing: { count: jest.Mock };
 }).listing.count;
@@ -387,7 +392,7 @@ async function gridMedia(
   media: MediaFixture,
   over: Record<string, unknown> = {},
 ): Promise<GridMediaItem[]> {
-  listingFindMany.mockResolvedValueOnce([gridListing(media, over)]);
+  queueListAnswer([gridListing(media, over)]);
   listingCount.mockResolvedValueOnce(1);
   const res = await crmListingsGET(gridRequest('?limit=50'));
   expect(res.status).toBe(200);
@@ -442,7 +447,7 @@ describe('/api/crm/listings — the grid media array reads the canonical composi
   });
 
   it('the grid response contract is unchanged and leaks no query-only fields', async () => {
-    listingFindMany.mockResolvedValueOnce([
+    queueListAnswer([
       gridListing({ listing_media: [activeRow()], count: 1, legacy: [] }),
     ]);
     listingCount.mockResolvedValueOnce(1);
@@ -469,10 +474,10 @@ describe('/api/crm/listings — the grid media array reads the canonical composi
   });
 
   it('ownership enforcement still scopes a non-broker to their own listings', async () => {
-    listingFindMany.mockResolvedValueOnce([]);
+    queueListAnswer([]);
     listingCount.mockResolvedValueOnce(0);
     await crmListingsGET(gridRequest());
-    const where = listingFindMany.mock.calls[0][0].where as Record<string, unknown>;
+    const where = listingFindMany.mock.calls[LIST_CALL][0].where as Record<string, unknown>;
     // 2026-10-27: the agent scope is the second AND branch — assignment (agent_id) or the
     // agent's REBNY member id on the list / co-list side — applied inside the Mallan-own set.
     const and = where.AND as Array<{ OR: Array<Record<string, unknown>> }>;
@@ -487,10 +492,10 @@ describe('/api/crm/listings — the grid media array reads the canonical composi
     // meaningless unless the query actually supplies an all-status count
     // alongside an active-only row set. The behavioral tests above cannot
     // distinguish "count selected" from "count happened to be right".
-    listingFindMany.mockResolvedValueOnce([]);
+    queueListAnswer([]);
     listingCount.mockResolvedValueOnce(0);
     await crmListingsGET(gridRequest());
-    const select = listingFindMany.mock.calls[0][0].select as Record<string, unknown>;
+    const select = listingFindMany.mock.calls[LIST_CALL][0].select as Record<string, unknown>;
     expect(select.listing_media).toMatchObject({ where: { status: 'active' } });
     expect(select._count).toEqual({ select: { listing_media: true } });
   });
