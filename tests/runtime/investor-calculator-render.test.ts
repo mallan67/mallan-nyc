@@ -179,3 +179,17 @@ describe('the statistical disclaimer, the guarantee phrase, and boxes that show 
     for (const name of ['downPaymentPercent', 'interestRate', 'vacancyRate', 'annualAppreciation', 'holdingPeriod']) expect(source).toContain("clampInput('" + name + "'");
   });
 });
+
+describe('a unit\'s current rent starts the calculator: no RLS data, so no RLS disclaimer (Maya, 2026-11-06)', () => {
+  const open = (props: Record<string, unknown>) => renderToStaticMarkup(createElement(InvestorCalculator, { ...PAGE_PROPS, defaultExpanded: true, ...props }));
+  it('333 E 46th #2G starts at $4,350, says it is this unit\'s current rent, in the same tiny quiet line, and carries no RLS statistical disclaimer', () => {
+    const html = open({ borough: 'Manhattan', defaultMonthlyRent: 4350, rentBasis: "Based on this unit's current rent" });
+    expect(/Est\. Monthly Rent.*?value="(\d+)"/s.exec(html)?.[1]).toBe('4350');
+    expect(text(html)).toContain("Based on this unit's current rent.");
+    expect(text(html)).not.toContain('REBNY Listing Service');
+    expect(text(html)).not.toContain('average asking rents');
+    const note = /<p class="([^"]*)">(Based on this unit[^<]*)<\/p>/.exec(html.replace(/&#x27;/g, "'"));
+    expect(note).not.toBeNull();
+    expect(note![1]).toContain('text-[10px]');
+  });
+});

@@ -5,7 +5,7 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { listingRentFromPsf, marketRentDefault, showsInvestorCalculator, commercialRentDefault } from '@/lib/calculators/rent-estimate';
+import { listingRentFromPsf, marketRentDefault, showsInvestorCalculator, commercialRentDefault, currentRentFromRaw } from '@/lib/calculators/rent-estimate';
 import { rlsStatisticalDisclaimer } from '@/lib/compliance/rls-statistical-disclaimer';
 
 describe('a commercial listing starts from the rent the broker entered', () => {
@@ -79,12 +79,16 @@ describe('the listing page wires it', () => {
   const page = readFileSync(resolve(__dirname, '../../app/listing/[...slug]/page.tsx'), 'utf8');
 
   it('the calculator gets the borough and the rent entered for the listing, and the section is left out when it does not apply', () => {
-    expect(page).toContain('showsInvestorCalculator({ isRental, isCommercial: listing.isCommercial, estimatedRent: listing.estimatedRent, commercialMarketRent })');
+    expect(page).toContain('showsInvestorCalculator({ isRental, isCommercial: listing.isCommercial, estimatedRent: listing.estimatedRent, commercialMarketRent, currentRent: listing.currentMonthlyRent })');
     expect(page).toContain('commercialRentDefault(borough, listing.livingArea)');
-    expect(page).toContain('defaultMonthlyRent={(listing.estimatedRent ?? commercialMarketRent)?.monthly}');
+    expect(page).toContain('defaultMonthlyRent={listing.currentMonthlyRent ?? (listing.estimatedRent ?? commercialMarketRent)?.monthly}');
     expect(page).toContain('borough={borough}');
-    expect(page).toMatch(/rentBasis=\{listing\.estimatedRent \? `Based on Mallan's expected rent for this unit: \$\$\{listing\.estimatedRent\.perSqFtYear\} per SF a year on/);
-    expect(page).toContain('rentDisclaimer={listing.estimatedRent ? undefined : commercialMarketRent?.disclaimer}');
+    expect(page).toMatch(/rentBasis=\{listing\.currentMonthlyRent \? "Based on this unit's current rent" : listing\.estimatedRent \? `Based on Mallan's expected rent for this unit: \$\$\{listing\.estimatedRent\.perSqFtYear\} per SF a year on/);
+    expect(page).toContain('rentDisclaimer={listing.currentMonthlyRent || listing.estimatedRent ? undefined : commercialMarketRent?.disclaimer}');
+  });
+
+  it('the unit\'s current rent comes first, and an average is looked up only when no rent is known', () => {
+    expect(page).toContain('listing.isCommercial && !listing.estimatedRent && !listing.currentMonthlyRent ? commercialRentDefault(');
   });
 });
 
@@ -139,5 +143,23 @@ describe('the commercial average describes only the units it was taken from: 200
   });
   it.each([[200], [1482], [5000]])('%p SF: the average applies', (sqFt) => {
     expect(commercialRentDefault('Manhattan', sqFt)).toMatchObject({ perSqFtYear: 78 });
+  });
+});
+
+describe('the rent now paid by the tenant in place is the first thing the calculator starts from (Maya, 2026-11-06: "the current rent for this unit is $4350 cause i rented it")', () => {
+  it('333 E 46th #2G: $4,350 a month, as entered', () => {
+    expect(currentRentFromRaw({ saleCurrentMonthlyRent: '4350' })).toBe(4350);
+    expect(currentRentFromRaw({ saleCurrentMonthlyRent: 4350 })).toBe(4350);
+  });
+  it('typed with a dollar sign and a comma, and to the dollar', () => {
+    expect(currentRentFromRaw({ saleCurrentMonthlyRent: '$4,350' })).toBe(4350);
+    expect(currentRentFromRaw({ saleCurrentMonthlyRent: '4350.40' })).toBe(4350);
+  });
+  it.each([[undefined], [null], [{}], [{ saleCurrentMonthlyRent: '' }], [{ saleCurrentMonthlyRent: 0 }], [{ saleCurrentMonthlyRent: -100 }], [{ saleCurrentMonthlyRent: 'abc' }]])('no usable rent (%j): none, so a vacant or owner-occupied unit starts from an average', (raw) => {
+    expect(currentRentFromRaw(raw as Record<string, unknown> | null | undefined)).toBeUndefined();
+  });
+  it('a commercial listing with a current rent shows the calculator even with no rate per SF and no average', () => {
+    expect(showsInvestorCalculator({ isRental: false, isCommercial: true, currentRent: 4940 })).toBe(true);
+    expect(showsInvestorCalculator({ isRental: false, isCommercial: true, currentRent: null })).toBe(false);
   });
 });

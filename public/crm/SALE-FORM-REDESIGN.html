@@ -1102,6 +1102,11 @@ body { font-family: Manrope, sans-serif; }
                     <label class="field-label">Availability Comments</label>
                     <input id="saleAvailabilityComments" type="text" placeholder="Enter availability comments" class="field-input">
                 </div>
+                <div>
+                    <label class="field-label">Current Rent ($ per month)</label>
+                    <input id="saleCurrentMonthlyRent" type="number" step="1" min="0" placeholder="e.g., 4350" class="field-input" data-concept-disposition="mallan-internal">
+                    <p class="text-[10px] text-gray-400">What the tenant in place pays now. The Investment Analysis on the public listing page starts from it, so visitors see it: enter it with the owner's consent, and leave it empty if the unit is vacant or owner-occupied.</p>
+                </div>
             </div>
             <!-- Status-conditional dates -->
             <div id="saleStatusDatesRow" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4" style="display:none;">
@@ -10310,6 +10315,7 @@ var SALE_FIELD_MAP = [
   { rls: 'saleBldgLandLeaseYN', form: 'saleBldgLandLeaseYN', type: 'text', src: 'raw' },
   // Controls that had no id until 2026-10-28 (their answers were never saved)
   { rls: 'saleAvailabilityComments', form: 'saleAvailabilityComments', type: 'text', src: 'raw' },
+  { rls: 'saleCurrentMonthlyRent', form: 'saleCurrentMonthlyRent', type: 'number', src: 'raw' },
   { rls: 'saleFlipTaxType', form: 'saleFlipTaxType', type: 'text', src: 'raw' },
   { rls: 'saleFlipTaxPaidBy', form: 'saleFlipTaxPaidBy', type: 'text', src: 'raw' },
   { rls: 'saleFlipTaxRemarks', form: 'saleFlipTaxRemarks', type: 'text', src: 'raw' },

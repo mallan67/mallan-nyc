@@ -47,3 +47,23 @@ describe('dbListingToPublicDTO: a commercial listing and its rent', () => {
     expect(dto).not.toHaveProperty('estimatedRent');
   });
 });
+
+describe('dbListingToPublicDTO: the rent now paid by the tenant in place', () => {
+  it('a sale listing with a current rent carries it (333 E 46th #2G: $4,350 a month)', () => {
+    expect(dtoOf({ property_type: 'Residential', listing_type: 'sale', raw_data: { saleCurrentMonthlyRent: '4350' } }).currentMonthlyRent).toBe(4350);
+  });
+  it('a commercial listing carries it too, beside its rate per SF', () => {
+    const dto = dtoOf({ raw_data: { saleCurrentMonthlyRent: 4940, saleCommercialRentPSF: '40' } });
+    expect(dto.currentMonthlyRent).toBe(4940);
+    expect(dto.estimatedRent).toEqual({ monthly: 4940, perSqFtYear: 40, sqFt: 1482 });
+  });
+  it('a rental has none: its rent is its price', () => {
+    expect(dtoOf({ property_type: 'ResidentialLease', listing_type: 'rent', raw_data: { saleCurrentMonthlyRent: '4350' } })).not.toHaveProperty('currentMonthlyRent');
+  });
+  it.each([[''], [0], [-5], ['abc']])('a rent of %j is none', (rent) => {
+    expect(dtoOf({ property_type: 'Residential', raw_data: { saleCurrentMonthlyRent: rent } })).not.toHaveProperty('currentMonthlyRent');
+  });
+  it('a listing with no current rent has no such key', () => {
+    expect(dtoOf({ property_type: 'Residential', raw_data: {} })).not.toHaveProperty('currentMonthlyRent');
+  });
+});

@@ -237,6 +237,7 @@
     { rls: 'saleBldgLandLeaseYN', form: 'saleBldgLandLeaseYN', type: 'text', src: 'raw' },
     // Controls that had no id until 2026-10-28 (their answers were never saved)
     { rls: 'saleAvailabilityComments', form: 'saleAvailabilityComments', type: 'text', src: 'raw' },
+    { rls: 'saleCurrentMonthlyRent', form: 'saleCurrentMonthlyRent', type: 'number', src: 'raw' },
     { rls: 'saleFlipTaxType', form: 'saleFlipTaxType', type: 'text', src: 'raw' },
     { rls: 'saleFlipTaxPaidBy', form: 'saleFlipTaxPaidBy', type: 'text', src: 'raw' },
     { rls: 'saleFlipTaxRemarks', form: 'saleFlipTaxRemarks', type: 'text', src: 'raw' },

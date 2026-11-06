@@ -50,10 +50,16 @@ export function commercialRentDefault(borough: string | null | undefined, sqFt: 
   };
 }
 
+/** The rent now paid by the tenant in place, as the broker entered it on the Sale form (Current Rent, dollars a month): the unit's own fact, the first thing the Investment Analysis starts from. */
+export function currentRentFromRaw(rawData: Record<string, unknown> | null | undefined): number | undefined {
+  const rent = toNumber(rawData?.saleCurrentMonthlyRent);
+  return rent > 0 ? Math.round(rent) : undefined;
+}
+
 /** Whether the page shows the Investment Analysis: never on a rental page (it has its own calculator), and on a commercial listing only when there is a rent to start from: the one entered, or the average. */
-export function showsInvestorCalculator(listing: { isRental: boolean; isCommercial?: boolean; estimatedRent?: ListingRent | null; commercialMarketRent?: CommercialMarketRent | null }): boolean {
+export function showsInvestorCalculator(listing: { isRental: boolean; isCommercial?: boolean; estimatedRent?: ListingRent | null; commercialMarketRent?: CommercialMarketRent | null; currentRent?: number | null }): boolean {
   if (listing.isRental) return false;
-  return !(listing.isCommercial && !listing.estimatedRent && !listing.commercialMarketRent);
+  return !(listing.isCommercial && !listing.estimatedRent && !listing.commercialMarketRent && !listing.currentRent);
 }
 
 // Median ASKING rent a month of the ACTIVE rentals in the Cotality feed, by bedrooms (studio, 1, 2, 3, 4+), read live 2026-11-05 (1,001 active rentals: 524 Manhattan, 356 Brooklyn, 104 Queens, 17 Bronx and
