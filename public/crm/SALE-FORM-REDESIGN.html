@@ -10609,7 +10609,6 @@ function _checkSaleEditMode() {
         window._salePopulateInProgress = true;
         try {
             _populateSaleFormFromApi(listing);
-            _saleApplySourceOwned(listing);                              // the feed's copy of a listing: read-only, with the Mallan listing of the same unit named
             _saleReconcileArea(listing);                                 // one living area: the record's typed value first, then the box that is live for the type
             _saleDeriveCommercialOwnership();                            // a Commercial listing whose ownership is not chosen takes it from the building it sits in, when the record says which
             window._saleEditLoad = 'loaded';
@@ -10629,11 +10628,13 @@ function _checkSaleEditMode() {
             // Always release the lock, even if any step above threw.
             window._salePopulateInProgress = false;
         }
+        _saleApplySourceOwned(listing);                                  // the feed's copy of a listing: read-only, with the Mallan listing of the same unit named (after the lock is released, so the populate code the tests pin is as it was)
         // Enable autosave AFTER lock is released, in a microtask, and clear
         // any timer that change handlers may have scheduled during populate.
         Promise.resolve().then(function() {
             clearTimeout(autoSaveTimer);
-            window._saleAutoSaveReady = !window._saleSourceOwned;           // a read-only copy is never sent: the CRM would refuse it
+            window._saleAutoSaveReady = true;
+            if (window._saleSourceOwned) window._saleAutoSaveReady = false;     // a read-only copy is never sent: the CRM would refuse it
             if (globalThis.saleUnitLotLookup) globalThis.saleUnitLotLookup();   // a saved listing whose unit's lot is still empty asks Cotality once
             _saleFollowSnapshot();                                              // a listing linked to an RLS ID follows Cotality: what the boxes hold now is what "typed since" is measured from
             saleFollowCotality({ force: true });
