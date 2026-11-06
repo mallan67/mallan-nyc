@@ -95,12 +95,12 @@ export async function GET(req: NextRequest) {
 
   // One listing, one row (Maya, 2026-11-04: "on the crm i have still two of the same listing"). Her own listing comes back through Cotality as an
   // RLS* row and both were listed. The Cotality copy of a live listing is left out of the list AND the count, so the tab numbers and the pages
-  // add up; her closed history stays. The rule is lib/listings/dedupe-crm-vs-idx.ts (the same unit identity the public site uses).
+  // add up; her closed history stays. The rule is lib/listings/dedupe-crm-vs-idx.ts: the same unit (the public site's address identity), the same sale / rent kind and the same status; anything less stays visible (Master 4.4).
   // Only a listing that can still be live matters to the rule (closed history is ignored by it), so the read leaves the terminal statuses out in the database and is capped: it grows with the live inventory,
   // not with every sale the office ever closed. The database filter may let through a spelling the rule then ignores (a superset is safe); past the cap a copy may stay listed, never a listing be hidden.
   const ownRows = await prisma.listing.findMany({
     where: { ...ownScope, status: { notIn: [...TERMINAL_VALUES] } },
-    select: { listing_id: true, status: true, address: true },
+    select: { listing_id: true, status: true, address: true, listing_type: true },
     take: OWN_SET_CAP,
   });
   const cotalityCopies = cotalityCopiesOfOwnListings(ownRows);

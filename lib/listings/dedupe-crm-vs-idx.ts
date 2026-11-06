@@ -16,9 +16,9 @@
  *
  * This helper filters at READ time on every public surface so only the CRM
  * row is returned. The IDX duplicate is NOT mutated or deleted — it stays
- * in the DB for audit history and is still visible on the broker-side
- * CRM views (which explicitly do NOT call this helper, so duplicates remain
- * visible internally for cleanup decisions).
+ * in the DB for audit history. The CRM list does not use this helper: it uses
+ * cotalityCopiesOfOwnListings (bottom of this file), which hides a live copy
+ * only on a stricter identity (same unit, same sale / rent kind, same status).
  *
  * Matching key
  * ------------
@@ -345,6 +345,8 @@ export interface CrmListRow {
   listing_id: string;
   status: string | null;
   address: unknown;
+  /** "sale" or "rent" (Listing.listing_type). A row that does not say can never be proved to be the same listing as another. */
+  listing_type?: string | null;
 }
 
 /** A live listing: a status the CRM recognises that is not over (Closed, Expired, Withdrawn ...). */
@@ -353,31 +355,45 @@ function isLiveStatus(status: unknown): boolean {
 }
 
 /**
+ * What must be equal for the CRM to treat two rows as ONE listing: the physical unit (street, unit, ZIP), the kind and the status. A sale and a rental of the same unit are two
+ * listings (the Cotality feed already holds both kinds for 800 2nd Ave #806 and 333 E 46th #2G), and when the statuses differ Cotality has moved on or the CRM record is stale, so the
+ * agent needs to see both rows. Master 4.4: address alone is not enough to hide a row; an identity that cannot be proved stays visible. null = not provable.
+ */
+function listingIdentity(r: CrmListRow): string | null {
+  const unit = buildAddressKeyFromDbRow(r);
+  const type = String(r.listing_type ?? '').trim().toLowerCase();
+  const status = normalizeStatus(r.status);
+  return unit && (type === 'sale' || type === 'rent') && status ? `${type}|${status}|${unit}` : null;
+}
+
+/**
  * CRM My Listings: the `listing_id`s of the Cotality rows that are the COPY of one of the agent's own listings, so the list shows each
  * listing once (Maya, 2026-11-04: "on the crm i have still two of the same listing").
  *
  * Her own listing comes back through Cotality as an `RLS*` row, and the list reads both kinds (her SL- / RL- records and every row whose list
  * office is Mallan, which is how her closed history shows). A Cotality row is the copy of her listing when it is the same physical unit as one
- * of her own SL- / RL- records (the identity this module uses everywhere else: street, unit, ZIP) AND both are live. What stays:
+ * of her own SL- / RL- records (street, unit, ZIP), of the same kind (sale / rent) and in the same status, AND both are live. What stays:
  *   - her own SL- / RL- records, always;
  *   - her closed history: an earlier deal of the same unit is over, so it is not the live listing's copy;
  *   - a listing that is over on both sides (an expired record and its expired Cotality row), which is history, not a live duplicate;
- *   - a row with no unit number, which cannot be proved the same unit.
+ *   - a row with no unit number, which cannot be proved the same unit;
+ *   - a rental row beside a sale record of the same unit (or the reverse): two listings;
+ *   - a row whose status differs from her record's: Cotality has moved on or the record is stale, which is exactly what she needs to see (Master 4.4: uncertain identity is reviewed, not hidden).
  * Read-only: nothing is deleted or changed, and the public surfaces keep using dedupeRawDbRows.
  */
 export function cotalityCopiesOfOwnListings(rows: CrmListRow[]): string[] {
-  const liveOwnKeys = new Set<string>();
+  const liveOwn = new Set<string>();
   for (const r of rows) {
     if (!isCrmId(r.listing_id) || !isLiveStatus(r.status)) continue;
-    const key = buildAddressKeyFromDbRow(r);
-    if (key) liveOwnKeys.add(key);
+    const id = listingIdentity(r);
+    if (id) liveOwn.add(id);
   }
-  if (liveOwnKeys.size === 0) return [];
+  if (liveOwn.size === 0) return [];
   const copies: string[] = [];
   for (const r of rows) {
     if (isCrmId(r.listing_id) || !isLiveStatus(r.status)) continue;
-    const key = buildAddressKeyFromDbRow(r);
-    if (key && liveOwnKeys.has(key)) copies.push(r.listing_id);
+    const id = listingIdentity(r);
+    if (id && liveOwn.has(id)) copies.push(r.listing_id);
   }
   return copies;
 }

@@ -16,12 +16,12 @@ import type { NextRequest } from 'next/server';
 
 
 // What the listings table holds (address is the PascalCase JSON the Cotality sync writes; the CRM form writes the street name whole).
-const SL_0010 = { listing_id: 'SL-0010', status: 'Active', address: { StreetNumber: '800', StreetName: '2nd Avenue', UnitNumber: '806', PostalCode: '10017' } };
-const RLS_0010 = { listing_id: 'RLS20123633', status: 'Active', address: { StreetNumber: '800', StreetName: '2ND', StreetSuffix: 'Avenue', UnitNumber: '806', PostalCode: '10017' } };
-const SL_0004 = { listing_id: 'SL-0004', status: 'Active', address: { StreetNumber: '333', StreetName: 'East 46Th Street', UnitNumber: '2G', PostalCode: '10017' } };
-const RLS_0004 = { listing_id: 'RLS20093870', status: 'Active', address: { StreetNumber: '333', StreetDirPrefix: 'E', StreetName: '46TH', StreetSuffix: 'Street', UnitNumber: '2G', PostalCode: '10017' } };
+const SL_0010 = { listing_id: 'SL-0010', status: 'Active', listing_type: 'sale', address: { StreetNumber: '800', StreetName: '2nd Avenue', UnitNumber: '806', PostalCode: '10017' } };
+const RLS_0010 = { listing_id: 'RLS20123633', status: 'Active', listing_type: 'sale', address: { StreetNumber: '800', StreetName: '2ND', StreetSuffix: 'Avenue', UnitNumber: '806', PostalCode: '10017' } };
+const SL_0004 = { listing_id: 'SL-0004', status: 'Active', listing_type: 'sale', address: { StreetNumber: '333', StreetName: 'East 46Th Street', UnitNumber: '2G', PostalCode: '10017' } };
+const RLS_0004 = { listing_id: 'RLS20093870', status: 'Active', listing_type: 'sale', address: { StreetNumber: '333', StreetDirPrefix: 'E', StreetName: '46TH', StreetSuffix: 'Street', UnitNumber: '2G', PostalCode: '10017' } };
 
-const copies = (...rows: Array<{ listing_id: string; status: string | null; address: unknown }>) => cotalityCopiesOfOwnListings(rows);
+const copies = (...rows: Array<{ listing_id: string; status: string | null; address: unknown; listing_type?: string | null }>) => cotalityCopiesOfOwnListings(rows);
 
 describe('the Cotality copy of her own listing is left out of My Listings', () => {
   it('SL-0010 and its Cotality row are one listing: the copy is left out', () => {
@@ -42,13 +42,42 @@ describe('the Cotality copy of her own listing is left out of My Listings', () =
   });
 
   it('a rental follows the same rule (RL- record and its Cotality row)', () => {
-    const rl = { listing_id: 'RL-0003', status: 'Active', address: { StreetNumber: '40', StreetName: 'West 12th Street', UnitNumber: '5B', PostalCode: '10011' } };
-    const rls = { listing_id: 'RLS20077777', status: 'Active', address: { StreetNumber: '40', StreetDirPrefix: 'W', StreetName: '12TH', StreetSuffix: 'Street', UnitNumber: '5B', PostalCode: '10011' } };
+    const rl = { listing_id: 'RL-0003', status: 'Active', listing_type: 'rent', address: { StreetNumber: '40', StreetName: 'West 12th Street', UnitNumber: '5B', PostalCode: '10011' } };
+    const rls = { listing_id: 'RLS20077777', status: 'Active', listing_type: 'rent', address: { StreetNumber: '40', StreetDirPrefix: 'W', StreetName: '12TH', StreetSuffix: 'Street', UnitNumber: '5B', PostalCode: '10011' } };
     expect(copies(rl, rls)).toEqual(['RLS20077777']);
   });
 
-  it.each(['Pending', 'ActiveUnderContract', 'ComingSoon', 'Active'])('a copy still %s beside a live record is the same live listing: left out', (status) => {
-    expect(copies(SL_0010, { ...RLS_0010, status })).toEqual(['RLS20123633']);
+  it.each(['Pending', 'ActiveUnderContract', 'ComingSoon', 'Active'])('a copy %s beside a record in the SAME status is the same live listing: left out', (status) => {
+    expect(copies({ ...SL_0010, status }, { ...RLS_0010, status })).toEqual(['RLS20123633']);
+  });
+});
+
+// Compliance gate on this PR (2026-11-06, Master 4.4: "Address alone is not sufficient evidence for automatic suppression. Uncertain identity goes to review."):
+// the same address is not enough. These rows are NOT hidden, because the agent must see both.
+describe('identity that is not proved stays visible', () => {
+  it.each(['Pending', 'ActiveUnderContract', 'ComingSoon'])('a copy that is %s beside an Active record is shown: Cotality has moved on, or the record is stale', (status) => {
+    expect(copies(SL_0010, { ...RLS_0010, status })).toEqual([]);
+  });
+
+  it('a live rental of the unit beside a live SALE record is another listing (the feed holds both kinds for 800 2nd Ave #806 and 333 E 46th #2G)', () => {
+    expect(copies(SL_0010, { ...RLS_0010, listing_id: 'RLS10612741', listing_type: 'rent' })).toEqual([]);
+    expect(copies(SL_0004, { ...RLS_0004, listing_id: 'RLS10858480', listing_type: 'rent' })).toEqual([]);
+  });
+
+  it('a live sale row beside a live RENTAL record is another listing', () => {
+    const rl = { ...SL_0010, listing_id: 'RL-0009', listing_type: 'rent' };
+    expect(copies(rl, RLS_0010)).toEqual([]);
+  });
+
+  it('the sale copy is still hidden when a rental of the same unit is also in the list', () => {
+    expect(copies(SL_0010, RLS_0010, { ...RLS_0010, listing_id: 'RLS10612741', listing_type: 'rent' })).toEqual(['RLS20123633']);
+  });
+
+  it('a row that does not say sale or rent can not be proved the same listing', () => {
+    expect(copies({ ...SL_0010, listing_type: null }, RLS_0010)).toEqual([]);
+    expect(copies(SL_0010, { ...RLS_0010, listing_type: null })).toEqual([]);
+    expect(copies(SL_0010, { ...RLS_0010, listing_type: undefined })).toEqual([]);
+    expect(copies(SL_0010, { ...RLS_0010, listing_type: 'lease' })).toEqual([]);
   });
 });
 
@@ -159,7 +188,7 @@ describe('GET /api/crm/listings asks for one row per listing', () => {
     arrange([SL_0010, RLS_0010]);
     await GET(getReq('http://localhost/api/crm/listings?type=sale&status=Active&limit=5'));
     const own = ownSetQuery();
-    expect(own.select).toEqual({ listing_id: true, status: true, address: true });
+    expect(own.select).toEqual({ listing_id: true, status: true, address: true, listing_type: true });
     expect(own.where.listing_type).toBeUndefined();                                          // not narrowed by the tab the agent is on
     expect(own.where.status).toEqual({ notIn: ['Cancelled', 'Closed', 'Expired', 'Leased', 'Rented', 'Sold', 'Withdrawn'] });   // what can still be live; never the tab's status filter
     expect(own.take).toBe(2000);                                                             // bounded: it grows with the live inventory, not with every sale ever closed
