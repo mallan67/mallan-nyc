@@ -57,6 +57,7 @@ async function fillNewListing(): Promise<{ entered: Entered[]; payload: Record<s
     // what the form derives from what was typed (its own input / change handlers): the monthly tax from the annual one, the monthly total, the building's mirror of the address
     f.w.autoCalcTaxMonthly();
     f.w.calculateSaleTotalMonthly();
+    f.w.computeSaleBathroomsTotal();                         // typing in Full / Half Bathrooms fills the read-only Total; a fill from code does not (the reload recomputes it)
     f.w._syncSaleBuildingAddressFields();
     for (const e of entered) {
       if (e.kind === 'value' && ['saleTaxMonthly', 'saleBldgStreetAddress', 'saleNeighborhoodFromAddress', 'saleTotalMonthly'].includes(e.key)) e.expected = (f.d.getElementById(e.key) as HTMLInputElement).value;

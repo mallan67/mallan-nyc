@@ -10492,7 +10492,7 @@ function updateSalePreview() {
 
     // Views
     const views = [];
-    document.querySelectorAll('input[name="saleViews"]:checked').forEach(cb => views.push(cb.value || cb.parentElement?.textContent?.trim()));
+    document.querySelectorAll('input[name="saleViewList"]:checked').forEach(cb => views.push(cb.value || cb.parentElement?.textContent?.trim()));
     setText('salePreviewSiteDetailViews', views.length ? views.join(', ') : '--');
 
     // Interior features
@@ -13066,6 +13066,10 @@ function enforceBuildingAreaUnits() {
         h.fn(); // Run on initial load
     });
 })();
+
+// A fill from code (a pull from Cotality, a saved listing opening) fires no oninput, so the read-only Total Bathrooms stayed empty and, being required, kept the form from submitting.
+// Every fill goes through _populateSaleFormFromApi: the total is recomputed when it returns.
+(function () { var populate = _populateSaleFormFromApi; _populateSaleFormFromApi = function () { var out = populate.apply(this, arguments); computeSaleBathroomsTotal(); return out; }; })();
 
 // Auto-compute BathroomsTotal = Full + Half
 function computeSaleBathroomsTotal() {
