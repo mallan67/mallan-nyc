@@ -57,16 +57,31 @@ const finite = (v: unknown, fallback = 0): number => { const n = typeof v === 'n
 const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n));
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
+/** The range each box is brought into (low, high, and the value a missing or mistyped box takes). The engine and the page use the same ones, so the figure a box shows is the figure that was calculated. */
+export const INPUT_RANGES = {
+  downPaymentPercent: [0, 100, 25],
+  interestRate: [0, 25, 7],
+  vacancyRate: [0, 100, 5],
+  annualAppreciation: [-20, 20, 3],
+  holdingPeriod: [1, 30, 5],
+} as const;
+
+export function clampInput(name: keyof typeof INPUT_RANGES, value: unknown): number {
+  const [lo, hi, fallback] = INPUT_RANGES[name];
+  const n = clamp(finite(value, fallback), lo, hi);
+  return name === 'holdingPeriod' ? Math.round(n) : n;
+}
+
 export function calculateInvestment(input: InvestorInputs, assumptions: InvestorAssumptions = ASSUMPTIONS): InvestorResults {
   const purchasePrice = Math.max(0, finite(input.purchasePrice));
   const maintenanceFee = Math.max(0, finite(input.maintenanceFee));
   const monthlyTaxes = Math.max(0, finite(input.monthlyTaxes));
   const estimatedRent = Math.max(0, finite(input.estimatedRent));
-  const downPaymentPercent = clamp(finite(input.downPaymentPercent, 25), 0, 100);
-  const interestRate = clamp(finite(input.interestRate, 7), 0, 25);
-  const vacancyRate = clamp(finite(input.vacancyRate, 5), 0, 100);
-  const annualAppreciation = clamp(finite(input.annualAppreciation, 3), -20, 20);
-  const years = clamp(Math.round(finite(input.holdingPeriod, 5)), 1, 30);
+  const downPaymentPercent = clampInput('downPaymentPercent', input.downPaymentPercent);
+  const interestRate = clampInput('interestRate', input.interestRate);
+  const vacancyRate = clampInput('vacancyRate', input.vacancyRate);
+  const annualAppreciation = clampInput('annualAppreciation', input.annualAppreciation);
+  const years = clampInput('holdingPeriod', input.holdingPeriod);
   const A = assumptions;
 
   // Initial investment

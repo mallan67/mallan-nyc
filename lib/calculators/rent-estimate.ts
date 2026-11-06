@@ -9,6 +9,8 @@
  *   - a HOME starts from the median asking rent of the rentals live in Cotality for its size, by borough (the table below), and says so under the box.
  */
 
+import { rlsStatisticalDisclaimer } from '@/lib/compliance/rls-statistical-disclaimer';
+
 export interface ListingRent { monthly: number; perSqFtYear: number; sqFt: number }
 
 const toNumber = (v: unknown): number => {
@@ -25,23 +27,26 @@ export function listingRentFromPsf(rawData: Record<string, unknown> | null | und
 }
 
 /** A commercial listing's starting rent when its broker entered none: the average rent per SF of the commercial-use rentals in Cotality times its area, with how that average was found. */
-export interface CommercialMarketRent extends ListingRent { basis: string }
+export interface CommercialMarketRent extends ListingRent { basis: string; disclaimer: string }
 
 // Median ASKING (or closed) rent per square foot per YEAR of the commercial-use rentals of Manhattan in the Cotality feed, read live 2026-11-06. Cotality holds no CommercialLease or CommercialSale record on this
 // licence (0 of each): commercial space is filed as a ResidentialLease with a CurrentUse of Office, MedicalDental or Retail, or a PropertySubType of Office or Retail. Of the 42 such Manhattan rentals, 24 are
 // usable (an area of 200 to 5,000 SF and $10 to $200 a SF a year: the rest are entries such as a 480,871 SF "office" or $3 a SF); median $77.7, mean $78.5, middle half $64.6 to $105. They run from 2012 to
 // 2026 and only 4 are since 2023, so this is a thin and dated average: the rent the broker enters always replaces it. Other boroughs have too few to average. To refresh it, take PropertyType eq
 // 'ResidentialLease' with that CurrentUse or PropertySubType in a borough, drop the entries outside those ranges, and take the median of ListPrice (ClosePrice when closed) x 12 / area.
-const COMMERCIAL_MEDIAN_RENT_PSF_YEAR = { manhattan: { perSqFtYear: 78, rentals: 24, years: '2012 to 2026' } } as const;
+// The period is the one the 24 rentals cover (their close or on-market dates: 2012-11-28 to 2026-07-24), which the statistical disclaimer (UCBA 2026 Art. VIII Sec. 4) must state truly. The size range is the
+// one the 24 rentals have (200 to 5,000 SF): a unit outside it is not a unit this average describes.
+const COMMERCIAL_MEDIAN_RENT_PSF_YEAR = { manhattan: { perSqFtYear: 78, rentals: 24, years: '2012 to 2026', period: { start: '2012-11-28', end: '2026-07-24' }, sqFtRange: [200, 5000] } } as const;
 
 export function commercialRentDefault(borough: string | null | undefined, sqFt: unknown): CommercialMarketRent | undefined {
   if (!/manhattan/i.test(String(borough ?? ''))) return undefined;                       // no borough, or one with too few rentals to average: nothing is guessed
   const area = toNumber(sqFt);
-  if (area <= 0) return undefined;
   const m = COMMERCIAL_MEDIAN_RENT_PSF_YEAR.manhattan;
+  if (area < m.sqFtRange[0] || area > m.sqFtRange[1]) return undefined;                  // no area, or a unit the average does not describe: nothing is guessed
   return {
     monthly: Math.round((m.perSqFtYear * area) / 12), perSqFtYear: m.perSqFtYear, sqFt: Math.round(area),
     basis: `Based on average commercial rents in Manhattan: $${m.perSqFtYear} per SF a year on ${Math.round(area).toLocaleString('en-US')} SF`,
+    disclaimer: rlsStatisticalDisclaimer(m.period.start, m.period.end),
   };
 }
 
@@ -62,12 +67,19 @@ const MEDIAN_ASKING_RENT = {
 const BED_WORDS = ['studio apartments', '1-bedroom apartments', '2-bedroom apartments', '3-bedroom apartments', '4+ bedroom apartments'] as const;
 const AREA_WORDS = { manhattan: 'Manhattan', brooklyn: 'Brooklyn', outer: 'the outer boroughs' } as const;
 
-export type MarketRent = { monthly: number; basis: string };
+export type MarketRent = { monthly: number; basis: string; disclaimer: string };
+
+// The statistics are a snapshot of the rentals ACTIVE on this day, so the period they cover starts and ends on it (the Execution State's rule for a snapshot of the current inventory).
+const RESIDENTIAL_RENT_PERIOD = { start: '2026-11-05', end: '2026-11-05' } as const;
 
 /** A home's starting rent: the median asking rent of live rentals of its size in its borough. No borough means Manhattan (the site's own market). */
 export function marketRentDefault(bedrooms: unknown, borough?: string | null): MarketRent {
   const b = String(borough ?? '').trim().toLowerCase();
   const area: keyof typeof MEDIAN_ASKING_RENT = b === '' || b.includes('manhattan') || b === 'new york' ? 'manhattan' : b.includes('brooklyn') ? 'brooklyn' : 'outer';
   const beds = Math.min(4, Math.max(0, Math.round(toNumber(bedrooms))));
-  return { monthly: MEDIAN_ASKING_RENT[area][beds], basis: `Based on average asking rents for ${BED_WORDS[beds]} in ${AREA_WORDS[area]}` };
+  return {
+    monthly: MEDIAN_ASKING_RENT[area][beds],
+    basis: `Based on average asking rents for ${BED_WORDS[beds]} in ${AREA_WORDS[area]}`,
+    disclaimer: rlsStatisticalDisclaimer(RESIDENTIAL_RENT_PERIOD.start, RESIDENTIAL_RENT_PERIOD.end),
+  };
 }

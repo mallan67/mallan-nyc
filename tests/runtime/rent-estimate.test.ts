@@ -6,6 +6,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { listingRentFromPsf, marketRentDefault, showsInvestorCalculator, commercialRentDefault } from '@/lib/calculators/rent-estimate';
+import { rlsStatisticalDisclaimer } from '@/lib/compliance/rls-statistical-disclaimer';
 
 describe('a commercial listing starts from the rent the broker entered', () => {
   it('800 2nd Ave #806: $40 per SF a year on 1,482 SF is $59,280 a year, $4,940 a month', () => {
@@ -82,7 +83,8 @@ describe('the listing page wires it', () => {
     expect(page).toContain('commercialRentDefault(borough, listing.livingArea)');
     expect(page).toContain('defaultMonthlyRent={(listing.estimatedRent ?? commercialMarketRent)?.monthly}');
     expect(page).toContain('borough={borough}');
-    expect(page).toMatch(/rentBasis=\{listing\.estimatedRent \? `Based on the rent entered for this listing: \$\$\{listing\.estimatedRent\.perSqFtYear\} per SF a year on/);
+    expect(page).toMatch(/rentBasis=\{listing\.estimatedRent \? `Based on Mallan's expected rent for this unit: \$\$\{listing\.estimatedRent\.perSqFtYear\} per SF a year on/);
+    expect(page).toContain('rentDisclaimer={listing.estimatedRent ? undefined : commercialMarketRent?.disclaimer}');
   });
 });
 
@@ -109,5 +111,33 @@ describe('a commercial listing with no rent entered starts from the average rent
   it('the rent entered for the listing is a different thing, and the page prefers it: 800 2nd Ave at $40 is $4,940 a month, not the average\'s $9,633', () => {
     expect(listingRentFromPsf({ saleCommercialRentPSF: 40 }, 1482)!.monthly).toBe(4940);
     expect(commercialRentDefault('Manhattan', 1482)!.monthly).toBeGreaterThan(4940);
+  });
+});
+
+describe('every starting rent that is an average of RLS data carries the REBNY statistical disclaimer with a true period (compliance audit of PR 697, 2026-11-06; UCBA 2026 Art. VIII Sec. 4)', () => {
+  const TAIL = 'The REBNY Listing Service makes no representations or warranties with respect to the accuracy or completeness of such information and shall not be held liable for any omission or inaccuracy of such information thereof.';
+
+  it('a home: the period is the day its active rentals were read (a snapshot of the current inventory starts and ends on it)', () => {
+    for (const [beds, borough] of [[1, 'Manhattan'], [0, 'Brooklyn'], [3, 'Queens']] as const) {
+      expect(marketRentDefault(beds, borough).disclaimer).toBe('Based on information from the REBNY Listing Service for the period November 5, 2026 through November 5, 2026. ' + TAIL);
+    }
+  });
+
+  it('a commercial average: the period is the one its 24 rentals cover, 2012 to 2026, so the age of the average is stated', () => {
+    expect(commercialRentDefault('Manhattan', 1482)!.disclaimer).toBe('Based on information from the REBNY Listing Service for the period November 28, 2012 through July 24, 2026. ' + TAIL);
+  });
+
+  it('the wording is the repo\'s one (lib/compliance/rls-statistical-disclaimer.ts), not a second wording', () => {
+    expect(marketRentDefault(1, 'Manhattan').disclaimer).toBe(rlsStatisticalDisclaimer('2026-11-05', '2026-11-05'));
+    expect(commercialRentDefault('Manhattan', 1482)!.disclaimer).toBe(rlsStatisticalDisclaimer('2012-11-28', '2026-07-24'));
+  });
+});
+
+describe('the commercial average describes only the units it was taken from: 200 to 5,000 SF', () => {
+  it.each([[199], [5001], [20000], [480871]])('%p SF: no average (nothing is guessed)', (sqFt) => {
+    expect(commercialRentDefault('Manhattan', sqFt)).toBeUndefined();
+  });
+  it.each([[200], [1482], [5000]])('%p SF: the average applies', (sqFt) => {
+    expect(commercialRentDefault('Manhattan', sqFt)).toMatchObject({ perSqFtYear: 78 });
   });
 });

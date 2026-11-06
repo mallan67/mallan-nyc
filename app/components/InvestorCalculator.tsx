@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import CalculatorLeadCapture from '@/app/components/CalculatorLeadCapture';
-import { calculateInvestment, formatMoney } from '@/lib/calculators/investor-analysis';
+import { calculateInvestment, formatMoney, clampInput } from '@/lib/calculators/investor-analysis';
 import { marketRentDefault } from '@/lib/calculators/rent-estimate';
 
 interface InvestorCalculatorProps {
@@ -19,6 +19,8 @@ interface InvestorCalculatorProps {
   defaultMonthlyRent?: number;
   /** Where that rent comes from, as it is told under the box. */
   rentBasis?: string;
+  /** The REBNY statistical disclaimer (with its period) of a starting rent that is an average of RLS data; a rent entered for the listing has none. */
+  rentDisclaimer?: string;
 }
 
 export default function InvestorCalculator({
@@ -31,6 +33,7 @@ export default function InvestorCalculator({
   borough,
   defaultMonthlyRent,
   rentBasis,
+  rentDisclaimer,
 }: InvestorCalculatorProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [downPaymentPercent, setDownPaymentPercent] = useState(25);
@@ -39,6 +42,8 @@ export default function InvestorCalculator({
   const market = marketRentDefault(bedrooms, borough);
   const ownRent = defaultMonthlyRent && defaultMonthlyRent > 0 ? defaultMonthlyRent : 0;
   const rentBasisText = ownRent ? (rentBasis || 'The rent entered for this listing') : market.basis;
+  // A starting rent that is an average of RLS data carries the statistical disclaimer with the period it covers (UCBA 2026 Art. VIII Sec. 4); a rent entered for the listing is not RLS data and carries none.
+  const statisticalDisclaimer = ownRent ? (rentDisclaimer || '') : market.disclaimer;
   const [estimatedRent, setEstimatedRent] = useState(ownRent || market.monthly);
   const [vacancyRate, setVacancyRate] = useState(5);
   const [annualAppreciation, setAnnualAppreciation] = useState(3);
@@ -131,6 +136,7 @@ export default function InvestorCalculator({
                     type="number"
                     value={downPaymentPercent}
                     onChange={(e) => setDownPaymentPercent(Number(e.target.value))}
+                    onBlur={() => setDownPaymentPercent(clampInput('downPaymentPercent', downPaymentPercent))}
                     className="w-full pl-3 pr-7 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                     min={10}
                     max={100}
@@ -145,6 +151,7 @@ export default function InvestorCalculator({
                     type="number"
                     value={interestRate}
                     onChange={(e) => setInterestRate(Number(e.target.value))}
+                    onBlur={() => setInterestRate(clampInput('interestRate', interestRate))}
                     className="w-full pl-3 pr-7 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                     step={0.125}
                     min={3}
@@ -160,6 +167,7 @@ export default function InvestorCalculator({
                     type="number"
                     value={vacancyRate}
                     onChange={(e) => setVacancyRate(Number(e.target.value))}
+                    onBlur={() => setVacancyRate(clampInput('vacancyRate', vacancyRate))}
                     className="w-full pl-3 pr-7 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                     min={0}
                     max={20}
@@ -174,6 +182,7 @@ export default function InvestorCalculator({
                     type="number"
                     value={annualAppreciation}
                     onChange={(e) => setAnnualAppreciation(Number(e.target.value))}
+                    onBlur={() => setAnnualAppreciation(clampInput('annualAppreciation', annualAppreciation))}
                     className="w-full pl-3 pr-7 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                     step={0.5}
                     min={-5}
@@ -189,6 +198,7 @@ export default function InvestorCalculator({
                     type="number"
                     value={holdingPeriod}
                     onChange={(e) => setHoldingPeriod(Number(e.target.value))}
+                    onBlur={() => setHoldingPeriod(clampInput('holdingPeriod', holdingPeriod))}
                     className="w-full pl-3 pr-8 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                     min={1}
                     max={30}
@@ -285,9 +295,10 @@ export default function InvestorCalculator({
           </div>
 
           <p className="mt-4 text-xs text-brand-dark/90">
-            *Estimates only. Assumes 4% closing costs, 6% selling costs, a 30-year loan, 3% annual rent growth, 2% expense growth, insurance of $500 a year. The maintenance is the only other expense (taxes are added when the listing has them separately).
+            *Estimates only; projections are not guarantees of future profit. Assumes 4% closing costs, 6% selling costs, a 30-year loan, 3% annual rent growth, 2% expense growth, insurance of $500 a year. The maintenance is the only other expense (taxes are added when the listing has them separately).
             Consult a financial advisor and tax professional for investment decisions.
           </p>
+          {statisticalDisclaimer && <p className="mt-1 text-[10px] leading-tight text-brand-dark/60">{statisticalDisclaimer}</p>}
 
           <CalculatorLeadCapture
             calculatorType="investor"

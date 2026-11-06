@@ -26,8 +26,12 @@ describe('the Commercial section of the Sale form has the rent', () => {
       expect(box).not.toBeNull();
       expect(box.value).toBe('');
       expect(box.type).toBe('number');
-      expect(box.parentElement!.textContent).toMatch(/Rent \(\$ per SF per year\)/);
-      expect(box.parentElement!.textContent).toMatch(/Investment Analysis on the listing page starts from it/);
+      const words = box.parentElement!.textContent!;
+      expect(words).toMatch(/Expected rent \(\$ per SF per year\)/);
+      expect(words).toMatch(/Investment Analysis on the listing page starts from it/);
+      // the box asks for Mallan's OWN expected rent: never "the last advertised rent", which invites copying another broker's listing or an RLS rent
+      expect(words).toMatch(/not another broker's listing or an RLS rent/);
+      expect(words).not.toMatch(/last advertised/i);
     } finally { f.close(); }
   });
 });

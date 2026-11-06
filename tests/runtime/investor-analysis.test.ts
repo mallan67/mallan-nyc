@@ -6,7 +6,7 @@
  * Every figure below is the one the live page printed; each was also worked by hand (the mortgage of $573,750 at 6% over 30 years is $3,440 a month, the remaining balance after 10 years is $480,147, and
  * so on), so the formulas are right and this pins them against a change.
  */
-import { calculateInvestment, formatMoney, ASSUMPTIONS, type InvestorInputs, type InvestorAssumptions } from '@/lib/calculators/investor-analysis';
+import { calculateInvestment, formatMoney, clampInput, ASSUMPTIONS, type InvestorInputs, type InvestorAssumptions } from '@/lib/calculators/investor-analysis';
 
 const PAGE: InvestorInputs = { purchasePrice: 765000, maintenanceFee: 1748.65, monthlyTaxes: 0, estimatedRent: 4350, downPaymentPercent: 25, interestRate: 6, vacancyRate: 5, annualAppreciation: 3, holdingPeriod: 10 };
 
@@ -150,4 +150,19 @@ describe('333 E 46th St #2G with the expenses it really has: the maintenance, an
 describe('formatMoney: a loss has its minus sign first', () => {
   it.each([[-1529, '-$1,529'], [1529, '$1,529'], [0, '$0'], [-0.4, '$0'], [1234567, '$1,234,567'], [-136214, '-$136,214'], [NaN, '$0']])('%p -> %s', (n, text) => { expect(formatMoney(n)).toBe(text); });
   it('is never the "$-1,529" the live page printed', () => { expect(formatMoney(-1529)).not.toBe('$-1,529'); });
+});
+
+describe('clampInput: a box shows the figure that was calculated (30% interest is calculated at 25%, so the box says 25)', () => {
+  it.each([['interestRate', 30, 25], ['interestRate', -2, 0], ['interestRate', 6.5, 6.5], ['downPaymentPercent', 150, 100], ['vacancyRate', 120, 100], ['annualAppreciation', -50, -20], ['holdingPeriod', 0, 1], ['holdingPeriod', 99, 30], ['holdingPeriod', 7.6, 8], ['holdingPeriod', 10, 10]] as const)('%s %p -> %p', (name, typed, shown) => {
+    expect(clampInput(name, typed)).toBe(shown);
+  });
+  it('a missing or mistyped box takes its default', () => {
+    expect(clampInput('interestRate', NaN)).toBe(7);
+    expect(clampInput('holdingPeriod', undefined)).toBe(5);
+    expect(clampInput('downPaymentPercent', 'abc')).toBe(25);
+  });
+  it('is the very value the engine calculates with', () => {
+    const typed = { ...PAGE, interestRate: 30 };
+    expect(calculateInvestment(typed).monthlyMortgage).toBe(calculateInvestment({ ...PAGE, interestRate: clampInput('interestRate', 30) }).monthlyMortgage);
+  });
 });

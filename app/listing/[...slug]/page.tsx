@@ -1847,7 +1847,8 @@ export default async function ListingPage({ params }: Props) {
                     neighborhood={neighborhood || borough}
                     borough={borough}
                     defaultMonthlyRent={(listing.estimatedRent ?? commercialMarketRent)?.monthly}
-                    rentBasis={listing.estimatedRent ? `Based on the rent entered for this listing: $${listing.estimatedRent.perSqFtYear} per SF a year on ${listing.estimatedRent.sqFt.toLocaleString('en-US')} SF` : commercialMarketRent?.basis}
+                    rentBasis={listing.estimatedRent ? `Based on Mallan's expected rent for this unit: $${listing.estimatedRent.perSqFtYear} per SF a year on ${listing.estimatedRent.sqFt.toLocaleString('en-US')} SF` : commercialMarketRent?.basis}
+                    rentDisclaimer={listing.estimatedRent ? undefined : commercialMarketRent?.disclaimer}
                   />
                 ) : (
                   <RentVsBuyCalculator

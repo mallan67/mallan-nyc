@@ -12,7 +12,7 @@ import { calculateInvestment, formatMoney } from '@/lib/calculators/investor-ana
 
 // 333 E 46th St #2G as the page passes it: a co-op, $765,000, maintenance $1,748.65, no separate tax, one bedroom (the page's own default inputs: the Manhattan one-bedroom median rent, $4,995, 7%, 5 years)
 const PAGE_PROPS = { purchasePrice: 765000, maintenanceFee: 1748.65, monthlyTaxes: 0, bedrooms: 1, neighborhood: 'Turtle Bay' };
-const text = (html: string) => html.replace(/<!-- -->/g, '').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
+const text = (html: string) => html.replace(/<!-- -->/g, '').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&#x27;/g, "'").replace(/\s+/g, ' ');
 
 describe('the opened Investment Analysis', () => {
   const html = renderToStaticMarkup(createElement(InvestorCalculator, { ...PAGE_PROPS, defaultExpanded: true }));
@@ -142,5 +142,40 @@ describe('no verdict on the cash flow (Maya, 2026-11-05: "remove the yellow bann
   it('the figures that sat under the banner are all still there', () => {
     const shown = open({});
     for (const label of ['Cap Rate', 'Cash on Cash', 'Monthly Cash Flow', 'Total ROI (Yr 1)', 'Investment Parameters', 'Monthly Breakdown']) expect(shown).toContain(label);
+  });
+});
+
+describe('the statistical disclaimer, the guarantee phrase, and boxes that show what was calculated (compliance audit of PR 697, 2026-11-06)', () => {
+  const open = (props: Record<string, unknown>) => renderToStaticMarkup(createElement(InvestorCalculator, { ...PAGE_PROPS, defaultExpanded: true, ...props }));
+  const DISCLAIMER = /Based on information from the REBNY Listing Service for the period [A-Z][a-z]+ \d+, \d{4} through [A-Z][a-z]+ \d+, \d{4}\. The REBNY Listing Service makes no representations or warranties/;
+
+  it('a home\'s starting rent (an average of RLS data) is followed by the disclaimer with its period, in the same tiny quiet type', () => {
+    const html = open({ borough: 'Manhattan' });
+    expect(text(html)).toMatch(DISCLAIMER);
+    expect(text(html)).toContain('for the period November 5, 2026 through November 5, 2026');
+    const p = /<p class="([^"]*)">(Based on information from the REBNY[^<]*)<\/p>/.exec(html);
+    expect(p).not.toBeNull();
+    expect(p![1]).toContain('text-[10px]');
+    expect(p![1]).not.toMatch(/\b(bg-|border|ring|rounded|p-\d|font-(medium|semibold|bold)|text-(red|green|amber|yellow|blue|sm|base|lg))/);
+  });
+
+  it('a commercial average carries its own period (2012 to 2026), passed by the page', () => {
+    const html = open({ defaultMonthlyRent: 9633, rentBasis: 'Based on average commercial rents in Manhattan: $78 per SF a year on 1,482 SF', rentDisclaimer: 'Based on information from the REBNY Listing Service for the period November 28, 2012 through July 24, 2026. The REBNY Listing Service makes no representations or warranties with respect to the accuracy or completeness of such information and shall not be held liable for any omission or inaccuracy of such information thereof.' });
+    expect(text(html)).toContain('for the period November 28, 2012 through July 24, 2026');
+  });
+
+  it('a rent the broker entered is not RLS data: no RLS disclaimer follows it', () => {
+    const html = open({ defaultMonthlyRent: 4940, rentBasis: "Based on Mallan's expected rent for this unit: $40 per SF a year on 1,482 SF" });
+    expect(text(html)).not.toContain('REBNY Listing Service');
+    expect(text(html)).toContain("Based on Mallan's expected rent for this unit: $40 per SF a year on 1,482 SF.");
+  });
+
+  it('the footnote says the projections are not guarantees of future profit (19 NYCRR 175.25(c)(10))', () => {
+    expect(text(open({}))).toContain('projections are not guarantees of future profit');
+  });
+
+  it('every number box brings what is typed back into the range it was calculated in, when it is left', () => {
+    const source = readFileSync(resolve(__dirname, '../../app/components/InvestorCalculator.tsx'), 'utf8');
+    for (const name of ['downPaymentPercent', 'interestRate', 'vacancyRate', 'annualAppreciation', 'holdingPeriod']) expect(source).toContain("clampInput('" + name + "'");
   });
 });
