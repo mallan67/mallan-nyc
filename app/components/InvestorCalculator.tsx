@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import CalculatorLeadCapture from '@/app/components/CalculatorLeadCapture';
+import { calculateInvestment, formatMoney } from '@/lib/calculators/investor-analysis';
 
 interface InvestorCalculatorProps {
   purchasePrice: number;
@@ -9,6 +10,8 @@ interface InvestorCalculatorProps {
   monthlyTaxes?: number;
   bedrooms?: number;
   neighborhood?: string;
+  /** Open on first render (the section is collapsed by default; tests render it open). */
+  defaultExpanded?: boolean;
 }
 
 export default function InvestorCalculator({
@@ -17,8 +20,9 @@ export default function InvestorCalculator({
   monthlyTaxes = 0,
   bedrooms = 1,
   neighborhood: _neighborhood = '',
+  defaultExpanded = false,
 }: InvestorCalculatorProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [downPaymentPercent, setDownPaymentPercent] = useState(25);
   const [interestRate, setInterestRate] = useState(7.0);
   const [estimatedRent, setEstimatedRent] = useState(() => {
@@ -36,131 +40,10 @@ export default function InvestorCalculator({
   const [annualAppreciation, setAnnualAppreciation] = useState(3);
   const [holdingPeriod, setHoldingPeriod] = useState(5);
 
-  const calculations = useMemo(() => {
-    // Initial Investment
-    const downPayment = purchasePrice * (downPaymentPercent / 100);
-    const closingCosts = purchasePrice * 0.04; // 4% closing costs in NYC
-    const totalCashInvested = downPayment + closingCosts;
-
-    // Loan calculations
-    const loanAmount = purchasePrice - downPayment;
-    const monthlyRate = interestRate / 100 / 12;
-    const totalPayments = 30 * 12;
-    let monthlyMortgage = 0;
-    if (monthlyRate > 0 && loanAmount > 0) {
-      monthlyMortgage = loanAmount *
-        (monthlyRate * Math.pow(1 + monthlyRate, totalPayments)) /
-        (Math.pow(1 + monthlyRate, totalPayments) - 1);
-    }
-
-    // Monthly operating expenses
-    const monthlyInsurance = Math.round((purchasePrice * 0.004) / 12);
-    const monthlyRepairs = Math.round(estimatedRent * 0.05); // 5% for repairs/maintenance reserve
-    const monthlyExpenses = maintenanceFee + monthlyTaxes + monthlyInsurance + monthlyRepairs;
-
-    // Income calculations
-    const grossMonthlyRent = estimatedRent;
-    const effectiveMonthlyRent = grossMonthlyRent * (1 - vacancyRate / 100);
-    const annualGrossRent = grossMonthlyRent * 12;
-    const annualEffectiveRent = effectiveMonthlyRent * 12;
-
-    // Annual operating expenses (excluding mortgage)
-    const annualOperatingExpenses = monthlyExpenses * 12;
-
-    // Net Operating Income (NOI) - before debt service
-    const noi = annualEffectiveRent - annualOperatingExpenses;
-
-    // Cap Rate
-    const capRate = (noi / purchasePrice) * 100;
-
-    // Cash Flow (after debt service)
-    const annualDebtService = monthlyMortgage * 12;
-    const annualCashFlow = noi - annualDebtService;
-    const monthlyCashFlow = annualCashFlow / 12;
-
-    // Cash on Cash Return
-    const cashOnCash = (annualCashFlow / totalCashInvested) * 100;
-
-    // Gross Rent Multiplier
-    const grm = purchasePrice / annualGrossRent;
-
-    // Equity buildup (first year)
-    let equityFirstYear = 0;
-    let balance = loanAmount;
-    for (let month = 1; month <= 12; month++) {
-      const interestPayment = balance * monthlyRate;
-      const principalPayment = monthlyMortgage - interestPayment;
-      balance -= principalPayment;
-      equityFirstYear += principalPayment;
-    }
-
-    // Total ROI components (first year)
-    const appreciationFirstYear = purchasePrice * (annualAppreciation / 100);
-    const totalReturnFirstYear = annualCashFlow + equityFirstYear + appreciationFirstYear;
-    const totalROI = (totalReturnFirstYear / totalCashInvested) * 100;
-
-    // Projections over holding period
-    let cumulativeCashFlow = 0;
-    let totalEquityBuilt = 0;
-    balance = loanAmount;
-    for (let year = 1; year <= holdingPeriod; year++) {
-      // Rent increases 3% annually
-      const yearRent = effectiveMonthlyRent * Math.pow(1.03, year - 1) * 12;
-      const yearExpenses = annualOperatingExpenses * Math.pow(1.02, year - 1); // 2% expense growth
-      const yearNOI = yearRent - yearExpenses;
-      cumulativeCashFlow += yearNOI - annualDebtService;
-
-      // Equity buildup for the year
-      for (let month = 1; month <= 12; month++) {
-        const interestPayment = balance * monthlyRate;
-        const principalPayment = monthlyMortgage - interestPayment;
-        balance -= principalPayment;
-        totalEquityBuilt += principalPayment;
-      }
-    }
-
-    // Future value of property
-    const futureValue = purchasePrice * Math.pow(1 + annualAppreciation / 100, holdingPeriod);
-    const totalAppreciation = futureValue - purchasePrice;
-
-    // Exit calculations
-    const sellingCosts = futureValue * 0.06; // 6% selling costs
-    const netSaleProceeds = futureValue - balance - sellingCosts;
-    const totalProfit = netSaleProceeds + cumulativeCashFlow - totalCashInvested;
-    const annualizedReturn = (Math.pow((totalCashInvested + totalProfit) / totalCashInvested, 1 / holdingPeriod) - 1) * 100;
-
-    return {
-      // Initial
-      downPayment: Math.round(downPayment),
-      closingCosts: Math.round(closingCosts),
-      totalCashInvested: Math.round(totalCashInvested),
-      loanAmount: Math.round(loanAmount),
-
-      // Monthly
-      monthlyMortgage: Math.round(monthlyMortgage),
-      monthlyExpenses: Math.round(monthlyExpenses),
-      monthlyCashFlow: Math.round(monthlyCashFlow),
-      effectiveMonthlyRent: Math.round(effectiveMonthlyRent),
-
-      // Annual
-      noi: Math.round(noi),
-      annualCashFlow: Math.round(annualCashFlow),
-
-      // Returns
-      capRate: capRate.toFixed(2),
-      cashOnCash: cashOnCash.toFixed(2),
-      totalROI: totalROI.toFixed(2),
-      grm: grm.toFixed(1),
-
-      // Projections
-      futureValue: Math.round(futureValue),
-      totalAppreciation: Math.round(totalAppreciation),
-      totalEquityBuilt: Math.round(totalEquityBuilt),
-      cumulativeCashFlow: Math.round(cumulativeCashFlow),
-      totalProfit: Math.round(totalProfit),
-      annualizedReturn: annualizedReturn.toFixed(2),
-    };
-  }, [purchasePrice, downPaymentPercent, interestRate, estimatedRent, vacancyRate,
+  // The maths lives in lib/calculators/investor-analysis.ts (tested against the printed page of 333 E 46th St #2G; a cleared or mistyped box cannot make it NaN)
+  const calculations = useMemo(() => calculateInvestment({
+    purchasePrice, maintenanceFee, monthlyTaxes, estimatedRent, downPaymentPercent, interestRate, vacancyRate, annualAppreciation, holdingPeriod,
+  }), [purchasePrice, downPaymentPercent, interestRate, estimatedRent, vacancyRate,
       maintenanceFee, monthlyTaxes, annualAppreciation, holdingPeriod]);
 
   const isPositiveCashFlow = calculations.monthlyCashFlow > 0;
@@ -196,24 +79,24 @@ export default function InvestorCalculator({
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
               <p className="text-xs text-brand-dark/85 mb-1">Cap Rate</p>
-              <p className="text-xl font-display font-bold text-brand-dark">{calculations.capRate}%</p>
+              <p className="text-xl font-display font-bold text-brand-dark">{calculations.capRate.toFixed(2)}%</p>
             </div>
             <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
               <p className="text-xs text-brand-dark/85 mb-1">Cash on Cash</p>
-              <p className={`text-xl font-display font-bold ${Number(calculations.cashOnCash) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {calculations.cashOnCash}%
+              <p className={`text-xl font-display font-bold ${calculations.cashOnCash >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {calculations.cashOnCash.toFixed(2)}%
               </p>
             </div>
             <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
               <p className="text-xs text-brand-dark/85 mb-1">Monthly Cash Flow</p>
               <p className={`text-xl font-display font-bold ${isPositiveCashFlow ? 'text-green-600' : 'text-red-600'}`}>
-                ${calculations.monthlyCashFlow.toLocaleString()}
+                {formatMoney(calculations.monthlyCashFlow)}
               </p>
             </div>
             <div className="bg-gray-50/50 rounded-2xl p-3 text-center">
               <p className="text-xs text-brand-dark/85 mb-1">Total ROI (Yr 1)</p>
-              <p className={`text-xl font-display font-bold ${Number(calculations.totalROI) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {calculations.totalROI}%
+              <p className={`text-xl font-display font-bold ${calculations.totalROI >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {calculations.totalROI.toFixed(2)}%
               </p>
             </div>
           </div>
@@ -336,20 +219,20 @@ export default function InvestorCalculator({
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-brand-dark/85">Effective Rent (after vacancy)</span>
-                <span className="text-green-600">+${calculations.effectiveMonthlyRent.toLocaleString()}</span>
+                <span className="text-green-600">+{formatMoney(calculations.effectiveMonthlyRent)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-brand-dark/85">Mortgage (P&I)</span>
-                <span className="text-red-600">-${calculations.monthlyMortgage.toLocaleString()}</span>
+                <span className="text-red-600">{formatMoney(-calculations.monthlyMortgage)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-brand-dark/85">Taxes + Maint + Insurance</span>
-                <span className="text-red-600">-${calculations.monthlyExpenses.toLocaleString()}</span>
+                <span className="text-brand-dark/85">Maint/CC, taxes, insurance &amp; repairs</span>
+                <span className="text-red-600">{formatMoney(-calculations.monthlyExpenses)}</span>
               </div>
               <div className="flex justify-between pt-2 border-t border-black/5 font-medium">
                 <span className="text-brand-dark/95">Monthly Cash Flow</span>
                 <span className={isPositiveCashFlow ? 'text-green-600' : 'text-red-600'}>
-                  ${calculations.monthlyCashFlow.toLocaleString()}
+                  {formatMoney(calculations.monthlyCashFlow)}
                 </span>
               </div>
             </div>
@@ -357,41 +240,45 @@ export default function InvestorCalculator({
 
           {/* Projection */}
           <div className="mt-6 pt-4 border-t border-black/5">
-            <h4 className="font-display font-medium text-brand-dark text-sm mb-3">{holdingPeriod}-Year Projection</h4>
+            <h4 className="font-display font-medium text-brand-dark text-sm mb-3">{calculations.years}-Year Projection</h4>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-brand-dark/85">Total Cash Invested</span>
-                <span className="font-medium">${calculations.totalCashInvested.toLocaleString()}</span>
+                <span className="font-medium">{formatMoney(calculations.totalCashInvested)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-brand-dark/85">Cumulative Cash Flow</span>
                 <span className={calculations.cumulativeCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}>
-                  ${calculations.cumulativeCashFlow.toLocaleString()}
+                  {formatMoney(calculations.cumulativeCashFlow)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-brand-dark/85">Equity Built (principal paydown)</span>
-                <span className="text-green-600">${calculations.totalEquityBuilt.toLocaleString()}</span>
+                <span className="text-green-600">{formatMoney(calculations.totalEquityBuilt)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-brand-dark/85">Appreciation Gain</span>
-                <span className="text-green-600">${calculations.totalAppreciation.toLocaleString()}</span>
+                <span className={calculations.totalAppreciation >= 0 ? 'text-green-600' : 'text-red-600'}>{formatMoney(calculations.totalAppreciation)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-brand-dark/85">Future Property Value</span>
-                <span className="font-medium">${calculations.futureValue.toLocaleString()}</span>
+                <span className="font-medium">{formatMoney(calculations.futureValue)}</span>
               </div>
               <div className="flex justify-between pt-2 border-t border-black/5 font-medium">
                 <span className="text-brand-dark/95">Total Profit (after sale)</span>
                 <span className={calculations.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}>
-                  ${calculations.totalProfit.toLocaleString()}
+                  {formatMoney(calculations.totalProfit)}
                 </span>
               </div>
               <div className="flex justify-between font-medium">
                 <span className="text-brand-dark/95">Annualized Return</span>
-                <span className={Number(calculations.annualizedReturn) >= 0 ? 'text-green-600' : 'text-red-600'}>
-                  {calculations.annualizedReturn}%
-                </span>
+                {calculations.annualizedReturn === null ? (
+                  <span className="text-brand-dark/70">&mdash;</span>
+                ) : (
+                  <span className={calculations.annualizedReturn >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    {calculations.annualizedReturn.toFixed(2)}%
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -402,24 +289,24 @@ export default function InvestorCalculator({
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-brand-dark/85">NOI (Annual)</span>
-                <span className="font-medium">${calculations.noi.toLocaleString()}</span>
+                <span className="font-medium">{formatMoney(calculations.noi)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-brand-dark/85">GRM</span>
-                <span className="font-medium">{calculations.grm}x</span>
+                <span className="font-medium">{calculations.grm === null ? '—' : `${calculations.grm.toFixed(1)}x`}</span>
               </div>
             </div>
           </div>
 
           <p className="mt-4 text-xs text-brand-dark/90">
-            *Estimates only. Assumes 4% closing costs, 6% selling costs, 3% annual rent growth, 2% expense growth.
+            *Estimates only. Assumes 4% closing costs, 6% selling costs, a 30-year loan, 3% annual rent growth, 2% expense growth, insurance of 0.4% of the price a year and a repairs reserve of 5% of the rent.
             Consult a financial advisor and tax professional for investment decisions.
           </p>
 
           <CalculatorLeadCapture
             calculatorType="investor"
             hasCalculated={isExpanded}
-            resultsSummary={`Price: $${purchasePrice.toLocaleString()}. Cap rate: ${calculations.capRate}%. Cash on cash: ${calculations.cashOnCash}%. Monthly cash flow: $${calculations.monthlyCashFlow.toLocaleString()}.`}
+            resultsSummary={`Price: ${formatMoney(purchasePrice)}. Cap rate: ${calculations.capRate.toFixed(2)}%. Cash on cash: ${calculations.cashOnCash.toFixed(2)}%. Monthly cash flow: ${formatMoney(calculations.monthlyCashFlow)}.`}
           />
         </div>
       )}

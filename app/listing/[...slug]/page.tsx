@@ -11,6 +11,7 @@ import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
 import AuctionBanner from '@/app/components/AuctionBanner';
 import InvestorCalculator from '@/app/components/InvestorCalculator';
+import ListingDescription from '@/app/components/ListingDescription';
 import RentVsBuyCalculator from '@/app/components/RentVsBuyCalculator';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import ListingMediaGallery from '@/app/components/ListingMediaGallery';
@@ -1536,15 +1537,8 @@ export default async function ListingPage({ params }: Props) {
               {listing.publicRemarks && (
                 <section className="py-6 border-t border-black/[0.06]">
                   <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">About This Property</h2>
-                  <p
-                    className="text-brand-dark/85 text-[15px] leading-[1.85] max-w-none text-justify whitespace-pre-wrap"
-                  >
-                    {listing.publicRemarks
-                      .replace(/<[^>]*>/g, '')
-                      .replace(/\?\?(?=\s)/g, '•')
-                      .replace(/\*\*([^*]+)\*\*/g, '$1')
-                    }
-                  </p>
+                  {/* headings and paragraphs, not one pre-wrapped paragraph with a blank line between every line (lib/format/listing-description.ts); the same clean-up of the text as before */}
+                  <ListingDescription text={listing.publicRemarks} />
                 </section>
               )}
 
