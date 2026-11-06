@@ -3,8 +3,9 @@
  *
  * The calculator used a flat table of guesses ($2,500 a studio, $3,200 a one-bedroom, ...) for every listing, commercial ones included: 800 2nd Ave, a medical office last advertised at $40 a square foot on
  * 1,482 square feet ($4,940 a month), started from a residential studio's $2,500. Now:
- *   - a COMMERCIAL listing starts from the rent the broker enters on the Sale form (Commercial section, "Rent ($ per SF per year)"): that rate times the listing's area, over 12 months. With no rent entered
- *     there is nothing to start from, and the page does not show the calculator for it (an office has no bedroom count to guess a rent from);
+ *   - a COMMERCIAL listing starts from the rent the broker enters on the Sale form (Commercial section, "Rent ($ per SF per year)"): that rate times the listing's area, over 12 months. With none entered
+ *     it starts from the AVERAGE rent per square foot of the commercial-use rentals in Cotality (Maya, 2026-11-06: "the commercial needs average per sq ft"), for Manhattan, the only borough with enough of
+ *     them to average; a commercial listing elsewhere, with no rent entered, has nothing to start from and the page does not show the calculator for it;
  *   - a HOME starts from the median asking rent of the rentals live in Cotality for its size, by borough (the table below), and says so under the box.
  */
 
@@ -23,10 +24,31 @@ export function listingRentFromPsf(rawData: Record<string, unknown> | null | und
   return { monthly: Math.round((perSqFtYear * sqFt) / 12), perSqFtYear, sqFt: Math.round(sqFt) };
 }
 
-/** Whether the page shows the Investment Analysis: never on a rental page (it has its own calculator), and not on a commercial listing that has no rent entered. */
-export function showsInvestorCalculator(listing: { isRental: boolean; isCommercial?: boolean; estimatedRent?: ListingRent | null }): boolean {
+/** A commercial listing's starting rent when its broker entered none: the average rent per SF of the commercial-use rentals in Cotality times its area, with how that average was found. */
+export interface CommercialMarketRent extends ListingRent { basis: string }
+
+// Median ASKING (or closed) rent per square foot per YEAR of the commercial-use rentals of Manhattan in the Cotality feed, read live 2026-11-06. Cotality holds no CommercialLease or CommercialSale record on this
+// licence (0 of each): commercial space is filed as a ResidentialLease with a CurrentUse of Office, MedicalDental or Retail, or a PropertySubType of Office or Retail. Of the 42 such Manhattan rentals, 24 are
+// usable (an area of 200 to 5,000 SF and $10 to $200 a SF a year: the rest are entries such as a 480,871 SF "office" or $3 a SF); median $77.7, mean $78.5, middle half $64.6 to $105. They run from 2012 to
+// 2026 and only 4 are since 2023, so this is a thin and dated average: the rent the broker enters always replaces it. Other boroughs have too few to average. To refresh it, take PropertyType eq
+// 'ResidentialLease' with that CurrentUse or PropertySubType in a borough, drop the entries outside those ranges, and take the median of ListPrice (ClosePrice when closed) x 12 / area.
+const COMMERCIAL_MEDIAN_RENT_PSF_YEAR = { manhattan: { perSqFtYear: 78, rentals: 24, years: '2012 to 2026' } } as const;
+
+export function commercialRentDefault(borough: string | null | undefined, sqFt: unknown): CommercialMarketRent | undefined {
+  if (!/manhattan/i.test(String(borough ?? ''))) return undefined;                       // no borough, or one with too few rentals to average: nothing is guessed
+  const area = toNumber(sqFt);
+  if (area <= 0) return undefined;
+  const m = COMMERCIAL_MEDIAN_RENT_PSF_YEAR.manhattan;
+  return {
+    monthly: Math.round((m.perSqFtYear * area) / 12), perSqFtYear: m.perSqFtYear, sqFt: Math.round(area),
+    basis: `Based on average commercial rents in Manhattan: $${m.perSqFtYear} per SF a year on ${Math.round(area).toLocaleString('en-US')} SF`,
+  };
+}
+
+/** Whether the page shows the Investment Analysis: never on a rental page (it has its own calculator), and on a commercial listing only when there is a rent to start from: the one entered, or the average. */
+export function showsInvestorCalculator(listing: { isRental: boolean; isCommercial?: boolean; estimatedRent?: ListingRent | null; commercialMarketRent?: CommercialMarketRent | null }): boolean {
   if (listing.isRental) return false;
-  return !(listing.isCommercial && !listing.estimatedRent);
+  return !(listing.isCommercial && !listing.estimatedRent && !listing.commercialMarketRent);
 }
 
 // Median ASKING rent a month of the ACTIVE rentals in the Cotality feed, by bedrooms (studio, 1, 2, 3, 4+), read live 2026-11-05 (1,001 active rentals: 524 Manhattan, 356 Brooklyn, 104 Queens, 17 Bronx and
@@ -37,7 +59,7 @@ const MEDIAN_ASKING_RENT = {
   brooklyn: [3458, 4050, 5550, 5935, 8400],
   outer: [3400, 3688, 4773, 5235, 6215],
 } as const;
-const BED_WORDS = ['studio', '1-bedroom', '2-bedroom', '3-bedroom', '4+ bedroom'] as const;
+const BED_WORDS = ['studio apartments', '1-bedroom apartments', '2-bedroom apartments', '3-bedroom apartments', '4+ bedroom apartments'] as const;
 const AREA_WORDS = { manhattan: 'Manhattan', brooklyn: 'Brooklyn', outer: 'the outer boroughs' } as const;
 
 export type MarketRent = { monthly: number; basis: string };
@@ -47,5 +69,5 @@ export function marketRentDefault(bedrooms: unknown, borough?: string | null): M
   const b = String(borough ?? '').trim().toLowerCase();
   const area: keyof typeof MEDIAN_ASKING_RENT = b === '' || b.includes('manhattan') || b === 'new york' ? 'manhattan' : b.includes('brooklyn') ? 'brooklyn' : 'outer';
   const beds = Math.min(4, Math.max(0, Math.round(toNumber(bedrooms))));
-  return { monthly: MEDIAN_ASKING_RENT[area][beds], basis: `Median asking rent of ${BED_WORDS[beds]} rentals active in ${AREA_WORDS[area]} (Cotality, November 2026)` };
+  return { monthly: MEDIAN_ASKING_RENT[area][beds], basis: `Based on average asking rents for ${BED_WORDS[beds]} in ${AREA_WORDS[area]}` };
 }

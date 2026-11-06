@@ -5,7 +5,7 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { listingRentFromPsf, marketRentDefault, showsInvestorCalculator } from '@/lib/calculators/rent-estimate';
+import { listingRentFromPsf, marketRentDefault, showsInvestorCalculator, commercialRentDefault } from '@/lib/calculators/rent-estimate';
 
 describe('a commercial listing starts from the rent the broker entered', () => {
   it('800 2nd Ave #806: $40 per SF a year on 1,482 SF is $59,280 a year, $4,940 a month', () => {
@@ -31,10 +31,11 @@ describe('when the page shows the Investment Analysis', () => {
     expect(showsInvestorCalculator({ isRental: false })).toBe(true);
     expect(showsInvestorCalculator({ isRental: true })).toBe(false);
   });
-  it('a commercial listing: only with a rent entered', () => {
+  it('a commercial listing: with a rent entered, or the average rent per SF; with neither, no', () => {
     expect(showsInvestorCalculator({ isRental: false, isCommercial: true })).toBe(false);
-    expect(showsInvestorCalculator({ isRental: false, isCommercial: true, estimatedRent: null })).toBe(false);
+    expect(showsInvestorCalculator({ isRental: false, isCommercial: true, estimatedRent: null, commercialMarketRent: null })).toBe(false);
     expect(showsInvestorCalculator({ isRental: false, isCommercial: true, estimatedRent: { monthly: 4940, perSqFtYear: 40, sqFt: 1482 } })).toBe(true);
+    expect(showsInvestorCalculator({ isRental: false, isCommercial: true, commercialMarketRent: commercialRentDefault('Manhattan', 1482) })).toBe(true);
   });
 });
 
@@ -47,9 +48,9 @@ describe('a home starts from the median asking rent of live rentals of its size 
   });
 
   it('says where the number comes from, in words a visitor can read', () => {
-    expect(marketRentDefault(1, 'Manhattan').basis).toBe('Median asking rent of 1-bedroom rentals active in Manhattan (Cotality, November 2026)');
-    expect(marketRentDefault(0, 'Manhattan').basis).toContain('studio rentals');
-    expect(marketRentDefault(4, 'Manhattan').basis).toContain('4+ bedroom rentals');
+    expect(marketRentDefault(1, 'Manhattan').basis).toBe('Based on average asking rents for 1-bedroom apartments in Manhattan');
+    expect(marketRentDefault(0, 'Manhattan').basis).toBe('Based on average asking rents for studio apartments in Manhattan');
+    expect(marketRentDefault(4, 'Manhattan').basis).toContain('4+ bedroom apartments');
   });
 
   it('Brooklyn has its own medians; the other boroughs are pooled', () => {
@@ -77,9 +78,36 @@ describe('the listing page wires it', () => {
   const page = readFileSync(resolve(__dirname, '../../app/listing/[...slug]/page.tsx'), 'utf8');
 
   it('the calculator gets the borough and the rent entered for the listing, and the section is left out when it does not apply', () => {
-    expect(page).toContain('showsInvestorCalculator({ isRental, isCommercial: listing.isCommercial, estimatedRent: listing.estimatedRent })');
+    expect(page).toContain('showsInvestorCalculator({ isRental, isCommercial: listing.isCommercial, estimatedRent: listing.estimatedRent, commercialMarketRent })');
+    expect(page).toContain('commercialRentDefault(borough, listing.livingArea)');
+    expect(page).toContain('defaultMonthlyRent={(listing.estimatedRent ?? commercialMarketRent)?.monthly}');
     expect(page).toContain('borough={borough}');
-    expect(page).toContain('defaultMonthlyRent={listing.estimatedRent?.monthly}');
-    expect(page).toMatch(/rentBasis=\{listing\.estimatedRent \? `\$\$\{listing\.estimatedRent\.perSqFtYear\} per SF a year on/);
+    expect(page).toMatch(/rentBasis=\{listing\.estimatedRent \? `Based on the rent entered for this listing: \$\$\{listing\.estimatedRent\.perSqFtYear\} per SF a year on/);
+  });
+});
+
+describe('a commercial listing with no rent entered starts from the average rent per SF (Maya, 2026-11-06: "the commercial needs average per sq ft")', () => {
+  it('Manhattan: $78 per SF a year (the median of 24 usable commercial-use rentals in Cotality) times the unit\'s area, over 12 months', () => {
+    const r = commercialRentDefault('Manhattan', 1482)!;
+    expect(r).toMatchObject({ monthly: 9633, perSqFtYear: 78, sqFt: 1482 });                       // 78 x 1,482 / 12
+    expect(r.basis).toBe('Based on average commercial rents in Manhattan: $78 per SF a year on 1,482 SF');
+  });
+
+  it('says it is based on average rents (Maya, 2026-11-06: "the disclaimer should be it is based on average rents")', () => {
+    expect(commercialRentDefault('manhattan', 1000)!.basis).toMatch(/^Based on average commercial rents/);
+    expect(marketRentDefault(2, 'Brooklyn').basis).toMatch(/^Based on average asking rents/);
+  });
+
+  it.each([['Brooklyn'], ['Queens'], ['Bronx'], ['Staten Island'], [''], [null], [undefined]])('%j: no average (too few rentals to average, or no borough), so nothing is guessed', (borough) => {
+    expect(commercialRentDefault(borough as string | null | undefined, 1482)).toBeUndefined();
+  });
+
+  it.each([[0], [null], [undefined], ['abc'], [-5]])('no usable area (%j): no rent', (area) => {
+    expect(commercialRentDefault('Manhattan', area)).toBeUndefined();
+  });
+
+  it('the rent entered for the listing is a different thing, and the page prefers it: 800 2nd Ave at $40 is $4,940 a month, not the average\'s $9,633', () => {
+    expect(listingRentFromPsf({ saleCommercialRentPSF: 40 }, 1482)!.monthly).toBe(4940);
+    expect(commercialRentDefault('Manhattan', 1482)!.monthly).toBeGreaterThan(4940);
   });
 });

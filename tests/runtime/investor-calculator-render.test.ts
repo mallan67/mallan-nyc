@@ -46,7 +46,7 @@ describe('the opened Investment Analysis', () => {
     expect(shown).toContain('Maint/CC, taxes & insurance');
     expect(shown).not.toContain('Taxes + Maint + Insurance');
     expect(shown).not.toContain('repairs');
-    for (const assumption of ['4% closing costs', '6% selling costs', 'a 30-year loan', '3% annual rent growth', '2% expense growth', 'insurance of $500 a year', 'The maintenance is the only other expense']) {
+    for (const assumption of ['4% closing costs', '6% selling costs', 'a 30-year loan', '3% annual rent growth', '2% expense growth', 'insurance of $500 a year', 'The maintenance is the only other expense', 'The starting rent is an estimate based on average rents']) {
       expect(shown).toContain(assumption);
     }
   });
@@ -70,10 +70,10 @@ describe('the rent the calculator starts from, and where it says it comes from',
   const rentBox = (html: string) => /Est\. Monthly Rent.*?value="(\d+)"/s.exec(html)?.[1];
   const open = (props: Record<string, unknown>) => renderToStaticMarkup(createElement(InvestorCalculator, { ...PAGE_PROPS, defaultExpanded: true, ...props }));
 
-  it('a Manhattan one-bedroom starts from the median asking rent of live Manhattan one-bedrooms, and says so under the box (it was $3,200)', () => {
+  it('a Manhattan one-bedroom starts from the average asking rent of Manhattan one-bedrooms, and says so under the box (it was $3,200)', () => {
     const html = open({ borough: 'Manhattan' });
     expect(rentBox(html)).toBe('4995');
-    expect(text(html)).toContain('Median asking rent of 1-bedroom rentals active in Manhattan (Cotality, November 2026). Change it to your own estimate.');
+    expect(text(html)).toContain('Based on average asking rents for 1-bedroom apartments in Manhattan. Change it to your own estimate.');
   });
 
   it('nothing in Manhattan starts from $2,500: a Manhattan studio is $3,900', () => {
@@ -82,10 +82,16 @@ describe('the rent the calculator starts from, and where it says it comes from',
   });
 
   it('a commercial listing starts from the rent entered for it: 800 2nd Ave #806, $40 per SF on 1,482 SF, is $4,940 a month', () => {
-    const html = open({ purchasePrice: 1200000, maintenanceFee: 1588, bedrooms: 0, borough: 'Manhattan', defaultMonthlyRent: 4940, rentBasis: '$40 per SF a year on 1,482 SF, the rent entered for this listing' });
+    const html = open({ purchasePrice: 1200000, maintenanceFee: 1588, bedrooms: 0, borough: 'Manhattan', defaultMonthlyRent: 4940, rentBasis: 'Based on the rent entered for this listing: $40 per SF a year on 1,482 SF' });
     expect(rentBox(html)).toBe('4940');
-    expect(text(html)).toContain('$40 per SF a year on 1,482 SF, the rent entered for this listing. Change it to your own estimate.');
-    expect(text(html)).not.toContain('Median asking rent');
+    expect(text(html)).toContain('Based on the rent entered for this listing: $40 per SF a year on 1,482 SF. Change it to your own estimate.');
+    expect(text(html)).not.toContain('average asking rents');
+  });
+
+  it('a commercial listing with no rent entered starts from the Manhattan average per SF, and says it is based on average rents', () => {
+    const html = open({ purchasePrice: 1200000, maintenanceFee: 1588, bedrooms: 0, borough: 'Manhattan', defaultMonthlyRent: 9633, rentBasis: 'Based on average commercial rents in Manhattan: $78 per SF a year on 1,482 SF' });
+    expect(rentBox(html)).toBe('9633');
+    expect(text(html)).toContain('Based on average commercial rents in Manhattan: $78 per SF a year on 1,482 SF. Change it to your own estimate.');
   });
 
   it('a rent of 0 or less is no rent: the borough\'s median is used, never an empty calculator', () => {

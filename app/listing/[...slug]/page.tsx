@@ -12,7 +12,7 @@ import PriceWithCalculator from '@/app/components/PriceWithCalculator';
 import AuctionBanner from '@/app/components/AuctionBanner';
 import InvestorCalculator from '@/app/components/InvestorCalculator';
 import ListingDescription from '@/app/components/ListingDescription';
-import { showsInvestorCalculator } from '@/lib/calculators/rent-estimate';
+import { showsInvestorCalculator, commercialRentDefault } from '@/lib/calculators/rent-estimate';
 import RentVsBuyCalculator from '@/app/components/RentVsBuyCalculator';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import ListingMediaGallery from '@/app/components/ListingMediaGallery';
@@ -954,6 +954,8 @@ export default async function ListingPage({ params }: Props) {
   const isCoop = listing.propertyType === 'Co-op' || listing.propertyType === 'Cooperative';
   const borough = countyToBorough(listing.address.county);
   const neighborhood = listing.address.neighborhood || '';
+  // a Mallan commercial listing with no rent entered starts its Investment Analysis from the average rent per SF of the commercial-use rentals in Cotality (Manhattan only: lib/calculators/rent-estimate.ts)
+  const commercialMarketRent = listing.isCommercial && !listing.estimatedRent ? commercialRentDefault(borough, listing.livingArea) : undefined;
   const displayPropertyType = listing.propertyType === 'Residential' ? (listing.propertySubType || listing.propertyType) : listing.propertyType;
 
   // Neighborhood data lookup
@@ -1833,8 +1835,8 @@ export default async function ListingPage({ params }: Props) {
               </section>
 
               {/* ── 9. CALCULATORS (collapsed by default) ── */}
-              {/* a Mallan commercial listing with no rent entered has no Investment Analysis: there is no residential rent to guess for an office (Maya, 2026-11-05) */}
-              {(isRental || showsInvestorCalculator({ isRental, isCommercial: listing.isCommercial, estimatedRent: listing.estimatedRent })) && (
+              {/* a Mallan commercial listing starts from the rent entered for it, else the Manhattan average per SF; with neither it has no Investment Analysis, as there is no residential rent to guess for an office (Maya, 2026-11-05/06) */}
+              {(isRental || showsInvestorCalculator({ isRental, isCommercial: listing.isCommercial, estimatedRent: listing.estimatedRent, commercialMarketRent })) && (
               <section id="investor-calculator" className="py-6 border-t border-black/[0.06] scroll-mt-24">
                 {!isRental ? (
                   <InvestorCalculator
@@ -1844,8 +1846,8 @@ export default async function ListingPage({ params }: Props) {
                     bedrooms={listing.bedroomsTotal}
                     neighborhood={neighborhood || borough}
                     borough={borough}
-                    defaultMonthlyRent={listing.estimatedRent?.monthly}
-                    rentBasis={listing.estimatedRent ? `$${listing.estimatedRent.perSqFtYear} per SF a year on ${listing.estimatedRent.sqFt.toLocaleString('en-US')} SF, the rent entered for this listing` : undefined}
+                    defaultMonthlyRent={(listing.estimatedRent ?? commercialMarketRent)?.monthly}
+                    rentBasis={listing.estimatedRent ? `Based on the rent entered for this listing: $${listing.estimatedRent.perSqFtYear} per SF a year on ${listing.estimatedRent.sqFt.toLocaleString('en-US')} SF` : commercialMarketRent?.basis}
                   />
                 ) : (
                   <RentVsBuyCalculator
