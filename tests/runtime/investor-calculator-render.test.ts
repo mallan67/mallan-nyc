@@ -46,7 +46,7 @@ describe('the opened Investment Analysis', () => {
     expect(shown).toContain('Maint/CC, taxes & insurance');
     expect(shown).not.toContain('Taxes + Maint + Insurance');
     expect(shown).not.toContain('repairs');
-    for (const assumption of ['4% closing costs', '6% selling costs', 'a 30-year loan', '3% annual rent growth', '2% expense growth', 'insurance of $500 a year', 'The maintenance is the only other expense', 'The starting rent is an estimate based on average rents']) {
+    for (const assumption of ['4% closing costs', '6% selling costs', 'a 30-year loan', '3% annual rent growth', '2% expense growth', 'insurance of $500 a year', 'The maintenance is the only other expense']) {
       expect(shown).toContain(assumption);
     }
   });
@@ -73,7 +73,7 @@ describe('the rent the calculator starts from, and where it says it comes from',
   it('a Manhattan one-bedroom starts from the average asking rent of Manhattan one-bedrooms, and says so under the box (it was $3,200)', () => {
     const html = open({ borough: 'Manhattan' });
     expect(rentBox(html)).toBe('4995');
-    expect(text(html)).toContain('Based on average asking rents for 1-bedroom apartments in Manhattan. Change it to your own estimate.');
+    expect(text(html)).toContain('Based on average asking rents for 1-bedroom apartments in Manhattan.');
   });
 
   it('nothing in Manhattan starts from $2,500: a Manhattan studio is $3,900', () => {
@@ -84,14 +84,32 @@ describe('the rent the calculator starts from, and where it says it comes from',
   it('a commercial listing starts from the rent entered for it: 800 2nd Ave #806, $40 per SF on 1,482 SF, is $4,940 a month', () => {
     const html = open({ purchasePrice: 1200000, maintenanceFee: 1588, bedrooms: 0, borough: 'Manhattan', defaultMonthlyRent: 4940, rentBasis: 'Based on the rent entered for this listing: $40 per SF a year on 1,482 SF' });
     expect(rentBox(html)).toBe('4940');
-    expect(text(html)).toContain('Based on the rent entered for this listing: $40 per SF a year on 1,482 SF. Change it to your own estimate.');
+    expect(text(html)).toContain('Based on the rent entered for this listing: $40 per SF a year on 1,482 SF.');
     expect(text(html)).not.toContain('average asking rents');
   });
 
   it('a commercial listing with no rent entered starts from the Manhattan average per SF, and says it is based on average rents', () => {
     const html = open({ purchasePrice: 1200000, maintenanceFee: 1588, bedrooms: 0, borough: 'Manhattan', defaultMonthlyRent: 9633, rentBasis: 'Based on average commercial rents in Manhattan: $78 per SF a year on 1,482 SF' });
     expect(rentBox(html)).toBe('9633');
-    expect(text(html)).toContain('Based on average commercial rents in Manhattan: $78 per SF a year on 1,482 SF. Change it to your own estimate.');
+    expect(text(html)).toContain('Based on average commercial rents in Manhattan: $78 per SF a year on 1,482 SF.');
+  });
+
+  // Maya, 2026-11-06: "very small letters, this is just a small disclosure ... do not make large boxes or colors or big announcements, make it subtle"
+  it('the note is one line of tiny, quiet text under the box: no box, no border, no colour, no bold, no icon', () => {
+    for (const props of [{ borough: 'Manhattan' }, { defaultMonthlyRent: 4940, rentBasis: 'Based on the rent entered for this listing: $40 per SF a year on 1,482 SF' }]) {
+      const html = open(props);
+      const note = /<p class="([^"]*)">(Based on [^<]*)<\/p>/.exec(html);
+      expect(note).not.toBeNull();
+      const [, classes] = note!;
+      expect(classes).toContain('text-[10px]');
+      expect(classes).toMatch(/text-brand-dark\/\d+/);                                         // the page's own dark text, lightened: not a colour of its own
+      expect(classes).not.toMatch(/\b(bg-|border|ring|shadow|rounded|p-\d|px-|py-|font-(medium|semibold|bold)|uppercase|text-(red|green|amber|yellow|blue|orange|gold)|text-(sm|base|lg|xl))/);
+      expect(note![2].split(/[.:]/).length).toBeLessThan(5);                                   // a short line, not a paragraph
+    }
+  });
+
+  it('no "announcement" sits near the rent box: nothing in the section says the rent is a guess in a banner', () => {
+    expect(open({ borough: 'Manhattan' })).not.toMatch(/role="alert"|role="status"|bg-amber|bg-yellow|bg-blue/);
   });
 
   it('a rent of 0 or less is no rent: the borough\'s median is used, never an empty calculator', () => {

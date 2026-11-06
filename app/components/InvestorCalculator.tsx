@@ -122,7 +122,7 @@ export default function InvestorCalculator({
                     className="w-full pl-7 pr-3 py-2 rounded-2xl bg-white/60 ring-1 ring-black/5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold/30"
                   />
                 </div>
-                <p className="mt-1 text-[11px] leading-snug text-brand-dark/70">{rentBasisText}. Change it to your own estimate.</p>
+                <p className="mt-0.5 text-[10px] leading-tight text-brand-dark/60">{rentBasisText}.</p>
               </div>
               <div>
                 <label className="block text-xs text-brand-dark/85 mb-1">Down Payment</label>
@@ -285,7 +285,7 @@ export default function InvestorCalculator({
           </div>
 
           <p className="mt-4 text-xs text-brand-dark/90">
-            *Estimates only. Assumes 4% closing costs, 6% selling costs, a 30-year loan, 3% annual rent growth, 2% expense growth, insurance of $500 a year. The maintenance is the only other expense (taxes are added when the listing has them separately). The starting rent is an estimate based on average rents.
+            *Estimates only. Assumes 4% closing costs, 6% selling costs, a 30-year loan, 3% annual rent growth, 2% expense growth, insurance of $500 a year. The maintenance is the only other expense (taxes are added when the listing has them separately).
             Consult a financial advisor and tax professional for investment decisions.
           </p>
 
