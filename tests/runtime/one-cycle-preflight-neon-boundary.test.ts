@@ -43,6 +43,14 @@ jest.mock('@/app/api/cron/one-cycle/route', () => {
 const mockDecide = jest.fn();
 const mockFinalize = jest.fn(async () => undefined);
 
+/** Incremented ONLY if the follow module is actually evaluated (same lazy-factory proof as the one-cycle module). */
+let followModuleEvaluations = 0;
+const runRlsFollowMock = jest.fn(async (_opts?: unknown) => ({ httpStatus: 200, summary: { linked: 2, changed: 1, unchanged: 1, skipped: [], failed: [], duplicateLinks: [], notTheSameUnit: [], statusMismatch: [], timeBudgetReached: false } }));
+jest.mock('@/lib/listings/rls-follow-run', () => {
+  followModuleEvaluations += 1;
+  return { runRlsFollow: (o: unknown) => runRlsFollowMock(o) };
+});
+
 jest.mock('@/lib/idx/one-cycle-preflight', () => ({
   decideOneCyclePreflight: (...a: unknown[]) => mockDecide(...(a as [])),
   finalizeOneCyclePreflight: (...a: unknown[]) => mockFinalize(...(a as [])),
@@ -64,6 +72,7 @@ async function callRoute() {
 beforeEach(() => {
   jest.clearAllMocks();
   oneCycleModuleEvaluations = 0;
+  followModuleEvaluations = 0;
   jest.resetModules();
   process.env.CRON_SECRET = CRON_SECRET;
 });
@@ -81,6 +90,12 @@ describe('SKIP — a trusted unchanged poll never reaches the Neon machine', () 
   it('the Prisma-backed one-cycle module is NEVER evaluated', async () => {
     await callRoute();
     expect(oneCycleModuleEvaluations).toBe(0);
+  });
+
+  it('the follow of linked listings is never evaluated or run (it would wake Neon)', async () => {
+    await callRoute();
+    expect(followModuleEvaluations).toBe(0);
+    expect(runRlsFollowMock).not.toHaveBeenCalled();
   });
 
   it('the one-cycle handler is never invoked', async () => {
@@ -114,6 +129,8 @@ describe('SKIP — a trusted unchanged poll never reaches the Neon machine', () 
     expect(staticImports).not.toMatch(/one-cycle\/route/);
     // ...and the machine is reached only via a dynamic import.
     expect(src).toMatch(/await import\(['"]@\/app\/api\/cron\/one-cycle\/route['"]\)/);
+    expect(staticImports).not.toMatch(/rls-follow/);
+    expect(src).toMatch(/await import\(['"]@\/lib\/listings\/rls-follow-run['"]\)/);
   });
 });
 
@@ -155,5 +172,42 @@ describe('AUTH — an unauthorized poll touches nothing', () => {
     expect(res.status).toBe(401);
     expect(oneCycleModuleEvaluations).toBe(0);
     expect(mockDecide).not.toHaveBeenCalled();
+  });
+});
+
+describe('FOLLOW OF LINKED LISTINGS — after the cycle, on the Neon path only', () => {
+  const runDecision = { shouldRun: true, reason: 'source_changed', snapshotTrusted: true, snapshot: null };
+  beforeEach(() => mockDecide.mockResolvedValue(runDecision));
+
+  it('runs once, after the cycle and after the finalize, with a budget that fits what the cycle left', async () => {
+    const order: string[] = [];
+    runOneCycleMock.mockImplementationOnce(async () => { order.push('cycle'); return new Response(JSON.stringify({ success: true, complete: true, outcome: 'success', members: [] }), { status: 200 }); });
+    mockFinalize.mockImplementationOnce(async () => { order.push('finalize'); return undefined; });
+    runRlsFollowMock.mockImplementationOnce(async () => { order.push('follow'); return { httpStatus: 200, summary: { linked: 0, changed: 0, unchanged: 0, skipped: [], failed: [], duplicateLinks: [], notTheSameUnit: [], statusMismatch: [], timeBudgetReached: false } }; });
+    await callRoute();
+    expect(order).toEqual(['cycle', 'finalize', 'follow']);
+    expect(runRlsFollowMock).toHaveBeenCalledTimes(1);
+    const budget = (runRlsFollowMock.mock.calls[0][0] as { budgetMs: number }).budgetMs;
+    expect(budget).toBeGreaterThan(0);
+    expect(budget).toBeLessThanOrEqual(45_000);
+  });
+
+  it('a follow that throws changes nothing about the answer the cycle gave', async () => {
+    runRlsFollowMock.mockRejectedValueOnce(new Error('neon down'));
+    const res = await callRoute();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true });
+  });
+
+  it('does not start when the cycle left no time (what is not done now is done by the next run)', async () => {
+    // the route takes its poll time from new Date() (not affected); every Date.now() after this reads 290 s later, which is what a cycle that used its budget leaves
+    const later = Date.now() + 290_000;
+    const spy = jest.spyOn(Date, 'now').mockReturnValue(later);
+    try {
+      await callRoute();
+    } finally {
+      spy.mockRestore();
+    }
+    expect(runRlsFollowMock).not.toHaveBeenCalled();
   });
 });

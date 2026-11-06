@@ -138,5 +138,43 @@ export async function GET(req: NextRequest) {
       error_class: err instanceof Error ? err.name : 'unknown_error',
     }));
   }
+  await followLinkedListings(polledAt);
   return response;
+}
+
+/**
+ * Mallan listings linked to an RLS ID follow their Cotality record (lib/listings/rls-follow-run.ts). It runs HERE, after the cycle, and only on the path that already reached Neon: a
+ * verified no-change poll returns above without loading it, so the skip path stays Neon-free, and there is no second schedule. It never changes the cycle's answer: it runs after the
+ * finalize, inside its own try/catch, and only if the cycle left time (a cycle may use most of this route's 300 s; what is not done now is done by the next run).
+ */
+const ROUTE_BUDGET_MS = 300_000;
+const FOLLOW_MIN_LEFT_MS = 30_000;
+const FOLLOW_MAX_MS = 45_000;
+
+async function followLinkedListings(startedAt: Date): Promise<void> {
+  const left = ROUTE_BUDGET_MS - (Date.now() - startedAt.getTime());
+  if (left < FOLLOW_MIN_LEFT_MS + 15_000) {
+    console.log(JSON.stringify({ tag: 'rls_follow', event: 'skipped_no_time_left', left_ms: left }));
+    return;
+  }
+  try {
+    const { runRlsFollow } = await import('@/lib/listings/rls-follow-run');
+    const { httpStatus, summary } = await runRlsFollow({ budgetMs: Math.min(FOLLOW_MAX_MS, left - FOLLOW_MIN_LEFT_MS) });
+    console.log(JSON.stringify({
+      tag: 'rls_follow',
+      event: 'ran',
+      http_status: httpStatus,
+      linked: summary.linked,
+      changed: summary.changed,
+      unchanged: summary.unchanged,
+      skipped: summary.skipped.length,
+      failed: summary.failed.length,
+      duplicate_links: summary.duplicateLinks.length,
+      not_the_same_unit: summary.notTheSameUnit.length,
+      status_mismatch: summary.statusMismatch.length,
+      time_budget_reached: summary.timeBudgetReached,
+    }));
+  } catch (err) {
+    console.log(JSON.stringify({ tag: 'rls_follow', event: 'threw', error_class: err instanceof Error ? err.name : 'unknown_error' }));
+  }
 }

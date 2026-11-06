@@ -87,7 +87,7 @@ describe("opening a saved listing that is linked to an RLS ID", () => {
 
   it("never takes what is not a fact: no value, the text \"null\", a 0 unit count, the text of the description, the status and the sold price stay as they are", async () => {
     const f = await opened({
-      ...COTALITY_NOW, BuildingName: "null", NumberOfUnitsTotal: 0, TaxBlock: "undefined", StructureType: "None",
+      ...COTALITY_NOW, BuildingName: "null", NumberOfUnitsTotal: 0, TaxBlock: "undefined", StructureType: "None", AssociationFee: 0, YearBuilt: 0, TaxAnnualAmount: 0,
       PublicRemarks: "RealPlus wording that is not ours.", PrivateRemarks: "x", StandardStatus: "Closed", ClosePrice: 1, ListAgentFullName: "Someone Else", OnMarketDate: "2020-01-01",
     });
     try {
@@ -95,6 +95,9 @@ describe("opening a saved listing that is linked to an RLS ID", () => {
       expect(val(f, "saleBldgName")).toBe("Tudor Tower");
       expect(val(f, "saleBldgTotalUnits")).toBe("");
       expect(val(f, "saleBldgTaxBlock")).toBe("");
+      expect(val(f, "saleMaintCC")).toBe("");                                     // a maintenance of 0 is "nobody filled it", not a fact
+      expect(val(f, "saleBldgYearBuilt")).toBe("1957");                            // and a year of 0 never replaces the year
+      expect(val(f, "saleRETaxes")).toBe("");
       expect(val(f, "saleDescription")).toBe("Our own description of the office.");
       expect(val(f, "saleBrokerComments")).toBe("Broker note.");
       expect(val(f, "saleStatus")).toBe("Active");

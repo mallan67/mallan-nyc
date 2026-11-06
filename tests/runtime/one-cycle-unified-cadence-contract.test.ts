@@ -39,6 +39,8 @@ const finalizePreflight: jest.MockedFunction<
   _now?: Date,
 ) => undefined);
 
+// The follow of linked listings (lib/listings/rls-follow-run.ts) runs after the cycle on the Neon path; it has its own tests (rls-follow-cron.test.ts) and is not what this file is about.
+jest.mock("@/lib/listings/rls-follow-run", () => ({ runRlsFollow: jest.fn(async () => ({ httpStatus: 200, summary: { linked: 0, changed: 0, unchanged: 0, skipped: [], failed: [], duplicateLinks: [], notTheSameUnit: [], statusMismatch: [], timeBudgetReached: false } })) }));
 jest.mock("@/app/api/cron/one-cycle/route", () => ({
   GET: (req: NextRequest) => runOneCycle(req),
 }));
@@ -78,6 +80,11 @@ describe("schedule and duration", () => {
     crons?: Array<{ path: string; schedule: string }>;
     functions?: Record<string, { maxDuration?: number }>;
   };
+
+  it("has no cron of its own for the follow of linked listings: it runs inside the preflight's Neon path (a second */10 would wake Neon on every poll)", () => {
+    expect((config.crons ?? []).find((c) => c.path === "/api/cron/rls-follow")).toBeUndefined();
+    expect((config.crons ?? []).filter((c) => c.schedule === "*/10 * * * *").map((c) => c.path)).toEqual(["/api/cron/one-cycle-preflight"]);
+  });
 
   it("schedules exactly one preflight every ten minutes and no direct sync cron", () => {
     const scheduled = config.crons ?? [];
