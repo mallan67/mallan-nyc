@@ -6,18 +6,25 @@
  *   - a box cleared or mistyped (0 years, a 0% rate, no rent, text) used to give "NaN%", "Infinity" or a mortgage of $0 on a loan that still has to be repaid: every input is now brought into a sane range;
  *   - a figure that cannot be calculated (the gross rent multiple with no rent, an annualized return after losing more than the cash put in) is null, and the page shows a dash;
  *   - a negative amount was written "$-1,529": formatMoney writes "-$1,529".
- * The ASSUMPTIONS are the page's own, unchanged and now all in one place (they are part of the footnote under the numbers).
+ * The ASSUMPTIONS are all in one place (and are the footnote under the numbers). Maya, 2026-11-05: "insurance is about 500 a year, the only expense is maintenance". An apartment owner's insurance is
+ * $500 a year (the page used 0.4% of the price, a house-sized $3,060 a year here) and there is no repairs reserve on top of the maintenance (the page used 5% of the rent). The listing's own taxes still
+ * count when it has them (a condo's are separate; a co-op's are inside the maintenance, and its tax is empty). The page's earlier assumptions are the second argument of calculateInvestment in the test
+ * that reproduces the printed page.
  */
 
-export const ASSUMPTIONS = {
+export interface InvestorAssumptions {
+  closingCostRate: number; sellingCostRate: number; insuranceAnnual: number; repairsRate: number; rentGrowth: number; expenseGrowth: number; loanYears: number;
+}
+
+export const ASSUMPTIONS: InvestorAssumptions = {
   closingCostRate: 0.04,      // of the price, paid by the buyer
   sellingCostRate: 0.06,      // of the future value, paid on the sale
-  insuranceRate: 0.004,       // of the price, a year
-  repairsRate: 0.05,          // of the gross rent, a month
+  insuranceAnnual: 500,       // dollars a year: an apartment owner's policy
+  repairsRate: 0,             // of the gross rent, a month: none, the maintenance is the expense
   rentGrowth: 0.03,           // a year
   expenseGrowth: 0.02,        // a year
   loanYears: 30,
-} as const;
+};
 
 export interface InvestorInputs {
   purchasePrice: number;
@@ -50,7 +57,7 @@ const finite = (v: unknown, fallback = 0): number => { const n = typeof v === 'n
 const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n));
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
-export function calculateInvestment(input: InvestorInputs): InvestorResults {
+export function calculateInvestment(input: InvestorInputs, assumptions: InvestorAssumptions = ASSUMPTIONS): InvestorResults {
   const purchasePrice = Math.max(0, finite(input.purchasePrice));
   const maintenanceFee = Math.max(0, finite(input.maintenanceFee));
   const monthlyTaxes = Math.max(0, finite(input.monthlyTaxes));
@@ -60,7 +67,7 @@ export function calculateInvestment(input: InvestorInputs): InvestorResults {
   const vacancyRate = clamp(finite(input.vacancyRate, 5), 0, 100);
   const annualAppreciation = clamp(finite(input.annualAppreciation, 3), -20, 20);
   const years = clamp(Math.round(finite(input.holdingPeriod, 5)), 1, 30);
-  const A = ASSUMPTIONS;
+  const A = assumptions;
 
   // Initial investment
   const downPayment = purchasePrice * (downPaymentPercent / 100);
@@ -79,7 +86,7 @@ export function calculateInvestment(input: InvestorInputs): InvestorResults {
   }
 
   // Monthly operating expenses (before the mortgage)
-  const monthlyInsurance = Math.round((purchasePrice * A.insuranceRate) / 12);
+  const monthlyInsurance = A.insuranceAnnual / 12;
   const monthlyRepairs = Math.round(estimatedRent * A.repairsRate);
   const monthlyExpenses = maintenanceFee + monthlyTaxes + monthlyInsurance + monthlyRepairs;
 

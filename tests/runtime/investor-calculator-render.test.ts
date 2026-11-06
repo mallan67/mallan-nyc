@@ -42,10 +42,11 @@ describe('the opened Investment Analysis', () => {
     expect(shown).toContain('5-Year Projection');
   });
 
-  it('the expenses row says what is in it (it is maintenance, taxes, insurance AND the repairs reserve), and the footnote names every assumption', () => {
-    expect(shown).toContain('Maint/CC, taxes, insurance & repairs');
+  it('the expenses row says what is in it (the maintenance, the taxes when the listing has them, and the insurance), and the footnote names every assumption', () => {
+    expect(shown).toContain('Maint/CC, taxes & insurance');
     expect(shown).not.toContain('Taxes + Maint + Insurance');
-    for (const assumption of ['4% closing costs', '6% selling costs', 'a 30-year loan', '3% annual rent growth', '2% expense growth', 'insurance of 0.4% of the price a year', 'a repairs reserve of 5% of the rent']) {
+    expect(shown).not.toContain('repairs');
+    for (const assumption of ['4% closing costs', '6% selling costs', 'a 30-year loan', '3% annual rent growth', '2% expense growth', 'insurance of $500 a year', 'The maintenance is the only other expense']) {
       expect(shown).toContain(assumption);
     }
   });

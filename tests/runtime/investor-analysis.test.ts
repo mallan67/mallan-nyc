@@ -6,12 +6,16 @@
  * Every figure below is the one the live page printed; each was also worked by hand (the mortgage of $573,750 at 6% over 30 years is $3,440 a month, the remaining balance after 10 years is $480,147, and
  * so on), so the formulas are right and this pins them against a change.
  */
-import { calculateInvestment, formatMoney, ASSUMPTIONS, type InvestorInputs } from '@/lib/calculators/investor-analysis';
+import { calculateInvestment, formatMoney, ASSUMPTIONS, type InvestorInputs, type InvestorAssumptions } from '@/lib/calculators/investor-analysis';
 
 const PAGE: InvestorInputs = { purchasePrice: 765000, maintenanceFee: 1748.65, monthlyTaxes: 0, estimatedRent: 4350, downPaymentPercent: 25, interestRate: 6, vacancyRate: 5, annualAppreciation: 3, holdingPeriod: 10 };
 
-describe('the figures printed on the live page of 333 E 46th St #2G', () => {
-  const r = calculateInvestment(PAGE);
+// The page as it PRINTED (before 2026-11-05): insurance at 0.4% of the price a year ($3,060 here) and a 5% repairs reserve. The engine is given those two assumptions, so what is pinned is that the maths
+// reproduces the printed page; what the page assumes now is tested below.
+const AS_PRINTED: InvestorAssumptions = { ...ASSUMPTIONS, insuranceAnnual: 765000 * 0.004, repairsRate: 0.05 };
+
+describe('the figures printed on the live page of 333 E 46th St #2G (the engine, given the assumptions the page had)', () => {
+  const r = calculateInvestment(PAGE, AS_PRINTED);
 
   it('the key figures', () => {
     expect(r.capRate).toBe(3);
@@ -97,9 +101,49 @@ describe('a box cleared, mistyped or out of range never breaks the page', () => 
   it('no price: nothing to calculate, and nothing is NaN', () => { expect(allFinite(calculateInvestment({ ...PAGE, purchasePrice: 0 }))).toBe(true); });
 });
 
-describe('the assumptions the footnote names', () => {
-  it('are the page\'s own: 4% closing, 6% selling, 3% rent growth, 2% expense growth, a 30-year loan, 0.4% insurance, 5% repairs', () => {
-    expect(ASSUMPTIONS).toEqual({ closingCostRate: 0.04, sellingCostRate: 0.06, insuranceRate: 0.004, repairsRate: 0.05, rentGrowth: 0.03, expenseGrowth: 0.02, loanYears: 30 });
+describe('the assumptions the footnote names (Maya, 2026-11-05: "insurance is about 500 a year, the only expense is maintenance")', () => {
+  it('4% closing, 6% selling, 3% rent growth, 2% expense growth, a 30-year loan, insurance of $500 a year and no repairs reserve', () => {
+    expect(ASSUMPTIONS).toEqual({ closingCostRate: 0.04, sellingCostRate: 0.06, insuranceAnnual: 500, repairsRate: 0, rentGrowth: 0.03, expenseGrowth: 0.02, loanYears: 30 });
+  });
+});
+
+describe('333 E 46th St #2G with the expenses it really has: the maintenance, and $500 a year of insurance', () => {
+  // worked independently of the code: expenses 1,748.65 + 500/12 = $1,790.32 a month; NOI 4,132.50 x 12 - 1,790.32 x 12 = $28,106; the mortgage, equity, future value and cash invested are the printed page's
+  const r = calculateInvestment(PAGE);
+
+  it('the expenses are the maintenance and the insurance, and nothing else', () => {
+    expect(r.monthlyExpenses).toBe(1790);
+    expect(r.effectiveMonthlyRent).toBe(4133);
+    expect(r.monthlyMortgage).toBe(3440);
+  });
+
+  it('the figures', () => {
+    expect(r.noi).toBe(28106);
+    expect(r.capRate).toBe(3.67);
+    expect(r.monthlyCashFlow).toBe(-1098);
+    expect(r.cashOnCash).toBe(-5.94);
+    expect(r.totalROI).toBe(7.58);
+    expect(r.cumulativeCashFlow).toBe(-79538);
+    expect(r.totalProfit).toBe(184875);
+    expect(r.annualizedReturn).toBe(6.25);
+  });
+
+  it('what does not depend on the expenses is what the printed page said', () => {
+    const printed = calculateInvestment(PAGE, AS_PRINTED);
+    for (const k of ['totalCashInvested', 'totalEquityBuilt', 'totalAppreciation', 'futureValue', 'monthlyMortgage', 'grm', 'effectiveMonthlyRent'] as const) expect(r[k]).toBe(printed[k]);
+  });
+
+  it('there is no repairs reserve: more rent does not add an expense', () => {
+    expect(calculateInvestment({ ...PAGE, estimatedRent: 3000 }).monthlyExpenses).toBe(calculateInvestment({ ...PAGE, estimatedRent: 9000 }).monthlyExpenses);
+  });
+
+  it('insurance is $500 a year whatever the price', () => {
+    expect(calculateInvestment({ ...PAGE, purchasePrice: 300000 }).monthlyExpenses).toBe(calculateInvestment({ ...PAGE, purchasePrice: 3000000 }).monthlyExpenses);
+  });
+
+  it('the listing\'s own taxes still count when it has them (a condo\'s are separate), and a co-op\'s empty tax adds nothing', () => {
+    expect(calculateInvestment({ ...PAGE, monthlyTaxes: 400 }).monthlyExpenses).toBe(1790 + 400);
+    expect(calculateInvestment({ ...PAGE, monthlyTaxes: 0 }).monthlyExpenses).toBe(1790);
   });
 });
 

@@ -226,7 +226,7 @@ export default function InvestorCalculator({
                 <span className="text-red-600">{formatMoney(-calculations.monthlyMortgage)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-brand-dark/85">Maint/CC, taxes, insurance &amp; repairs</span>
+                <span className="text-brand-dark/85">Maint/CC, taxes &amp; insurance</span>
                 <span className="text-red-600">{formatMoney(-calculations.monthlyExpenses)}</span>
               </div>
               <div className="flex justify-between pt-2 border-t border-black/5 font-medium">
@@ -299,7 +299,7 @@ export default function InvestorCalculator({
           </div>
 
           <p className="mt-4 text-xs text-brand-dark/90">
-            *Estimates only. Assumes 4% closing costs, 6% selling costs, a 30-year loan, 3% annual rent growth, 2% expense growth, insurance of 0.4% of the price a year and a repairs reserve of 5% of the rent.
+            *Estimates only. Assumes 4% closing costs, 6% selling costs, a 30-year loan, 3% annual rent growth, 2% expense growth, insurance of $500 a year. The maintenance is the only other expense (taxes are added when the listing has them separately).
             Consult a financial advisor and tax professional for investment decisions.
           </p>
 
