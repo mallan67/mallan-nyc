@@ -210,8 +210,10 @@ describe('the fields the REBNY server requires and the agent fills (they used to
       chooseStatus(f, 'Active');
       const items = listItems(f).join('\n');
       for (const want of ['Listing Info \u2014 Street Address', 'Listing Info \u2014 Borough', 'Listing Info \u2014 Zip Code', 'Listing Info \u2014 Neighborhood', 'Listing Info \u2014 Structure Type',
-        'Listing Info \u2014 Ownership Type', 'Listing Info \u2014 Showing Instructions', 'Unit Info \u2014 Total Rooms', 'Unit Info \u2014 Pets Allowed',
+        'Listing Info \u2014 Ownership Type', 'Unit Info \u2014 Total Rooms', 'Unit Info \u2014 Pets Allowed',
         'Building window \u2014 Year Built', 'Building window \u2014 Total Floors', 'Building window \u2014 Tax Block', 'Unit Info \u2014 Tax Lot']) expect(items).toContain(want);
+      // Maya, 2026-11-05: "showing instructions should not lock the file": a sale is not asked for it (a rental still is: crm-sale-not-required.test.ts)
+      expect(items).not.toContain('Showing Instructions');
     } finally { f.close(); }
   });
 

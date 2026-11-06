@@ -108,7 +108,11 @@ describe('the unit\'s tax lot and the building\'s tax lot', () => {
       expect(src).toMatch(/rls: 'BuildingTaxLot', form: 'saleBldgTaxLot', type: 'text', src: 'raw' \}/);   // no fallback to TaxLot
       expect(src).not.toMatch(/rls: 'BuildingTaxLot', form: 'saleBldgTaxLot'[^}]*fallbackRls/);
     }
-    expect(html).toContain("setIfPresent(prefix + 'BldgTaxLot', pick('building_tax_lot', 'buildingTaxLot'))");
+    // The building's lot is the custom key BuildingTaxLot. A record's TaxLot is one UNIT's lot, so it answers for the building ONLY for a building the lookup calls a co-op (a co-op has one lot, the
+    // building's: Maya, 2026-11-05, "tax lot for coop should be automatic") on a form that is not already a condo, and never when it is "0", "0000" or "NA". Behaviour: crm-sale-not-required.test.ts.
+    expect(html).toContain("var _bldgLot = pick('building_tax_lot', 'buildingTaxLot');");
+    expect(html).toContain("setIfPresent(prefix + 'BldgTaxLot', _bldgLot);");
+    expect(html).toMatch(/_bldgLot === null && prefix === 'sale' && typeof saleHasOwnUnitLot === 'function' && !saleHasOwnUnitLot\(\)\s*&& \(\/\^\(StockCooperative\|Cooperative\|Coop\)\$\/i\.test/);
     // behaviour is proven by crm-sale-roundtrip.test.ts ("Tax Lot restore never moves one lot into the other box")
   });
 });

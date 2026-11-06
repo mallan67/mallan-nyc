@@ -128,6 +128,10 @@ const conditionalFieldRules: RLSRule[] = REBNY_FIELD_TABLES.conditionalRules.fla
 
 const rules: RLSRule[] = [...requiredRules, ...conditionalFieldRules];
 
+// Required of a rental, not of a sale (REBNY_FIELD_TABLES.requiredFields.notRequiredOfSales: Maya, 2026-11-05). A lease is a PropertyType that ends in "Lease" (ResidentialLease, CommercialLease).
+const NOT_REQUIRED_OF_SALES = new Set<string>(REBNY_FIELD_TABLES.requiredFields.notRequiredOfSales);
+const isLeaseType = (propertyType: unknown) => typeof propertyType === 'string' && /lease$/i.test(propertyType);
+
 /**
  * Main CRM listing validation function: required/conditional fields, Fair Housing,
  * NYC-specific rules and field format.
@@ -152,6 +156,7 @@ export function validateListing(listing: ListingData): ValidationResult {
 
     // Check required fields
     if (rule.required && !hasValue) {
+      if (NOT_REQUIRED_OF_SALES.has(rule.field) && !isLeaseType(listing.PropertyType)) continue;      // a sale is not asked for it
       errors.push(
         `[REBNY] Required field missing: ${rule.field}${rule.description ? ` - ${rule.description}` : ''}`
       );
@@ -805,7 +810,7 @@ export function getRequiredFields(propertyType: string, commonInterest?: string)
   const required: string[] = [];
 
   for (const rule of rules) {
-    if (rule.required) {
+    if (rule.required && !(NOT_REQUIRED_OF_SALES.has(rule.field) && !isLeaseType(propertyType))) {
       required.push(rule.field);
     }
 
