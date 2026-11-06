@@ -73,7 +73,7 @@ describe('the rent the calculator starts from, and where it says it comes from',
   it('a Manhattan one-bedroom starts from the average asking rent of Manhattan one-bedrooms, and says so under the box (it was $3,200)', () => {
     const html = open({ borough: 'Manhattan' });
     expect(rentBox(html)).toBe('4995');
-    expect(text(html)).toContain('Based on average asking rents for 1-bedroom apartments in Manhattan.');
+    expect(text(html)).toContain('Based on median asking rents for 1-bedroom apartments in Manhattan.');
   });
 
   it('nothing in Manhattan starts from $2,500: a Manhattan studio is $3,900', () => {
@@ -85,13 +85,13 @@ describe('the rent the calculator starts from, and where it says it comes from',
     const html = open({ purchasePrice: 1200000, maintenanceFee: 1588, bedrooms: 0, borough: 'Manhattan', defaultMonthlyRent: 4940, rentBasis: 'Based on the rent entered for this listing: $40 per SF a year on 1,482 SF' });
     expect(rentBox(html)).toBe('4940');
     expect(text(html)).toContain('Based on the rent entered for this listing: $40 per SF a year on 1,482 SF.');
-    expect(text(html)).not.toContain('average asking rents');
+    expect(text(html)).not.toContain('median asking rents');
   });
 
   it('a commercial listing with no rent entered starts from the Manhattan average per SF, and says it is based on average rents', () => {
-    const html = open({ purchasePrice: 1200000, maintenanceFee: 1588, bedrooms: 0, borough: 'Manhattan', defaultMonthlyRent: 9633, rentBasis: 'Based on average commercial rents in Manhattan: $78 per SF a year on 1,482 SF' });
+    const html = open({ purchasePrice: 1200000, maintenanceFee: 1588, bedrooms: 0, borough: 'Manhattan', defaultMonthlyRent: 9633, rentBasis: 'Based on median commercial rents in Manhattan: $78 per SF a year on 1,482 SF' });
     expect(rentBox(html)).toBe('9633');
-    expect(text(html)).toContain('Based on average commercial rents in Manhattan: $78 per SF a year on 1,482 SF.');
+    expect(text(html)).toContain('Based on median commercial rents in Manhattan: $78 per SF a year on 1,482 SF.');
   });
 
   // Maya, 2026-11-06: "very small letters, this is just a small disclosure ... do not make large boxes or colors or big announcements, make it subtle"
@@ -160,7 +160,7 @@ describe('the statistical disclaimer, the guarantee phrase, and boxes that show 
   });
 
   it('a commercial average carries its own period (2012 to 2026), passed by the page', () => {
-    const html = open({ defaultMonthlyRent: 9633, rentBasis: 'Based on average commercial rents in Manhattan: $78 per SF a year on 1,482 SF', rentDisclaimer: 'Based on information from the REBNY Listing Service for the period November 28, 2012 through July 24, 2026. The REBNY Listing Service makes no representations or warranties with respect to the accuracy or completeness of such information and shall not be held liable for any omission or inaccuracy of such information thereof.' });
+    const html = open({ defaultMonthlyRent: 9633, rentBasis: 'Based on median commercial rents in Manhattan: $78 per SF a year on 1,482 SF', rentDisclaimer: 'Based on information from the REBNY Listing Service for the period November 28, 2012 through July 24, 2026. The REBNY Listing Service makes no representations or warranties with respect to the accuracy or completeness of such information and shall not be held liable for any omission or inaccuracy of such information thereof.' });
     expect(text(html)).toContain('for the period November 28, 2012 through July 24, 2026');
   });
 
@@ -187,7 +187,7 @@ describe('a unit\'s current rent starts the calculator: no RLS data, so no RLS d
     expect(/Est\. Monthly Rent.*?value="(\d+)"/s.exec(html)?.[1]).toBe('4350');
     expect(text(html)).toContain("Based on this unit's current rent.");
     expect(text(html)).not.toContain('REBNY Listing Service');
-    expect(text(html)).not.toContain('average asking rents');
+    expect(text(html)).not.toContain('median asking rents');
     const note = /<p class="([^"]*)">(Based on this unit[^<]*)<\/p>/.exec(html.replace(/&#x27;/g, "'"));
     expect(note).not.toBeNull();
     expect(note![1]).toContain('text-[10px]');

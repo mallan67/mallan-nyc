@@ -45,7 +45,7 @@ export function commercialRentDefault(borough: string | null | undefined, sqFt: 
   if (area < m.sqFtRange[0] || area > m.sqFtRange[1]) return undefined;                  // no area, or a unit the average does not describe: nothing is guessed
   return {
     monthly: Math.round((m.perSqFtYear * area) / 12), perSqFtYear: m.perSqFtYear, sqFt: Math.round(area),
-    basis: `Based on average commercial rents in Manhattan: $${m.perSqFtYear} per SF a year on ${Math.round(area).toLocaleString('en-US')} SF`,
+    basis: `Based on median commercial rents in Manhattan: $${m.perSqFtYear} per SF a year on ${Math.round(area).toLocaleString('en-US')} SF`,
     disclaimer: rlsStatisticalDisclaimer(m.period.start, m.period.end),
   };
 }
@@ -85,7 +85,7 @@ export function marketRentDefault(bedrooms: unknown, borough?: string | null): M
   const beds = Math.min(4, Math.max(0, Math.round(toNumber(bedrooms))));
   return {
     monthly: MEDIAN_ASKING_RENT[area][beds],
-    basis: `Based on average asking rents for ${BED_WORDS[beds]} in ${AREA_WORDS[area]}`,
+    basis: `Based on median asking rents for ${BED_WORDS[beds]} in ${AREA_WORDS[area]}`,
     disclaimer: rlsStatisticalDisclaimer(RESIDENTIAL_RENT_PERIOD.start, RESIDENTIAL_RENT_PERIOD.end),
   };
 }

@@ -49,8 +49,8 @@ describe('a home starts from the median asking rent of live rentals of its size 
   });
 
   it('says where the number comes from, in words a visitor can read', () => {
-    expect(marketRentDefault(1, 'Manhattan').basis).toBe('Based on average asking rents for 1-bedroom apartments in Manhattan');
-    expect(marketRentDefault(0, 'Manhattan').basis).toBe('Based on average asking rents for studio apartments in Manhattan');
+    expect(marketRentDefault(1, 'Manhattan').basis).toBe('Based on median asking rents for 1-bedroom apartments in Manhattan');
+    expect(marketRentDefault(0, 'Manhattan').basis).toBe('Based on median asking rents for studio apartments in Manhattan');
     expect(marketRentDefault(4, 'Manhattan').basis).toContain('4+ bedroom apartments');
   });
 
@@ -96,12 +96,12 @@ describe('a commercial listing with no rent entered starts from the average rent
   it('Manhattan: $78 per SF a year (the median of 24 usable commercial-use rentals in Cotality) times the unit\'s area, over 12 months', () => {
     const r = commercialRentDefault('Manhattan', 1482)!;
     expect(r).toMatchObject({ monthly: 9633, perSqFtYear: 78, sqFt: 1482 });                       // 78 x 1,482 / 12
-    expect(r.basis).toBe('Based on average commercial rents in Manhattan: $78 per SF a year on 1,482 SF');
+    expect(r.basis).toBe('Based on median commercial rents in Manhattan: $78 per SF a year on 1,482 SF');
   });
 
   it('says it is based on average rents (Maya, 2026-11-06: "the disclaimer should be it is based on average rents")', () => {
-    expect(commercialRentDefault('manhattan', 1000)!.basis).toMatch(/^Based on average commercial rents/);
-    expect(marketRentDefault(2, 'Brooklyn').basis).toMatch(/^Based on average asking rents/);
+    expect(commercialRentDefault('manhattan', 1000)!.basis).toMatch(/^Based on median commercial rents/);
+    expect(marketRentDefault(2, 'Brooklyn').basis).toMatch(/^Based on median asking rents/);
   });
 
   it.each([['Brooklyn'], ['Queens'], ['Bronx'], ['Staten Island'], [''], [null], [undefined]])('%j: no average (too few rentals to average, or no borough), so nothing is guessed', (borough) => {
