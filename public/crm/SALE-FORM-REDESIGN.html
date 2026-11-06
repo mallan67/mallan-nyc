@@ -7648,12 +7648,47 @@ function saveSalesDraft() {
     }
 }
 
-function saveSaleMedia() {
-    // Upload any pending media files for the current listing
+// "Save Media" saves what the Media window holds: the new files AND the video and tour links. The links belong to the listing, and only Save Draft / Update used to save them, so a link typed here and "saved" here
+// was lost (Maya, 2026-11-05: the video of 333 E 46th #2G, typed into both boxes, never reached the site). The links go to the listing as their own small save (just the link boxes: the server merges them into
+// the record and keeps everything else), and are READ BACK from the CRM: the toast says which listing holds them, or that they are not saved.
+async function _saleSaveTourLinks(editId) {
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.listings || !MallanAPI.listings.update || !MallanAPI.listings.get) return false;
+    if (_saleSendInFlight) { showToast('Still sending the last save — press Save Media again in a moment.', 'info'); return true; }
+    var slots = _saleTourSlots();
+    var body = {
+        VirtualTourURLUnbranded: slots[0], VirtualTourURLUnbranded2: slots[1], VirtualTourURLUnbranded3: slots[2],
+        VirtualTourURLBranded: _saleTourBox(_SALE_TOUR_BOXES.branded),
+        VideosCount: slots.filter(function (u) { return u && _saleTourKind(u) === 'video'; }).length
+    };
+    Object.keys(_SALE_TOUR_BOXES).forEach(function (k) { body[_SALE_TOUR_BOXES[k]] = _saleTourBox(_SALE_TOUR_BOXES[k]); });     // the form's own boxes too: a reload puts each link back in the box it was typed in
+    _saleSetSending(true);
+    try {
+        try { await MallanAPI.listings.update(editId, body); }
+        catch (e) { showToast('The video and tour links were NOT saved: ' + ((e && e.message) || 'the CRM refused the save') + '.', 'error', 15000); return true; }
+        var back = null;
+        try { back = await MallanAPI.listings.get(editId); } catch (e) { back = null; }
+        var raw = (back && back.raw_data) || {};
+        var holds = back && String(back.listing_id || back.id) === String(window._saleEditListingId || back.listing_id || back.id);
+        var wrong = ['VirtualTourURLUnbranded', 'VirtualTourURLUnbranded2', 'VirtualTourURLUnbranded3', 'VirtualTourURLBranded'].filter(function (k) { return String(raw[k] || '') !== String(body[k] || ''); });
+        if (!back) showToast('The links were sent, but the CRM did not answer when they were read back: open the listing again to check them.', 'warning', 15000);
+        else if (!holds) showToast('The links were sent, but the CRM answered with a different listing (' + (back.listing_id || back.id) + '): check them before relying on them.', 'error', 15000);
+        else if (wrong.length) showToast('The CRM answered but does not hold: ' + wrong.join(', ') + '. Nothing is shown on the public page until it does.', 'error', 15000);
+        else {
+            var n = [body.VirtualTourURLUnbranded, body.VirtualTourURLUnbranded2, body.VirtualTourURLUnbranded3, body.VirtualTourURLBranded].filter(Boolean).length;
+            showToast((n ? n + ' video / tour link' + (n === 1 ? '' : 's') + ' saved to ' + (back.listing_id || back.id) + ' and read back from the CRM.' : 'The video and tour links of ' + (back.listing_id || back.id) + ' are cleared.') + ' The public page shows them once it refreshes.', 'success', 10000);
+        }
+        return true;
+    } finally { _saleSetSending(false); }
+}
+
+async function saveSaleMedia() {
+    if (_saleRefuseWhileLoading()) return;
     var editId = window._saleEditDbId || window._saleEditListingId;
-    if (!editId) { showToast('Save the listing first before uploading media.', 'warning'); return; }
+    if (!editId) { showToast('Save the listing first: the video and tour links, like the photos, are saved with the listing.', 'warning'); return; }
+    var linksHandled = await _saleSaveTourLinks(editId);
+    // Upload any pending media files for the current listing
     var pending = _pendingMediaFiles.filter(function(m) { return !m.uploaded && !m._removed; });
-    if (pending.length === 0) { showToast('No new media to upload.', 'info'); return; }
+    if (pending.length === 0) { if (!linksHandled) showToast('No new media to upload.', 'info'); return; }
     showToast('Uploading ' + pending.length + ' file(s)...', 'info');
     uploadPendingMedia(editId).then(function(result) {
         showToast(result.uploaded + ' uploaded' + (result.failed > 0 ? ', ' + result.failed + ' failed' : ''), result.failed > 0 ? 'warning' : 'success');
@@ -9004,7 +9039,42 @@ function _saleSubmitFailed(err, creating) {
     }
 }
 
+// The REBNY / Cotality copy of a listing is owned by the feed: the CRM refuses every save of it (403 SOURCE_OWNED_LISTING, in the server's own words), and an Update there "did nothing" while this page offered
+// it (Maya, 2026-11-05: two records of 333 E 46th #2G, "i cannot tell which is which"). The server says so when it sends the record (`source_owned`, and `mallan_twin`: the Mallan listing of the same unit, found
+// by the rule the public page uses to redirect the copy). The page then says so at the top, points at that listing, and offers no save that cannot work.
+function _saleApplySourceOwned(listing) {
+    if (!listing || listing.source_owned !== true) return;
+    window._saleSourceOwned = true;
+    var rls = listing.listing_id || '';
+    var twin = listing.mallan_twin && listing.mallan_twin.listing_id ? String(listing.mallan_twin.listing_id) : '';
+    var idEl = document.getElementById('saleListingIdDisplay');
+    var bar = idEl && idEl.closest ? idEl.closest('.sticky') : null;
+    var box = document.getElementById('saleSourceOwnedBanner');
+    if (!box) {
+        box = document.createElement('div'); box.id = 'saleSourceOwnedBanner';
+        if (bar && bar.parentNode) bar.parentNode.insertBefore(box, bar.nextSibling); else document.body.insertBefore(box, document.body.firstChild);
+    }
+    box.className = 'bg-amber-50 border-b border-amber-300 px-6 py-3 text-sm text-amber-900';
+    box.setAttribute('role', 'alert');
+    while (box.firstChild) box.removeChild(box.firstChild);
+    var head = document.createElement('strong'); head.textContent = 'Read-only: this is the REBNY / Cotality copy of the listing' + (rls ? ' (' + rls + ')' : '') + '. '; box.appendChild(head);
+    if (twin) {
+        box.appendChild(document.createTextNode('The feed owns it, so a save is refused. Your Mallan listing for this unit is '));
+        var a = document.createElement('a'); a.href = window.location.pathname + '?id=' + encodeURIComponent(twin); a.className = 'underline font-semibold'; a.textContent = twin; box.appendChild(a);
+        box.appendChild(document.createTextNode(': open it to make changes.'));
+    } else if (listing.mallan_twin && listing.mallan_twin.reason === 'ambiguous-local-twins') {
+        box.appendChild(document.createTextNode('The feed owns it, so a save is refused. More than one Mallan listing matches this unit: settle that in the CRM list first.'));
+    } else {
+        box.appendChild(document.createTextNode('The feed owns it, so a save is refused, and no Mallan listing of this unit was found. Create the Mallan listing (SL-) in this form.'));
+    }
+    var why = 'Read-only: the feed owns this copy.' + (twin ? ' Open ' + twin + ' to make changes.' : '');
+    document.querySelectorAll('button[onclick^="manualSaveDraft"], button[onclick^="submitSalesListing"], button[onclick^="saveSalesDraft"]').forEach(function (b) {
+        b.disabled = true; b.classList.add('opacity-50', 'cursor-not-allowed'); b.title = why;
+    });
+}
+
 function _saleRefuseWhileLoading() {
+    if (window._saleSourceOwned) { showToast('This is the read-only REBNY / Cotality copy of the listing: nothing was saved. Open the Mallan listing of this unit to make changes.', 'error', 10000); return true; }
     if (window._saleEditLoad === 'loading') { showToast('The saved listing is still loading — nothing was sent. Try again in a moment.', 'warning'); return true; }
     if (window._saleEditLoad === 'failed') { showToast('The saved listing did not load — nothing was sent, so a blank form cannot replace it. Reload the page.', 'error'); return true; }
     return false;
@@ -10539,6 +10609,7 @@ function _checkSaleEditMode() {
         window._salePopulateInProgress = true;
         try {
             _populateSaleFormFromApi(listing);
+            _saleApplySourceOwned(listing);                              // the feed's copy of a listing: read-only, with the Mallan listing of the same unit named
             _saleReconcileArea(listing);                                 // one living area: the record's typed value first, then the box that is live for the type
             _saleDeriveCommercialOwnership();                            // a Commercial listing whose ownership is not chosen takes it from the building it sits in, when the record says which
             window._saleEditLoad = 'loaded';
@@ -10562,7 +10633,7 @@ function _checkSaleEditMode() {
         // any timer that change handlers may have scheduled during populate.
         Promise.resolve().then(function() {
             clearTimeout(autoSaveTimer);
-            window._saleAutoSaveReady = true;
+            window._saleAutoSaveReady = !window._saleSourceOwned;           // a read-only copy is never sent: the CRM would refuse it
             if (globalThis.saleUnitLotLookup) globalThis.saleUnitLotLookup();   // a saved listing whose unit's lot is still empty asks Cotality once
             _saleFollowSnapshot();                                              // a listing linked to an RLS ID follows Cotality: what the boxes hold now is what "typed since" is measured from
             saleFollowCotality({ force: true });

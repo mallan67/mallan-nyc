@@ -27,6 +27,9 @@ import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-colum
 import { resolveListingAgentInfo } from "@/lib/listings/agent-info-resolver";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
+import { isMallanRlsReturnCopy } from "@/lib/listings/mallan-source-identity";
+import { resolveReturnCopyCanonicalTarget } from "@/lib/listings/return-copy-canonical";
+import { buildListingSlugFromDbRow } from "@/lib/listing-slug";
 import { REBNY_FIELD_TABLES } from "@/lib/compliance/rebny-field-tables";
 import { assertRlsLinkFree, rlsLinkConflictBody, rlsLinkOf, RlsLinkConflict } from "@/lib/listings/rls-link";
 import { NULLABLE_NUMBER_COLUMNS, readNullableNumber } from "@/lib/listings/nullable-number";
@@ -118,6 +121,25 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   // the existing CRM-tier PII boundary in sanitizeForCRM is unchanged.
   sanitized.list_agent_full_name = listing.list_agent_full_name ?? null;
   sanitized.list_office_name = listing.list_office_name ?? null;
+
+  // WHO OWNS THIS ROW (Maya, 2026-11-05: two records of one unit, "i cannot tell which is which", and an Update that "did nothing"). PATCH, DELETE, status and media all refuse a row the RLS/Cotality
+  // feed owns (403 SOURCE_OWNED_LISTING), and the Sale form offered the save anyway. The form is told here, so it can say so and point at the Mallan listing of the same unit. The twin is found by the
+  // rule the public page uses to redirect the copy (resolveReturnCopyCanonicalTarget: exactly one proven local twin, by the physical-unit key), never a looser one.
+  sanitized.source_class = listingCapabilities(auth, listing).sourceClass;
+  sanitized.source_owned = sanitized.source_class !== "mallan-local";
+  if (isMallanRlsReturnCopy(listing)) {
+    const localCandidates = await prisma.listing.findMany({
+      where: { OR: [{ listing_id: { startsWith: "SL-" } }, { listing_id: { startsWith: "RL-" } }] },
+      select: {
+        listing_id: true, rls_eligible: true, list_office_mls_id: true, address: true, borough: true,
+        internet_address_display_yn: true, internet_entire_listing_display_yn: true, idx_display_yn: true, status: true,
+      },
+    });
+    const target = resolveReturnCopyCanonicalTarget(listing, localCandidates.map((c) => ({ ...c, slug: buildListingSlugFromDbRow(c) })));
+    sanitized.mallan_twin = target.kind === "redirect"
+      ? { listing_id: target.listingId }
+      : { listing_id: null, reason: target.kind === "fail-closed" ? target.reason : null };
+  }
 
   return NextResponse.json(sanitized);
 }
