@@ -6109,7 +6109,16 @@ function populateBuildingFromIDX(prefix, building) {
 
     // ── 5. Tax + association ─────────────────────────────────────────
     setIfPresent(prefix + 'BldgTaxBlock', pick('tax_block', 'taxBlock'));
-    setIfPresent(prefix + 'BldgTaxLot', pick('building_tax_lot', 'buildingTaxLot'));      // not tax_lot: a record's TaxLot is one UNIT's lot
+    // The building's lot is the REBNY custom key BuildingTaxLot, which not every record carries. A CO-OP has ONE lot, the building's, and a record's TaxLot IS it (live 2026-11-05, 333 E 46th, a co-op: every
+    // record says 0012; Maya: "tax lot for coop should be automatic"). A condo's record carries one UNIT's lot (1xxx), which is never the building's: only a building the lookup calls a co-op, on a form that
+    // is not already a condo, takes the record's TaxLot when the key is missing. "0", "0000" and "NA" are what Cotality sends for a lot nobody entered: not an answer.
+    var _bldgLot = pick('building_tax_lot', 'buildingTaxLot');
+    if (_bldgLot === null && prefix === 'sale' && typeof saleHasOwnUnitLot === 'function' && !saleHasOwnUnitLot()
+        && (/^(StockCooperative|Cooperative|Coop)$/i.test(String(building.commonInterestRaw || building.common_interest || '')) || building.model === 'Coop')) {
+        var _recLot = pick('tax_lot', 'taxLot');
+        if (_recLot !== null && /^\d{1,6}$/.test(String(_recLot).trim()) && Number(_recLot) > 0) _bldgLot = _recLot;
+    }
+    setIfPresent(prefix + 'BldgTaxLot', _bldgLot);      // not tax_lot for a condo: a record's TaxLot is one UNIT's lot
     setIfPresent(prefix + 'BldgAnnualTaxes', pick('tax_annual_amount', 'taxAnnualAmount'));
     setIfPresent(prefix + 'BldgAssociationName', pick('association_name', 'associationName'));
     // AssociationFee / AssociationFeeFrequency are real Cotality fields returned
@@ -9639,7 +9648,6 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleNeighborhoodFromAddress', orIds: ['saleBldgNeighborhood'], label: 'Neighborhood', type: 'input', tab: 1, section: 'Listing Information/Address' },
     { id: 'saleStructureType', orIds: ['saleBldgType'], label: 'Structure Type', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleCommonInterest', label: 'Ownership Type', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
-    { id: 'saleShowingInstructions', label: 'Showing Instructions', type: 'input', tab: 1, section: 'Listing Information/Description' },
     { id: 'saleTotalRooms', label: 'Total Rooms', type: 'input', tab: 2, section: 'Unit Information/Essentials' },
     // Found by posting the real form's payload to the real validator (tests/runtime/crm-sale-publish-contract.test.ts): the backend refused these with the form satisfied.
     { id: 'saleUnitNumber', label: 'Unit / Apt Number', type: 'input', tab: 1, section: 'Listing Information/Address', conditional: ['COOP','CONDO','CONDOP','COMMERCIAL_CONDO','COMMERCIAL_COOP','LOFT','DEEDED_PARKING'] },

@@ -118,6 +118,13 @@ export const REBNY_FIELD_TABLES = {
     ] as const,
 
     /**
+     * Required of a RENTAL, not of a SALE (Maya, 2026-11-05: "showing instructions should not lock the file"). The Sale form listed ShowingInstructions in the red "REBNY Required Fields Missing" box and
+     * refused an Active listing without it. Live Cotality serves no ShowingInstructions on any listing (2026-11-05: none of the 60 records of one building carry it, and the public DTO strips it), so a
+     * sale has nothing to follow it from and no public page shows it. A rental keeps the rule: agentSubmitted still lists it, and only a sale skips it (rebny-validator.ts, rls-enforcement.ts).
+     */
+    notRequiredOfSales: ['ShowingInstructions'] as const,
+
+    /**
      * System-generated: required by RLS but set by backend, not form payload.
      * Backend MUST populate these before RLS submission.
      */
