@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useEffect, useRef, useCallback, useState } from 'react';
+import { showsBedsAndBaths } from '@/lib/format/listing-facts';
 import { MapContainer, Marker, Popup, useMap, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
 import type { DisplayListing } from '@/lib/idx/display-adapter';
@@ -350,8 +351,8 @@ export default function SearchMap({ listings, highlightedId, onMarkerClick }: Se
                       {isRental ? `$${listing.listPrice.toLocaleString()}/mo` : formatPrice(listing.listPrice, false)}
                     </div>
                     <div style={{ fontSize: 12, color: '#555', marginTop: 3 }}>
-                      {listing.bedroomsTotal} Bed{listing.bedroomsTotal !== 1 ? 's' : ''} &middot; {listing.bathroomsFull} Bath
-                      {listing.livingArea ? ` · ${listing.livingArea.toLocaleString()} SF` : ''}
+                      {showsBedsAndBaths(listing) && <>{listing.bedroomsTotal} Bed{listing.bedroomsTotal !== 1 ? 's' : ''} &middot; {listing.bathroomsFull} Bath</>}
+                      {listing.livingArea ? `${showsBedsAndBaths(listing) ? ' · ' : ''}${listing.livingArea.toLocaleString()} SF` : ''}
                     </div>
                     <div style={{ fontSize: 12, color: '#1a1a1a', marginTop: 4, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {listing.address.streetName === 'Address Undisclosed'

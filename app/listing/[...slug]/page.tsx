@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { showsBedsAndBaths, bedBathLead } from '@/lib/format/listing-facts';
 import { Suspense } from 'react';
 import Link from 'next/link';
 // `redirect` (307) is deliberately NOT imported: every redirect this route
@@ -828,11 +829,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: `${fullAddress} | ${priceDisplay} | Mallan Real Estate`,
-    description: `${listing.bedroomsTotal} bed, ${listing.bathroomsFull} bath ${listing.propertyType} in ${borough}. ${(listing.publicRemarks || '').substring(0, 150)}...`,
+    description: `${bedBathLead(listing)}${listing.propertyType} in ${borough}. ${(listing.publicRemarks || '').substring(0, 150)}...`,
     alternates: { canonical: canonicalUrl },
     openGraph: {
       title: `${fullAddress} | ${priceDisplay}`,
-      description: `${listing.bedroomsTotal} bed, ${listing.bathroomsFull} bath ${listing.propertyType} in ${borough}.`,
+      description: `${bedBathLead(listing)}${listing.propertyType} in ${borough}.`,
       url: canonicalUrl,
       type: 'article',
       images: [{ url: ogImage, width: 1200, height: 630, alt: fullAddress }],
@@ -840,7 +841,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     twitter: {
       card: 'summary_large_image',
       title: `${fullAddress} | ${priceDisplay}`,
-      description: `${listing.bedroomsTotal} bed, ${listing.bathroomsFull} bath ${listing.propertyType} in ${borough}`,
+      description: `${bedBathLead(listing)}${listing.propertyType} in ${borough}`,
       images: [ogImage],
     },
   };
@@ -1485,6 +1486,8 @@ export default async function ListingPage({ params }: Props) {
 
                 {/* Quick Stats — icon-enhanced, clear separators */}
                 <div className="flex flex-wrap items-center gap-0 py-4 px-1 rounded-2xl bg-[#F8F7F4]">
+                  {/* Beds and Baths are a home's: a Commercial listing (an office) shows its area, not "0 Beds" */}
+                  {showsBedsAndBaths(listing) && (<>
                   <div className="flex items-center gap-2 px-4 py-1">
                     <svg className="w-5 h-5 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4" /></svg>
                     <div>
@@ -1502,9 +1505,10 @@ export default async function ListingPage({ params }: Props) {
                       <span className="text-brand-dark/80 text-[13px] ml-1">Baths</span>
                     </div>
                   </div>
+                  </>)}
                   {listing.livingArea && (
                     <>
-                      <div className="w-px h-8 bg-black/10" />
+                      {showsBedsAndBaths(listing) && <div className="w-px h-8 bg-black/10" />}
                       <div className="flex items-center gap-2 px-4 py-1">
                         <svg className="w-5 h-5 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
                         <div>

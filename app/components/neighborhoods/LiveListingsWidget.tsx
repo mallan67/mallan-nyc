@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { showsBedsAndBaths } from '@/lib/format/listing-facts';
 import Link from 'next/link';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
@@ -15,6 +16,8 @@ interface ListingItem {
   listPrice: number;
   propertyType: string;
   propertySubType: string | null;
+  /** A Mallan commercial listing: no bedrooms or bathrooms to count. */
+  isCommercial?: boolean;
   bedroomsTotal: number;
   bathroomsFull: number;
   bathroomsHalf: number;
@@ -228,9 +231,9 @@ function ListingCard({ listing }: { listing: ListingItem }) {
         </p>
 
         <p className="text-xs text-brand-dark/85 mt-1">
-          {listing.bedroomsTotal} bed{listing.bedroomsTotal !== 1 ? 's' : ''} &middot;{' '}
-          {listing.bathroomsFull} bath{listing.bathroomsFull !== 1 ? 's' : ''}
-          {listing.livingArea ? ` · ${listing.livingArea.toLocaleString()} sq ft` : ''}
+          {showsBedsAndBaths(listing) && <>{listing.bedroomsTotal} bed{listing.bedroomsTotal !== 1 ? 's' : ''} &middot;{' '}
+          {listing.bathroomsFull} bath{listing.bathroomsFull !== 1 ? 's' : ''}</>}
+          {listing.livingArea ? `${showsBedsAndBaths(listing) ? ' · ' : ''}${listing.livingArea.toLocaleString()} sq ft` : ''}
         </p>
 
         {/* REBNY Compliance H1/F6: "Listing Courtesy of [Broker Name]" — UCBA Art. III §2(C): font not
