@@ -95,6 +95,8 @@ export interface DisplayListing {
   livingArea: number | null;
   propertyType: string;
   propertySubType: string | null;
+  /** A Mallan commercial listing (an office, a retail space): a card shows its area, not "0 Beds". */
+  isCommercial?: boolean;
   associationFee?: number;
   associationFeeFrequency?: string;
   listOfficeName: string;
@@ -157,6 +159,7 @@ export function fromPublicDTO(dto: PublicListingDTO): DisplayListing {
     livingArea: dto.livingArea,
     propertyType: dto.propertyType,
     propertySubType: dto.propertySubType,
+    isCommercial: dto.isCommercial,
     associationFee: dto.associationFee,
     associationFeeFrequency: dto.associationFeeFrequency,
     listOfficeName: dto.listOfficeName,

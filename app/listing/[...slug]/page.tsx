@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { showsBedsAndBaths, bedBathLead } from '@/lib/format/listing-facts';
 import { Suspense } from 'react';
 import Link from 'next/link';
 // `redirect` (307) is deliberately NOT imported: every redirect this route
@@ -11,6 +12,8 @@ import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
 import AuctionBanner from '@/app/components/AuctionBanner';
 import InvestorCalculator from '@/app/components/InvestorCalculator';
+import ListingDescription from '@/app/components/ListingDescription';
+import { showsInvestorCalculator, commercialRentDefault } from '@/lib/calculators/rent-estimate';
 import RentVsBuyCalculator from '@/app/components/RentVsBuyCalculator';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import ListingMediaGallery from '@/app/components/ListingMediaGallery';
@@ -826,11 +829,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: `${fullAddress} | ${priceDisplay} | Mallan Real Estate`,
-    description: `${listing.bedroomsTotal} bed, ${listing.bathroomsFull} bath ${listing.propertyType} in ${borough}. ${(listing.publicRemarks || '').substring(0, 150)}...`,
+    description: `${bedBathLead(listing)}${listing.propertyType} in ${borough}. ${(listing.publicRemarks || '').substring(0, 150)}...`,
     alternates: { canonical: canonicalUrl },
     openGraph: {
       title: `${fullAddress} | ${priceDisplay}`,
-      description: `${listing.bedroomsTotal} bed, ${listing.bathroomsFull} bath ${listing.propertyType} in ${borough}.`,
+      description: `${bedBathLead(listing)}${listing.propertyType} in ${borough}.`,
       url: canonicalUrl,
       type: 'article',
       images: [{ url: ogImage, width: 1200, height: 630, alt: fullAddress }],
@@ -838,7 +841,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     twitter: {
       card: 'summary_large_image',
       title: `${fullAddress} | ${priceDisplay}`,
-      description: `${listing.bedroomsTotal} bed, ${listing.bathroomsFull} bath ${listing.propertyType} in ${borough}`,
+      description: `${bedBathLead(listing)}${listing.propertyType} in ${borough}`,
       images: [ogImage],
     },
   };
@@ -952,6 +955,8 @@ export default async function ListingPage({ params }: Props) {
   const isCoop = listing.propertyType === 'Co-op' || listing.propertyType === 'Cooperative';
   const borough = countyToBorough(listing.address.county);
   const neighborhood = listing.address.neighborhood || '';
+  // a Mallan commercial listing with no rent entered starts its Investment Analysis from the average rent per SF of the commercial-use rentals in Cotality (Manhattan only: lib/calculators/rent-estimate.ts)
+  const commercialMarketRent = listing.isCommercial && !listing.estimatedRent && !listing.currentMonthlyRent ? commercialRentDefault(borough, listing.livingArea) : undefined;
   const displayPropertyType = listing.propertyType === 'Residential' ? (listing.propertySubType || listing.propertyType) : listing.propertyType;
 
   // Neighborhood data lookup
@@ -1481,6 +1486,8 @@ export default async function ListingPage({ params }: Props) {
 
                 {/* Quick Stats — icon-enhanced, clear separators */}
                 <div className="flex flex-wrap items-center gap-0 py-4 px-1 rounded-2xl bg-[#F8F7F4]">
+                  {/* Beds and Baths are a home's: a Commercial listing (an office) shows its area, not "0 Beds" */}
+                  {showsBedsAndBaths(listing) && (<>
                   <div className="flex items-center gap-2 px-4 py-1">
                     <svg className="w-5 h-5 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4" /></svg>
                     <div>
@@ -1498,9 +1505,10 @@ export default async function ListingPage({ params }: Props) {
                       <span className="text-brand-dark/80 text-[13px] ml-1">Baths</span>
                     </div>
                   </div>
+                  </>)}
                   {listing.livingArea && (
                     <>
-                      <div className="w-px h-8 bg-black/10" />
+                      {showsBedsAndBaths(listing) && <div className="w-px h-8 bg-black/10" />}
                       <div className="flex items-center gap-2 px-4 py-1">
                         <svg className="w-5 h-5 text-brand-gold-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
                         <div>
@@ -1536,15 +1544,8 @@ export default async function ListingPage({ params }: Props) {
               {listing.publicRemarks && (
                 <section className="py-6 border-t border-black/[0.06]">
                   <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">About This Property</h2>
-                  <p
-                    className="text-brand-dark/85 text-[15px] leading-[1.85] max-w-none text-justify whitespace-pre-wrap"
-                  >
-                    {listing.publicRemarks
-                      .replace(/<[^>]*>/g, '')
-                      .replace(/\?\?(?=\s)/g, '•')
-                      .replace(/\*\*([^*]+)\*\*/g, '$1')
-                    }
-                  </p>
+                  {/* headings and paragraphs, not one pre-wrapped paragraph with a blank line between every line (lib/format/listing-description.ts); the same clean-up of the text as before */}
+                  <ListingDescription text={listing.publicRemarks} />
                 </section>
               )}
 
@@ -1838,6 +1839,8 @@ export default async function ListingPage({ params }: Props) {
               </section>
 
               {/* ── 9. CALCULATORS (collapsed by default) ── */}
+              {/* a Mallan commercial listing starts from the rent entered for it, else the Manhattan average per SF; with neither it has no Investment Analysis, as there is no residential rent to guess for an office (Maya, 2026-11-05/06) */}
+              {(isRental || showsInvestorCalculator({ isRental, isCommercial: listing.isCommercial, estimatedRent: listing.estimatedRent, commercialMarketRent, currentRent: listing.currentMonthlyRent })) && (
               <section id="investor-calculator" className="py-6 border-t border-black/[0.06] scroll-mt-24">
                 {!isRental ? (
                   <InvestorCalculator
@@ -1846,6 +1849,10 @@ export default async function ListingPage({ params }: Props) {
                     monthlyTaxes={listing.taxAnnualAmount ? Math.round(listing.taxAnnualAmount / 12) : 0}
                     bedrooms={listing.bedroomsTotal}
                     neighborhood={neighborhood || borough}
+                    borough={borough}
+                    defaultMonthlyRent={listing.currentMonthlyRent ?? (listing.estimatedRent ?? commercialMarketRent)?.monthly}
+                    rentBasis={listing.currentMonthlyRent ? "Based on this unit's current rent" : listing.estimatedRent ? `Based on Mallan's expected rent for this unit: $${listing.estimatedRent.perSqFtYear} per SF a year on ${listing.estimatedRent.sqFt.toLocaleString('en-US')} SF` : commercialMarketRent?.basis}
+                    rentDisclaimer={listing.currentMonthlyRent || listing.estimatedRent ? undefined : commercialMarketRent?.disclaimer}
                   />
                 ) : (
                   <RentVsBuyCalculator
@@ -1857,6 +1864,7 @@ export default async function ListingPage({ params }: Props) {
                   />
                 )}
               </section>
+              )}
 
               {/* ── 10. TRANSIT & COMMUTE ── */}
               {listing.address.latitude && listing.address.longitude && (

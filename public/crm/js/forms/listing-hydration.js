@@ -237,6 +237,7 @@
     { rls: 'saleBldgLandLeaseYN', form: 'saleBldgLandLeaseYN', type: 'text', src: 'raw' },
     // Controls that had no id until 2026-10-28 (their answers were never saved)
     { rls: 'saleAvailabilityComments', form: 'saleAvailabilityComments', type: 'text', src: 'raw' },
+    { rls: 'saleCurrentMonthlyRent', form: 'saleCurrentMonthlyRent', type: 'number', src: 'raw' },
     { rls: 'saleFlipTaxType', form: 'saleFlipTaxType', type: 'text', src: 'raw' },
     { rls: 'saleFlipTaxPaidBy', form: 'saleFlipTaxPaidBy', type: 'text', src: 'raw' },
     { rls: 'saleFlipTaxRemarks', form: 'saleFlipTaxRemarks', type: 'text', src: 'raw' },
@@ -254,6 +255,7 @@
     { rls: 'saleCommercialFrontageFt', form: 'saleCommercialFrontageFt', type: 'number', src: 'raw' },
     { rls: 'saleCommercialCapRate', form: 'saleCommercialCapRate', type: 'number', src: 'raw' },
     { rls: 'saleCommercialNOI', form: 'saleCommercialNOI', type: 'number', src: 'raw' },
+    { rls: 'saleCommercialRentPSF', form: 'saleCommercialRentPSF', type: 'number', src: 'raw' },
     { rls: 'saleCommercialUnitsTotal', form: 'saleCommercialUnitsTotal', type: 'number', src: 'raw' },
     { rls: 'saleCommercialRetailUnits', form: 'saleCommercialRetailUnits', type: 'number', src: 'raw' },
     { rls: 'saleCommercialLeaseType', form: 'saleCommercialLeaseType', type: 'text', src: 'raw' },

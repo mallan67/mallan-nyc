@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { showsBedsAndBaths } from '@/lib/format/listing-facts';
 import IDXImage from '@/app/components/IDXImage';
 import FavoriteButton from '@/app/components/FavoriteButton';
 import FareActFeeBadge from '@/app/components/FareActFeeBadge';
@@ -190,12 +191,16 @@ export function GridCard({ listing, isRental, isHighlighted, onHover, priority =
           {formatPrice(listing.listPrice, isRental)}
         </p>
         <div className="flex gap-3 text-[15px] text-brand-dark/90 mt-1.5">
-          <span>{listing.bedroomsTotal} Bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
-          <span className="text-brand-dark/30">&middot;</span>
-          <span>{formatBathrooms(listing.bathroomsFull, listing.bathroomsHalf)} Bath</span>
+          {showsBedsAndBaths(listing) && (
+            <>
+              <span>{listing.bedroomsTotal} Bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
+              <span className="text-brand-dark/30">&middot;</span>
+              <span>{formatBathrooms(listing.bathroomsFull, listing.bathroomsHalf)} Bath</span>
+            </>
+          )}
           {listing.livingArea && listing.livingArea > 0 && (
             <>
-              <span className="text-brand-dark/30">&middot;</span>
+              {showsBedsAndBaths(listing) && <span className="text-brand-dark/30">&middot;</span>}
               <span>{listing.livingArea.toLocaleString()} SF</span>
             </>
           )}
@@ -323,12 +328,16 @@ export function ListCard({ listing, isRental, isHighlighted, onHover, priority =
               {formatPrice(listing.listPrice, isRental)}
             </p>
             <div className="flex gap-3 text-[15px] text-brand-dark/90 mt-1">
-              <span>{listing.bedroomsTotal} Bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
-              <span className="text-brand-dark/30">&middot;</span>
-              <span>{formatBathrooms(listing.bathroomsFull, listing.bathroomsHalf)} Bath</span>
+              {showsBedsAndBaths(listing) && (
+                <>
+                  <span>{listing.bedroomsTotal} Bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
+                  <span className="text-brand-dark/30">&middot;</span>
+                  <span>{formatBathrooms(listing.bathroomsFull, listing.bathroomsHalf)} Bath</span>
+                </>
+              )}
               {listing.livingArea && listing.livingArea > 0 && (
                 <>
-                  <span className="text-brand-dark/30">&middot;</span>
+                  {showsBedsAndBaths(listing) && <span className="text-brand-dark/30">&middot;</span>}
                   <span>{listing.livingArea.toLocaleString()} SF</span>
                 </>
               )}
@@ -467,12 +476,16 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover, priority 
           {formatPrice(listing.listPrice, isRental)}
         </p>
         <div className="flex gap-2 text-sm text-brand-dark/90 mt-1">
-          <span>{listing.bedroomsTotal} Bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
-          <span className="text-brand-dark/30">&middot;</span>
-          <span>{formatBathrooms(listing.bathroomsFull, listing.bathroomsHalf)} Bath</span>
+          {showsBedsAndBaths(listing) && (
+            <>
+              <span>{listing.bedroomsTotal} Bed{listing.bedroomsTotal !== 1 ? 's' : ''}</span>
+              <span className="text-brand-dark/30">&middot;</span>
+              <span>{formatBathrooms(listing.bathroomsFull, listing.bathroomsHalf)} Bath</span>
+            </>
+          )}
           {listing.livingArea && listing.livingArea > 0 && (
             <>
-              <span className="text-brand-dark/30">&middot;</span>
+              {showsBedsAndBaths(listing) && <span className="text-brand-dark/30">&middot;</span>}
               <span>{listing.livingArea.toLocaleString()} SF</span>
             </>
           )}

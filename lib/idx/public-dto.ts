@@ -196,6 +196,12 @@ export interface PublicListingDTO {
   virtualTourURL?: string;
   /** Playable video URL (YouTube/Vimeo/etc.) split out of the Trestle tour fields. */
   videoUrl?: string;
+  /** A Mallan listing saved as Commercial (an office, a retail space): no residential rent guess applies to it. */
+  isCommercial?: boolean;
+  /** The rent the broker entered for a Mallan commercial listing (dollars per square foot per year x the listing's area): the Investment Analysis starts from it. */
+  estimatedRent?: { monthly: number; perSqFtYear: number; sqFt: number };
+  /** The rent now paid by the tenant in place, as the broker entered it on the Sale form (dollars a month): the Investment Analysis starts from it before anything else. */
+  currentMonthlyRent?: number;
   // Remarks (public only — private remarks NEVER included)
   publicRemarks?: string;
   // Dates

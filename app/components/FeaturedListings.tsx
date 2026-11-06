@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { showsBedsAndBaths } from '@/lib/format/listing-facts';
 import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
@@ -68,6 +69,8 @@ interface FeaturedListing {
   /** The listing's 3D tour and its playable video (the Cotality VirtualTourURL* fields, split by host); either may be absent. */
   virtualTourURL?: string;
   videoUrl?: string;
+  /** A Mallan commercial listing: no bedrooms or bathrooms to count. */
+  isCommercial?: boolean;
   monthlyCommonCharges?: number;
   monthlyMaintenance?: number;
   /** UCBA Art. I §16(C) — first-showing date used in the Coming Soon badge. */
@@ -368,8 +371,8 @@ function ListingCard({ listing, pinned }: { listing: FeaturedListing; pinned?: b
             </p>
           </div>
           <p className="text-brand-dark/90 text-[13px] font-light">
-            {listing.bedroomsTotal} bd &middot; {formatBathrooms(listing.bathroomsFull, listing.bathroomsHalf)} ba
-            {listing.livingArea && listing.livingArea > 0 && ` \u00B7 ${listing.livingArea.toLocaleString()} sf`}
+            {showsBedsAndBaths(listing) && <>{listing.bedroomsTotal} bd &middot; {formatBathrooms(listing.bathroomsFull, listing.bathroomsHalf)} ba</>}
+            {listing.livingArea && listing.livingArea > 0 && `${showsBedsAndBaths(listing) ? ' \u00B7 ' : ''}${listing.livingArea.toLocaleString()} sf`}
           </p>
           {!isRental && cc && cc > 0 && (
             <p className="text-brand-dark/85 text-[12px] font-light mt-1">

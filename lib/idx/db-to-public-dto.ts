@@ -22,6 +22,7 @@ import { publicListOfficeName } from './public-attribution';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 import { composeSlugStreetName, buildListingSlugFromDbRow } from '@/lib/listing-slug';
+import { listingRentFromPsf, currentRentFromRaw } from '@/lib/calculators/rent-estimate';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
 import {
@@ -620,6 +621,14 @@ export function dbListingToPublicDTO(
       [rawData.VirtualTourURLUnbranded, rawData.VirtualTourURLUnbranded2, rawData.VirtualTourURLUnbranded3],
       [rawData.VirtualTourURLBranded, rawData.VirtualTourURLBranded2, rawData.VirtualTourURLBranded3],
     ),
+    // The Investment Analysis of a Mallan COMMERCIAL listing starts from the rent the broker entered ($ per SF per year, Sale form, Commercial section) times the listing's area: no residential rent
+    // guess applies to an office (Maya, 2026-11-05). A listing without that rent has none, and the page does not show the calculator for it.
+    // The rent the tenant in place pays now, as the broker entered it (Sale form, Current Rent): a SALE listing only, since a rental's rent is its price.
+    ...(listing.listing_type !== 'rent' ? (() => { const rent = currentRentFromRaw(rawData); return rent ? { currentMonthlyRent: rent } : {}; })() : {}),
+    // Only a listing saved as Commercial: a rent left in raw_data under a listing that is now a Condo is a hidden leftover and counts for nothing.
+    ...(listing.property_type === 'Commercial'
+      ? (() => { const rent = listingRentFromPsf(rawData, listing.living_area); return rent ? { isCommercial: true, estimatedRent: rent } : { isCommercial: true }; })()
+      : {}),
     // FARE Act fee transparency
     moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,
     // Shared zero-safe resolver (canonical-first legacy fallback) — same on every path.
