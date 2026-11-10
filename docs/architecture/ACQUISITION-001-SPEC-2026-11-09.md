@@ -1,8 +1,8 @@
 # ACQUISITION-001 — Buyer Acquisition Pilot (two exclusive listings)
 
-**Directed by:** Maya, 2026-11-09 · **Status:** evidence engine only (this PR). Workspace page, storage, market scan and live listing facts are NOT built. · **Nothing here sends, publishes, spends or changes a listing.**
+**Directed by:** Maya, 2026-11-09 · **Status:** evidence engine only (this PR). Workspace page, storage and market scan are NOT built. The two listings' identities and facts in section 1 were read live from Cotality on 2026-11-10. · **Nothing here sends, publishes, spends or changes a listing.**
 
-Maya's two decisions on 2026-11-09 (chat): the "unrelated CRM and listing feature development stays held" rule in `CLAUDE.md` §B is lifted for this project only; read-only Cotality lookups for the two listings are authorized. The Cotality lookups have NOT been run: the session had a Cotality client id but no client secret.
+Maya's two decisions on 2026-11-09 (chat), restated on 2026-11-10 ("you already have authorization for read-only research"): the "unrelated CRM and listing feature development stays held" rule in `CLAUDE.md` §B is lifted for this project only; read-only Cotality lookups for the two listings are authorized. Neither decision is recorded in the Execution State. The lookups were run on 2026-11-10. The first version of this document said they had not been run (that session had no client secret) and that #806 had no listing record; both statements were wrong or out of date and are corrected below.
 
 ## 1. What the pilot is
 
@@ -10,8 +10,8 @@ A private way to find evidence of buyer demand and distribution opportunities fo
 
 | Pilot property | Class | Listing identity today |
 |---|---|---|
-| 800 Second Avenue #806 | commercial office condominium | **No listing record found.** No reference in the repository (GitHub code search) and no URL in the public sitemap on 2026-11-09. No listing id is invented here. Maya or the CRM record supplies it. |
-| 333 East 46th Street #2G | residential condop | `SL-0004` (Mallan website exclusive); `RLS20093870` is the Cotality return copy of the same unit (SELLER-001 §0). `SL-0004` has a public page; on 2026-11-09 its title read "$765,000" and the page described a 1-bed, 1-bath co-op. That is what mallan.nyc showed, not a Cotality-verified value, and must not be reused in outward material until verified. |
+| 800 Second Avenue #806 | commercial (medical/professional office) condominium | Mallan listing `SL-0010`; Cotality record `RLS20123633` (ListingKey 1194314473). Read live from Cotality on 2026-11-10: Active, list price $1,200,000, 1,482 SF, on market since 2026-11-01, ExclusiveAgency, list office 7041. The Cotality record's own `ListingURL` is the SL-0010 page, which answers 200 and shows the same price. Cotality files the unit as Residential / Apartment / Condominium with CurrentUse MedicalDental, 8 bedrooms and 3 baths, while the SL-0010 page reads "0 bed, 2 bath": the two records disagree and need reconciling. The earlier "no listing record found" statement was wrong. |
+| 333 East 46th Street #2G | residential condop (Cotality: StockCooperative) | `SL-0004` (Mallan website exclusive) and `RLS20093870` (Cotality; the same unit, list office 7041; SELLER-001 §0). Read live from Cotality on 2026-11-10: Active, list price $765,000 (original $770,000, changed 2026-06-22), 860 SF, 1 bed / 1 bath, maintenance $1,749 a month, maximum financing 80%, on market since 2026-05-28, ExclusiveAgency. The listing text says the unit is tenant-occupied with a lease to 2027-08-14 and that subletting is permitted from day one; those are the listing's own statements and have not been checked against the building's governing documents. The SL-0004 page title shows the same $765,000. |
 
 Old figures in earlier specs (rents, cap rates, tenant status, lender assumptions, compensation) are not repeated anywhere in this work.
 
@@ -41,7 +41,7 @@ Two campaign systems exist and are separate: the `Campaign` table (lead-audience
 6. A market-scan provider. None connected; section 5.
 7. Commercial and medical outreach templates. The one template is residential and investor-shaped.
 8. Campaign links and external-placement log. HELD with SELLER-001 Phase 2.
-9. Live Cotality facts for both listings. Needs credentials.
+9. Live Cotality facts for both listings. Read on 2026-11-10 (section 1); read again before any outward use, because prices and statuses change.
 
 ## 4. What this PR adds
 
@@ -59,12 +59,12 @@ Two campaign systems exist and are separate: the `Campaign` table (lead-audience
 ## 5. Connecting an external service (none is connected)
 
 - **Market-scan provider:** choose one, confirm its terms permit this use, and give Maya the cost per query first. Its key would be a Vercel environment variable, which is an approved-only change. Until then a scan returns nothing; the engine accepts only findings that already carry a citation, so a manual finding works.
-- **Cotality (live listing facts):** the runtime client is `lib/idx/auth.ts` (`client_credentials`, scope `api`). Facts are read-only and each is stored with its source and as-of date. Not run: no client secret reachable from the session.
+- **Cotality (live listing facts):** the runtime client is `lib/idx/auth.ts` (`client_credentials`, scope `api`). Facts are read-only and each is stored with its source and as-of date. Run on 2026-11-10 for both listings with the existing Vercel-held credentials; nothing was written.
 
 ## 6. Cost, compliance and operational risks
 
 - The listing-campaign route's own comments describe cold commercial email to public-record prospects as Maya-approved on 2026-07-14, under CAN-SPAM with suppression and a signed unsubscribe. Any outreach for this project still needs operator approval per message set.
 - The investor template computes metrics from operator-typed rent and maintenance. Do not use it for either pilot until those inputs are verified.
-- `SL-0004` was not in the 9,948-URL sitemap on 2026-11-09, and the `RLS20093870` page URL also answered 200. Neither was investigated here; it bears on which page is canonical.
+- Checked 2026-11-10: neither `SL-0004` nor `SL-0010` (nor any URL for either building) is in `mallan.nyc/sitemap.xml` (9,946 URLs), so neither exclusive is offered to search engines through the sitemap; the cause was not established. The Cotality-copy pages (`/rls20123633`, `/rls20093870`) answer 200 but are `noindex, follow` with the SL page as canonical, so the duplicate-page question is answered. `SL-0004`'s canonical slug reads `new-york-ny`, and the `new-york-city-ny` form of the same URL also answers 200.
 - Anonymous traffic is not measured, so "visits" counts only known leads until Phase 2 tracking exists.
 - Search-provider cost and terms are unknown until a provider is chosen.
