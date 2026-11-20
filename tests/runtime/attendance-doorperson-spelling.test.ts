@@ -66,6 +66,28 @@ describe('the forms offer exactly the live AttendanceType members', () => {
   });
 });
 
+describe('what a visitor or an agent reads for a doorperson', () => {
+  it.each(['app/building/page.tsx', 'app/buildings/[slug]/page.tsx'])('%s: the amenity icon is keyed on the label the amenity list now carries', (page) => {
+    const src = readFileSync(join(ROOT, page), 'utf8');
+    expect(src).toMatch(/\bDoorperson:/);
+    expect(src).not.toMatch(/\bDoorman:/);
+  });
+
+  it('the CRM detail view reads the video member as Video, not as its full-time substring', () => {
+    const src = readFileSync(join(ROOT, 'public/crm/js/render/render-master-detail.js'), 'utf8');
+    const line = src.split(/\r?\n/).find((l) => /^\s*doorman: function \(l\)/.test(l))!;
+    const fn = new Function(`return ({ ${line.trim().replace(/,\s*$/, '')} }).doorman;`)();
+    const read = (AttendanceType: string) => fn({ rebny: { AttendanceType } });
+    expect(read('VideoDoorpersonFullTime')).toBe('Video');
+    expect(read('VideoDoorpersonYes')).toBe('Video');
+    expect(read('DoorpersonFullTime')).toBe('Full-time');
+    expect(read('DoorpersonPartTime')).toBe('Part-time');
+    expect(read('DoorpersonYes')).toBe('Yes');
+    expect(read('None')).toBe('None');
+    expect(read('')).toBe('--');
+  });
+});
+
 describe('the generated data contract carries the live members', () => {
   it.each(['sale', 'rental'])('%s listings: the Doorperson members are observed', (side) => {
     const live = JSON.parse(readFileSync(join(ROOT, 'data/cotality-enums.live.json'), 'utf8'));

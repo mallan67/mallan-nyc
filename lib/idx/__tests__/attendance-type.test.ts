@@ -13,8 +13,13 @@ import {
   attendanceAmenities,
   hasDoorperson,
 } from '@/lib/idx/attendance-type';
+import { REBNY_FIELD_TABLES } from '@/lib/compliance/rebny-field-tables';
 
 describe('AttendanceType members', () => {
+  it('are the members the REBNY validator accepts (one list, no drift)', () => {
+    expect([...REBNY_FIELD_TABLES.enumValues.AttendanceType].sort()).toEqual([...ATTENDANCE_TYPE_MEMBERS].sort());
+  });
+
   it('lists the live members and no Doorman spelling', () => {
     expect([...ATTENDANCE_TYPE_MEMBERS].sort()).toEqual([
       'ConciergeFullTime', 'ConciergePartTime', 'ConciergeYes',

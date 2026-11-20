@@ -89,7 +89,7 @@ for (let attempt = 0; attempt < 30; attempt++) {
 if (!metaRes.ok) { console.error(`$metadata FAILED ${metaRes.status}`); process.exit(2); }
 const xml = await metaRes.text();
 
-const attr =(tag, name) => (tag.match(new RegExp(`\\b${name}="([^"]*)"`)) || [])[1];
+const attr = (tag, name) => (tag.match(new RegExp(`\\b${name}="([^"]*)"`)) || [])[1];
 
 const enums = {};
 const flagEnums = new Set();
