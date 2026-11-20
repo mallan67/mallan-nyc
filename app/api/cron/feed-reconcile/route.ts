@@ -26,6 +26,7 @@ import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAccessToken } from "@/lib/idx/auth";
+import { fetchAttendanceTypes, withAttendanceType } from "@/lib/idx/custom-property-join";
 import {
   mapTrestleToPrisma,
   checkDistributionGates,
@@ -393,6 +394,9 @@ export async function GET(req: NextRequest) {
         }
         const page = (await res.json()) as { value?: Array<Record<string, unknown>> };
         const rows = page.value ?? [];
+        // AttendanceType is a key inside CustomProperty.CustomFields, not a Property field: one lookup for the batch, carried onto each listing created below.
+        const attendanceJoin = await fetchAttendanceTypes(rows.map((r) => String(r.ListingKey ?? "")));
+        if (attendanceJoin.unknown.size > 0) console.warn(`[feed-reconcile] AttendanceType unknown for ${attendanceJoin.unknown.size} of ${rows.length} listings created in this batch (the Cotality lookup failed); the next sync fills them`);
         for (const raw of rows) {
           try {
             const validation = validateRequiredFields(raw);
@@ -403,6 +407,7 @@ export async function GET(req: NextRequest) {
             const gates = checkDistributionGates(raw);
             const mapped = mapTrestleToPrisma(raw);
             if (!gates.displayable) mapped.sync_status = `gated:${gates.reason}`;
+            mapped.features = withAttendanceType(mapped.features as Record<string, unknown>, String(raw.ListingKey ?? ""), attendanceJoin, null);
 
             // Phase C: strip the legacy agent_info JSON from the spread; the 8 typed
             // agent columns remain in typedOnlyMapped (mapper emits them).

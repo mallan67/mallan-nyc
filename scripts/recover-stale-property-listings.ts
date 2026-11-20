@@ -97,6 +97,7 @@
 import { readFileSync } from "node:fs";
 import prisma from "@/lib/prisma";
 import { fetchSingleListing } from "@/lib/idx/fetch";
+import { keepStoredAttendanceType } from "@/lib/idx/custom-property-join";
 import {
   mapTrestleToPrisma,
   checkDistributionGates,
@@ -704,6 +705,8 @@ export async function recoverOneListing(
     where: { listing_id: mapped.listing_id },
     select: LISTING_SYNC_COMPARE_SELECT,
   });
+  // Rewriting the features must not erase the AttendanceType the main sync stored (no extra Cotality request: this script counts them).
+  mapped.features = keepStoredAttendanceType(mapped.features as Record<string, unknown>, existing?.features);
 
   // Policy preserved verbatim (lib/idx/sync.ts:841): a never-tracked listing
   // arriving terminal must not be created.

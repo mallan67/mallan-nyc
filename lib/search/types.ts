@@ -124,16 +124,24 @@ export interface AmenityFieldConfig {
   unavailable?: string;
 }
 
+/**
+ * Does every Active listing in Mallan's stored listings carry AttendanceType? The listing sync now looks it up (lib/idx/custom-property-join.ts) and stores it, but a listing already stored
+ * carries it only after the sync touches it again: a full sync backfills them. Flip this to true ONLY after that backfill is verified against live Cotality (the share of stored Active listings
+ * that carry AttendanceType matches the share live Cotality carries), and update tests/runtime/public-search-doorperson.test.ts and the State in the same commit. While it is false the Doorperson
+ * filter is disabled with a visible reason: a filter that reads a field most stored listings lack answers "nothing" and says nothing (Master section 5.0).
+ */
+export const STORED_LISTINGS_CARRY_ATTENDANCE_TYPE = false;
+
 export const AMENITY_FIELD_MAP: Record<AmenityFilter, AmenityFieldConfig> = {
   // Lobby & Services
   // Doorperson (key stays 'doorman': saved links and saved searches carry amenities=doorman). DISABLED until the listing sync carries the field (the same precedent as No Fee, Maya 2026-10-09: "Disable until a live field is found").
   // Live Cotality (read 2026-11-20, all 9,655 Active listings): who staffs the door is AttendanceType, a key inside CustomProperty.CustomFields (DoorpersonFullTime / PartTime / Yes). It is NOT a Property field
-  // ($select=AttendanceType answers HTTP 400), and the listing sync (lib/idx/sync.ts, lib/idx/trestle-mapper.ts) reads Property fields only: it never expands CustomProperty, so no stored listing carries features.AttendanceType (the public
+  // ($select=AttendanceType answers HTTP 400), and until 2026-11-20 the listing sync read Property fields only, so no stored listing carried features.AttendanceType (the public
   // listings API served 0 of 400 listings with it, 2026-11-20). This filter used to match BuildingFeatures "Concierge", a different fact: against live AttendanceType it missed 417 of 515 doorperson rentals and 3,345 of 5,098 doorperson
   // sales, and returned 28 rentals and 51 sales with no doorperson. Pointing it at AttendanceType without the data would answer "nothing" silently, so it is disabled with a reason, and the old rule lives on as the honest Concierge filter below.
-  // To enable: make the sync carry AttendanceType (a production-data decision: Maya's) and remove `unavailable`; tests/runtime/public-search-doorperson.test.ts fails until then. The members are matched whole (amenityValueMatches): "DoorpersonFullTime"
+  // The sync now looks AttendanceType up (lib/idx/custom-property-join.ts), but a listing already stored carries it only after the sync touches it again, so the filter stays disabled until STORED_LISTINGS_CARRY_ATTENDANCE_TYPE is flipped after the backfill is verified. The members are matched whole (amenityValueMatches): "DoorpersonFullTime"
   // is inside "VideoDoorpersonFullTime", and a video doorperson is its own amenity (the CRM search keeps it its own box).
-  'doorman':       { field: 'AttendanceType', values: [...DOORPERSON_MEMBERS], label: 'Doorperson', group: 'Lobby & Services', unavailable: 'Not searchable yet. Doorperson is shown on a listing page where it is available.' },
+  'doorman':       { field: 'AttendanceType', values: [...DOORPERSON_MEMBERS], label: 'Doorperson', group: 'Lobby & Services', ...(STORED_LISTINGS_CARRY_ATTENDANCE_TYPE ? {} : { unavailable: 'Not searchable yet. Doorperson is shown on a listing page where it is available.' }) },
   // Concierge: the rule the "Doorman" filter had until 2026-11-20, kept as its own filter so a search for "concierge" still means exactly that (BuildingFeatures "Concierge").
   'concierge':     { field: 'BuildingFeatures', values: ['Concierge'], label: 'Concierge', group: 'Lobby & Services' },
   // Building Amenities

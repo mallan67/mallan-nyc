@@ -9,6 +9,7 @@ import prisma from "@/lib/prisma";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { hasCredentials } from "@/lib/idx/auth";
 import { fetchFromTrestle } from "@/lib/idx/fetch";
+import { fetchAttendanceTypes, withAttendanceType } from "@/lib/idx/custom-property-join";
 import { mediaUpdatePatch, complianceUpdatePatch } from "@/lib/idx/sync";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { mapTrestleToPrisma, checkDistributionGates, validateHistoricalFields, applyLocalOwnerOptOutGate } from "@/lib/idx/trestle-mapper";
@@ -110,6 +111,11 @@ export async function POST(req: NextRequest) {
     totalFetched = result.totalFetched;
     log.push(`  Cotality returned ${totalFetched} records`);
 
+    // AttendanceType is a key inside CustomProperty.CustomFields, not a Property field: look it up for these listings (a failed lookup keeps what is stored).
+    // This route deletes every listing first (Step 1), so there is no stored value to keep when the lookup fails: say how many listings came back without it.
+    const attendanceJoin = await fetchAttendanceTypes(result.records.map((r) => String(r.ListingKey ?? "")));
+    if (attendanceJoin.unknown.size > 0) log.push(`  AttendanceType unknown for ${attendanceJoin.unknown.size} of ${result.records.length} listings (the Cotality lookup failed); the next sync fills them`);
+
     for (const raw of result.records) {
       try {
         const validation = validateHistoricalFields(raw);
@@ -137,8 +143,9 @@ export async function POST(req: NextRequest) {
           // Widened (2026-10-02 Permission cutover) to supply the existing
           // owner_opt_out value for applyLocalOwnerOptOutGate below, instead
           // of issuing a second query.
-          select: { status: true, owner_opt_out: true },
+          select: { status: true, owner_opt_out: true, features: true },
         });
+        mapped.features = withAttendanceType(mapped.features as Record<string, unknown>, String(raw.ListingKey ?? ""), attendanceJoin, existingForClock?.features);
         const terminalSinceCreate = computeTerminalSincePatch({
           previousStatus: undefined,
           newStatus: mapped.status,
