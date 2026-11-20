@@ -407,7 +407,8 @@ export function mapTrestleToCrmListing(
     activationDate: raw.ActivationDate ? String(raw.ActivationDate) : null,
     contractStatusChangeDate: raw.ContractStatusChangeDate ? String(raw.ContractStatusChangeDate) : null,
     originalEntryDate: raw.OriginalEntryTimestamp ? String(raw.OriginalEntryTimestamp) : null,
-    // Rental terms and FARE Act fee transparency (Property fields; AdditionalFee* travel in REBNY CustomFields)
+    // Rental terms and FARE Act fee transparency: these are Property fields. AdditionalFee, AdditionalFeeYN, AdditionalFeeDescription, AdditionalFeeFrequency and AdditionalInfo1 are NOT here and NOT in the
+    // CustomFields JSON: they are typed columns of the CustomProperty resource (live 2026-11-20), and Agent Search asks CustomProperty for CustomFields only, so they are not read yet.
     securityDeposit: raw.SecurityDeposit != null ? Number(raw.SecurityDeposit) : null,
     MoveInCosts: raw.MoveInCosts ? String(raw.MoveInCosts) : null,
     MoveInCostsComments: raw.MoveInCostsComments ? String(raw.MoveInCostsComments) : null,

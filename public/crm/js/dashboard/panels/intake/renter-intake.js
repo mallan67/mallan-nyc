@@ -338,7 +338,7 @@ var RenterIntake = (function () {
         _input('beds', 'Bedrooms (min)', prefs.min_beds, { type: 'number', placeholder: '0' }) +
         _input('baths', 'Bathrooms (min)', prefs.min_baths, { type: 'number', placeholder: '0' }) +
       '</div>' +
-      _textarea('must_haves', 'Must-Haves', (prefs.must_haves || []).join('\n'), { placeholder: 'Laundry in unit, doorman, elevator, dishwasher...', rows: 3 }) +
+      _textarea('must_haves', 'Must-Haves', (prefs.must_haves || []).join('\n'), { placeholder: 'Laundry in unit, doorperson, elevator, dishwasher...', rows: 3 }) +
       _textarea('deal_breakers', 'Deal Breakers', (prefs.deal_breakers || []).join('\n'), { placeholder: 'Walk-up above 3rd floor, no natural light, noisy street...', rows: 3 }) +
       _input('pet_situation', 'Pet Situation', c.pet_situation || '', { placeholder: 'e.g., 1 small dog (15 lbs), 2 cats, no pets' });
     html += _section(formId + '-criteria', 'Search Criteria', 'fa-search', critHtml, true);

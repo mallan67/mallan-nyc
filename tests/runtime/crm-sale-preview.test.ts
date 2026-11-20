@@ -196,7 +196,7 @@ describe(`${FORM}: the Townhouse and Building cards`, () => {
       set(f, 'saleBldgYearBuilt', '1929');
       set(f, 'saleBldgTotalUnits', '120');
       set(f, 'saleBldgTotalFloors', '22');
-      tick(f, 'input[name="saleAttendanceType"][value="DoormanFullTime"]');
+      tick(f, 'input[name="saleAttendanceType"][value="DoorpersonFullTime"]');
       tick(f, 'input[name="saleAttendanceType"][value="ConciergePartTime"]');
       tick(f, '#saleBldgElevator');
       tick(f, 'input[name="saleBuildingPetsAllowed"][value="BuildingCatsOK"]');
@@ -205,7 +205,7 @@ describe(`${FORM}: the Townhouse and Building cards`, () => {
       expect(shown(f, 'salePreviewBldgYear')).toBe('1929');
       expect(shown(f, 'salePreviewBldgUnits')).toBe('120');
       expect(shown(f, 'salePreviewBldgFloors')).toBe('22');
-      expect(shown(f, 'salePreviewBldgDoorman')).toBe('Doorman (Full-Time), Concierge (Part-Time)');
+      expect(shown(f, 'salePreviewBldgDoorman')).toBe('Doorperson (Full-Time), Concierge (Part-Time)');
       expect(shown(f, 'salePreviewBldgElevator')).toBe('Yes');
       expect(shown(f, 'salePreviewBldgPets')).toBe('Cats OK, Size Limit');
     } finally { await closeAfter(f); }

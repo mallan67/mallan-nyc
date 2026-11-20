@@ -57,6 +57,7 @@ const baseSale: ListingProjectionSource = {
     PublicRemarks: "Sun-drenched corner unit with high ceilings and renovated kitchen.",
     YearBuilt: 1908,
     BuildingFeatures: "Concierge,FitnessCenter,Elevators,SteamRoom",
+    AttendanceType: "DoorpersonFullTime,LobbyAttendantFullTime",
     InteriorFeatures: "HighCeilings,WalkInClosets,Renovated",
     Appliances: "Dishwasher,Washer,Dryer",
     Cooling: "CentralAir",
@@ -196,7 +197,8 @@ describe("normalizeProjectionSearchText", () => {
 describe("extractProjectionAmenityKeys", () => {
   it("returns the canonical amenity keys that match the features JSON", () => {
     const keys = extractProjectionAmenityKeys(baseSale);
-    expect(keys).toContain("doorman");
+    expect(keys).not.toContain("doorman"); // Doorperson is disabled until the listing sync carries AttendanceType, so it is never stored, even for a listing that has it
+    expect(keys).toContain("concierge"); // BuildingFeatures Concierge
     expect(keys).toContain("gym");
     expect(keys).toContain("elevator");
     expect(keys).toContain("steam-room");

@@ -218,10 +218,10 @@ export const REBNY_FIELD_TABLES = {
     StateOrProvince: ['NY'] as const,
     AttendanceType: [
       'ConciergeFullTime', 'ConciergePartTime', 'ConciergeYes',
-      'DoormanFullTime', 'DoormanPartTime', 'DoormanYes',
+      'DoorpersonFullTime', 'DoorpersonPartTime', 'DoorpersonYes',
       'ElevatorAttendanceFullTime', 'ElevatorAttendancePartTime', 'ElevatorAttendanceYes',
       'LobbyAttendantFullTime', 'LobbyAttendantPartTime', 'LobbyAttendantYes',
-      'None', 'VideoDoormanFullTime', 'VideoDoormanPartTime', 'VideoDoormanYes',
+      'None', 'VideoDoorpersonFullTime', 'VideoDoorpersonPartTime', 'VideoDoorpersonYes',
     ] as const,
     BuildingLaundryFeatures: [
       'CoinOperated', 'CommonArea', 'DryCleaningService', 'ElectricDryerHookup',

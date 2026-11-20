@@ -2986,8 +2986,8 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <input type="number" id="saleTHMgmtA" placeholder="$0.00" step="0.01" class="field-input bg-blue-50" data-concept-disposition="mallan-internal">
                     </div>
 
-                    <!-- Super / Doorman -->
-                    <label class="field-label mb-1">Super / Doorman</label>
+                    <!-- Super / Doorperson -->
+                    <label class="field-label mb-1">Super / Doorperson</label>
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <input type="number" id="saleTHSuperM" placeholder="$0.00" step="0.01" class="field-input bg-blue-50" data-concept-disposition="mallan-internal">
                         <input type="number" id="saleTHSuperA" placeholder="$0.00" step="0.01" class="field-input bg-blue-50" data-concept-disposition="mallan-internal">
@@ -3307,7 +3307,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <div class="flex justify-between"><span class="text-gray-600">Year Built</span><span id="salePreviewBldgYear">--</span></div>
                     <div class="flex justify-between"><span class="text-gray-600">Total Units</span><span id="salePreviewBldgUnits">--</span></div>
                     <div class="flex justify-between"><span class="text-gray-600">Total Floors</span><span id="salePreviewBldgFloors">--</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600">Doorman</span><span id="salePreviewBldgDoorman">--</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600">Doorperson</span><span id="salePreviewBldgDoorman">--</span></div>
                     <div class="flex justify-between"><span class="text-gray-600">Elevator</span><span id="salePreviewBldgElevator">--</span></div>
                     <div class="flex justify-between"><span class="text-gray-600">Pets</span><span id="salePreviewBldgPets">--</span></div>
                 </div>
@@ -4291,9 +4291,9 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <div class="form-card-header"><i class="fas fa-concierge-bell"></i> Building Attendance Type <span class="text-red-500">*</span></div>
                         <p class="text-[10px] text-gray-500 mb-3">Select all that apply. At least one required.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3" id="saleAttendanceTypeGroup">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanFullTime" class="w-4 h-4 sale-attendance-cb" data-concept="AttendanceType"> Doorman (Full-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanPartTime" class="w-4 h-4 sale-attendance-cb"> Doorman (Part-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanYes" class="w-4 h-4 sale-attendance-cb"> Doorman (Yes)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoorpersonFullTime" class="w-4 h-4 sale-attendance-cb" data-concept="AttendanceType"> Doorperson (Full-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoorpersonPartTime" class="w-4 h-4 sale-attendance-cb"> Doorperson (Part-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoorpersonYes" class="w-4 h-4 sale-attendance-cb"> Doorperson (Yes)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="ConciergeFullTime" class="w-4 h-4 sale-attendance-cb"> Concierge (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="ConciergePartTime" class="w-4 h-4 sale-attendance-cb"> Concierge (Part-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="ConciergeYes" class="w-4 h-4 sale-attendance-cb"> Concierge (Yes)</label>
@@ -4303,9 +4303,9 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="LobbyAttendantFullTime" class="w-4 h-4 sale-attendance-cb"> Lobby Att. (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="LobbyAttendantPartTime" class="w-4 h-4 sale-attendance-cb"> Lobby Att. (Part-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="LobbyAttendantYes" class="w-4 h-4 sale-attendance-cb"> Lobby Att. (Yes)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="VideoDoormanFullTime" class="w-4 h-4 sale-attendance-cb"> Video Doorman (Full-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="VideoDoormanPartTime" class="w-4 h-4 sale-attendance-cb"> Video Doorman (Part-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="VideoDoormanYes" class="w-4 h-4 sale-attendance-cb"> Video Doorman (Yes)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="VideoDoorpersonFullTime" class="w-4 h-4 sale-attendance-cb"> Video Doorperson (Full-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="VideoDoorpersonPartTime" class="w-4 h-4 sale-attendance-cb"> Video Doorperson (Part-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="VideoDoorpersonYes" class="w-4 h-4 sale-attendance-cb"> Video Doorperson (Yes)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="None" class="w-4 h-4 sale-attendance-cb"> None</label>
                         </div>
                     </div>
@@ -4337,9 +4337,9 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <!-- Security — live Cotality SecurityFeatures (Multi; the Building* members are the building-level ones) -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-shield-alt"></i> Security Features</div>
-                        <p class="text-[10px] text-gray-500 mb-2">Cotality SecurityFeatures — select all that apply. Doorman / concierge staffing itself is the Building Attendance Type above.</p>
+                        <p class="text-[10px] text-gray-500 mb-2">Cotality SecurityFeatures — select all that apply. Doorperson / concierge staffing itself is the Building Attendance Type above.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="DoorMan" class="w-4 h-4"> Doorman (secured lobby)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="DoorMan" class="w-4 h-4"> Doorperson (secured lobby)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="LobbySecured" class="w-4 h-4"> Lobby Secured</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="TwentyFourHourSecurity" class="w-4 h-4"> 24-Hour Security</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="SecurityGuard" class="w-4 h-4"> Security Guard</label>
@@ -6946,8 +6946,8 @@ function updateSalePreview() {
         setText('salePreviewBldgYear', val('saleBldgYearBuilt'));
         setText('salePreviewBldgUnits', val('saleBldgTotalUnits'));
         setText('salePreviewBldgFloors', val('saleBldgTotalFloors'));
-        const doorman = document.getElementById('saleBldgDoorman');
-        setText('salePreviewBldgDoorman', doorman ? (doorman.checked ? 'Yes' : 'No') : '--');
+        const doorperson = document.getElementById('saleBldgDoorman');
+        setText('salePreviewBldgDoorman', doorperson ? (doorperson.checked ? 'Yes' : 'No') : '--');
         const elevator = document.getElementById('saleBldgElevator');
         setText('salePreviewBldgElevator', elevator && !elevator.indeterminate ? (elevator.checked ? 'Yes' : 'No') : '--');
         // Pets — check building modal checkboxes
@@ -7029,7 +7029,7 @@ function updateSalePreview() {
         const amenities = [];
         // Pull from building modal checkboxes
         const amenMap = {
-            'saleBldgDoorman': 'Doorman', 'saleBldgElevator': 'Elevator',
+            'saleBldgDoorman': 'Doorperson', 'saleBldgElevator': 'Elevator',
             'saleBldgGym': 'Fitness Center', 'saleBldgPool': 'Pool',
             'saleBldgRoofDeck': 'Roof Deck', 'saleBldgGarage': 'Parking',
             'saleBldgStorage': 'Storage', 'saleBldgBikeRoom': 'Bike Room',

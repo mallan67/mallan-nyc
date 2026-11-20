@@ -140,7 +140,7 @@ describe('populateBuildingFromIDX fills all building fields', () => {
 
   it('fills the Building Attendance Type from the building\'s doorman (the form has no doorman checkbox of its own)', () => {
     expect(fnBody).toContain("prefix + 'AttendanceType'");
-    expect(fnBody).toContain("'DoormanYes'");
+    expect(fnBody).toContain("'DoorpersonYes'");
     expect(fnBody).not.toContain("prefix + 'BldgDoorman'");
   });
 

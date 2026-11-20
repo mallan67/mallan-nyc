@@ -21,7 +21,7 @@ import { isMallanWebsiteOnlyListing } from '@/lib/listings/mallan-source-identit
 
 import { Prisma } from "@prisma/client";
 
-import { AMENITY_FIELD_MAP, isSearchableAmenity, type AmenityFilter } from "@/lib/search/types";
+import { AMENITY_FIELD_MAP, amenityValueMatches, isSearchableAmenity, type AmenityFilter } from "@/lib/search/types";
 import { allowsPets } from "@/lib/search/pet-policy";
 import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
 // The canonical all-status fallback policy. Imported rather than reimplemented
@@ -282,7 +282,6 @@ export function extractProjectionAmenityKeys(listing: ListingProjectionSource): 
     if (!isSearchableAmenity(amenityKey)) continue; // a disabled filter (No Fee: no live field) is never stored as a listing's amenity
     const mapping = AMENITY_FIELD_MAP[amenityKey];
     const fields = mapping.field.split(",").map((f) => f.trim());
-    const matchValues = mapping.values.map((v) => v.toLowerCase());
 
     const hit = fields.some((fieldName) => {
       const featValue = String(features[fieldName] || "").toLowerCase();
@@ -291,7 +290,7 @@ export function extractProjectionAmenityKeys(listing: ListingProjectionSource): 
         // allowsPets (lib/search/pet-policy.ts): any answer that is not No / BuildingNo. Not a substring test: "no" is inside NoPetRestrictions, NoBreedRestrictions, NoSizeLimit and NoDogs.
         return allowsPets(features[fieldName]);
       }
-      return matchValues.some((mv) => featValue.includes(mv));
+      return amenityValueMatches(fieldName, features[fieldName], mapping.values);
     });
 
     if (hit) matched.push(amenityKey);

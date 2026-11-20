@@ -68,7 +68,7 @@
         // AttendanceType, ElevatorsTotal, MaximumFinancingPercent, FlipTax, FlipTaxType, BuildingRules;
         // PetsAllowed is a Property field). '--' = Cotality did not say.
         window.rebnyDisplay = {
-            doorman: function (l) { var a = String((l && l.rebny && l.rebny.AttendanceType) || ''); if (!a) return '--'; if (/DoormanFullTime/.test(a)) return 'Full-time'; if (/DoormanPartTime/.test(a)) return 'Part-time'; if (/VideoDoorman/.test(a)) return 'Video'; if (/DoormanYes/.test(a)) return 'Yes'; return /None/.test(a) ? 'None' : '--'; },
+            doorman: function (l) { var a = String((l && l.rebny && l.rebny.AttendanceType) || ''); if (!a) return '--'; if (/VideoDoorperson/i.test(a)) return 'Video'; if (/DoorpersonFullTime/.test(a)) return 'Full-time'; if (/DoorpersonPartTime/.test(a)) return 'Part-time'; if (/DoorpersonYes/.test(a)) return 'Yes'; return /None/.test(a) ? 'None' : '--'; },
             elevators: function (l) { var n = l && l.rebny && l.rebny.ElevatorsTotal != null && l.rebny.ElevatorsTotal !== '' ? Number(l.rebny.ElevatorsTotal) : NaN; return isNaN(n) ? '--' : (n === 0 ? 'None' : String(n)); },
             financing: function (l) { var p = l && l.rebny && l.rebny.MaximumFinancingPercent != null && l.rebny.MaximumFinancingPercent !== '' ? Number(l.rebny.MaximumFinancingPercent) : NaN; return isNaN(p) ? '--' : p + '% max'; },
             flipTax: function (l) { var r = (l && l.rebny) || {}; if (r.FlipTax == null || r.FlipTax === '') return '--'; var n = Number(r.FlipTax); var t = String(r.FlipTaxType || ''); if (isNaN(n)) return String(r.FlipTax) + (t ? ' (' + t + ')' : ''); if (n === 0) return 'None'; if (/percent/i.test(t)) return n + '%'; if (/share/i.test(t)) return '$' + n.toLocaleString() + ' per share'; if (/dollar/i.test(t)) return '$' + n.toLocaleString(); return n.toLocaleString() + (t ? ' (' + t.replace(/([a-z])([A-Z])/g, '$1 $2') + ')' : ''); },
@@ -209,7 +209,7 @@
                         <div><span class="text-gray-500">Ownership</span><div class="font-semibold">${ownershipLabel(listing.ownership)}</div></div>
                         <div><span class="text-gray-500">Era</span><div class="font-semibold">${escapeHtml(listing.era || '--')}${listing.yearBuilt ? ' (' + listing.yearBuilt + ')' : ''}</div></div>
                         <div><span class="text-gray-500">Elevator</span><div class="font-semibold">${rebnyDisplay.elevators(listing)}</div></div>
-                        <div><span class="text-gray-500">Doorman</span><div class="font-semibold">${rebnyDisplay.doorman(listing)}</div></div>
+                        <div><span class="text-gray-500">Doorperson</span><div class="font-semibold">${rebnyDisplay.doorman(listing)}</div></div>
                         <div><span class="text-gray-500">Financing</span><div class="font-semibold">${rebnyDisplay.financing(listing)}</div></div>
                     </div>
                 </div>

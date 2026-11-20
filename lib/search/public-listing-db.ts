@@ -5,7 +5,7 @@ import {
   buildSearchDisplayWhere,
   SEARCH_DISPLAY_GATE,
 } from "@/lib/search/listing-access-decision";
-import { AMENITY_FIELD_MAP, isSearchableAmenity, type AmenityFilter } from "@/lib/search/types";
+import { AMENITY_FIELD_MAP, amenityValueMatches, isSearchableAmenity, type AmenityFilter } from "@/lib/search/types";
 import { allowsPets } from "@/lib/search/pet-policy";
 
 export interface PublicListingDbSearch {
@@ -50,6 +50,7 @@ const AMENITY_FIELD_TO_DTO: Record<string, string> = {
   ParkingFeatures: "parkingFeatures",
   LaundryFeatures: "laundryFeatures",
   PetsAllowed: "petsAllowed",
+  AttendanceType: "attendanceType",
 };
 
 function appendAnd(where: Prisma.ListingWhereInput, condition: Prisma.ListingWhereInput): void {
@@ -432,7 +433,6 @@ export function applyPublicListingPostFilters<T extends PublicPostFilterListing>
     for (const amenityKey of requested) {
       const mapping = AMENITY_FIELD_MAP[amenityKey];
       const fields = mapping.field.split(",").map((f) => f.trim());
-      const matchValues = mapping.values.map((v) => v.toLowerCase());
 
       if (amenityKey === "pet-friendly") {
         result = result.filter((listing) => {
@@ -449,8 +449,7 @@ export function applyPublicListingPostFilters<T extends PublicPostFilterListing>
               ? String((listing as unknown as Record<string, unknown>)[dtoKey] || "")
               : "";
             const featVal = String(feat[fieldName] || "");
-            const val = (dtoVal || featVal).toLowerCase();
-            return matchValues.some((mv) => val.includes(mv));
+            return amenityValueMatches(fieldName, dtoVal || featVal, mapping.values);
           });
         });
       }

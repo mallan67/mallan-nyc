@@ -231,15 +231,15 @@ describe("the building the pull looks up (live shape for 800 2ND Avenue)", () =>
   });
 
   it("800 2nd Avenue as Cotality really holds it: the new listing says None but the building's other listing says doorman + lobby attendant, so both boxes are ticked", async () => {
-    const f = await pulled({ buildings: [{ ...BUILDING, attendance_type: "DoormanFullTime,LobbyAttendantFullTime" }] });   // the live record carries AttendanceType = None
-    try { expect(staff(f).sort()).toEqual(["DoormanFullTime", "LobbyAttendantFullTime"]); } finally { f.close(); }
+    const f = await pulled({ buildings: [{ ...BUILDING, attendance_type: "DoorpersonFullTime,LobbyAttendantFullTime" }] });   // the live record carries AttendanceType = None
+    try { expect(staff(f).sort()).toEqual(["DoorpersonFullTime", "LobbyAttendantFullTime"]); } finally { f.close(); }
   });
 
   it("a real value fills it: a full-time doorman on the listing, or on the building", async () => {
-    const a = await pulled({ rlsPull: withAttendance("DoormanFullTime") });
-    try { expect(staff(a)).toEqual(["DoormanFullTime"]); } finally { a.close(); }
-    const b = await pulled({ rlsPull: withAttendance(null), buildings: [{ ...BUILDING, attendance_type: "DoormanFullTime" }] });
-    try { expect(staff(b)).toEqual(["DoormanFullTime"]); } finally { b.close(); }
+    const a = await pulled({ rlsPull: withAttendance("DoorpersonFullTime") });
+    try { expect(staff(a)).toEqual(["DoorpersonFullTime"]); } finally { a.close(); }
+    const b = await pulled({ rlsPull: withAttendance(null), buildings: [{ ...BUILDING, attendance_type: "DoorpersonFullTime" }] });
+    try { expect(staff(b)).toEqual(["DoorpersonFullTime"]); } finally { b.close(); }
   });
 
   it("the building window gets the building's own facts: type, year, floors, zoning, ownership, elevators, tax block and the BUILDING's tax lot", async () => {

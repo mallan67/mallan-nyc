@@ -378,12 +378,12 @@ describe("derived criteria (documented LOCAL semantics)", () => {
 
 describe("REBNY CustomFields — applied by Mallan after retrieval", () => {
   it("AttendanceType is a local criterion, not an OData clause", () => {
-    const r = withBoxes("sale", { AttendanceType: ["DoormanFullTime"] });
+    const r = withBoxes("sale", { AttendanceType: ["DoorpersonFullTime"] });
     expect(r.refused).toEqual([]);
     expect(r.filter).not.toContain("AttendanceType");
     expect(r.local.map((c) => c.field)).toEqual(["AttendanceType"]);
     const kept = applyLocalCriteria(
-      [customFieldsRecord({ AttendanceType: "DoormanFullTime,ConciergeYes" }), customFieldsRecord({ AttendanceType: "None" })],
+      [customFieldsRecord({ AttendanceType: "DoorpersonFullTime,ConciergeYes" }), customFieldsRecord({ AttendanceType: "None" })],
       r.local,
     );
     expect(kept).toHaveLength(1);

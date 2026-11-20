@@ -439,10 +439,10 @@ describe("crm idx mapper", () => {
 
     it("exposes every REBNY CustomFields key as sent", () => {
       const l = mapTrestleToCrmListing(
-        withCustomFields(JSON.stringify({ AttendanceType: "DoormanFullTime,ConciergeYes", FlipTax: "2.00" })),
+        withCustomFields(JSON.stringify({ AttendanceType: "DoorpersonFullTime,ConciergeYes", FlipTax: "2.00" })),
         0,
       );
-      expect(l.rebny).toEqual({ AttendanceType: "DoormanFullTime,ConciergeYes", FlipTax: "2.00" });
+      expect(l.rebny).toEqual({ AttendanceType: "DoorpersonFullTime,ConciergeYes", FlipTax: "2.00" });
     });
 
     it("returns null when SponsorUnitYN field is absent", () => {

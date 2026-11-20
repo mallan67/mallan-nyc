@@ -5,6 +5,8 @@
  * 5 view modes: split, all-listings, all-map, grid, list
  */
 
+import { DOORPERSON_MEMBERS, attendanceHasMember } from '@/lib/idx/attendance-type';
+
 export type SearchTab = 'buy-residential' | 'buy-commercial' | 'rent-residential' | 'rent-commercial';
 
 export type ViewMode = 'split' | 'all-listings' | 'all-map' | 'grid' | 'list';
@@ -64,6 +66,7 @@ export interface SearchFilters {
 export type AmenityFilter =
   // Lobby & Services
   | 'doorman'
+  | 'concierge'
   // Building Amenities
   | 'gym'
   | 'pool'
@@ -123,7 +126,16 @@ export interface AmenityFieldConfig {
 
 export const AMENITY_FIELD_MAP: Record<AmenityFilter, AmenityFieldConfig> = {
   // Lobby & Services
-  'doorman':       { field: 'BuildingFeatures', values: ['Concierge'], label: 'Doorman', group: 'Lobby & Services' },
+  // Doorperson (key stays 'doorman': saved links and saved searches carry amenities=doorman). DISABLED until the listing sync carries the field (the same precedent as No Fee, Maya 2026-10-09: "Disable until a live field is found").
+  // Live Cotality (read 2026-11-20, all 9,655 Active listings): who staffs the door is AttendanceType, a key inside CustomProperty.CustomFields (DoorpersonFullTime / PartTime / Yes). It is NOT a Property field
+  // ($select=AttendanceType answers HTTP 400), and the listing sync (lib/idx/sync.ts, lib/idx/trestle-mapper.ts) reads Property fields only: it never expands CustomProperty, so no stored listing carries features.AttendanceType (the public
+  // listings API served 0 of 400 listings with it, 2026-11-20). This filter used to match BuildingFeatures "Concierge", a different fact: against live AttendanceType it missed 417 of 515 doorperson rentals and 3,345 of 5,098 doorperson
+  // sales, and returned 28 rentals and 51 sales with no doorperson. Pointing it at AttendanceType without the data would answer "nothing" silently, so it is disabled with a reason, and the old rule lives on as the honest Concierge filter below.
+  // To enable: make the sync carry AttendanceType (a production-data decision: Maya's) and remove `unavailable`; tests/runtime/public-search-doorperson.test.ts fails until then. The members are matched whole (amenityValueMatches): "DoorpersonFullTime"
+  // is inside "VideoDoorpersonFullTime", and a video doorperson is its own amenity (the CRM search keeps it its own box).
+  'doorman':       { field: 'AttendanceType', values: [...DOORPERSON_MEMBERS], label: 'Doorperson', group: 'Lobby & Services', unavailable: 'Not searchable yet. Doorperson is shown on a listing page where it is available.' },
+  // Concierge: the rule the "Doorman" filter had until 2026-11-20, kept as its own filter so a search for "concierge" still means exactly that (BuildingFeatures "Concierge").
+  'concierge':     { field: 'BuildingFeatures', values: ['Concierge'], label: 'Concierge', group: 'Lobby & Services' },
   // Building Amenities
   'gym':           { field: 'BuildingFeatures', values: ['FitnessCenter', 'HealthClub', 'YogaStudio'], label: 'Gym/Fitness', group: 'Building Amenities' },
   'pool':          { field: 'BuildingFeatures', values: ['IndoorPool'], label: 'Pool', group: 'Building Amenities' },
@@ -172,6 +184,16 @@ export function isSearchableAmenity(key: string): key is AmenityFilter {
   return Object.prototype.hasOwnProperty.call(AMENITY_FIELD_MAP, key) && !AMENITY_FIELD_MAP[key as AmenityFilter].unavailable;
 }
 
+/**
+ * Does a listing's stored value for `field` satisfy an amenity filter's `values`? AttendanceType holds whole members, so it is matched as members (a substring test takes "VideoDoorpersonFullTime" for
+ * "DoorpersonFullTime"); every other field keeps the substring test it always had. The DB path and the search projection both call this, so they cannot disagree.
+ */
+export function amenityValueMatches(field: string, raw: unknown, values: readonly string[]): boolean {
+  if (field === 'AttendanceType') return attendanceHasMember(raw, values);
+  const text = String(raw || '').toLowerCase();
+  return text !== '' && values.some((v) => text.includes(v.toLowerCase()));
+}
+
 /** The amenity keys of a request that a search can apply, in order, each once; anything else (a disabled filter, a word the map does not name) is dropped. */
 export function searchableAmenities(keys: readonly string[] | null | undefined): AmenityFilter[] {
   const out: AmenityFilter[] = [];
@@ -188,6 +210,17 @@ export function unavailableAmenities(keys: readonly string[] | null | undefined)
     if (unavailable && !out.some((o) => o.key === key)) out.push({ key: key as AmenityFilter, label, reason: unavailable });
   }
   return out;
+}
+
+/**
+ * The `amenities` value the search page writes to the URL: the filters a search applies, then any disabled filter the link already names (it applies nothing). The "was not applied" notice reads the URL, and
+ * the page rewrites the URL on its own right after load on a phone (the view switch), which used to delete a disabled filter the link named and with it the notice (found by the REBNY gate, 2026-11-20, and
+ * reproduced on production for No Fee at 390px). undefined when there is nothing to write.
+ */
+export function amenitiesUrlValue(selected: readonly string[] | undefined, current: string | null | undefined): string | undefined {
+  const all = [...(selected ?? [])];
+  for (const { key } of unavailableAmenities((current ?? '').split(','))) if (!all.includes(key)) all.push(key);
+  return all.length ? all.join(',') : undefined;
 }
 
 /** Tab configuration — maps UI tab to API params and available filter sections */

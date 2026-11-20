@@ -360,19 +360,19 @@ describe('building attendance (doorman) is united across the building\'s listing
   const withAttendance = (value: unknown, over: Record<string, unknown> = {}) =>
     liveRecord({ UnitNumber: String(++seq), CustomProperty: value === undefined ? [] : [{ CustomFields: JSON.stringify({ AttendanceType: value }) }], ...over });
 
-  it('800 2nd Avenue: the newest listing says None, a lease of the same building says DoormanFullTime + LobbyAttendantFullTime -> the building has them', async () => {
+  it('800 2nd Avenue: the newest listing says None, a lease of the same building says DoorpersonFullTime + LobbyAttendantFullTime -> the building has them', async () => {
     queryRaw.mockResolvedValue([]);
-    stubCotality([withAttendance('None', { StandardStatus: 'Active' }), withAttendance('None', { StandardStatus: 'Closed' }), withAttendance('DoormanFullTime,LobbyAttendantFullTime', { StandardStatus: 'Closed' })]);
+    stubCotality([withAttendance('None', { StandardStatus: 'Active' }), withAttendance('None', { StandardStatus: 'Closed' }), withAttendance('DoorpersonFullTime,LobbyAttendantFullTime', { StandardStatus: 'Closed' })]);
     const { buildings } = await search('800 2nd Ave');
     expect(buildings).toHaveLength(1);
-    expect(buildings[0].attendance_type).toBe('DoormanFullTime,LobbyAttendantFullTime');
+    expect(buildings[0].attendance_type).toBe('DoorpersonFullTime,LobbyAttendantFullTime');
   });
 
   it('different listings, different members: they are united, once each', async () => {
     queryRaw.mockResolvedValue([]);
-    stubCotality([withAttendance('DoormanFullTime'), withAttendance('ConciergeFullTime,DoormanFullTime'), withAttendance('None')]);
+    stubCotality([withAttendance('DoorpersonFullTime'), withAttendance('ConciergeFullTime,DoorpersonFullTime'), withAttendance('None')]);
     const { buildings } = await search('800 2nd Ave');
-    expect(String(buildings[0].attendance_type).split(',').sort()).toEqual(['ConciergeFullTime', 'DoormanFullTime']);
+    expect(String(buildings[0].attendance_type).split(',').sort()).toEqual(['ConciergeFullTime', 'DoorpersonFullTime']);
   });
 
   it('only Nones: kept as None (the form takes no stand on it); a listing with no attendance value changes nothing', async () => {

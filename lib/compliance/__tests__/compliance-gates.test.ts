@@ -407,7 +407,7 @@ describe('assertRlsCompliantPayload', () => {
       SubdivisionName: 'Midtown',
       UnparsedAddress: '400 Main St, New York, NY 10001',
       // Building info
-      AttendanceType: 'DoormanFullTime',
+      AttendanceType: 'DoorpersonFullTime',
       BuildingLaundryFeatures: 'InUnit',
       BuildingPetsAllowed: 'BuildingYes',
       PetsAllowed: 'Yes',
