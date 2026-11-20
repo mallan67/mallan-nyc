@@ -212,6 +212,17 @@ export function unavailableAmenities(keys: readonly string[] | null | undefined)
   return out;
 }
 
+/**
+ * The `amenities` value the search page writes to the URL: the filters a search applies, then any disabled filter the link already names (it applies nothing). The "was not applied" notice reads the URL, and
+ * the page rewrites the URL on its own right after load on a phone (the view switch), which used to delete a disabled filter the link named and with it the notice (found by the REBNY gate, 2026-11-20, and
+ * reproduced on production for No Fee at 390px). undefined when there is nothing to write.
+ */
+export function amenitiesUrlValue(selected: readonly string[] | undefined, current: string | null | undefined): string | undefined {
+  const all = [...(selected ?? [])];
+  for (const { key } of unavailableAmenities((current ?? '').split(','))) if (!all.includes(key)) all.push(key);
+  return all.length ? all.join(',') : undefined;
+}
+
 /** Tab configuration — maps UI tab to API params and available filter sections */
 export const TAB_CONFIG: Record<SearchTab, {
   apiType: 'sale' | 'rent';

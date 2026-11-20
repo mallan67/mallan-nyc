@@ -15,7 +15,7 @@ import NeighborhoodSelector from '@/app/components/NeighborhoodSelector';
 import type { SearchTab, ViewMode, SearchFilters } from '@/lib/search/types';
 import { getAllNeighborhoods } from '@/lib/neighborhoods/boroughs';
 import { parseNaturalLanguageSearch, type UnavailablePhrase } from '@/lib/search/natural-language-parser';
-import { TAB_CONFIG, searchableAmenities, unavailableAmenities } from '@/lib/search/types';
+import { TAB_CONFIG, amenitiesUrlValue, searchableAmenities, unavailableAmenities } from '@/lib/search/types';
 import nextDynamic from 'next/dynamic';
 import { trackSearch } from '@/lib/posthog';
 
@@ -373,7 +373,8 @@ function SearchClient() {
     setOrDel('statuses', filters.statuses?.length ? filters.statuses.join(',') : undefined);
     setOrDel('yearBuilt', filters.yearBuilt && filters.yearBuilt !== 'any' ? filters.yearBuilt : undefined);
     setOrDel('furnished', filters.furnished ? 'true' : undefined);
-    setOrDel('amenities', filters.amenities?.length ? filters.amenities.join(',') : undefined);
+    // A disabled filter the link names stays in the URL (it applies nothing), so the "was not applied" notice, which reads the URL, is not erased by this write.
+    setOrDel('amenities', amenitiesUrlValue(filters.amenities, params.get('amenities')));
     setOrDel('openHouse', filters.openHouse ? 'true' : undefined);
     setOrDel('openHouseDate', filters.openHouse ? filters.openHouseDate : undefined);
     setOrDel('minSqft', filters.minSqft?.toString());
@@ -419,7 +420,7 @@ function SearchClient() {
     if (/^\d{5}$/.test(q)) return { neighborhood: undefined, borough: undefined, address: undefined, nlFilters: undefined, unavailable: NO_UNAVAILABLE };
 
     // Natural language detection: contains beds, price, property type, amenity, or neighborhood keywords
-    const nlSignals = /(\d\s*(?:bed|br|bath|ba\b)|studio|\$|under|over|below|above|condo|co-?op|townhouse|loft|pre-?war|doorman|doorperson|elevator|pets?|no[\s-]*fees?|no[\s-]+broker[\s-]+fees?|(?:owner|landlord)\s+pays|gym|pool|furnished)/i;
+    const nlSignals = /(\d\s*(?:bed|br|bath|ba\b)|studio|\$|under|over|below|above|condo|co-?op|townhouse|loft|pre-?war|doorman|door\s*person|elevator|pets?|no[\s-]*fees?|no[\s-]+broker[\s-]+fees?|(?:owner|landlord)\s+pays|gym|pool|furnished)/i;
     const containsNeighborhood = allNeighborhoods.some(n => qLower.includes(n.name.toLowerCase()));
     const containsBorough = boroughs.some(b => qLower.includes(b));
 

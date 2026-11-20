@@ -18,8 +18,8 @@
  *  4. Concierge is exactly the old rule.
  *  5. Enabled (simulated), it matches whole members: a substring test takes "VideoDoorpersonFullTime" for "DoorpersonFullTime".
  */
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { readFileSync, readdirSync, statSync } from 'fs';
+import { join, resolve } from 'path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -29,7 +29,7 @@ import { ATTENDANCE_TYPE_MEMBERS } from '@/lib/idx/attendance-type';
 import { parseNaturalLanguageSearch } from '@/lib/search/natural-language-parser';
 import { extractProjectionAmenityKeys } from '@/lib/search/listing-search-projection';
 import { applyPublicListingPostFilters } from '@/lib/search/public-listing-db';
-import { AMENITY_FIELD_MAP, isSearchableAmenity, searchableAmenities, unavailableAmenities, type SearchFilters } from '@/lib/search/types';
+import { AMENITY_FIELD_MAP, amenitiesUrlValue, isSearchableAmenity, searchableAmenities, unavailableAmenities, type SearchFilters } from '@/lib/search/types';
 
 const ROOT = resolve(__dirname, '../..');
 const read = (p: string) => readFileSync(resolve(ROOT, p), 'utf8');
@@ -58,6 +58,21 @@ describe('the Doorperson filter names the live field and the live members, and i
 describe('the reason is true: the listing sync does not carry AttendanceType (when it does, this fails until someone enables the filter)', () => {
   it.each(['lib/idx/sync.ts', 'lib/idx/trestle-mapper.ts'])('%s neither reads AttendanceType nor expands CustomProperty', (file) => {
     expect(code(file)).not.toMatch(/AttendanceType|expandCustomProperty|CustomProperty|CustomFields/);
+  });
+
+  it('nothing under lib/idx or the cron routes expands CustomProperty or reads it as a resource (a separate CustomProperty read joined on ListingKey would trip this too)', () => {
+    const walk = (dir: string, out: string[] = []): string[] => {
+      for (const name of readdirSync(join(ROOT, dir))) {
+        const rel = `${dir}/${name}`;
+        if (statSync(join(ROOT, rel)).isDirectory()) { if (name !== '__tests__') walk(rel, out); } else if (/\.(ts|tsx)$/.test(name) && !/\.test\./.test(name)) out.push(rel);
+      }
+      return out;
+    };
+    // lib/idx/fetch.ts only OFFERS the option (callers must opt in); Agent Search is not the sync
+    const files = [...walk('lib/idx'), ...walk('app/api/cron')].filter((f) => f !== 'lib/idx/fetch.ts');
+    expect(files.length).toBeGreaterThan(20);
+    const offenders = files.filter((f) => /expandCustomProperty|resource:\s*["']CustomProperty["']/.test(code(f)));
+    expect(offenders).toEqual([]);
   });
 });
 
@@ -115,6 +130,41 @@ describe('nothing applies it', () => {
 
   it('the listing side panel says Doorperson where it names the amenity', () => {
     expect(read('app/components/ListingSidePanel.tsx')).not.toMatch(/Doorman/);
+  });
+});
+
+describe('the "not applied" notice survives the page rewriting its own URL (found by the REBNY gate; reproduced on production for No Fee at 390px, where the view switch right after load deleted the param)', () => {
+  it('amenitiesUrlValue keeps a disabled filter the link names, after the filters a search applies, in link order', () => {
+    expect(amenitiesUrlValue(undefined, 'no-fee')).toBe('no-fee');
+    expect(amenitiesUrlValue(undefined, 'doorman')).toBe('doorman');
+    expect(amenitiesUrlValue(['gym'], 'doorman,gym')).toBe('gym,doorman');
+    expect(amenitiesUrlValue(['gym'], 'no-fee,doorman,gym')).toBe('gym,no-fee,doorman');
+  });
+
+  it('drops words that are not amenities, and writes nothing when there is nothing to write', () => {
+    expect(amenitiesUrlValue(undefined, 'toString,constructor,nonsense')).toBeUndefined();
+    expect(amenitiesUrlValue(undefined, '')).toBeUndefined();
+    expect(amenitiesUrlValue(undefined, null)).toBeUndefined();
+    expect(amenitiesUrlValue([], undefined)).toBeUndefined();
+    expect(amenitiesUrlValue(['gym'], null)).toBe('gym');
+  });
+
+  it('the notice, built from the URL the page then holds, still names the filter', () => {
+    const written = amenitiesUrlValue(undefined, 'doorman');
+    expect(unavailableAmenities((written ?? '').split(',')).map((u) => u.label)).toEqual(['Doorperson']);
+  });
+
+  it('the search page writes the amenities param through it, and does not write filters.amenities alone', () => {
+    const page = code('app/search/page.tsx');
+    expect(page).toMatch(/setOrDel\('amenities', amenitiesUrlValue\(filters\.amenities, params\.get\('amenities'\)\)\);/);
+    expect(page).not.toMatch(/setOrDel\('amenities', filters\.amenities\?\.length/);
+  });
+
+  it.each(['app/components/HeroSearch.tsx', 'app/search/page.tsx'])('%s sends "door person" (two words) to the parser too', (file) => {
+    const signals = /const nlSignals = (\/.*\/i);/.exec(code(file))?.[1];
+    expect(signals).toBeDefined();
+    const re = new Function(`return ${signals}`)() as RegExp;
+    for (const phrase of ['door person', 'Door Person', 'doorperson', 'doorman']) expect(re.test(phrase)).toBe(true);
   });
 });
 
