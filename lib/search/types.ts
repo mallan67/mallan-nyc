@@ -5,6 +5,8 @@
  * 5 view modes: split, all-listings, all-map, grid, list
  */
 
+import { DOORPERSON_MEMBERS, attendanceHasMember } from '@/lib/idx/attendance-type';
+
 export type SearchTab = 'buy-residential' | 'buy-commercial' | 'rent-residential' | 'rent-commercial';
 
 export type ViewMode = 'split' | 'all-listings' | 'all-map' | 'grid' | 'list';
@@ -64,6 +66,7 @@ export interface SearchFilters {
 export type AmenityFilter =
   // Lobby & Services
   | 'doorman'
+  | 'concierge'
   // Building Amenities
   | 'gym'
   | 'pool'
@@ -123,7 +126,13 @@ export interface AmenityFieldConfig {
 
 export const AMENITY_FIELD_MAP: Record<AmenityFilter, AmenityFieldConfig> = {
   // Lobby & Services
-  'doorman':       { field: 'BuildingFeatures', values: ['Concierge'], label: 'Doorman', group: 'Lobby & Services' },
+  // Doorperson (key stays 'doorman': saved links and saved searches carry amenities=doorman). Live Cotality (read 2026-11-20, all 9,655 Active listings): who staffs the door is AttendanceType, in
+  // CustomProperty.CustomFields (DoorpersonFullTime / PartTime / Yes). This filter used to match BuildingFeatures "Concierge", which is a different fact: it missed 417 of 515 doorperson rentals and 3,345 of
+  // 5,098 doorperson sales, and returned 28 rentals and 51 sales with no doorperson. AttendanceType is matched as whole members (amenityValueMatches): "DoorpersonFullTime" is inside "VideoDoorpersonFullTime", and
+  // a video doorperson is its own amenity (the CRM search keeps it its own box). Maya, 2026-11-20: "the public search needs to have those changes".
+  'doorman':       { field: 'AttendanceType', values: [...DOORPERSON_MEMBERS], label: 'Doorperson', group: 'Lobby & Services' },
+  // Concierge: the rule the "Doorman" filter had until 2026-11-20, kept as its own filter so a search for "concierge" still means exactly that (BuildingFeatures "Concierge").
+  'concierge':     { field: 'BuildingFeatures', values: ['Concierge'], label: 'Concierge', group: 'Lobby & Services' },
   // Building Amenities
   'gym':           { field: 'BuildingFeatures', values: ['FitnessCenter', 'HealthClub', 'YogaStudio'], label: 'Gym/Fitness', group: 'Building Amenities' },
   'pool':          { field: 'BuildingFeatures', values: ['IndoorPool'], label: 'Pool', group: 'Building Amenities' },
@@ -170,6 +179,16 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, AmenityFieldConfig> = {
 /** True for an amenity key a search can apply: a key the map names (its own keys: "toString" is not one) whose filter is not disabled. */
 export function isSearchableAmenity(key: string): key is AmenityFilter {
   return Object.prototype.hasOwnProperty.call(AMENITY_FIELD_MAP, key) && !AMENITY_FIELD_MAP[key as AmenityFilter].unavailable;
+}
+
+/**
+ * Does a listing's stored value for `field` satisfy an amenity filter's `values`? AttendanceType holds whole members, so it is matched as members (a substring test takes "VideoDoorpersonFullTime" for
+ * "DoorpersonFullTime"); every other field keeps the substring test it always had. The DB path and the search projection both call this, so they cannot disagree.
+ */
+export function amenityValueMatches(field: string, raw: unknown, values: readonly string[]): boolean {
+  if (field === 'AttendanceType') return attendanceHasMember(raw, values);
+  const text = String(raw || '').toLowerCase();
+  return text !== '' && values.some((v) => text.includes(v.toLowerCase()));
 }
 
 /** The amenity keys of a request that a search can apply, in order, each once; anything else (a disabled filter, a word the map does not name) is dropped. */

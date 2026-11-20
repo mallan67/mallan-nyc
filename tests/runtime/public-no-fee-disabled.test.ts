@@ -73,7 +73,7 @@ describe('the filter is disabled in the one map every layer reads', () => {
 });
 
 describe('no search applies it', () => {
-  const doorman = { id: 'a', buildingFeatures: 'Concierge' };
+  const doorman = { id: 'a', attendanceType: 'DoorpersonFullTime' };
   const plain = { id: 'b' };
   const noFeeTerms = { id: 'c', listingTerms: 'NoFee,OwnerPays' };
   const run = (query: string, rows: Array<Record<string, unknown>>, features = new Map<string, Record<string, unknown>>()) =>
@@ -93,7 +93,7 @@ describe('no search applies it', () => {
   });
 
   it('the search projection never stores it, even for a listing whose ListingTerms says NoFee', () => {
-    expect(extractProjectionAmenityKeys({ listing_id: 'X', features: { ListingTerms: 'NoFee,OwnerPays', BuildingFeatures: 'Concierge' } })).toEqual(['doorman']);
+    expect(extractProjectionAmenityKeys({ listing_id: 'X', features: { ListingTerms: 'NoFee,OwnerPays', AttendanceType: 'DoorpersonFullTime' } })).toEqual(['doorman']);
     expect(extractProjectionAmenityKeys({ listing_id: 'X', features: { ListingTerms: 'NoFee,OwnerPays' } })).toBeNull();
   });
 

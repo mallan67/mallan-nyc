@@ -82,7 +82,9 @@ const PRICE_PATTERNS = [
 // ── Amenity patterns (all ~45 original entries preserved) ──
 const AMENITY_MAP: Record<string, AmenityFilter> = {
   'doorman': 'doorman',
-  'concierge': 'doorman',
+  'doorperson': 'doorman',
+  'door person': 'doorman',
+  'concierge': 'concierge',
   'gym': 'gym',
   'fitness': 'gym',
   'pool': 'pool',

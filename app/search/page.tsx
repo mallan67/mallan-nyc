@@ -419,7 +419,7 @@ function SearchClient() {
     if (/^\d{5}$/.test(q)) return { neighborhood: undefined, borough: undefined, address: undefined, nlFilters: undefined, unavailable: NO_UNAVAILABLE };
 
     // Natural language detection: contains beds, price, property type, amenity, or neighborhood keywords
-    const nlSignals = /(\d\s*(?:bed|br|bath|ba\b)|studio|\$|under|over|below|above|condo|co-?op|townhouse|loft|pre-?war|doorman|elevator|pets?|no[\s-]*fees?|no[\s-]+broker[\s-]+fees?|(?:owner|landlord)\s+pays|gym|pool|furnished)/i;
+    const nlSignals = /(\d\s*(?:bed|br|bath|ba\b)|studio|\$|under|over|below|above|condo|co-?op|townhouse|loft|pre-?war|doorman|doorperson|elevator|pets?|no[\s-]*fees?|no[\s-]+broker[\s-]+fees?|(?:owner|landlord)\s+pays|gym|pool|furnished)/i;
     const containsNeighborhood = allNeighborhoods.some(n => qLower.includes(n.name.toLowerCase()));
     const containsBorough = boroughs.some(b => qLower.includes(b));
 

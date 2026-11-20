@@ -10,7 +10,9 @@
  */
 import {
   ATTENDANCE_TYPE_MEMBERS,
+  DOORPERSON_MEMBERS,
   attendanceAmenities,
+  attendanceHasMember,
   hasDoorperson,
 } from '@/lib/idx/attendance-type';
 import { REBNY_FIELD_TABLES } from '@/lib/compliance/rebny-field-tables';
@@ -60,6 +62,30 @@ describe('attendanceAmenities', () => {
     expect(attendanceAmenities(['None'])).toEqual([]);
     expect(attendanceAmenities(['DoormanFullTime', 'DoormanPartTime', 'DoormanYes'])).toEqual([]);
     expect(attendanceAmenities(['VideoDoormanFullTime', 'VideoDoormanPartTime', 'VideoDoormanYes'])).toEqual([]);
+  });
+});
+
+describe('attendanceHasMember (the public Doorperson filter reads whole members)', () => {
+  it('the Doorperson members are live members, and exclude every video member', () => {
+    for (const m of DOORPERSON_MEMBERS) expect(ATTENDANCE_TYPE_MEMBERS).toContain(m);
+    expect(DOORPERSON_MEMBERS.some((m) => /video/i.test(m))).toBe(false);
+  });
+
+  it('finds a member in a comma list or an array, in any case, around spaces', () => {
+    expect(attendanceHasMember('LobbyAttendantYes, DoorpersonPartTime', DOORPERSON_MEMBERS)).toBe(true);
+    expect(attendanceHasMember(['conciergeyes', 'DOORPERSONFULLTIME'], DOORPERSON_MEMBERS)).toBe(true);
+  });
+
+  it('is not a substring test: a video doorperson is not a doorperson', () => {
+    expect(attendanceHasMember('VideoDoorpersonFullTime', DOORPERSON_MEMBERS)).toBe(false);
+    expect(attendanceHasMember('VideoDoorPersonFullTime', DOORPERSON_MEMBERS)).toBe(false);
+    expect(attendanceHasMember(['VideoDoorpersonYes', 'VideoDoorpersonPartTime'], DOORPERSON_MEMBERS)).toBe(false);
+  });
+
+  it('is false for concierge, None, the retired Doorman spellings, blank and missing values', () => {
+    for (const v of ['ConciergeFullTime', 'None', 'DoormanFullTime', 'DoormanYes', '', null, undefined, []]) {
+      expect(attendanceHasMember(v, DOORPERSON_MEMBERS)).toBe(false);
+    }
   });
 });
 

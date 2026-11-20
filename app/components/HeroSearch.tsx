@@ -38,7 +38,7 @@ const DEFAULT_SUGGESTIONS: SearchSuggestion[] = [
 
 // Example queries shown as placeholder hints (rotate). Each must be something the search can do: "no fee" is not (No Fee is disabled until a live Cotality field is found, lib/search/types.ts).
 const EXAMPLE_QUERIES = [
-  '2br UES doorman under 3M',
+  '2br UES doorperson under 3M',
   'studio Chelsea pet friendly',
   'prewar coop Park Slope',
   'wburg 1bed w/d near the L',
@@ -274,7 +274,7 @@ export default function HeroSearch() {
 
     // Natural language parsing (instant, client-side regex)
     setIsSearching(true);
-    const nlSignals = /(\$|under|over|below|above|budget|\d+\s*(br|bed|bath)|studio|condo|co-?op|townhouse|loft|pre-?war|doorman|elevator|pets?|laundry|gym|furnished|pool|parking|no[\s-]*fees?|no[\s-]+broker[\s-]+fees?|(?:owner|landlord)\s+pays|renovated|quiet|sunny|bright|views?|fireplace|balcony|terrace|roof|washer|dryer|w\/d|dishwasher|dogs?|cats?|high\s*ceil)/i;
+    const nlSignals = /(\$|under|over|below|above|budget|\d+\s*(br|bed|bath)|studio|condo|co-?op|townhouse|loft|pre-?war|doorman|doorperson|elevator|pets?|laundry|gym|furnished|pool|parking|no[\s-]*fees?|no[\s-]+broker[\s-]+fees?|(?:owner|landlord)\s+pays|renovated|quiet|sunny|bright|views?|fireplace|balcony|terrace|roof|washer|dryer|w\/d|dishwasher|dogs?|cats?|high\s*ceil)/i;
     if (nlSignals.test(q)) {
       router.push(buildSearchUrl(regexParse(q)));
       setIsSearching(false);
