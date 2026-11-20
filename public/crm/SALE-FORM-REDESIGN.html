@@ -5479,7 +5479,7 @@ async function pullFromCotalityByRlsId(rlsId) {
         }
         var rec = body.record || {};
         if (rec.PublicRemarks) rec.PublicRemarks = _saleHtmlToText(rec.PublicRemarks);
-        // Cotality's AttendanceType "None" sits on 38% of live listings and cannot be told from an unfilled default, so it is not taken as "no doorman" (Maya): the staffing group is left for
+        // Cotality's AttendanceType "None" sits on 38% of live listings and cannot be told from an unfilled default, so it is not taken as "no doorperson" (Maya): the staffing group is left for
         // the broker. A real value (DoorpersonFullTime, ConciergeFullTime ...) still fills it.
         if (String(rec.AttendanceType || '').trim() === 'None') delete rec.AttendanceType;
         // Cotality's UnparsedAddress carries the unit ("800 2ND Avenue 806"). This form's street line is the BUILDING's street (the unit has its own box), and the building lookup and the street

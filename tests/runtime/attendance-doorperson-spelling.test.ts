@@ -51,16 +51,60 @@ describe('no retired Doorman spelling is served', () => {
  * tenantFeatDoorman / buyerFeatDoorman (checkbox ids), data-field="doorman" (the report field id), the `doorman` renderer key and `doormanType` (internal names).
  */
 describe('no CRM page says Doorman where a person reads it', () => {
-  const crmFiles = walk(join(ROOT, 'public/crm'));
-  const CAPITAL_WORD = /(?<![A-Za-z])Doorman(?![A-Za-z])/;
-  const LOWER_WORD = /(?<![\w.'"-])doorman(?![\w'":])/;
+  // every text file a browser reads from public/crm, not only pages and scripts
+  const walkText = (dir: string, out: string[] = []): string[] => {
+    for (const name of readdirSync(dir)) {
+      const p = join(dir, name);
+      if (statSync(p).isDirectory()) walkText(p, out);
+      else if (/\.(js|html|css|json|md|txt|svg|csv|xml)$/i.test(name)) out.push(p);
+    }
+    return out;
+  };
+  const crmFiles = walkText(join(ROOT, 'public/crm'));
+
+  /**
+   * What may stay: identifiers saved data or code depends on, and the live SecurityFeatures value. They are blanked out of the line first; whatever still says door-man in
+   * ANY spelling a person would read (Doorman, Doormen, Door Man, door-man, DOORMAN, a lowercase word at the start of a placeholder) is a miss.
+   */
+  const IDENTIFIERS: RegExp[] = [
+    /(["'])doorman\1/g, // a lone quoted id or key: data-field="doorman", { id: 'doorman' }
+    /(["'])DoorMan\1/g, // the live SecurityFeatures value: value="DoorMan"
+    /[\w$]*doorman[\w$]+|[\w$]+doorman[\w$]*/gi, // an identifier with letters around it: tenantFeatDoorman, doormanType, bldgDoorman
+    /\.doorman\b/g, // a property: rebnyDisplay.doorman
+    /\bdoorman\s*:/g, // an object key: doorman: function
+  ];
+  const READABLE = /door[ _-]?m[ae]n/i;
+  const readsAsDoorman = (line: string) => READABLE.test(IDENTIFIERS.reduce((s, re) => s.replace(re, ' '), line));
+
+  it('the guard catches every spelling a person would read, and lets the saved ids and the live value through', () => {
+    for (const miss of ['Doorman', 'Doormen', 'doormen', 'Door Man', 'door-man', 'DOORMAN', 'placeholder="doorman, gym"', "'doorman and elevator'", "Doorman's", '<span>Doorman:</span>', 'no-doorman']) {
+      expect(readsAsDoorman(miss)).toBe(true);
+    }
+    for (const ok of ['data-field="doorman"', 'id="tenantFeatDoorman"', 'name="bldgDoorman"', 'value="DoorMan"', 'doormanType', 'rebnyDisplay.doorman(x)', "{ id: 'doorman', label: 'Doorperson' }", 'doorman: function (l) {', "'saleBldgDoorman': 'Doorperson'", 'Doorperson (secured lobby)']) {
+      expect(readsAsDoorman(ok)).toBe(false);
+    }
+  });
+
+  it('scans the pages, scripts, stylesheets and data files of the CRM', () => {
+    expect(crmFiles.length).toBeGreaterThan(100);
+    expect(crmFiles.some((f) => /\.html$/i.test(f)) && crmFiles.some((f) => /\.js$/i.test(f))).toBe(true);
+  });
 
   it.each(crmFiles.map((f) => [f.slice(ROOT.length + 1).replace(/\\/g, '/'), f]))('%s', (_rel, file) => {
-    const lines = readFileSync(file, 'utf8').split(/\r?\n/);
-    const hits = lines
-      .map((l, i) => ((CAPITAL_WORD.test(l) || LOWER_WORD.test(l)) && !l.startsWith('window.COTALITY_SEARCH_CONTRACT =') ? `${i + 1}: ${l.trim().slice(0, 150)}` : ''))
+    const hits = readFileSync(file, 'utf8')
+      .split(/\r?\n/)
+      .map((l, i) => (!l.startsWith('window.COTALITY_SEARCH_CONTRACT =') && readsAsDoorman(l) ? `${i + 1}: ${l.trim().slice(0, 150)}` : ''))
       .filter(Boolean);
     expect(hits).toEqual([]);
+  });
+
+  it('the Security Features boxes keep the live value DoorMan (RLS renamed only AttendanceType) and say Doorperson', () => {
+    const live = JSON.parse(readFileSync(join(ROOT, 'data/cotality-enums.live.json'), 'utf8'));
+    expect(live.enums.SecurityFeatures).toContain('DoorMan');
+    for (const form of ['SALE-FORM-REDESIGN', 'SALE-FORM-WITH-TOOLS']) {
+      const html = readFileSync(join(ROOT, `public/crm/${form}.html`), 'utf8');
+      expect(html).toMatch(/name="saleBldgSecurity" value="DoorMan"[^>]*>\s*Doorperson \(secured lobby\)/);
+    }
   });
 
   it('the deal forms keep their saved checkbox ids and say Doorperson', () => {
