@@ -14,6 +14,7 @@ import type { PublicListingDTO } from './public-dto';
 import { generateListingSlug } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { resolveListingMedia, toDtoMedia } from '@/lib/media/listing-media-resolver';
+import { presentTour } from '@/lib/media/tour-presentation';
 
 /** County → Borough mapping for NYC */
 const COUNTY_TO_BOROUGH: Record<string, string> = {
@@ -56,7 +57,8 @@ export function listingHref(listing: DisplayListing): string {
  * `VideosCount` (a count) with no playable video URL.
  */
 export function hasVirtualTour(listing: Pick<DisplayListing, 'virtualTourURL'>): boolean {
-  return typeof listing.virtualTourURL === 'string' && listing.virtualTourURL.trim().length > 0;
+  // the same test the listing page applies (presentTour), so a card never shows a badge for an address the page drops
+  return presentTour(listing.virtualTourURL).kind !== 'none';
 }
 
 /**
@@ -65,7 +67,7 @@ export function hasVirtualTour(listing: Pick<DisplayListing, 'virtualTourURL'>):
  * from `hasVirtualTour` (3D walk-throughs like Matterport).
  */
 export function hasVideo(listing: Pick<DisplayListing, 'videoUrl'>): boolean {
-  return typeof listing.videoUrl === 'string' && listing.videoUrl.trim().length > 0;
+  return presentTour(listing.videoUrl).kind !== 'none';
 }
 
 /** Slim listing type for frontend cards — no 414-line monster */

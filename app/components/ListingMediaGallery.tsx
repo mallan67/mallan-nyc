@@ -153,7 +153,7 @@ export default function ListingMediaGallery({
             {/* Taller aspect ratio = less cropping = sharper photos. A photo that would be enlarged past the limit to fill this box is shown whole instead (heroFit). */}
             <div
               ref={slotRef}
-              className="relative aspect-[4/3] md:aspect-[3/2] touch-pan-y overflow-hidden"
+              className="relative aspect-[4/3] md:aspect-[3/2] touch-pan-y overflow-hidden bg-stone-200"
               onTouchStart={swipe.onTouchStart}
               onTouchMove={swipe.onTouchMove}
               onTouchEnd={swipe.onTouchEnd}
@@ -168,15 +168,9 @@ export default function ListingMediaGallery({
                 />
               ) : (
                 <>
-                  {fit.mode === 'contain' && !failed.has(photoIdx) && (
-                    /* decorative backdrop behind a photo shown whole: the same picture, blurred */
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={currentImage.url}
-                      alt=""
-                      aria-hidden="true"
-                      className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-60"
-                    />
+                  {fit.mode === 'contain' && (
+                    /* the plain backdrop around a photo shown whole opens the full-screen view too (the arrows and badges sit above it); no copy of the listing photo is made */
+                    <div aria-hidden="true" onClick={() => setFullscreen(true)} className="absolute inset-0 cursor-zoom-in" />
                   )}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img

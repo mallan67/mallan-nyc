@@ -17,6 +17,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import TourFrame from '@/app/components/TourFrame';
+import { hasVideo, hasVirtualTour } from '@/lib/idx/display-adapter';
 import { HERO_MAX_COVER_SCALE, HERO_MAX_MAGNIFICATION, heroFit } from '@/lib/media/hero-fit';
 import { PUBLIC_EMBED_HOSTS, presentTour } from '@/lib/media/tour-presentation';
 
@@ -64,13 +65,42 @@ describe('presentTour: what the public page does with a video or tour address', 
     expect(presentTour(href)).toEqual({ kind: 'link', href });
   });
 
-  it('a direct video file is played by the page itself', () => {
-    expect(presentTour('https://cdn.example.com/tours/unit-4a.mp4')).toEqual({ kind: 'file', src: 'https://cdn.example.com/tours/unit-4a.mp4' });
-    expect(presentTour('https://cdn.example.com/tours/unit-4a.MOV')).toEqual({ kind: 'file', src: 'https://cdn.example.com/tours/unit-4a.MOV' });
+  it('a direct video file is played by the page itself only from a host the media-src policy allows (the site\'s own storage)', () => {
+    expect(presentTour('https://images.mallan.nyc/tours/unit-4a.mp4')).toEqual({ kind: 'file', src: 'https://images.mallan.nyc/tours/unit-4a.mp4' });
+    expect(presentTour('https://pub-abc123.r2.dev/tours/unit-4a.MOV')).toEqual({ kind: 'file', src: 'https://pub-abc123.r2.dev/tours/unit-4a.MOV' });
+  });
+
+  it.each([
+    'https://cdn.example.com/tours/unit-4a.mp4',
+    'http://images.mallan.nyc/tours/unit-4a.mp4',
+    'https://r2.dev.evil.test/tours/unit-4a.webm',
+  ])('a video file the media-src policy would block (%s) is offered as a link, never as a black box', (href) => {
+    expect(presentTour(href)).toEqual({ kind: 'link', href });
+  });
+
+  it('the file hosts are the ones the public media-src policy names', () => {
+    const csp = read('lib/middleware/security-headers.ts').split(/\r?\n/).find((l) => /media-src /.test(l)) ?? '';
+    expect(csp).toContain("'self'");
+    expect(csp).toContain('https://*.r2.dev');
+    expect(csp).toContain('https://images.mallan.nyc');
   });
 
   it.each([null, undefined, '', '   ', 'not-a-url', 'javascript:alert(1)', 'data:text/html,<script>1</script>', 'ftp://example.com/tour', 'vbscript:x'])('%j is not shown at all', (input) => {
     expect(presentTour(input)).toEqual({ kind: 'none' });
+  });
+
+  it.each([
+    'https://Broker_Tour', // live RLS20056661 VirtualTourURLUnbranded: a placeholder, not a web address
+    'https://localhost/tour',
+    'http://intranet/tour',
+    'Broker_Tour',
+    `https://example.com/${'a'.repeat(3000)}`,
+  ])('a value that is not a real web address (%s) is not offered as a link', (input) => {
+    expect(presentTour(input)).toEqual({ kind: 'none' });
+  });
+
+  it('a YouTube playlist link is offered as a link: the embed address would drop the list and break the player', () => {
+    expect(presentTour('https://www.youtube.com/embed/videoseries?list=PL1234567890abc')).toEqual({ kind: 'link', href: 'https://www.youtube.com/embed/videoseries?list=PL1234567890abc' });
   });
 
   it('only a host the public Content-Security-Policy frame-src allows is ever framed', () => {
@@ -179,11 +209,35 @@ describe('the gallery uses them', () => {
     expect(src).toMatch(/key: '3d', label: '3D Tour', available: tour\.kind !== 'none'/);
   });
 
-  it('the hero measures the photo and the slot and lets heroFit choose, with a decorative backdrop behind a photo shown whole', () => {
+  it('the hero measures the photo and the slot and lets heroFit choose', () => {
     const src = gallery();
     expect(src).toMatch(/heroFit\(/);
     expect(src).toMatch(/ResizeObserver/);
     expect(src).toMatch(/naturalWidth/);
-    expect(src).toMatch(/aria-hidden="true"/);
+  });
+
+  it('a photo shown whole sits on a plain neutral backdrop: no blurred copy of the listing photo is made (whether that is allowed is not in the Master or the State)', () => {
+    const src = gallery();
+    expect(src).not.toMatch(/(?<!backdrop-)blur-/); // the arrows and badges keep their own backdrop-blur-sm; no blur is applied to a photo
+    expect(src).toMatch(/bg-stone-200/);
+    // the bands beside a photo shown whole open the full-screen view too, behind the arrows and badges
+    expect(src).toMatch(/aria-hidden="true"[^>]*onClick=\{\(\) => setFullscreen\(true\)\}|onClick=\{\(\) => setFullscreen\(true\)\}[^>]*aria-hidden="true"/);
+  });
+});
+
+describe('search-card badges offer Video and 3D only when the page can show them', () => {
+  it('a badge needs an address the page would offer', () => {
+    expect(hasVideo({ videoUrl: 'https://youtu.be/abc123XYZ' })).toBe(true);
+    expect(hasVideo({ videoUrl: 'youtube.com/watch?v=RM4ef1CIo2k' })).toBe(true);
+    expect(hasVideo({ videoUrl: 'https://app.wistia.com/medias/abc' })).toBe(true);
+    expect(hasVirtualTour({ virtualTourURL: 'https://my.matterport.com/show/?m=abc12345' })).toBe(true);
+    expect(hasVirtualTour({ virtualTourURL: 'https://streeteasy.com/building/x' })).toBe(true);
+  });
+
+  it('no badge for an address the page drops (a placeholder, a non-web address, empty)', () => {
+    for (const bad of ['https://Broker_Tour', '//host/tour', 'ftp://host/tour', 'Broker_Tour', '', '   ', undefined]) {
+      expect(hasVideo({ videoUrl: bad })).toBe(false);
+      expect(hasVirtualTour({ virtualTourURL: bad })).toBe(false);
+    }
   });
 });

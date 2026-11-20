@@ -5,7 +5,7 @@
  * it past a limit.
  *
  *  - If filling the box needs at most HERO_MAX_COVER_SCALE times the photo's own size, it fills and crops, as before.
- *  - Otherwise the whole photo is shown, centered on a decorative blurred backdrop, enlarged at most HERO_MAX_MAGNIFICATION times and never larger than the box.
+ *  - Otherwise the whole photo is shown, centered on a plain neutral backdrop (no copy of the photo is made), enlarged at most HERO_MAX_MAGNIFICATION times and never larger than the box.
  *
  * Sizes are CSS pixels (a phone's slot is small, so most photos still fill it). The caller measures the photo (naturalWidth/Height) and the box (ResizeObserver).
  */
