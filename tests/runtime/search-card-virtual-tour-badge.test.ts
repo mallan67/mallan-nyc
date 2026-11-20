@@ -83,12 +83,16 @@ describe('ListingMediaGallery — tab gating (source guard)', () => {
     'utf8',
   );
 
+  // A tab needs an address the page can show (lib/media/tour-presentation.ts: presentTour): an empty value, a placeholder such as
+  // "https://Broker_Tour" or a non-web address is not a real address, and the card badges use the same test (hasVideo / hasVirtualTour).
   it('shows the Video tab ONLY when a real videoUrl exists', () => {
-    expect(src).toMatch(/key:\s*'video',[^}]*available:\s*!!videoUrl/);
+    expect(src).toMatch(/const video = presentTour\(videoUrl\);/);
+    expect(src).toMatch(/key:\s*'video',[^}]*available:\s*video\.kind !== 'none'/);
   });
 
   it('shows the 3D Tour tab when a virtualTourUrl exists', () => {
-    expect(src).toMatch(/key:\s*'3d',[^}]*available:\s*!!virtualTourUrl/);
+    expect(src).toMatch(/const tour = presentTour\(virtualTourUrl\);/);
+    expect(src).toMatch(/key:\s*'3d',[^}]*available:\s*tour\.kind !== 'none'/);
   });
 
   it('filters tabs to the available set (a dead tab is not rendered)', () => {

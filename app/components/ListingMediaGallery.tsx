@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useSwipe } from '@/lib/hooks/useSwipe';
-import { toEmbedUrl } from '@/lib/media/embed-url';
+import TourFrame from '@/app/components/TourFrame';
+import { heroFit } from '@/lib/media/hero-fit';
+import { presentTour } from '@/lib/media/tour-presentation';
 
 const PLACEHOLDER = '/images/listing-placeholder.svg';
 
@@ -41,10 +43,16 @@ export default function ListingMediaGallery({
   const [fullscreen, setFullscreen] = useState(false);
   const [failed, setFailed] = useState<Set<number>>(new Set());
   const [retryCount, setRetryCount] = useState<Record<number, number>>({});
+  // Hero fit: the photo's own size and the box's size decide whether it fills and crops (as before) or is shown whole (lib/media/hero-fit.ts).
+  const slotRef = useRef<HTMLDivElement>(null);
+  const [slot, setSlot] = useState<{ w: number; h: number } | null>(null);
+  const [natural, setNatural] = useState<Record<number, { w: number; h: number }>>({});
 
   const sortedImages = [...images].sort((a, b) => (a.order || 0) - (b.order || 0));
   const hasImages = sortedImages.length > 0;
   const currentImage = sortedImages[photoIdx] || sortedImages[0];
+  const video = presentTour(videoUrl);
+  const tour = presentTour(virtualTourUrl);
 
   const tabs: { key: MediaTab; label: string; available: boolean; icon: JSX.Element }[] = [
     {
@@ -56,11 +64,11 @@ export default function ListingMediaGallery({
       icon: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7" /></svg>,
     },
     {
-      key: 'video', label: 'Video', available: !!videoUrl,
+      key: 'video', label: 'Video', available: video.kind !== 'none',
       icon: <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>,
     },
     {
-      key: '3d', label: '3D Tour', available: !!virtualTourUrl,
+      key: '3d', label: '3D Tour', available: tour.kind !== 'none',
       icon: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" /></svg>,
     },
   ];
@@ -76,6 +84,20 @@ export default function ListingMediaGallery({
   }, [sortedImages.length]);
 
   const swipe = useSwipe(nextPhoto, prevPhoto);
+
+  const recordNatural = useCallback((idx: number, img: HTMLImageElement) => {
+    const { naturalWidth: w, naturalHeight: h } = img;
+    if (!w || !h) return;
+    setNatural((prev) => (prev[idx]?.w === w && prev[idx]?.h === h ? prev : { ...prev, [idx]: { w, h } }));
+  }, []);
+
+  useEffect(() => {
+    const el = slotRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => setSlot({ w: el.clientWidth, h: el.clientHeight }));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [activeTab]);
 
   const handleImageError = useCallback((idx: number) => {
     const attempts = retryCount[idx] || 0;
@@ -100,6 +122,7 @@ export default function ListingMediaGallery({
   }, [fullscreen, prevPhoto, nextPhoto]);
 
   const showPlaceholder = !hasImages || (failed.size === sortedImages.length);
+  const fit = natural[photoIdx] && slot ? heroFit(natural[photoIdx], slot) : ({ mode: 'cover' } as const);
 
   return (
     <section className="bg-stone-100">
@@ -127,9 +150,10 @@ export default function ListingMediaGallery({
         {/* Photo gallery */}
         {activeTab === 'photos' && (
           <div className="relative">
-            {/* Taller aspect ratio = less cropping = sharper photos */}
+            {/* Taller aspect ratio = less cropping = sharper photos. A photo that would be enlarged past the limit to fill this box is shown whole instead (heroFit). */}
             <div
-              className="relative aspect-[4/3] md:aspect-[3/2] touch-pan-y"
+              ref={slotRef}
+              className="relative aspect-[4/3] md:aspect-[3/2] touch-pan-y overflow-hidden bg-stone-200"
               onTouchStart={swipe.onTouchStart}
               onTouchMove={swipe.onTouchMove}
               onTouchEnd={swipe.onTouchEnd}
@@ -143,18 +167,27 @@ export default function ListingMediaGallery({
                   priority
                 />
               ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  key={`${photoIdx}-${retryCount[photoIdx] || 0}`}
-                  src={failed.has(photoIdx) ? PLACEHOLDER : currentImage.url}
-                  alt={currentImage.caption || alt}
-                  loading="eager"
-                  decoding="sync"
-                  fetchPriority="high"
-                  onError={() => handleImageError(photoIdx)}
-                  onClick={() => setFullscreen(true)}
-                  className="absolute inset-0 w-full h-full object-cover cursor-zoom-in"
-                />
+                <>
+                  {fit.mode === 'contain' && (
+                    /* the plain backdrop around a photo shown whole opens the full-screen view too (the arrows and badges sit above it); no copy of the listing photo is made */
+                    <div aria-hidden="true" onClick={() => setFullscreen(true)} className="absolute inset-0 cursor-zoom-in" />
+                  )}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    key={`${photoIdx}-${retryCount[photoIdx] || 0}`}
+                    ref={(el) => { if (el && el.complete) recordNatural(photoIdx, el); }}
+                    src={failed.has(photoIdx) ? PLACEHOLDER : currentImage.url}
+                    alt={currentImage.caption || alt}
+                    loading="eager"
+                    decoding="sync"
+                    fetchPriority="high"
+                    onLoad={(e) => recordNatural(photoIdx, e.currentTarget)}
+                    onError={() => handleImageError(photoIdx)}
+                    onClick={() => setFullscreen(true)}
+                    className={fit.mode === 'contain' ? 'absolute inset-0 m-auto cursor-zoom-in' : 'absolute inset-0 w-full h-full object-cover cursor-zoom-in'}
+                    style={fit.mode === 'contain' ? { width: fit.width, height: fit.height } : undefined}
+                  />
+                </>
               )}
 
               {/* Single small badge — top left */}
@@ -252,40 +285,17 @@ export default function ListingMediaGallery({
           </div>
         )}
 
-        {/* Video — iframe for embeds (YouTube/Vimeo), <video> for direct files */}
-        {activeTab === 'video' && videoUrl && (
+        {/* Video: an embedded player, a video file, or a link that opens the host in a new tab (lib/media/tour-presentation.ts) */}
+        {activeTab === 'video' && video.kind !== 'none' && (
           <div className="relative aspect-[4/3] md:aspect-[16/9] bg-black">
-            {/youtube\.com|youtu\.be|vimeo\.com|wistia\.com/.test(videoUrl) ? (
-              <iframe
-                src={toEmbedUrl(videoUrl)}
-                className="absolute inset-0 w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title="Video Tour"
-              />
-            ) : (
-              <video
-                src={videoUrl}
-                className="absolute inset-0 w-full h-full object-contain"
-                controls
-                playsInline
-                preload="metadata"
-                title="Video Tour"
-              />
-            )}
+            <TourFrame tour={video} variant="video" />
           </div>
         )}
 
-        {/* 3D Tour */}
-        {activeTab === '3d' && virtualTourUrl && (
+        {/* 3D Tour: framed where the public policy allows the host, otherwise a link to a new tab */}
+        {activeTab === '3d' && tour.kind !== 'none' && (
           <div className="relative aspect-[4/3] md:aspect-[16/9] bg-black">
-            <iframe
-              src={toEmbedUrl(virtualTourUrl)}
-              className="absolute inset-0 w-full h-full"
-              allow="fullscreen; xr-spatial-tracking"
-              allowFullScreen
-              title="3D Virtual Tour"
-            />
+            <TourFrame tour={tour} variant="3d" />
           </div>
         )}
       </div>
