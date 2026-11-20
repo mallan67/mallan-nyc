@@ -5,6 +5,7 @@
 import prisma from "@/lib/prisma";
 import { fetchFromTrestle, buildIncrementalFilter, buildActiveFilter, buildAgentHistoricalFilter, PROPERTY_KEYSET_ORDERBY } from "./fetch";
 import { advanceCursor, type CursorRow } from "./cursor/keyset-cursor";
+import { fetchAttendanceTypes, keepStoredAttendanceType, withAttendanceType } from "./custom-property-join";
 import { mapTrestleToPrisma, checkDistributionGates, validateRequiredFields, validateHistoricalFields, applyLocalOwnerOptOutGate } from "./trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { logIDXAccess, createAuditEntry } from "./logger";
@@ -618,6 +619,14 @@ export async function syncListings(
 
   console.log(`[IDX Sync] Fetched ${fetchResult.totalFetched} records from Cotality`);
 
+  // AttendanceType (who staffs the door) is a key inside CustomProperty.CustomFields, not a Property field ($select=AttendanceType answers HTTP 400), so a Property page never
+  // carries it. One lookup per batch, by ListingKey (lib/idx/custom-property-join.ts). A failed lookup is "unknown" and keeps what is stored; it never fails the sync.
+  const attendanceJoin = await fetchAttendanceTypes(fetchResult.records.map((r) => String(r.ListingKey ?? "")));
+  {
+    const carried = [...attendanceJoin.byKey.values()].filter(Boolean).length;
+    console.log(`[IDX Sync] AttendanceType: ${carried} carried, ${attendanceJoin.byKey.size - carried} none, ${attendanceJoin.unknown.size} unknown (${attendanceJoin.requests} requests)`);
+  }
+
   let upserted = 0;
   let skippedGates = 0;
   let skippedValidation = 0;
@@ -774,6 +783,9 @@ export async function syncListings(
           _count: { select: { listing_media: true } },
         },
       });
+
+      // AttendanceType from the join: the value Cotality carries, none when a successful lookup found none, and what is stored when the lookup did not answer.
+      mapped.features = withAttendanceType(mapped.features as Record<string, unknown>, String(raw.ListingKey ?? ""), attendanceJoin, existing?.features);
 
       const newPermissions = readTrestlePermissions(raw);
       let statusTransition: {
@@ -2385,6 +2397,8 @@ export async function syncAgentHistory(
         where: { listing_id: mapped.listing_id },
         select: LISTING_SYNC_COMPARE_SELECT,
       });
+      // This path rewrites existing listings' features without a CustomProperty lookup: keep the AttendanceType the main sync stored (lib/idx/custom-property-join.ts).
+      mapped.features = keepStoredAttendanceType(mapped.features as Record<string, unknown>, existingForClock?.features);
       const terminalSinceCreate = computeTerminalSincePatch({
         previousStatus: undefined,
         newStatus: mapped.status,

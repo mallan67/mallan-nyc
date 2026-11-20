@@ -29,7 +29,7 @@ import { ATTENDANCE_TYPE_MEMBERS } from '@/lib/idx/attendance-type';
 import { parseNaturalLanguageSearch } from '@/lib/search/natural-language-parser';
 import { extractProjectionAmenityKeys } from '@/lib/search/listing-search-projection';
 import { applyPublicListingPostFilters } from '@/lib/search/public-listing-db';
-import { AMENITY_FIELD_MAP, amenitiesUrlValue, isSearchableAmenity, searchableAmenities, unavailableAmenities, type SearchFilters } from '@/lib/search/types';
+import { AMENITY_FIELD_MAP, STORED_LISTINGS_CARRY_ATTENDANCE_TYPE, amenitiesUrlValue, isSearchableAmenity, searchableAmenities, unavailableAmenities, type SearchFilters } from '@/lib/search/types';
 
 const ROOT = resolve(__dirname, '../..');
 const read = (p: string) => readFileSync(resolve(ROOT, p), 'utf8');
@@ -55,24 +55,20 @@ describe('the Doorperson filter names the live field and the live members, and i
   });
 });
 
-describe('the reason is true: the listing sync does not carry AttendanceType (when it does, this fails until someone enables the filter)', () => {
-  it.each(['lib/idx/sync.ts', 'lib/idx/trestle-mapper.ts'])('%s neither reads AttendanceType nor expands CustomProperty', (file) => {
-    expect(code(file)).not.toMatch(/AttendanceType|expandCustomProperty|CustomProperty|CustomFields/);
+describe('the listing sync carries AttendanceType; the filter is enabled only when the switch says every stored Active listing has it', () => {
+  it('the filter is searchable exactly when STORED_LISTINGS_CARRY_ATTENDANCE_TYPE is true, and carries its reason exactly when it is not', () => {
+    expect(isSearchableAmenity('doorman')).toBe(STORED_LISTINGS_CARRY_ATTENDANCE_TYPE);
+    expect(Boolean(AMENITY_FIELD_MAP.doorman.unavailable)).toBe(!STORED_LISTINGS_CARRY_ATTENDANCE_TYPE);
   });
 
-  it('nothing under lib/idx or the cron routes expands CustomProperty or reads it as a resource (a separate CustomProperty read joined on ListingKey would trip this too)', () => {
-    const walk = (dir: string, out: string[] = []): string[] => {
-      for (const name of readdirSync(join(ROOT, dir))) {
-        const rel = `${dir}/${name}`;
-        if (statSync(join(ROOT, rel)).isDirectory()) { if (name !== '__tests__') walk(rel, out); } else if (/\.(ts|tsx)$/.test(name) && !/\.test\./.test(name)) out.push(rel);
-      }
-      return out;
-    };
-    // lib/idx/fetch.ts only OFFERS the option (callers must opt in); Agent Search is not the sync
-    const files = [...walk('lib/idx'), ...walk('app/api/cron')].filter((f) => f !== 'lib/idx/fetch.ts');
-    expect(files.length).toBeGreaterThan(20);
-    const offenders = files.filter((f) => /expandCustomProperty|resource:\s*["']CustomProperty["']/.test(code(f)));
-    expect(offenders).toEqual([]);
+  it('the sync, the CRM reset route and the nightly reconcile look AttendanceType up from CustomProperty', () => {
+    expect(code('lib/idx/sync.ts')).toMatch(/fetchAttendanceTypes\(/);
+    expect(code('app/api/crm/listings/reset-sync/route.ts')).toMatch(/fetchAttendanceTypes\(/);
+    expect(code('app/api/cron/feed-reconcile/route.ts')).toMatch(/fetchAttendanceTypes\(/);
+  });
+
+  it('AttendanceType is still never asked of Property: it is a CustomProperty.CustomFields key, and a Property $select for it answers HTTP 400', () => {
+    expect(code('lib/idx/trestle-mapper.ts')).not.toMatch(/AttendanceType/);
   });
 });
 
