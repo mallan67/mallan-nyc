@@ -112,7 +112,9 @@ export async function POST(req: NextRequest) {
     log.push(`  Cotality returned ${totalFetched} records`);
 
     // AttendanceType is a key inside CustomProperty.CustomFields, not a Property field: look it up for these listings (a failed lookup keeps what is stored).
+    // This route deletes every listing first (Step 1), so there is no stored value to keep when the lookup fails: say how many listings came back without it.
     const attendanceJoin = await fetchAttendanceTypes(result.records.map((r) => String(r.ListingKey ?? "")));
+    if (attendanceJoin.unknown.size > 0) log.push(`  AttendanceType unknown for ${attendanceJoin.unknown.size} of ${result.records.length} listings (the Cotality lookup failed); the next sync fills them`);
 
     for (const raw of result.records) {
       try {

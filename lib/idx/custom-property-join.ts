@@ -6,7 +6,8 @@
 // (CustomProperty pages 1,000 rows on its own and 200 with the $expand, measured by Agent Search 2026-10-26).
 //
 // THE RULE: a FAILED lookup is "unknown", never "absent". `withAttendanceType` keeps what is stored for an unknown listing, so a Cotality error or timeout can never erase a
-// stored value. Only a lookup that SUCCEEDED and found nothing clears it.
+// stored value. Only a lookup that SUCCEEDED, returned the listing's CustomProperty row, and found no AttendanceType in it clears the value. A listing with no CustomProperty row at
+// all is unknown too (live 2026-11-20: all 1,097 sampled listings had one, so a missing row is an anomaly and must not clear data), and so is a value that is not text.
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 
 export interface AttendanceJoin {
@@ -21,7 +22,8 @@ export interface AttendanceJoin {
 type Fetcher = typeof fetchFromTrestle;
 
 const SELECT = ['ListingKey', 'CustomFields'] as const;
-// Cotality answers HTTP 414 between 6 KB and 9 KB of URL-encoded $filter (400 ListingKeys in one `in` list pass, 600 fail: live 2026-10-24).
+// Cotality refuses a request line above about 8 KB with HTTP 414 (live 2026-11-20: 420 ten-digit keys, 8,130 characters, answered 200; 440 keys, 8,510 characters, 414). The budget is
+// measured the way fetch.ts builds the request (URLSearchParams escapes the quotes and parentheses that encodeURIComponent leaves), and kept at 6,000 for a wide margin.
 const URL_BUDGET = 6000;
 const TIMEOUT_MS = 20_000;
 // Total time the lookup may spend on one batch. A slow or failing Cotality (20 s per attempt, retried) could otherwise use the whole run of the sync; past the budget the
@@ -29,7 +31,7 @@ const TIMEOUT_MS = 20_000;
 const BUDGET_MS = 30_000;
 
 const quoteKey = (k: string) => `'${k.replace(/'/g, "''")}'`;
-const encodedLength = (keys: string[]) => encodeURIComponent(`ListingKey in (${keys.map(quoteKey).join(',')})`).length + encodeURIComponent(SELECT.join(',')).length;
+const encodedLength = (keys: string[]) => new URLSearchParams({ $filter: `ListingKey in (${keys.map(quoteKey).join(',')})`, $select: SELECT.join(',') }).toString().length;
 
 /** Splits keys into requests that stay under the URL budget. */
 export function chunkKeys(keys: string[]): string[][] {
@@ -63,10 +65,19 @@ export function readAttendanceType(customFields: unknown): string | null | undef
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
   const value = (parsed as Record<string, unknown>).AttendanceType;
   if (value === undefined || value === null) return null;
-  const text = Array.isArray(value) ? value.map(String).join(',') : String(value);
+  let text: string;
+  if (typeof value === 'string') text = value;
+  else if (Array.isArray(value) && value.every((m) => typeof m === 'string')) text = value.join(',');
+  else return undefined; // an object, a boolean, a number: never stored as "[object Object]" or "true"
   const list = text.split(',').map((m) => m.trim()).filter(Boolean).join(',');
   return list || null;
 }
+
+/** fetchFromTrestle throws "... Trestle API error (414)": a 4xx (too long, rate limited, refused) will not succeed on an immediate second try. */
+const retryable = (error: unknown): boolean => {
+  const status = Number(/\((\d{3})\)/.exec(error instanceof Error ? error.message : '')?.[1]);
+  return !(status >= 400 && status < 500);
+};
 
 /** AttendanceType for these listings. Never throws: a failure is recorded as unknown for the listings it covered. */
 export async function fetchAttendanceTypes(
@@ -93,11 +104,12 @@ export async function fetchAttendanceTypes(
           orderby: 'ListingKey',
           top: Math.min(1000, chunk.length),
           maxTotal: chunk.length,
-          timeoutMs: TIMEOUT_MS,
+          timeoutMs: Math.max(1_000, Math.min(TIMEOUT_MS, budgetMs - (now() - startedAt))),
         });
         records = result.records;
-      } catch {
-        records = null; // one retry, then unknown
+      } catch (error) {
+        records = null;
+        if (!retryable(error)) break; // a refused request is unknown at once; a 5xx or a timeout gets one more try
       }
     }
     if (records === null) {
@@ -113,8 +125,8 @@ export async function fetchAttendanceTypes(
       if (value === undefined) join.unknown.add(key);
       else join.byKey.set(key, value);
     }
-    // The request succeeded and no CustomProperty row came back for this key: Cotality carries none.
-    for (const key of chunk) if (!seen.has(key)) join.byKey.set(key, null);
+    // The request succeeded but no CustomProperty row came back for this key: unknown (every live listing has one, so this is an anomaly: keep what is stored).
+    for (const key of chunk) if (!seen.has(key)) join.unknown.add(key);
   }
   return join;
 }

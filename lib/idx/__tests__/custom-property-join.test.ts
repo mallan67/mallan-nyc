@@ -48,6 +48,13 @@ describe('readAttendanceType', () => {
     expect(readAttendanceType(42)).toBeUndefined();
   });
 
+  it('undefined: a value that is not text or a list of text is unreadable (never stored as "[object Object]" or "true")', () => {
+    expect(readAttendanceType('{"AttendanceType":{"a":1}}')).toBeUndefined();
+    expect(readAttendanceType('{"AttendanceType":true}')).toBeUndefined();
+    expect(readAttendanceType('{"AttendanceType":5}')).toBeUndefined();
+    expect(readAttendanceType('{"AttendanceType":["DoorpersonYes",5]}')).toBeUndefined();
+  });
+
   it('keeps the live spelling as delivered (no retired Doorman spelling is translated or invented)', () => {
     expect(readAttendanceType('{"AttendanceType":"VideoDoorpersonYes"}')).toBe('VideoDoorpersonYes');
     expect(readAttendanceType('{"AttendanceType":"DoormanFullTime"}')).toBe('DoormanFullTime');
@@ -55,15 +62,17 @@ describe('readAttendanceType', () => {
 });
 
 describe('chunkKeys', () => {
-  it('keeps every request under the URL budget (Cotality answers HTTP 414 between 6 KB and 9 KB of encoded $filter)', () => {
+  it('keeps every request under the URL budget, measured the way the request is really built (URLSearchParams escapes quotes and parentheses; Cotality answers HTTP 414 above about 8 KB: live 420 keys 8,130 characters 200, 440 keys 8,510 characters 414)', () => {
     const keys = Array.from({ length: 2500 }, (_, i) => String(1195000000 + i));
     const chunks = chunkKeys(keys);
     expect(chunks.flat()).toEqual(keys);
-    expect(chunks.length).toBeGreaterThan(3);
+    expect(chunks.length).toBeGreaterThan(5);
     for (const c of chunks) {
       const filter = `ListingKey in (${c.map((k) => `'${k}'`).join(',')})`;
-      expect(encodeURIComponent(filter).length + encodeURIComponent('ListingKey,CustomFields').length).toBeLessThanOrEqual(6000);
+      const query = new URLSearchParams({ $filter: filter, $select: 'ListingKey,CustomFields' }).toString();
+      expect(query.length).toBeLessThanOrEqual(6000);
     }
+    expect(Math.max(...chunks.map((c) => c.length))).toBeLessThan(330);
   });
 
   it('empty input makes no request, and a quote in a key is doubled', () => {
@@ -90,12 +99,41 @@ describe('fetchAttendanceTypes', () => {
     expect(calls[0].expandCustomProperty).toBeUndefined();
   });
 
-  it('maps a value, a missing key in CustomFields, and a listing with no CustomProperty row', async () => {
+  it('maps a value and a missing key in CustomFields; a listing with no CustomProperty row is UNKNOWN, not "none" (live: every listing has a row, so a missing one is an anomaly and must not clear data)', async () => {
     const join = await fetchAttendanceTypes(['1', '2', '3'], ok([], { '1': 'DoorpersonFullTime', '2': null }) as never);
     expect(join.byKey.get('1')).toBe('DoorpersonFullTime');
     expect(join.byKey.get('2')).toBeNull();
-    expect(join.byKey.get('3')).toBeNull(); // no row for the key: Cotality carries none
-    expect(join.unknown.size).toBe(0);
+    expect(join.byKey.has('3')).toBe(false);
+    expect(join.unknown.has('3')).toBe(true);
+  });
+
+  it('a request Cotality refuses (a 4xx: 414 too long, 429 rate limited) is not retried, and its chunk is unknown; a 5xx or a timeout is retried once', async () => {
+    const attempts = async (message: string) => {
+      let n = 0;
+      const join = await fetchAttendanceTypes(['1'], (async () => { n++; throw new Error(message); }) as never);
+      expect(join.unknown.has('1')).toBe(true);
+      return n;
+    };
+    expect(await attempts('[IDX Fetch] Trestle API error (414)')).toBe(1);
+    expect(await attempts('[IDX Fetch] Trestle API error (429)')).toBe(1);
+    expect(await attempts('[IDX Fetch] Trestle API error (400)')).toBe(1);
+    expect(await attempts('[IDX Fetch] Trestle API error (500)')).toBe(2);
+    expect(await attempts('The operation was aborted due to timeout')).toBe(2);
+  });
+
+  it('each request is given no more time than the budget has left', async () => {
+    const keys = Array.from({ length: 900 }, (_, i) => String(1195000000 + i));
+    const seen: Array<number | undefined> = [];
+    let clock = 0;
+    const fetcher = async (options: Call & { timeoutMs?: number }) => {
+      seen.push(options.timeoutMs);
+      clock += 20_000;
+      const ks = [...(options.filter ?? '').matchAll(/'(\d+)'/g)].map((m) => m[1]);
+      return { records: rowsFor(ks, Object.fromEntries(ks.map((k) => [k, 'DoorpersonYes']))), totalFetched: 0, hasMore: false };
+    };
+    await fetchAttendanceTypes(keys, fetcher as never, { budgetMs: 30_000, now: () => clock });
+    expect(seen[0]).toBe(20_000); // the usual per-request timeout
+    expect(seen[1]).toBe(10_000); // 20 s of a 30 s budget are gone
   });
 
   it('a failed request marks only its chunk unknown, and a later chunk still succeeds', async () => {
@@ -215,6 +253,16 @@ describe('the other writers of a listing\'s features do not erase AttendanceType
     expect(route).toMatch(/const attendanceJoin = await fetchAttendanceTypes\(result\.records\.map/);
     expect(route).toMatch(/select: \{ status: true, owner_opt_out: true, features: true \}/);
     expect(route).toMatch(/mapped\.features = withAttendanceType\(mapped\.features as Record<string, unknown>, String\(raw\.ListingKey \?\? ""\), attendanceJoin, existingForClock\?\.features\);/);
+  });
+
+  it('the CRM reset-sync route deletes every listing first, so nothing is stored to keep: it says how many listings came back without AttendanceType because the lookup failed', () => {
+    const route = read('app/api/crm/listings/reset-sync/route.ts');
+    expect(route).toMatch(/prisma\.listing\.deleteMany\(\{\}\)/);
+    expect(route).toMatch(/if \(attendanceJoin\.unknown\.size > 0\) log\.push\(`  AttendanceType unknown for \$\{attendanceJoin\.unknown\.size\} of \$\{result\.records\.length\} listings/);
+  });
+
+  it('the nightly reconcile says when its lookup failed for listings it created', () => {
+    expect(read('app/api/cron/feed-reconcile/route.ts')).toMatch(/if \(attendanceJoin\.unknown\.size > 0\) console\.warn\(`\[feed-reconcile\] AttendanceType unknown for/);
   });
 
   it('the nightly reconcile carries it onto the listings it creates', () => {

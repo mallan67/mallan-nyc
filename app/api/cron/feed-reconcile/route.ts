@@ -396,6 +396,7 @@ export async function GET(req: NextRequest) {
         const rows = page.value ?? [];
         // AttendanceType is a key inside CustomProperty.CustomFields, not a Property field: one lookup for the batch, carried onto each listing created below.
         const attendanceJoin = await fetchAttendanceTypes(rows.map((r) => String(r.ListingKey ?? "")));
+        if (attendanceJoin.unknown.size > 0) console.warn(`[feed-reconcile] AttendanceType unknown for ${attendanceJoin.unknown.size} of ${rows.length} listings created in this batch (the Cotality lookup failed); the next sync fills them`);
         for (const raw of rows) {
           try {
             const validation = validateRequiredFields(raw);
