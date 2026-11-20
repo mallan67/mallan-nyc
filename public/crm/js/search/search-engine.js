@@ -1993,18 +1993,19 @@
                         if (_listVal == null || _listVal === '') continue;
 
                         // Multi-value match: Trestle may return comma-separated values
-                        // (e.g. "FullTimeDoorman,VirtualDoorman") or single values
+                        // (e.g. "DoorpersonFullTime,ConciergeYes") or single values
                         var _listStr = String(_listVal).toLowerCase();
                         var _matched = false;
                         for (var _vi = 0; _vi < _vals.length && !_matched; _vi++) {
                             // A checkbox can carry several comma-joined values (the "Exclusive" box does): any one of them matches.
                             // ListingAgreement is a single-valued enum, so it is compared exactly ("exclusiveagency" is a substring of
-                            // "coexclusiveagency"); the other fields keep their substring match.
+                            // "coexclusiveagency"); AttendanceType is compared member by member ("doorpersonfulltime" is a substring of
+                            // "videodoorpersonfulltime"); the other fields keep their substring match.
                             var _alts = String(_vals[_vi]).toLowerCase().split(',');
                             for (var _ai = 0; _ai < _alts.length; _ai++) {
                                 var _alt = _alts[_ai].trim();
                                 if (!_alt) continue;
-                                if (_fk === 'ListingAgreement' ? _listStr === _alt : _listStr.indexOf(_alt) !== -1) { _matched = true; break; }
+                                if (_fk === 'ListingAgreement' ? _listStr === _alt : (_fk === 'AttendanceType' ? _listStr.split(',').map(function (s) { return s.trim(); }).indexOf(_alt) !== -1 : _listStr.indexOf(_alt) !== -1)) { _matched = true; break; }
                             }
                         }
                         if (!_matched) return false;

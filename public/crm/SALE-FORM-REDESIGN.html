@@ -3135,8 +3135,8 @@ body { font-family: Manrope, sans-serif; }
                         <input type="number" id="saleTHMgmtA" placeholder="$0.00" step="0.01" class="field-input bg-blue-50" data-concept-disposition="mallan-internal">
                     </div>
 
-                    <!-- Super / Doorman -->
-                    <label class="field-label mb-1">Super / Doorman</label>
+                    <!-- Super / Doorperson -->
+                    <label class="field-label mb-1">Super / Doorperson</label>
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <input type="number" id="saleTHSuperM" placeholder="$0.00" step="0.01" class="field-input bg-blue-50" data-concept-disposition="mallan-internal">
                         <input type="number" id="saleTHSuperA" placeholder="$0.00" step="0.01" class="field-input bg-blue-50" data-concept-disposition="mallan-internal">
@@ -4522,7 +4522,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="form-card-header"><i class="fas fa-shield-alt"></i> Security Features</div>
                         <p class="text-[10px] text-gray-500 mb-2">Cotality SecurityFeatures — select all that apply. Doorperson / concierge staffing itself is the Building Attendance Type above.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="DoorMan" class="w-4 h-4"> Doorman (secured lobby)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="DoorMan" class="w-4 h-4"> Doorperson (secured lobby)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="LobbySecured" class="w-4 h-4"> Lobby Secured</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="TwentyFourHourSecurity" class="w-4 h-4"> 24-Hour Security</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="SecurityGuard" class="w-4 h-4"> Security Guard</label>
@@ -6069,7 +6069,7 @@ function populateBuildingFromIDX(prefix, building) {
 
     // ── The building's Cotality lists (suggestion-only, like the groups above) ──
     fillGroupIfEmpty(prefix + 'AttendanceType', pick('attendance_type', 'attendanceType'), function (m) { return m; });
-    // a building profile that carries only the doorman / concierge flags (the index before the CustomFields pull): the Attendance Type members they stand for
+    // a building profile that carries only the doorperson / concierge flags (the index before the CustomFields pull): the Attendance Type members they stand for
     if (!pick('attendance_type', 'attendanceType')) fillGroupIfEmpty(prefix + 'AttendanceType', [building.doorman ? 'DoorpersonYes' : '', building.concierge ? 'ConciergeYes' : ''].filter(Boolean).join(','), function (m) { return m; });
     fillGroupIfEmpty(prefix + 'BldgArchStyle', pick('architectural_style', 'architecturalStyle'), function (m) { return m; });
     fillGroupIfEmpty(prefix + 'BldgFacade', pick('construction_materials', 'constructionMaterials'), function (m) { return m; });
@@ -9983,7 +9983,7 @@ function updateSalePreview() {
         const amenities = [];
         // Pull from building modal checkboxes
         const amenMap = {
-            'saleBldgDoorman': 'Doorman', 'saleBldgElevator': 'Elevator',
+            'saleBldgDoorman': 'Doorperson', 'saleBldgElevator': 'Elevator',
             'saleBldgGym': 'Fitness Center', 'saleBldgPool': 'Pool',
             'saleBldgRoofDeck': 'Roof Deck', 'saleBldgGarage': 'Parking',
             'saleBldgStorage': 'Storage', 'saleBldgBikeRoom': 'Bike Room',

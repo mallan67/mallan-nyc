@@ -359,8 +359,8 @@
             ],
             // BUILDING AMENITIES
             amenities: [
-                { id: 'doorman', label: 'Doorman', required: false },
-                { id: 'doormanType', label: 'Doorman Type', required: false, values: ['Full-Time', 'Part-Time', 'Virtual', 'None'] },
+                { id: 'doorman', label: 'Doorperson', required: false },
+                { id: 'doormanType', label: 'Doorperson Type', required: false, values: ['Full-Time', 'Part-Time', 'Virtual', 'None'] },
                 { id: 'concierge', label: 'Concierge', required: false },
                 { id: 'elevator', label: 'Elevator', required: false },
                 { id: 'numElevators', label: 'Number of Elevators', required: false },

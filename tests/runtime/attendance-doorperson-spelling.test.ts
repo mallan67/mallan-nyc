@@ -45,6 +45,44 @@ describe('no retired Doorman spelling is served', () => {
   });
 });
 
+/**
+ * What an agent or a client READS on a CRM page says Doorperson (Maya, 2026-11-20: update all seven standalone forms, the searches, the Sale and Rental
+ * redesign forms, the Tools forms and the CMA). A label, a placeholder or a sample sentence may not say Doorman. The ids saved data depends on stay as they are:
+ * tenantFeatDoorman / buyerFeatDoorman (checkbox ids), data-field="doorman" (the report field id), the `doorman` renderer key and `doormanType` (internal names).
+ */
+describe('no CRM page says Doorman where a person reads it', () => {
+  const crmFiles = walk(join(ROOT, 'public/crm'));
+  const CAPITAL_WORD = /(?<![A-Za-z])Doorman(?![A-Za-z])/;
+  const LOWER_WORD = /(?<![\w.'"-])doorman(?![\w'":])/;
+
+  it.each(crmFiles.map((f) => [f.slice(ROOT.length + 1).replace(/\\/g, '/'), f]))('%s', (_rel, file) => {
+    const lines = readFileSync(file, 'utf8').split(/\r?\n/);
+    const hits = lines
+      .map((l, i) => ((CAPITAL_WORD.test(l) || LOWER_WORD.test(l)) && !l.startsWith('window.COTALITY_SEARCH_CONTRACT =') ? `${i + 1}: ${l.trim().slice(0, 150)}` : ''))
+      .filter(Boolean);
+    expect(hits).toEqual([]);
+  });
+
+  it('the deal forms keep their saved checkbox ids and say Doorperson', () => {
+    for (const [file, id] of [['public/crm/TENANT-DEAL-FORM.html', 'tenantFeatDoorman'], ['public/crm/BUYER-DEAL-FORM.html', 'buyerFeatDoorman']]) {
+      const html = readFileSync(join(ROOT, file), 'utf8');
+      expect(html).toMatch(new RegExp(`id="${id}"[^>]*>\\s*Doorperson</label>`));
+    }
+  });
+
+  it('the report builder keeps its field id and says Doorperson', () => {
+    expect(readFileSync(join(ROOT, 'public/crm/html/modals/reports.html'), 'utf8')).toMatch(/data-field="doorman">\s*Doorperson<\/label>/);
+  });
+});
+
+describe('the CRM search engine matches an AttendanceType member whole, so a video doorperson is never taken for a doorperson', () => {
+  it('compares AttendanceType by member, like ListingAgreement is compared exactly', () => {
+    const src = readFileSync(join(ROOT, 'public/crm/js/search/search-engine.js'), 'utf8');
+    expect(src).toMatch(/_fk === 'AttendanceType'/);
+    expect(src).not.toMatch(/FullTimeDoorman|VirtualDoorman/);
+  });
+});
+
 describe('the forms offer exactly the live AttendanceType members', () => {
   const FORMS: [string, string][] = [
     ['SALE-FORM-REDESIGN', 'saleAttendanceType'],

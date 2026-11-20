@@ -60,7 +60,7 @@
                             <!-- Col 3: Features -->
                             <div>
                                 <div class="flex justify-between"><span class="text-gray-500">Condition:</span><span>--</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">Doorman:</span><span>--</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Doorperson:</span><span>--</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">Elevators:</span><span>--</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">Private Outdoor:</span><span>--</span></div>
                             </div>
