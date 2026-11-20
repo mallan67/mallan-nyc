@@ -136,6 +136,26 @@ describe('fetchAttendanceTypes', () => {
     expect(join.byKey.has('9')).toBe(false);
   });
 
+  it('stops asking once its time budget is spent: the rest are unknown, with no further request (a slow Cotality cannot eat the sync\'s whole run)', async () => {
+    const keys = Array.from({ length: 900 }, (_, i) => String(1195000000 + i));
+    const calls: Call[] = [];
+    let clock = 0;
+    const fetcher = async (options: Call) => {
+      calls.push(options);
+      clock += 20_000; // each request takes 20 s
+      const ks = [...(options.filter ?? '').matchAll(/'(\d+)'/g)].map((m) => m[1]);
+      return { records: rowsFor(ks, Object.fromEntries(ks.map((k) => [k, 'DoorpersonYes']))), totalFetched: 0, hasMore: false };
+    };
+    const join = await fetchAttendanceTypes(keys, fetcher as never, { budgetMs: 30_000, now: () => clock });
+    const chunks = chunkKeys(keys);
+    expect(chunks.length).toBeGreaterThanOrEqual(3);
+    expect(calls).toHaveLength(2); // 0 s and 20 s are inside the budget; 40 s is not
+    for (const k of chunks[0].concat(chunks[1])) expect(join.byKey.get(k)).toBe('DoorpersonYes');
+    const rest = chunks.slice(2).flat();
+    for (const k of rest) expect(join.unknown.has(k)).toBe(true);
+    expect(join.byKey.size + join.unknown.size).toBe(keys.length);
+  });
+
   it('de-duplicates keys, ignores blanks, and makes no request for nothing', async () => {
     const calls: Call[] = [];
     await fetchAttendanceTypes(['5', '5', '', '6'], ok(calls, {}) as never);

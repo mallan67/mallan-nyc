@@ -24,6 +24,9 @@ const SELECT = ['ListingKey', 'CustomFields'] as const;
 // Cotality answers HTTP 414 between 6 KB and 9 KB of URL-encoded $filter (400 ListingKeys in one `in` list pass, 600 fail: live 2026-10-24).
 const URL_BUDGET = 6000;
 const TIMEOUT_MS = 20_000;
+// Total time the lookup may spend on one batch. A slow or failing Cotality (20 s per attempt, retried) could otherwise use the whole run of the sync; past the budget the
+// remaining listings are unknown, which keeps what is stored.
+const BUDGET_MS = 30_000;
 
 const quoteKey = (k: string) => `'${k.replace(/'/g, "''")}'`;
 const encodedLength = (keys: string[]) => encodeURIComponent(`ListingKey in (${keys.map(quoteKey).join(',')})`).length + encodeURIComponent(SELECT.join(',')).length;
@@ -66,13 +69,21 @@ export function readAttendanceType(customFields: unknown): string | null | undef
 }
 
 /** AttendanceType for these listings. Never throws: a failure is recorded as unknown for the listings it covered. */
-export async function fetchAttendanceTypes(listingKeys: Iterable<string>, fetcher: Fetcher = fetchFromTrestle): Promise<AttendanceJoin> {
+export async function fetchAttendanceTypes(
+  listingKeys: Iterable<string>,
+  fetcher: Fetcher = fetchFromTrestle,
+  options: { budgetMs?: number; now?: () => number } = {},
+): Promise<AttendanceJoin> {
   const keys = [...new Set([...listingKeys].map((k) => String(k ?? '').trim()).filter(Boolean))];
   const join: AttendanceJoin = { byKey: new Map(), unknown: new Set(), requests: 0 };
+  const budgetMs = options.budgetMs ?? BUDGET_MS;
+  const now = options.now ?? Date.now;
+  const startedAt = now();
 
   for (const chunk of chunkKeys(keys)) {
     let records: Record<string, unknown>[] | null = null;
     for (let attempt = 0; attempt < 2 && records === null; attempt++) {
+      if (now() - startedAt > budgetMs) break; // out of time: unknown, no further request
       join.requests++;
       try {
         const result = await fetcher({
