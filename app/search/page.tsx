@@ -356,6 +356,8 @@ function SearchClient() {
   });
 
   const isFirstRender = useRef(true);
+  // Set by Reset: the URL effect below keeps a disabled filter the link named (amenitiesUrlValue), and the link it reads is stale until router.replace lands, so a reset must say not to.
+  const resetting = useRef(false);
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
     const params = new URLSearchParams(searchParams?.toString() || '');
@@ -374,7 +376,8 @@ function SearchClient() {
     setOrDel('yearBuilt', filters.yearBuilt && filters.yearBuilt !== 'any' ? filters.yearBuilt : undefined);
     setOrDel('furnished', filters.furnished ? 'true' : undefined);
     // A disabled filter the link names stays in the URL (it applies nothing), so the "was not applied" notice, which reads the URL, is not erased by this write.
-    setOrDel('amenities', amenitiesUrlValue(filters.amenities, params.get('amenities')));
+    setOrDel('amenities', amenitiesUrlValue(filters.amenities, resetting.current ? null : params.get('amenities')));
+    resetting.current = false;
     setOrDel('openHouse', filters.openHouse ? 'true' : undefined);
     setOrDel('openHouseDate', filters.openHouse ? filters.openHouseDate : undefined);
     setOrDel('minSqft', filters.minSqft?.toString());
@@ -420,7 +423,7 @@ function SearchClient() {
     if (/^\d{5}$/.test(q)) return { neighborhood: undefined, borough: undefined, address: undefined, nlFilters: undefined, unavailable: NO_UNAVAILABLE };
 
     // Natural language detection: contains beds, price, property type, amenity, or neighborhood keywords
-    const nlSignals = /(\d\s*(?:bed|br|bath|ba\b)|studio|\$|under|over|below|above|condo|co-?op|townhouse|loft|pre-?war|doorman|door\s*person|elevator|pets?|no[\s-]*fees?|no[\s-]+broker[\s-]+fees?|(?:owner|landlord)\s+pays|gym|pool|furnished)/i;
+    const nlSignals = /(\d\s*(?:bed|br|bath|ba\b)|studio|\$|under|over|below|above|condo|co-?op|townhouse|loft|pre-?war|doorman|\bdoor ?person\b|elevator|pets?|no[\s-]*fees?|no[\s-]+broker[\s-]+fees?|(?:owner|landlord)\s+pays|gym|pool|furnished)/i;
     const containsNeighborhood = allNeighborhoods.some(n => qLower.includes(n.name.toLowerCase()));
     const containsBorough = boroughs.some(b => qLower.includes(b));
 
@@ -620,6 +623,7 @@ function SearchClient() {
 
   // ── Clear all ──
   const clearFilters = useCallback(() => {
+    resetting.current = true;
     setSearchQuery('');
     setFilters({ sort: 'price-desc' });
     setSelectedNeighborhoods([]);

@@ -274,7 +274,7 @@ export default function HeroSearch() {
 
     // Natural language parsing (instant, client-side regex)
     setIsSearching(true);
-    const nlSignals = /(\$|under|over|below|above|budget|\d+\s*(br|bed|bath)|studio|condo|co-?op|townhouse|loft|pre-?war|doorman|door\s*person|elevator|pets?|laundry|gym|furnished|pool|parking|no[\s-]*fees?|no[\s-]+broker[\s-]+fees?|(?:owner|landlord)\s+pays|renovated|quiet|sunny|bright|views?|fireplace|balcony|terrace|roof|washer|dryer|w\/d|dishwasher|dogs?|cats?|high\s*ceil)/i;
+    const nlSignals = /(\$|under|over|below|above|budget|\d+\s*(br|bed|bath)|studio|condo|co-?op|townhouse|loft|pre-?war|doorman|\bdoor ?person\b|elevator|pets?|laundry|gym|furnished|pool|parking|no[\s-]*fees?|no[\s-]+broker[\s-]+fees?|(?:owner|landlord)\s+pays|renovated|quiet|sunny|bright|views?|fireplace|balcony|terrace|roof|washer|dryer|w\/d|dishwasher|dogs?|cats?|high\s*ceil)/i;
     if (nlSignals.test(q)) {
       router.push(buildSearchUrl(regexParse(q)));
       setIsSearching(false);

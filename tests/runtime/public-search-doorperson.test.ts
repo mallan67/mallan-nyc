@@ -156,15 +156,26 @@ describe('the "not applied" notice survives the page rewriting its own URL (foun
 
   it('the search page writes the amenities param through it, and does not write filters.amenities alone', () => {
     const page = code('app/search/page.tsx');
-    expect(page).toMatch(/setOrDel\('amenities', amenitiesUrlValue\(filters\.amenities, params\.get\('amenities'\)\)\);/);
+    expect(page).toMatch(/setOrDel\('amenities', amenitiesUrlValue\(filters\.amenities, resetting\.current \? null : params\.get\('amenities'\)\)\);/);
     expect(page).not.toMatch(/setOrDel\('amenities', filters\.amenities\?\.length/);
   });
 
-  it.each(['app/components/HeroSearch.tsx', 'app/search/page.tsx'])('%s sends "door person" (two words) to the parser too', (file) => {
+  it('Reset Search clears the kept key too: it says so before the filters change, and the URL write consumes the flag (found by the gate: the stale link was written straight back)', () => {
+    const page = code('app/search/page.tsx');
+    expect(page).toMatch(/const resetting = useRef\(false\);/);
+    expect(page).toMatch(/const clearFilters = useCallback\(\(\) => \{\s*resetting\.current = true;\s*setSearchQuery\(''\);/);
+    expect(page).toMatch(/resetting\.current \? null : params\.get\('amenities'\)\)\);\s*resetting\.current = false;/);
+  });
+
+  it.each(['app/components/HeroSearch.tsx', 'app/search/page.tsx'])('%s sends "door person" to the parser exactly when the parser can read it', (file) => {
     const signals = /const nlSignals = (\/.*\/i);/.exec(code(file))?.[1];
     expect(signals).toBeDefined();
     const re = new Function(`return ${signals}`)() as RegExp;
     for (const phrase of ['door person', 'Door Person', 'doorperson', 'doorman']) expect(re.test(phrase)).toBe(true);
+    // the parser reads "door person" with ONE space; anything else must stay a plain address search, not a query the parser cannot read
+    for (const phrase of ['door  person', 'outdoor person lane', 'door-person']) expect(re.test(phrase)).toBe(false);
+    // and what the signals send there, the parser reads
+    for (const phrase of ['2br chelsea door person', '2br chelsea Doorperson']) expect(parseNaturalLanguageSearch(phrase).unavailable.map((u) => u.key)).toEqual(['doorman']);
   });
 });
 
