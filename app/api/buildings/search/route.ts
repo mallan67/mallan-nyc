@@ -7,6 +7,7 @@ import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
 import { canonicalizeDirection, canonicalizeSuffix, canonicalizeStreetName } from '@/lib/address/nyc-address-normalizer';
 import { parseCustomFields } from '@/lib/search/crm-idx-filter';
+import { hasDoorperson } from '@/lib/idx/attendance-type';
 
 const COTALITY_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -340,9 +341,9 @@ function mergeMissingExtras(target: Record<string, unknown>, extras: Record<stri
   for (const k of Object.keys(extras)) {
     const v = extras[k];
     const cur = target[k];
-    // Attendance (doorman, concierge, lobby / elevator attendant) is a fact about the BUILDING that each listing's agent fills in, or leaves at the default "None". A building has a
-    // doorman if ANY of its listings says so: the positive members of every record are united, and "None" never blocks one (a listing left at the default says nothing about the lobby;
-    // 800 2nd Avenue's newest listing says None while its lease RLS10612741 says DoormanFullTime + LobbyAttendantFullTime). Only "None"s: kept as they are, and the form takes no stand on them.
+    // Attendance (doorperson, concierge, lobby / elevator attendant) is a fact about the BUILDING that each listing's agent fills in, or leaves at the default "None". A building has a
+    // doorperson if ANY of its listings says so: the positive members of every record are united, and "None" never blocks one (a listing left at the default says nothing about the lobby;
+    // 800 2nd Avenue's newest listing says None while its lease RLS10612741 says DoorpersonFullTime + LobbyAttendantFullTime). Only "None"s: kept as they are, and the form takes no stand on them.
     if (k === 'attendance_type') {
       const united = [...new Set([cur, v].flatMap((x) => String(x ?? '').split(',')).map((m) => m.trim()).filter((m) => m && m !== 'None'))];
       if (united.length) target[k] = united.join(',');
@@ -856,7 +857,7 @@ export async function GET(request: NextRequest) {
           association_fee: feat?.AssociationFee ? Number(feat.AssociationFee) : null,
           association_fee_frequency: String(feat?.AssociationFeeFrequency || ''),
           zoning_description: String(feat?.ZoningDescription || ''),
-          doorman: dbAttendance.includes('doorman'),
+          doorman: hasDoorperson(dbAttendance),
           elevator: dbFeatures.includes('elevator'),
           gym: dbFeatures.includes('healthclub') || dbFeatures.includes('fitness'),
           pool: dbFeatures.includes('pool'),
@@ -970,7 +971,7 @@ export async function GET(request: NextRequest) {
           association_fee: feat?.AssociationFee ? Number(feat.AssociationFee) : null,
           association_fee_frequency: String(feat?.AssociationFeeFrequency || ''),
           zoning_description: String(feat?.ZoningDescription || ''),
-          doorman: dbAttendance.includes('doorman'),
+          doorman: hasDoorperson(dbAttendance),
           elevator: dbFeatures.includes('elevator'),
           gym: dbFeatures.includes('healthclub') || dbFeatures.includes('fitness'),
           pool: dbFeatures.includes('pool'),

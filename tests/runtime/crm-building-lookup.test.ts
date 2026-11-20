@@ -786,7 +786,7 @@ describe.each(PAGES)('$form: the building\'s doorman and concierge', (p) => {
     const f = await bootAddForm(p.form, { buildings: [{ ...COOP, doorman: true, concierge: true }], settle: 600 });
     try {
       await resolveAddress(f, p, '200 East 66th Street');
-      expect(ticked(f)).toEqual(['DoormanYes', 'ConciergeYes']);
+      expect(ticked(f)).toEqual(['DoorpersonYes', 'ConciergeYes']);
     } finally { f.close(); }
   });
   it('only the one the building has, and nothing for a building with neither', async () => {
@@ -795,7 +795,7 @@ describe.each(PAGES)('$form: the building\'s doorman and concierge', (p) => {
     try {
       await resolveAddress(only, p, '200 East 66th Street');
       await resolveAddress(none, p, '200 East 66th Street');
-      expect(ticked(only)).toEqual(['DoormanYes']);
+      expect(ticked(only)).toEqual(['DoorpersonYes']);
       expect(ticked(none)).toEqual([]);
     } finally { only.close(); none.close(); }
   });
@@ -1078,7 +1078,7 @@ describe.each(PAGES)('$form: another building replaces what the lookup wrote for
       expect(val(f, `${p.prefix}UnitNumber`)).toBe('12B');
       expect([val(f, `${p.bld}Name`), val(f, `${p.bld}YearBuilt`), val(f, `${p.bld}ParkingSpaces`)]).toEqual(['The Plaza Tower', '1961', '12']);
       expect(['Elevator', 'Gym', 'Pool', 'Parking'].map((b) => checked(f, `${p.bld}${b}`))).toEqual([true, true, true, true]);
-      expect(attendance(f, p)).toEqual(['DoormanYes', 'ConciergeYes']);
+      expect(attendance(f, p)).toEqual(['DoorpersonYes', 'ConciergeYes']);
       if (p.prefix === 'sale') expect([val(f, 'saleMaintCC'), val(f, 'saleMaintCCFreq')]).toEqual(['', 'Monthly']);                 // Maintenance is the agent's to enter: the building's fee is not prefilled
       await resolveAddress(f, p, '333 East 46th Street Apt 4');
       expect(val(f, `${p.prefix}StreetAddress`)).toBe('333 E 46th St');

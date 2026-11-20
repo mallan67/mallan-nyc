@@ -22,6 +22,7 @@
 
 import { REBNY_FIELD_TABLES } from './rebny-field-tables';
 import { conditionMatches } from './rls-enforcement';
+import { hasDoorperson } from '@/lib/idx/attendance-type';
 import prohibitedTermsJson from '../../data/compliance/prohibited-terms.json';
 
 // Normalized rule for validation logic
@@ -875,8 +876,8 @@ export function generatePublicRemarks(listing: ListingData): string {
     const attendance = Array.isArray(listing.AttendanceType)
       ? listing.AttendanceType
       : [listing.AttendanceType];
-    if (attendance.some((a) => a.includes('Doorman'))) {
-      amenities.push('doorman');
+    if (hasDoorperson(attendance)) {
+      amenities.push('doorperson');
     }
   }
 

@@ -4466,10 +4466,10 @@ body { font-family: Manrope, sans-serif; }
                         <div class="form-card-header"><i class="fas fa-concierge-bell"></i> Building Attendance Type <span class="text-red-500">*</span></div>
                         <p class="text-[10px] text-gray-500 mb-3">Mallan Building Profile — internal (not in Cotality; not submitted to RLS/IDX). Select all that apply.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3" id="saleAttendanceTypeGroup">
-                            <!-- Doorman -->
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanFullTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)" data-concept="AttendanceType"> Doorman (Full-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanPartTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Doorman (Part-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanYes" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Doorman (Yes)</label>
+                            <!-- Doorperson -->
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoorpersonFullTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)" data-concept="AttendanceType"> Doorperson (Full-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoorpersonPartTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Doorperson (Part-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoorpersonYes" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Doorperson (Yes)</label>
                             <!-- Concierge -->
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="ConciergeFullTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Concierge (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="ConciergePartTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Concierge (Part-Time)</label>
@@ -4482,10 +4482,10 @@ body { font-family: Manrope, sans-serif; }
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="LobbyAttendantFullTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Lobby Att. (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="LobbyAttendantPartTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Lobby Att. (Part-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="LobbyAttendantYes" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Lobby Att. (Yes)</label>
-                            <!-- Video Doorman -->
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="VideoDoormanFullTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Video Doorman (Full-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="VideoDoormanPartTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Video Doorman (Part-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="VideoDoormanYes" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Video Doorman (Yes)</label>
+                            <!-- Video Doorperson -->
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="VideoDoorpersonFullTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Video Doorperson (Full-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="VideoDoorpersonPartTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Video Doorperson (Part-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="VideoDoorpersonYes" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Video Doorperson (Yes)</label>
                             <!-- None -->
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="None" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> None</label>
                         </div>
@@ -4520,7 +4520,7 @@ body { font-family: Manrope, sans-serif; }
                     <!-- Security — live Cotality SecurityFeatures (Multi; the Building* members are the building-level ones) -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-shield-alt"></i> Security Features</div>
-                        <p class="text-[10px] text-gray-500 mb-2">Cotality SecurityFeatures — select all that apply. Doorman / concierge staffing itself is the Building Attendance Type above.</p>
+                        <p class="text-[10px] text-gray-500 mb-2">Cotality SecurityFeatures — select all that apply. Doorperson / concierge staffing itself is the Building Attendance Type above.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="DoorMan" class="w-4 h-4"> Doorman (secured lobby)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgSecurity" value="LobbySecured" class="w-4 h-4"> Lobby Secured</label>
@@ -5480,7 +5480,7 @@ async function pullFromCotalityByRlsId(rlsId) {
         var rec = body.record || {};
         if (rec.PublicRemarks) rec.PublicRemarks = _saleHtmlToText(rec.PublicRemarks);
         // Cotality's AttendanceType "None" sits on 38% of live listings and cannot be told from an unfilled default, so it is not taken as "no doorman" (Maya): the staffing group is left for
-        // the broker. A real value (DoormanFullTime, ConciergeFullTime ...) still fills it.
+        // the broker. A real value (DoorpersonFullTime, ConciergeFullTime ...) still fills it.
         if (String(rec.AttendanceType || '').trim() === 'None') delete rec.AttendanceType;
         // Cotality's UnparsedAddress carries the unit ("800 2ND Avenue 806"). This form's street line is the BUILDING's street (the unit has its own box), and the building lookup and the street
         // parser read it, so the street line is built from the record's own street parts; only a record with none of them has its unit cut off the end of UnparsedAddress.
@@ -6070,7 +6070,7 @@ function populateBuildingFromIDX(prefix, building) {
     // ── The building's Cotality lists (suggestion-only, like the groups above) ──
     fillGroupIfEmpty(prefix + 'AttendanceType', pick('attendance_type', 'attendanceType'), function (m) { return m; });
     // a building profile that carries only the doorman / concierge flags (the index before the CustomFields pull): the Attendance Type members they stand for
-    if (!pick('attendance_type', 'attendanceType')) fillGroupIfEmpty(prefix + 'AttendanceType', [building.doorman ? 'DoormanYes' : '', building.concierge ? 'ConciergeYes' : ''].filter(Boolean).join(','), function (m) { return m; });
+    if (!pick('attendance_type', 'attendanceType')) fillGroupIfEmpty(prefix + 'AttendanceType', [building.doorman ? 'DoorpersonYes' : '', building.concierge ? 'ConciergeYes' : ''].filter(Boolean).join(','), function (m) { return m; });
     fillGroupIfEmpty(prefix + 'BldgArchStyle', pick('architectural_style', 'architecturalStyle'), function (m) { return m; });
     fillGroupIfEmpty(prefix + 'BldgFacade', pick('construction_materials', 'constructionMaterials'), function (m) { return m; });
     fillGroupIfEmpty(prefix + 'BldgSecurity', pick('security_features', 'securityFeatures'), function (m) { return m; });

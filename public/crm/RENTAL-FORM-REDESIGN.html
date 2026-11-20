@@ -2104,7 +2104,7 @@ body { font-family: Manrope, sans-serif; }
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-building"></i> Building Amenities</div>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDoorman" class="w-4 h-4"> Doorman</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDoorman" class="w-4 h-4"> Doorperson</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalElevator" class="w-4 h-4"> Elevator</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalGym" class="w-4 h-4"> Gym/Fitness</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-400"><i class="fas fa-tshirt w-4 h-4 text-center"></i> Laundry <span class="text-[10px]">(set in Building Modal)</span></label>
@@ -3708,9 +3708,9 @@ body { font-family: Manrope, sans-serif; }
                         <div class="form-card-header"><i class="fas fa-concierge-bell"></i> Building Attendance Type <span class="text-red-500">*</span></div>
                         <p class="text-[10px] text-gray-500 mb-3">Select all that apply. At least one required.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3" id="rentalAttendanceTypeGroup">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanFullTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)" data-concept="AttendanceType"> Doorman (Full-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanPartTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Doorman (Part-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanYes" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Doorman (Yes)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoorpersonFullTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)" data-concept="AttendanceType"> Doorperson (Full-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoorpersonPartTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Doorperson (Part-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoorpersonYes" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Doorperson (Yes)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="ConciergeFullTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Concierge (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="ConciergePartTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Concierge (Part-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="ConciergeYes" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Concierge (Yes)</label>
@@ -3720,9 +3720,9 @@ body { font-family: Manrope, sans-serif; }
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="LobbyAttendantFullTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Lobby Att. (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="LobbyAttendantPartTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Lobby Att. (Part-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="LobbyAttendantYes" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Lobby Att. (Yes)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="VideoDoormanFullTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Video Doorman (Full-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="VideoDoormanPartTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Video Doorman (Part-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="VideoDoormanYes" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Video Doorman (Yes)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="VideoDoorpersonFullTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Video Doorperson (Full-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="VideoDoorpersonPartTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Video Doorperson (Part-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="VideoDoorpersonYes" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Video Doorperson (Yes)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="None" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> None</label>
                         </div>
                     </div>
@@ -4839,10 +4839,10 @@ function populateBuildingFromIDX(prefix, building) {
     // checkbox values mirror the Cotality members 1:1.
     fillGroupIfEmpty('bldgDocsAvailable', pick('documents_available', 'documentsAvailable'), function (m) { return m; });
 
-    // Doorman / Concierge: what the building index reads as the building's attendance (AttendanceType, BuildingFeatures). The form's Building Attendance Type is a group of
+    // Doorperson / Concierge: what the building index reads as the building's attendance (AttendanceType, BuildingFeatures). The form's Building Attendance Type is a group of
     // the Cotality AttendanceType members, and "...Yes" is the one that says the building has one without saying for how many hours. Suggestion only, like the groups
     // above: it fills when the agent has chosen none.
-    var _attendance = [building.doorman ? 'DoormanYes' : '', building.concierge ? 'ConciergeYes' : ''].filter(Boolean).join(',');
+    var _attendance = [building.doorman ? 'DoorpersonYes' : '', building.concierge ? 'ConciergeYes' : ''].filter(Boolean).join(',');
     if (_attendance) fillGroupIfEmpty('rentalAttendanceType', _attendance, function (m) { return m; });
 
     // Pets: the building's own policy is filled below (building_pets). PetsAllowed as the building index has it is some unit's, and this is a lease term: the unit's Pets

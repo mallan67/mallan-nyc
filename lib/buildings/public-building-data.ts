@@ -29,6 +29,7 @@ import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 import { r2PublicUrlForKeyRead } from '@/lib/images/r2';
 import { excludeMallanRlsReturnCopies } from '@/lib/listings/mallan-source-identity';
 import { petPolicyLabels } from '@/lib/search/pet-policy';
+import { attendanceAmenities } from '@/lib/idx/attendance-type';
 
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
 import { readCotalityStandardStatus } from '@/lib/cotality/property';
@@ -223,10 +224,10 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
   // Cotality raw value → approved display label (whitelist)
   const APPROVED: Record<string, string> = {
     // Lobby & Services
-    SecurityGuard: 'Doorman',
+    SecurityGuard: 'Doorperson',
     Concierge: 'Concierge',
     LiveInSuper: 'Live-in Super',
-    VirtualDoorman: 'Virtual Doorman',
+    VirtualDoorman: 'Virtual Doorperson',
     ResidentManager: 'Live-in Super',
     // Common Areas
     HealthClub: 'Gym/Fitness',
@@ -277,14 +278,8 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
   // Parking — garage → "Parking Garage"
   if (buildingInfo.parkingFeatures.some(f => f.toLowerCase().includes('garage'))) amenitySet.add('Parking Garage');
 
-  // AttendanceType → Doorman / 24hr Doorman / Attended Lobby
-  for (const val of buildingInfo.attendanceType) {
-    if (val === 'DoormanFullTime') amenitySet.add('24hr Doorman');
-    else if (val === 'DoormanPartTime' || val === 'DoormanYes') amenitySet.add('Doorman');
-    else if (val === 'LobbyAttendantFullTime' || val === 'LobbyAttendantPartTime' || val === 'LobbyAttendantYes') amenitySet.add('Attended Lobby');
-    else if (val === 'VideoDoormanFullTime' || val === 'VideoDoormanPartTime' || val === 'VideoDoormanYes') amenitySet.add('Virtual Doorman');
-    else if (val === 'ConciergeFullTime' || val === 'ConciergePartTime' || val === 'ConciergeYes') amenitySet.add('Concierge');
-  }
+  // AttendanceType → Doorperson / 24hr Doorperson / Attended Lobby (the live members, lib/idx/attendance-type.ts)
+  for (const label of attendanceAmenities(buildingInfo.attendanceType)) amenitySet.add(label);
 
   // Pet policy — the shared reading of Cotality's PetsAllowed answers (lib/search/pet-policy.ts), the same words as the listing page. The substring tests that stood here read
   // "NoDogs" as "Dogs Ok", "NoSizeLimit" as "Size Limit" and "BuildingNo" as "No" (found 2026-10-09).

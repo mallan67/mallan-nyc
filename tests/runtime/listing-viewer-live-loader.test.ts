@@ -22,7 +22,7 @@ const RAW = {
   ListAgentFullName: 'Matthew Lipton', ListAgentMlsId: '12345', ListAgentDirectPhone: '212-555-0100', ListAgentEmail: 'm@example.test', ListOfficeName: 'MNS', ListOfficeMlsId: '777',
   IDXEntireListingDisplayYN: true, InternetEntireListingDisplayYN: true, InternetAddressDisplayYN: true, ListingContractDate: '2026-10-01', OriginalEntryTimestamp: '2026-10-01T12:00:00Z', ModificationTimestamp: '2026-10-27T09:00:00Z',
   PublicRemarks: 'Bright one bedroom.', VirtualTourURLUnbranded: 'https://my.matterport.com/show/?m=t1',
-  CustomProperty: [{ CustomFields: JSON.stringify({ SponsorUnitYN: '0', AttendanceType: 'DoormanFullTime' }) }],
+  CustomProperty: [{ CustomFields: JSON.stringify({ SponsorUnitYN: '0', AttendanceType: 'DoorpersonFullTime' }) }],
 };
 const MAPPED = { lid: 'RLS20005678', wid: '1190000002', status: 'ACTIVE', price: 4500, ownership: 'RentalBuilding', propertySubType: 'Apartment', neighborhood: 'Rego Park',
   tours: [{ url: 'https://youtu.be/v1', kind: 'video' }, { url: 'https://my.matterport.com/show/?m=t1', kind: '3d' }, { url: 'https://vimeo.com/22', kind: 'video' }], videosCount: 2, raw: RAW };
@@ -55,7 +55,7 @@ describe('live loader — an RLS listing is read LIVE from Cotality, never from 
     const h = loadListingViewerLive({ liveListings: [MAPPED] });
     const rec = await h.viewerLiveListing('RLS20005678', 'rental');
     expect(rec.raw_data.SponsorUnitYN).toBe('0');
-    expect(rec.raw_data.AttendanceType).toBe('DoormanFullTime');
+    expect(rec.raw_data.AttendanceType).toBe('DoorpersonFullTime');
     const yes = h.viewerLiveRecord({ ...MAPPED }, { ...RAW, CustomProperty: { CustomFields: { SponsorUnitYN: '1' } } }, 'RLS20005678', 'sale');
     expect(yes.raw_data.SponsorUnitYN).toBe('1');
     expect(yes.raw_data.salePropertyType).toBe('RentalBuilding');

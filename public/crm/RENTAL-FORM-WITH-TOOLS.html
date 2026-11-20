@@ -2012,7 +2012,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-building"></i> Building Amenities</div>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDoorman" class="w-4 h-4"> Doorman</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDoorman" class="w-4 h-4"> Doorperson</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalElevator" class="w-4 h-4"> Elevator</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalGym" class="w-4 h-4"> Gym/Fitness</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBldgLaundry" class="w-4 h-4" data-concept-disposition="mallan-internal"> Laundry (Building)</label>
@@ -2760,7 +2760,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div class="flex justify-between"><span class="text-gray-600">Year Built</span><span id="rentalPreviewBldgYear">--</span></div>
                 <div class="flex justify-between"><span class="text-gray-600">Total Units</span><span id="rentalPreviewBldgUnits">--</span></div>
                 <div class="flex justify-between"><span class="text-gray-600">Total Floors</span><span id="rentalPreviewBldgFloors">--</span></div>
-                <div class="flex justify-between"><span class="text-gray-600">Doorman</span><span id="rentalPreviewBldgDoorman">--</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">Doorperson</span><span id="rentalPreviewBldgDoorman">--</span></div>
                 <div class="flex justify-between"><span class="text-gray-600">Elevator</span><span id="rentalPreviewBldgElevator">--</span></div>
                 <div class="flex justify-between"><span class="text-gray-600">Pets</span><span id="rentalPreviewBldgPets">--</span></div>
             </div>
@@ -3625,9 +3625,9 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <div class="form-card-header"><i class="fas fa-concierge-bell"></i> Building Attendance Type <span class="text-red-500">*</span></div>
                         <p class="text-[10px] text-gray-500 mb-3">Select all that apply. At least one required.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3" id="rentalAttendanceTypeGroup">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanFullTime" class="w-4 h-4 rental-attendance-cb" data-concept="AttendanceType"> Doorman (Full-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanPartTime" class="w-4 h-4 rental-attendance-cb"> Doorman (Part-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanYes" class="w-4 h-4 rental-attendance-cb"> Doorman (Yes)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoorpersonFullTime" class="w-4 h-4 rental-attendance-cb" data-concept="AttendanceType"> Doorperson (Full-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoorpersonPartTime" class="w-4 h-4 rental-attendance-cb"> Doorperson (Part-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoorpersonYes" class="w-4 h-4 rental-attendance-cb"> Doorperson (Yes)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="ConciergeFullTime" class="w-4 h-4 rental-attendance-cb"> Concierge (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="ConciergePartTime" class="w-4 h-4 rental-attendance-cb"> Concierge (Part-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="ConciergeYes" class="w-4 h-4 rental-attendance-cb"> Concierge (Yes)</label>
@@ -3637,9 +3637,9 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="LobbyAttendantFullTime" class="w-4 h-4 rental-attendance-cb"> Lobby Att. (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="LobbyAttendantPartTime" class="w-4 h-4 rental-attendance-cb"> Lobby Att. (Part-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="LobbyAttendantYes" class="w-4 h-4 rental-attendance-cb"> Lobby Att. (Yes)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="VideoDoormanFullTime" class="w-4 h-4 rental-attendance-cb"> Video Doorman (Full-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="VideoDoormanPartTime" class="w-4 h-4 rental-attendance-cb"> Video Doorman (Part-Time)</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="VideoDoormanYes" class="w-4 h-4 rental-attendance-cb"> Video Doorman (Yes)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="VideoDoorpersonFullTime" class="w-4 h-4 rental-attendance-cb"> Video Doorperson (Full-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="VideoDoorpersonPartTime" class="w-4 h-4 rental-attendance-cb"> Video Doorperson (Part-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="VideoDoorpersonYes" class="w-4 h-4 rental-attendance-cb"> Video Doorperson (Yes)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="None" class="w-4 h-4 rental-attendance-cb"> None</label>
                         </div>
                     </div>

@@ -89,8 +89,7 @@ for (let attempt = 0; attempt < 30; attempt++) {
 if (!metaRes.ok) { console.error(`$metadata FAILED ${metaRes.status}`); process.exit(2); }
 const xml = await metaRes.text();
 
-const sortKeys = (o) => Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));
-const attr = (tag, name) => (tag.match(new RegExp(`\\b${name}="([^"]*)"`)) || [])[1];
+const attr =(tag, name) => (tag.match(new RegExp(`\\b${name}="([^"]*)"`)) || [])[1];
 
 const enums = {};
 const flagEnums = new Set();
@@ -374,6 +373,10 @@ const search = {
   lookups: sortKeys(lookups),
   fair_housing_excluded: sortKeys(Object.fromEntries(Object.entries(fairHousingExcluded).map(([k, s]) => [k, [...s].sort()]))),
 };
+
+const names = Object.keys(enums).sort();
+const ordered = {};
+for (const n of names) ordered[n] = enums[n];
 
 const doc = {
   _README: 'GENERATED from the live Cotality API by scripts/cotality/pull-enums.mjs. Do NOT hand-edit. Regenerate live; verify with `npm run cotality:verify`.',
