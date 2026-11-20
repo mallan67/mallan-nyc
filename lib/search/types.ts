@@ -126,11 +126,14 @@ export interface AmenityFieldConfig {
 
 export const AMENITY_FIELD_MAP: Record<AmenityFilter, AmenityFieldConfig> = {
   // Lobby & Services
-  // Doorperson (key stays 'doorman': saved links and saved searches carry amenities=doorman). Live Cotality (read 2026-11-20, all 9,655 Active listings): who staffs the door is AttendanceType, in
-  // CustomProperty.CustomFields (DoorpersonFullTime / PartTime / Yes). This filter used to match BuildingFeatures "Concierge", which is a different fact: it missed 417 of 515 doorperson rentals and 3,345 of
-  // 5,098 doorperson sales, and returned 28 rentals and 51 sales with no doorperson. AttendanceType is matched as whole members (amenityValueMatches): "DoorpersonFullTime" is inside "VideoDoorpersonFullTime", and
-  // a video doorperson is its own amenity (the CRM search keeps it its own box). Maya, 2026-11-20: "the public search needs to have those changes".
-  'doorman':       { field: 'AttendanceType', values: [...DOORPERSON_MEMBERS], label: 'Doorperson', group: 'Lobby & Services' },
+  // Doorperson (key stays 'doorman': saved links and saved searches carry amenities=doorman). DISABLED until the listing sync carries the field (the same precedent as No Fee, Maya 2026-10-09: "Disable until a live field is found").
+  // Live Cotality (read 2026-11-20, all 9,655 Active listings): who staffs the door is AttendanceType, a key inside CustomProperty.CustomFields (DoorpersonFullTime / PartTime / Yes). It is NOT a Property field
+  // ($select=AttendanceType answers HTTP 400), and the listing sync (lib/idx/sync.ts, lib/idx/trestle-mapper.ts) reads Property fields only: it never expands CustomProperty, so no stored listing carries features.AttendanceType (the public
+  // listings API served 0 of 400 listings with it, 2026-11-20). This filter used to match BuildingFeatures "Concierge", a different fact: against live AttendanceType it missed 417 of 515 doorperson rentals and 3,345 of 5,098 doorperson
+  // sales, and returned 28 rentals and 51 sales with no doorperson. Pointing it at AttendanceType without the data would answer "nothing" silently, so it is disabled with a reason, and the old rule lives on as the honest Concierge filter below.
+  // To enable: make the sync carry AttendanceType (a production-data decision: Maya's) and remove `unavailable`; tests/runtime/public-search-doorperson.test.ts fails until then. The members are matched whole (amenityValueMatches): "DoorpersonFullTime"
+  // is inside "VideoDoorpersonFullTime", and a video doorperson is its own amenity (the CRM search keeps it its own box).
+  'doorman':       { field: 'AttendanceType', values: [...DOORPERSON_MEMBERS], label: 'Doorperson', group: 'Lobby & Services', unavailable: 'Not searchable yet. Doorperson is shown on a listing page where it is available.' },
   // Concierge: the rule the "Doorman" filter had until 2026-11-20, kept as its own filter so a search for "concierge" still means exactly that (BuildingFeatures "Concierge").
   'concierge':     { field: 'BuildingFeatures', values: ['Concierge'], label: 'Concierge', group: 'Lobby & Services' },
   // Building Amenities

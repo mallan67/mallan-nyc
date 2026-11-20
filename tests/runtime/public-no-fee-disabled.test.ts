@@ -49,11 +49,11 @@ describe('the filter is disabled in the one map every layer reads', () => {
     expect(isSearchableAmenity('no-fee')).toBe(false);
   });
 
-  it('it is the only disabled filter; every other one is searchable and names a field and a value', () => {
+  it('No Fee and Doorperson are the only disabled filters; every other one is searchable and names a field and a value', () => {
     const disabled = Object.entries(AMENITY_FIELD_MAP).filter(([, c]) => c.unavailable).map(([k]) => k);
-    expect(disabled).toEqual(['no-fee']);
+    expect(disabled).toEqual(['doorman', 'no-fee']);
     for (const [key, config] of Object.entries(AMENITY_FIELD_MAP)) {
-      if (key === 'no-fee') continue;
+      if (key === 'no-fee' || key === 'doorman') continue;
       expect(isSearchableAmenity(key)).toBe(true);
       expect(config.field).not.toBe('');
       expect(config.values.length).toBeGreaterThan(0);
@@ -61,7 +61,7 @@ describe('the filter is disabled in the one map every layer reads', () => {
   });
 
   it('searchableAmenities keeps the filters a search can apply, in order, each once, and drops the rest (a disabled filter, unknown words, names every object inherits)', () => {
-    expect(searchableAmenities(['doorman', 'no-fee', 'pet-friendly', 'doorman', 'nonsense', 'toString', 'constructor', '__proto__', 'hasOwnProperty'])).toEqual(['doorman', 'pet-friendly']);
+    expect(searchableAmenities(['concierge', 'no-fee', 'pet-friendly', 'concierge', 'nonsense', 'toString', 'constructor', '__proto__', 'hasOwnProperty'])).toEqual(['concierge', 'pet-friendly']);
     expect(searchableAmenities(undefined)).toEqual([]);
     expect(searchableAmenities(null)).toEqual([]);
     expect(searchableAmenities([])).toEqual([]);
@@ -73,27 +73,27 @@ describe('the filter is disabled in the one map every layer reads', () => {
 });
 
 describe('no search applies it', () => {
-  const doorman = { id: 'a', attendanceType: 'DoorpersonFullTime' };
+  const concierge = { id: 'a', buildingFeatures: 'Concierge' };
   const plain = { id: 'b' };
   const noFeeTerms = { id: 'c', listingTerms: 'NoFee,OwnerPays' };
   const run = (query: string, rows: Array<Record<string, unknown>>, features = new Map<string, Record<string, unknown>>()) =>
     applyPublicListingPostFilters(rows as never, features, new URLSearchParams(query)).map((l) => l.id);
 
   it('amenities=no-fee keeps every listing (it used to keep none)', () => {
-    expect(run('amenities=no-fee', [doorman, plain, noFeeTerms], new Map([['c', { ListingTerms: 'NoFee,OwnerPays' }]]))).toEqual(['a', 'b', 'c']);
+    expect(run('amenities=no-fee', [concierge, plain, noFeeTerms], new Map([['c', { ListingTerms: 'NoFee,OwnerPays' }]]))).toEqual(['a', 'b', 'c']);
   });
 
-  it('amenities=no-fee,doorman filters on the doorman alone', () => {
-    expect(run('amenities=no-fee,doorman', [doorman, plain])).toEqual(['a']);
-    expect(run('amenities=doorman,no-fee', [doorman, plain])).toEqual(['a']);
+  it('amenities=no-fee,concierge filters on the concierge alone', () => {
+    expect(run('amenities=no-fee,concierge', [concierge, plain])).toEqual(['a']);
+    expect(run('amenities=concierge,no-fee', [concierge, plain])).toEqual(['a']);
   });
 
   it('a word every object inherits is not an amenity: amenities=toString,constructor filters nothing and does not throw', () => {
-    expect(run('amenities=toString,constructor,__proto__', [doorman, plain])).toEqual(['a', 'b']);
+    expect(run('amenities=toString,constructor,__proto__', [concierge, plain])).toEqual(['a', 'b']);
   });
 
   it('the search projection never stores it, even for a listing whose ListingTerms says NoFee', () => {
-    expect(extractProjectionAmenityKeys({ listing_id: 'X', features: { ListingTerms: 'NoFee,OwnerPays', AttendanceType: 'DoorpersonFullTime' } })).toEqual(['doorman']);
+    expect(extractProjectionAmenityKeys({ listing_id: 'X', features: { ListingTerms: 'NoFee,OwnerPays', BuildingFeatures: 'Concierge' } })).toEqual(['concierge']);
     expect(extractProjectionAmenityKeys({ listing_id: 'X', features: { ListingTerms: 'NoFee,OwnerPays' } })).toBeNull();
   });
 
@@ -104,7 +104,7 @@ describe('no search applies it', () => {
       entry.field = 'ListingTerms';
       entry.values = ['NoFee'];
       expect(isSearchableAmenity('no-fee')).toBe(false);
-      expect(run('amenities=no-fee', [doorman, plain, noFeeTerms], new Map([['c', { ListingTerms: 'NoFee' }]]))).toEqual(['a', 'b', 'c']);
+      expect(run('amenities=no-fee', [concierge, plain, noFeeTerms], new Map([['c', { ListingTerms: 'NoFee' }]]))).toEqual(['a', 'b', 'c']);
       expect(extractProjectionAmenityKeys({ listing_id: 'X', features: { ListingTerms: 'NoFee' } })).toBeNull();
     } finally {
       Object.assign(entry, saved);
@@ -112,9 +112,9 @@ describe('no search applies it', () => {
   });
 
   it('a chip is shown only for a filter that is applied', () => {
-    const filters = { amenities: ['doorman', 'no-fee', 'toString'] } as unknown as SearchFilters;
+    const filters = { amenities: ['concierge', 'no-fee', 'toString'] } as unknown as SearchFilters;
     const chips = buildChips(filters, [], undefined);
-    expect(chips.filter((c) => c.type === 'amenity').map((c) => c.filterValue)).toEqual(['doorman']);
+    expect(chips.filter((c) => c.type === 'amenity').map((c) => c.filterValue)).toEqual(['concierge']);
   });
 });
 
@@ -134,9 +134,9 @@ describe('the filter panel shows it disabled, with the reason', () => {
     expect(markup.match(/No Fee/g)).toHaveLength(1);
   });
 
-  it('it is the only disabled box: every other amenity can be ticked', () => {
+  it('No Fee and Doorperson are the only disabled boxes: every other amenity can be ticked', () => {
     const disabled = inputs(html()).filter((tag) => /\bdisabled\b/.test(tag));
-    expect(disabled).toHaveLength(1);
+    expect(disabled).toHaveLength(2);
     const ticks = inputs(html()).filter((tag) => tag.includes('type="checkbox"') && !/\bdisabled\b/.test(tag));
     expect(ticks.length).toBeGreaterThanOrEqual(Object.values(AMENITY_FIELD_MAP).filter((c) => !c.unavailable).length);
   });
@@ -150,8 +150,8 @@ describe('the filter panel shows it disabled, with the reason', () => {
 
 describe('a typed phrase is read, removed from the text, and filters nothing', () => {
   it.each(['no fee', 'No Broker Fee', 'owner pays', 'NO FEE', 'no fees', 'No-Fee', 'nofee', 'no broker fees', 'no-broker-fee', 'landlord pays'])('%j: no filter, nothing left over, and the reader is told why', (phrase) => {
-    const parsed = parseNaturalLanguageSearch(`2br chelsea ${phrase} doorman`);
-    expect(parsed.filters.amenities).toEqual(['doorman']);
+    const parsed = parseNaturalLanguageSearch(`2br chelsea ${phrase} concierge`);
+    expect(parsed.filters.amenities).toEqual(['concierge']);
     expect(parsed.remainingQuery).toBe('');
     expect(parsed.neighborhood).toBe('Chelsea');
     expect(parsed.unavailable).toHaveLength(1);
@@ -193,8 +193,8 @@ const SPELLINGS = ['no fee', 'no  fee', 'No-Fee', 'no fees', 'nofee', 'no broker
 
 describe('a link that names the disabled filter is told to the reader, not silently cleaned', () => {
   it('unavailableAmenities names the disabled filters of a request, once each, with the label and the reason, and nothing else', () => {
-    expect(unavailableAmenities(['doorman', 'no-fee', 'no-fee', 'toString', 'nonsense'])).toEqual([{ key: 'no-fee', label: 'No Fee', reason: REASON }]);
-    expect(unavailableAmenities(['doorman', 'pet-friendly'])).toEqual([]);
+    expect(unavailableAmenities(['concierge', 'no-fee', 'no-fee', 'toString', 'nonsense'])).toEqual([{ key: 'no-fee', label: 'No Fee', reason: REASON }]);
+    expect(unavailableAmenities(['concierge', 'pet-friendly'])).toEqual([]);
     expect(unavailableAmenities(undefined)).toEqual([]);
     expect(unavailableAmenities([''])).toEqual([]);
   });

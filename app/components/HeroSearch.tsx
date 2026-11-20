@@ -38,7 +38,7 @@ const DEFAULT_SUGGESTIONS: SearchSuggestion[] = [
 
 // Example queries shown as placeholder hints (rotate). Each must be something the search can do: "no fee" is not (No Fee is disabled until a live Cotality field is found, lib/search/types.ts).
 const EXAMPLE_QUERIES = [
-  '2br UES doorperson under 3M',
+  '2br UES concierge under 3M',
   'studio Chelsea pet friendly',
   'prewar coop Park Slope',
   'wburg 1bed w/d near the L',

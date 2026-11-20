@@ -197,7 +197,7 @@ describe("normalizeProjectionSearchText", () => {
 describe("extractProjectionAmenityKeys", () => {
   it("returns the canonical amenity keys that match the features JSON", () => {
     const keys = extractProjectionAmenityKeys(baseSale);
-    expect(keys).toContain("doorman"); // AttendanceType DoorpersonFullTime
+    expect(keys).not.toContain("doorman"); // Doorperson is disabled until the listing sync carries AttendanceType, so it is never stored, even for a listing that has it
     expect(keys).toContain("concierge"); // BuildingFeatures Concierge
     expect(keys).toContain("gym");
     expect(keys).toContain("elevator");

@@ -341,9 +341,16 @@ export function parseNaturalLanguageSearch(query: string): ParsedSearch {
   const sortedAmenityKeys = Object.keys(AMENITY_MAP).sort((a, b) => b.length - a.length);
   for (const pattern of sortedAmenityKeys) {
     const regex = new RegExp(`\\b${pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-    if (regex.test(remaining)) {
+    const found = regex.exec(remaining);
+    if (found) {
       const amenity = AMENITY_MAP[pattern];
-      addAmenity(filters, amenity);
+      // A word for a disabled filter (Doorperson: the listing sync does not carry AttendanceType) is read and removed from the text like "no fee", filters nothing, and is reported with its reason, never dropped silently.
+      const reason = AMENITY_FIELD_MAP[amenity]?.unavailable;
+      if (reason) {
+        if (!unavailable.some((u) => u.key === amenity)) unavailable.push({ phrase: found[0], key: amenity, reason });
+      } else {
+        addAmenity(filters, amenity);
+      }
       remaining = remaining.replace(regex, '');
     }
   }

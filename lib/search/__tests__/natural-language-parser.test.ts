@@ -10,13 +10,13 @@ import { parseNaturalLanguageSearch } from '../natural-language-parser';
 describe('parseNaturalLanguageSearch', () => {
   // ── Core NYC search queries ──
 
-  it('sunny 2br UES doorman under 3M', () => {
-    const result = parseNaturalLanguageSearch('sunny 2br UES doorman under 3M');
+  it('sunny 2br UES concierge under 3M', () => {
+    const result = parseNaturalLanguageSearch('sunny 2br UES concierge under 3M');
     expect(result.filters.beds).toBe(2);
     expect(result.filters.maxPrice).toBe(3_000_000);
     expect(result.neighborhood).toBe('Upper East Side');
     expect(result.filters.amenities).toEqual(
-      expect.arrayContaining(['doorman', 'natural-light']),
+      expect.arrayContaining(['concierge', 'natural-light']),
     );
   });
 
@@ -91,14 +91,14 @@ describe('parseNaturalLanguageSearch', () => {
     );
   });
 
-  it('HK 1br rent under 4k doorman gym', () => {
-    const result = parseNaturalLanguageSearch('HK 1br rent under 4k doorman gym');
+  it('HK 1br rent under 4k concierge gym', () => {
+    const result = parseNaturalLanguageSearch('HK 1br rent under 4k concierge gym');
     expect(result.tab).toBe('rent-residential');
     expect(result.neighborhood).toBe("Hell's Kitchen");
     expect(result.filters.beds).toBe(1);
     expect(result.filters.maxPrice).toBe(4_000);
     expect(result.filters.amenities).toEqual(
-      expect.arrayContaining(['doorman', 'gym']),
+      expect.arrayContaining(['concierge', 'gym']),
     );
   });
 
@@ -417,7 +417,7 @@ describe('parseNaturalLanguageSearch', () => {
   });
 
   it('a query without such a phrase reports nothing unavailable', () => {
-    expect(parseNaturalLanguageSearch('2br UES doorman under 3M').unavailable).toEqual([]);
+    expect(parseNaturalLanguageSearch('2br UES concierge under 3M').unavailable).toEqual([]);
   });
 
   it('parses "balcony"', () => {
