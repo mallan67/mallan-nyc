@@ -21,13 +21,15 @@
  * renders on real rentals.
  *
  * Regulation: NYC Local Law 119/2024 (FARE Act), effective 2025-06-11.
- * DCWP penalty schedule §20-699.21 $1,000–$1,800; §20-699.22 up to
- * $2,000 per violation.
+ * Penalties are in Admin. Code §20-699.23; the amounts are not restated here
+ * (an earlier version of this comment quoted figures that the statute text did
+ * not match).
  */
 
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { showsTenantAgentNotice } from "../../lib/listings/tenant-agent-notice";
+import { MALLAN_LIST_OFFICE_MLS_IDS } from "../../lib/listings/mallan-source-identity";
 
 const LISTING_DETAIL_PATH = path.resolve(
   __dirname,
@@ -45,9 +47,13 @@ const LISTING_DETAIL_PATH = path.resolve(
 // wording is appropriate before retiring the old phrase).
 const FARE_DISCLOSURE_HEADING = "Fee Disclosure (NYC Local Law 119/2024):";
 
-// The disclosure must include the statutory "tenants are not required to
-// pay a broker fee unless..." clause per LL 119/2024 §20-699.21. Failure
-// to include this clause is the exact violation the statute targets.
+// The disclosure keeps the sentence "tenants are not required to pay a
+// broker fee unless they engaged the broker". It is an accurate plain-language
+// statement of the law's effect (NYC DCWP FAQ: tenants may hire their own
+// broker and pay that broker; nobody may require it). It is NOT quoted from
+// the statute: the 2026-11-21 compliance gate read Admin. Code §§20-699.20 to
+// .25 and found no such sentence. It stays because the page offers a paid
+// tenant-agent service next to it.
 // Whitespace-normalized so the test doesn't break on a reformat.
 const FARE_TENANT_FEE_CLAUSE_NORMALIZED =
   "Prospective tenants are not required to pay a broker fee unless they have specifically engaged a broker to act on their behalf";
@@ -156,7 +162,7 @@ describe("FARE Act disclosure — source-side regression pin (A4 audit follow-up
     expect(source).toContain(FARE_DISCLOSURE_HEADING);
   });
 
-  it("includes the statutory tenant-fee clause from NYC LL 119/2024 §20-699.21", () => {
+  it("includes the sentence that a tenant pays a broker fee only to a broker they engaged (plain-language statement of LL 119/2024)", () => {
     // Normalize whitespace so JSX line-breaks + indentation don't break
     // the assertion. The clause itself must appear semantically intact.
     expect(normalizeWhitespace(source)).toContain(FARE_TENANT_FEE_CLAUSE_NORMALIZED);
@@ -323,9 +329,9 @@ describe("Tenant-agent paragraph on the rental fee disclosure (Maya, 2026-11-21)
     );
   });
 
-  it("is rendered only when showsTenantAgentNotice(listing._source) is true, inside the rental block, next to the disclosure", () => {
+  it("is rendered only when tenantAgentNotice is true, inside the rental block, next to the disclosure", () => {
     const raw = fs.readFileSync(LISTING_DETAIL_PATH, "utf8");
-    const gate = "{showsTenantAgentNotice(listing._source) && (";
+    const gate = "{tenantAgentNotice && (";
     const gateIdx = raw.indexOf(gate);
     expect(gateIdx).toBeGreaterThan(-1);
     expect(raw.indexOf(gate, gateIdx + 1)).toBe(-1); // exactly one use
@@ -344,31 +350,57 @@ describe("Tenant-agent paragraph on the rental fee disclosure (Maya, 2026-11-21)
     expect(gateClose).toBeLessThan(rentalClose);
     expect(gateIdx).toBeGreaterThan(raw.indexOf(FARE_DISCLOSURE_HEADING));
     expect(gateIdx - raw.indexOf(FARE_DISCLOSURE_HEADING)).toBeLessThan(2048);
-
-    // and the helper is the one imported from lib
-    expect(raw).toContain("import { showsTenantAgentNotice } from '@/lib/listings/tenant-agent-notice';");
   });
 
-  it("is shown for another broker's listing only (never on a Mallan-authored listing, where Mallan IS the owner's broker)", () => {
-    expect(showsTenantAgentNotice("idx")).toBe(true); // live Cotality read
-    expect(showsTenantAgentNotice("db+idx")).toBe(true); // stored Cotality row (buildSourceAndCompliance, third-party)
-    expect(showsTenantAgentNotice("exclusive")).toBe(false); // Mallan-authored SL-/RL-
-    expect(showsTenantAgentNotice("manual")).toBe(false);
-    expect(showsTenantAgentNotice("")).toBe(false);
-    expect(showsTenantAgentNotice(undefined)).toBe(false);
-    expect(showsTenantAgentNotice(null)).toBe(false);
-    expect(showsTenantAgentNotice("something-new")).toBe(false); // silent until added on purpose
+  it("the flag is computed in fetchFromDB from the row's typed office columns (the public DTO strips them)", () => {
+    expect(source).toContain("import { showsTenantAgentNotice } from '@/lib/listings/tenant-agent-notice';");
+    expect(source).toContain(
+      "tenantAgentNotice: showsTenantAgentNotice({ source: dto._source, listOfficeMlsId: dbListing.list_office_mls_id, coListOfficeMlsId: dbListing.co_list_office_mls_id, listOfficeName: dbListing.list_office_name,",
+    );
+    expect(source).toContain("const tenantAgentNotice = result.tenantAgentNotice;");
   });
 
-  it("the source values it relies on are the ones the DTO builders really emit", () => {
-    // If a builder renames _source, the notice would silently disappear (or, worse, appear on Mallan's own
-    // listing). Pin the literals where they are produced.
-    // (The same literals also appear in comments, so match the return statements, not the bare text.)
+  const otherOffice = { source: "db+idx", listOfficeMlsId: "51", coListOfficeMlsId: null, listOfficeName: "Some Other Realty LLC" };
+
+  it("is shown for a stored listing whose listing office is another broker's", () => {
+    expect(showsTenantAgentNotice(otherOffice)).toBe(true);
+    expect(showsTenantAgentNotice({ ...otherOffice, coListOfficeMlsId: "88" })).toBe(true); // another co-list office
+    expect(showsTenantAgentNotice({ source: "db+idx", listOfficeName: "Some Other Realty LLC" })).toBe(true); // name only
+    expect(showsTenantAgentNotice({ source: "db+idx", listOfficeMlsId: "51" })).toBe(true); // id only
+  });
+
+  it("is never shown on a Mallan-authored listing, where Mallan IS the owner's broker", () => {
+    expect(showsTenantAgentNotice({ ...otherOffice, source: "exclusive" })).toBe(false);
+    expect(showsTenantAgentNotice({ source: "exclusive" })).toBe(false);
+  });
+
+  it("is not shown when Mallan is the list office or the co-list office, or the office is named Mallan", () => {
+    expect(MALLAN_LIST_OFFICE_MLS_IDS).toContain("7041");
+    expect(showsTenantAgentNotice({ ...otherOffice, listOfficeMlsId: "7041" })).toBe(false);
+    expect(showsTenantAgentNotice({ ...otherOffice, coListOfficeMlsId: "7041" })).toBe(false); // live Cotality has rentals like this (list office 51)
+    expect(showsTenantAgentNotice({ ...otherOffice, coListOfficeMlsId: " 7041 " })).toBe(false);
+    expect(showsTenantAgentNotice({ ...otherOffice, listOfficeName: "MAllan Real Estate Inc" })).toBe(false);
+    expect(showsTenantAgentNotice({ source: "db+idx", listOfficeMlsId: null, listOfficeName: "Mallan Real Estate Inc." })).toBe(false); // office id missing
+  });
+
+  it("is not shown when the listing office cannot be identified at all", () => {
+    expect(showsTenantAgentNotice({ source: "db+idx" })).toBe(false);
+    expect(showsTenantAgentNotice({ source: "db+idx", listOfficeMlsId: null, listOfficeName: null })).toBe(false);
+    expect(showsTenantAgentNotice({ source: "db+idx", listOfficeMlsId: "  ", listOfficeName: "  " })).toBe(false);
+  });
+
+  it("is not shown for any other source (live read, manual, missing, unknown)", () => {
+    for (const source of ["idx", "manual", "", undefined, null, "something-new"]) {
+      expect(showsTenantAgentNotice({ ...otherOffice, source })).toBe(false);
+    }
+  });
+
+  it("the source values it relies on are the ones the stored-listing builder really emits", () => {
+    // If the builder renames _source, the notice would silently disappear (or, worse, appear on Mallan's own
+    // listing). The same literals also appear in comments, so match the return statements, not the bare text.
     const dbDto = fs.readFileSync(path.resolve(__dirname, "..", "..", "lib", "idx", "db-to-public-dto.ts"), "utf8");
     expect(dbDto).toMatch(/return \{\s*_source: 'db\+idx',/);
     expect(dbDto).toMatch(/return \{\s*_source: 'exclusive',/);
-    const live = fs.readFileSync(path.resolve(__dirname, "..", "..", "lib", "idx", "mapping.ts"), "utf8");
-    expect(live).toMatch(/^\s*_source: 'idx',/m);
   });
 });
 

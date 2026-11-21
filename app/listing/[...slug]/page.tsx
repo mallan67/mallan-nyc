@@ -220,6 +220,12 @@ interface ListingFetchListing {
   listing: PublicListingDTO;
   tax: CotalityExtraFields;
   rawStreetName?: string;
+  /**
+   * May the rental fee disclosure say "Mallan does not represent the owner"? Decided from the row's typed
+   * office columns (the public DTO strips them), so it is computed here, not in the render. See
+   * lib/listings/tenant-agent-notice.ts.
+   */
+  tenantAgentNotice: boolean;
 }
 
 /**
@@ -644,6 +650,12 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       listing: dto,
       tax: { taxBlock: null, taxLot: null },
       rawStreetName: addr.StreetName || '',
+      tenantAgentNotice: showsTenantAgentNotice({
+        source: dto._source,
+        listOfficeMlsId: dbListing.list_office_mls_id,
+        coListOfficeMlsId: dbListing.co_list_office_mls_id,
+        listOfficeName: dbListing.list_office_name,
+      }),
     };
   } catch (err) {
     // Infrastructure error (Prisma/Neon timeout, connection reset, compute-quota):
@@ -911,6 +923,7 @@ export default async function ListingPage({ params }: Props) {
   }
 
   const listing = result.listing;
+  const tenantAgentNotice = result.tenantAgentNotice;
 
   // Twin-safe open-house key (street+unit+ZIP), non-empty ONLY for Mallan-owned LOCAL exclusives
   // (SL-/RL-): lets ListingOpenHouseRSVP match a Cotality RLS-twin open house that /api/open-houses
@@ -1763,8 +1776,9 @@ export default async function ListingPage({ params }: Props) {
                   {/* FARE Act Fee Disclosure (NYC Local Law 119/2024). Wording per Maya, 2026-11-21: many listing
                       agents put the fees in the listing description, so the page does not say fees are missing when
                       the fee fields are empty; it sends the tenant to the listing agent for the actual final fees.
-                      The tenant-agent paragraph is shown only on another broker's listing (showsTenantAgentNotice):
-                      on a Mallan-authored listing Mallan IS the owner's broker. */}
+                      The tenant-agent paragraph is shown only when the listing office is positively another broker's
+                      (showsTenantAgentNotice, computed in fetchFromDB): on a Mallan-authored or Mallan-co-listed
+                      listing Mallan IS a listing broker. */}
                   <div className="mt-4 p-3 bg-[#F8F7F4] rounded-lg border border-black/5 space-y-2">
                     <p className="text-[11px] text-brand-dark/60 leading-relaxed">
                       <span className="font-semibold text-brand-dark/70">Fee Disclosure (NYC Local Law 119/2024):</span> Fee
@@ -1773,7 +1787,7 @@ export default async function ListingPage({ params }: Props) {
                       you apply or sign. Prospective tenants are not required to pay a broker fee unless they have
                       specifically engaged a broker to act on their behalf.
                     </p>
-                    {showsTenantAgentNotice(listing._source) && (
+                    {tenantAgentNotice && (
                       <p className="text-[11px] text-brand-dark/60 leading-relaxed">
                         <span className="font-semibold text-brand-dark/70">Working with Mallan:</span> Mallan Real Estate
                         Inc. does not represent the owner of this property. As a tenant agent, we can provide a service to
