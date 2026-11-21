@@ -5,6 +5,7 @@ import Link from 'next/link';
 // performs is a canonicalization, and canonicalization is permanent (308).
 import { notFound, permanentRedirect } from 'next/navigation';
 import { isMallanRlsReturnCopy, isMallanWebsiteOnlyListing, isMallanLocalListing } from '@/lib/listings/mallan-source-identity';
+import { showsTenantAgentNotice } from '@/lib/listings/tenant-agent-notice';
 import { resolveReturnCopyCanonicalTarget } from '@/lib/listings/return-copy-canonical';
 import AgentAvatar from '@/app/components/AgentAvatar';
 import InquiryForm from '@/app/components/InquiryForm';
@@ -1759,15 +1760,27 @@ export default async function ListingPage({ params }: Props) {
                       </div>
                     )}
                   </div>
-                  {/* FARE Act Fee Disclosure (NYC Local Law 119/2024) */}
-                  <div className="mt-4 p-3 bg-[#F8F7F4] rounded-lg border border-black/5">
+                  {/* FARE Act Fee Disclosure (NYC Local Law 119/2024). Wording per Maya, 2026-11-21: many listing
+                      agents put the fees in the listing description, so the page does not say fees are missing when
+                      the fee fields are empty; it sends the tenant to the listing agent for the actual final fees.
+                      The tenant-agent paragraph is shown only on another broker's listing (showsTenantAgentNotice):
+                      on a Mallan-authored listing Mallan IS the owner's broker. */}
+                  <div className="mt-4 p-3 bg-[#F8F7F4] rounded-lg border border-black/5 space-y-2">
                     <p className="text-[11px] text-brand-dark/60 leading-relaxed">
                       <span className="font-semibold text-brand-dark/70">Fee Disclosure (NYC Local Law 119/2024):</span> Fee
-                      and move-in cost information is provided by the listing broker via the REBNY Listing Service.
-                      Where fee details are not displayed, the listing broker has not provided this information.
-                      Contact the listing office directly for complete fee disclosure. Prospective tenants are not
-                      required to pay a broker fee unless they have specifically engaged a broker to act on their behalf.
+                      and move-in cost details, where shown on this page or in the listing description, are provided by
+                      the listing broker. To avoid errors, please ask the listing agent for the actual, final fees before
+                      you apply or sign. Prospective tenants are not required to pay a broker fee unless they have
+                      specifically engaged a broker to act on their behalf.
                     </p>
+                    {showsTenantAgentNotice(listing._source) && (
+                      <p className="text-[11px] text-brand-dark/60 leading-relaxed">
+                        <span className="font-semibold text-brand-dark/70">Working with Mallan:</span> Mallan Real Estate
+                        Inc. does not represent the owner of this property. As a tenant agent, we can provide a service to
+                        prospective tenants for a fee: organizing showings, conducting the search and negotiating on the
+                        tenant&apos;s behalf.
+                      </p>
+                    )}
                   </div>
                 </section>
               )}
