@@ -1759,14 +1759,13 @@ export default async function ListingPage({ params }: Props) {
                       </div>
                     )}
                   </div>
-                  {/* FARE Act Fee Disclosure (NYC Local Law 119/2024) */}
+                  {/* Rental fee note (Maya, 2026-11-22): the only suggestion for rentals is that prospective tenants check
+                      the application, move-in and move-out fees, because the listing agent may not have put them in the
+                      feed or the description. One sentence: no heading, no statutory label, no offer of Mallan's own
+                      services, no deposit. The fee rows above are the listing's own fee disclosure. */}
                   <div className="mt-4 p-3 bg-[#F8F7F4] rounded-lg border border-black/5">
                     <p className="text-[11px] text-brand-dark/60 leading-relaxed">
-                      <span className="font-semibold text-brand-dark/70">Fee Disclosure (NYC Local Law 119/2024):</span> Fee
-                      and move-in cost information is provided by the listing broker via the REBNY Listing Service.
-                      Where fee details are not displayed, the listing broker has not provided this information.
-                      Contact the listing office directly for complete fee disclosure. Prospective tenants are not
-                      required to pay a broker fee unless they have specifically engaged a broker to act on their behalf.
+                      Prospective tenants should check the application, move-in and move-out fees before viewing.
                     </p>
                   </div>
                 </section>
