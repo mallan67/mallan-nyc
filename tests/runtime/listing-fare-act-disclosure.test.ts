@@ -294,6 +294,15 @@ describe("FARE Act disclosure — source-side regression pin (A4 audit follow-up
     expect(source).toMatch(/Local Law 119\/2024|LL 119\/2024/);
   });
 
+  it("says fee and move-in details, where shown, are provided by the listing broker", () => {
+    // Compliance gate 2026-11-21 (finding 4): this first sentence was not pinned. It is the attribution of the
+    // fee rows to the listing broker; it replaced "via the REBNY Listing Service" (untrue for Mallan website-only
+    // listings) and must not drift to a claim the page cannot support.
+    expect(normalizeWhitespace(source)).toContain(
+      "Fee and move-in cost details, where shown on this page or in the listing description, are provided by the listing broker.",
+    );
+  });
+
   it("asks the tenant to verify application, move-in and move-out fees with the agent before viewing", () => {
     // Maya, 2026-11-21: many listing agents put the fees in the listing description or leave them out of the
     // feed, so the page must not say fees are missing when the fee fields are empty. It asks the tenant to
