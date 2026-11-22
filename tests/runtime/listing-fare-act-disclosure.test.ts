@@ -28,8 +28,6 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { showsTenantAgentNotice } from "../../lib/listings/tenant-agent-notice";
-import { MALLAN_LIST_OFFICE_MLS_IDS } from "../../lib/listings/mallan-source-identity";
 
 const LISTING_DETAIL_PATH = path.resolve(
   __dirname,
@@ -52,8 +50,8 @@ const FARE_DISCLOSURE_HEADING = "Fee Disclosure (NYC Local Law 119/2024):";
 // statement of the law's effect (NYC DCWP FAQ: tenants may hire their own
 // broker and pay that broker; nobody may require it). It is NOT quoted from
 // the statute: the 2026-11-21 compliance gate read Admin. Code §§20-699.20 to
-// .25 and found no such sentence. It stays because the page offers a paid
-// tenant-agent service next to it.
+// .25 and found no such sentence. It stays because Maya approved it with the
+// 2026-11-21 wording; no fee-based service is offered next to it any more.
 // Whitespace-normalized so the test doesn't break on a reformat.
 const FARE_TENANT_FEE_CLAUSE_NORMALIZED =
   "Prospective tenants are not required to pay a broker fee unless they have specifically engaged a broker to act on their behalf";
@@ -294,14 +292,14 @@ describe("FARE Act disclosure — source-side regression pin (A4 audit follow-up
     expect(source).toMatch(/Local Law 119\/2024|LL 119\/2024/);
   });
 
-  it("tells the tenant to ask the listing agent for the actual, final fees", () => {
-    // Maya, 2026-11-21: many listing agents put the fees in the listing description, so the page
-    // must not say fees are missing when the fee fields are empty. It sends the tenant to the listing
-    // agent for the actual final fees "to avoid errors". This replaced the earlier sentence "Contact the
-    // listing office directly for complete fee disclosure"; the instruction to go to the listing side
-    // for the final fees stays.
+  it("asks the tenant to verify application, move-in and move-out fees with the agent before viewing", () => {
+    // Maya, 2026-11-21: many listing agents put the fees in the listing description or leave them out of the
+    // feed, so the page must not say fees are missing when the fee fields are empty. It asks the tenant to
+    // verify application, move-in and move-out fees with the agent before viewing. This replaced the earlier
+    // sentence "Contact the listing office directly for complete fee disclosure" (and the first draft of this
+    // change, "please ask the listing agent for the actual, final fees before you apply or sign").
     expect(normalizeWhitespace(source)).toContain(
-      "To avoid errors, please ask the listing agent for the actual, final fees before you apply or sign",
+      "Application, move-in and move-out fees may not be included in the listing information or description, so please verify them with the agent before viewing",
     );
   });
 
@@ -316,91 +314,27 @@ describe("FARE Act disclosure — source-side regression pin (A4 audit follow-up
   });
 });
 
-describe("Tenant-agent paragraph on the rental fee disclosure (Maya, 2026-11-21)", () => {
-  let source: string;
-  beforeAll(() => {
-    source = normalizeWhitespace(fs.readFileSync(LISTING_DETAIL_PATH, "utf8"));
-  });
+describe("No offer of Mallan's services in the listing-page fee disclosure (Maya, 2026-11-21)", () => {
+  const read = (...parts: string[]) =>
+    normalizeWhitespace(fs.readFileSync(path.resolve(__dirname, "..", "..", ...parts), "utf8"));
 
-  it("says Mallan does not represent the owner and lists the three services, for a fee", () => {
-    expect(source).toContain("Mallan Real Estate Inc. does not represent the owner of this property");
-    expect(source).toContain(
-      "As a tenant agent, we can provide a service to prospective tenants for a fee: organizing showings, conducting the search and negotiating on the tenant&apos;s behalf",
-    );
-  });
-
-  it("is rendered only when tenantAgentNotice is true, inside the rental block, next to the disclosure", () => {
-    const raw = fs.readFileSync(LISTING_DETAIL_PATH, "utf8");
-    const gate = "{tenantAgentNotice && (";
-    const gateIdx = raw.indexOf(gate);
-    expect(gateIdx).toBeGreaterThan(-1);
-    expect(raw.indexOf(gate, gateIdx + 1)).toBe(-1); // exactly one use
-
-    // the statement sits inside the gate, not before it
-    const statementIdx = raw.indexOf("does not represent the owner of this property");
-    const gateClose = findMatchingParen(raw, gateIdx + gate.length - 1);
-    expect(statementIdx).toBeGreaterThan(gateIdx);
-    expect(statementIdx).toBeLessThan(gateClose);
-
-    // the gate is inside the rental conditional and after the FARE heading
-    const rentalGate = "{isRental && (";
-    const rentalOpen = raw.indexOf(rentalGate) + rentalGate.length - 1;
-    const rentalClose = findMatchingParen(raw, rentalOpen);
-    expect(gateIdx).toBeGreaterThan(rentalOpen);
-    expect(gateClose).toBeLessThan(rentalClose);
-    expect(gateIdx).toBeGreaterThan(raw.indexOf(FARE_DISCLOSURE_HEADING));
-    expect(gateIdx - raw.indexOf(FARE_DISCLOSURE_HEADING)).toBeLessThan(2048);
-  });
-
-  it("the flag is computed in fetchFromDB from the row's typed office columns (the public DTO strips them)", () => {
-    expect(source).toContain("import { showsTenantAgentNotice } from '@/lib/listings/tenant-agent-notice';");
-    expect(source).toContain(
-      "tenantAgentNotice: showsTenantAgentNotice({ source: dto._source, listOfficeMlsId: dbListing.list_office_mls_id, coListOfficeMlsId: dbListing.co_list_office_mls_id, listOfficeName: dbListing.list_office_name,",
-    );
-    expect(source).toContain("const tenantAgentNotice = result.tenantAgentNotice;");
-  });
-
-  const otherOffice = { source: "db+idx", listOfficeMlsId: "51", coListOfficeMlsId: null, listOfficeName: "Some Other Realty LLC" };
-
-  it("is shown for a stored listing whose listing office is another broker's", () => {
-    expect(showsTenantAgentNotice(otherOffice)).toBe(true);
-    expect(showsTenantAgentNotice({ ...otherOffice, coListOfficeMlsId: "88" })).toBe(true); // another co-list office
-    expect(showsTenantAgentNotice({ source: "db+idx", listOfficeName: "Some Other Realty LLC" })).toBe(true); // name only
-    expect(showsTenantAgentNotice({ source: "db+idx", listOfficeMlsId: "51" })).toBe(true); // id only
-  });
-
-  it("is never shown on a Mallan-authored listing, where Mallan IS the owner's broker", () => {
-    expect(showsTenantAgentNotice({ ...otherOffice, source: "exclusive" })).toBe(false);
-    expect(showsTenantAgentNotice({ source: "exclusive" })).toBe(false);
-  });
-
-  it("is not shown when Mallan is the list office or the co-list office, or the office is named Mallan", () => {
-    expect(MALLAN_LIST_OFFICE_MLS_IDS).toContain("7041");
-    expect(showsTenantAgentNotice({ ...otherOffice, listOfficeMlsId: "7041" })).toBe(false);
-    expect(showsTenantAgentNotice({ ...otherOffice, coListOfficeMlsId: "7041" })).toBe(false); // live Cotality has rentals like this (list office 51)
-    expect(showsTenantAgentNotice({ ...otherOffice, coListOfficeMlsId: " 7041 " })).toBe(false);
-    expect(showsTenantAgentNotice({ ...otherOffice, listOfficeName: "MAllan Real Estate Inc" })).toBe(false);
-    expect(showsTenantAgentNotice({ source: "db+idx", listOfficeMlsId: null, listOfficeName: "Mallan Real Estate Inc." })).toBe(false); // office id missing
-  });
-
-  it("is not shown when the listing office cannot be identified at all", () => {
-    expect(showsTenantAgentNotice({ source: "db+idx" })).toBe(false);
-    expect(showsTenantAgentNotice({ source: "db+idx", listOfficeMlsId: null, listOfficeName: null })).toBe(false);
-    expect(showsTenantAgentNotice({ source: "db+idx", listOfficeMlsId: "  ", listOfficeName: "  " })).toBe(false);
-  });
-
-  it("is not shown for any other source (live read, manual, missing, unknown)", () => {
-    for (const source of ["idx", "manual", "", undefined, null, "something-new"]) {
-      expect(showsTenantAgentNotice({ ...otherOffice, source })).toBe(false);
+  it("the listing page does not say Mallan does not represent the owner or offer a service for a fee", () => {
+    // Removed on Maya's decision after the 2026-11-21 legal research (LL 119 section 20-699.21(a)(2), (c), (e)):
+    // a tenant who calls or writes is given the agency disclosure and a representation agreement directly.
+    const text = read("app", "listing", "[...slug]", "page.tsx");
+    for (const phrase of [
+      "does not represent the owner",
+      "Working with Mallan",
+      "tenant agent, we can provide",
+      "tenantAgentNotice",
+      "showsTenantAgentNotice",
+    ]) {
+      expect(text).not.toContain(phrase);
     }
   });
 
-  it("the source values it relies on are the ones the stored-listing builder really emits", () => {
-    // If the builder renames _source, the notice would silently disappear (or, worse, appear on Mallan's own
-    // listing). The same literals also appear in comments, so match the return statements, not the bare text.
-    const dbDto = fs.readFileSync(path.resolve(__dirname, "..", "..", "lib", "idx", "db-to-public-dto.ts"), "utf8");
-    expect(dbDto).toMatch(/return \{\s*_source: 'db\+idx',/);
-    expect(dbDto).toMatch(/return \{\s*_source: 'exclusive',/);
+  it("the helper that gated that paragraph is gone", () => {
+    expect(fs.existsSync(path.resolve(__dirname, "..", "..", "lib", "listings", "tenant-agent-notice.ts"))).toBe(false);
   });
 });
 
