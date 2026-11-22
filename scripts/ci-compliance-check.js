@@ -779,10 +779,12 @@ for (const rel of FORMS_TO_CHECK) {
   }
 }
 
-// ── 24. FARE Act disclosure present on rental card/search surfaces (NYC LL 119/2024) ──
+// ── 24. FARE Act fee data present on rental card/detail surfaces (NYC LL 119/2024 s.20-699.22(a)) ──
+// The result card and the listing page must render the fee data the feed supplies. The general rental search
+// page is not listed on purpose: Maya, 2026-11-22, "do not put in general rental search". The Local Law text
+// requires the fees themselves to be disclosed in the listing, not a notice on a search page.
 const FARE_SURFACES = [
   'app/components/SearchListingCard.tsx',
-  'app/search/page.tsx',
   'app/listing/[...slug]/page.tsx',
 ];
 for (const rel of FARE_SURFACES) {
@@ -792,7 +794,7 @@ for (const rel of FARE_SURFACES) {
   if (/FareActFeeBadge|FARE Act|LL 119\/2024|tenantPaysDescription|moveInCosts/.test(content)) {
     pass(`FARE Act disclosure wired on ${rel}`);
   } else {
-    fail(`FARE Act disclosure missing on ${rel} (NYC LL 119/2024 — disclose wherever rental fees are advertised)`);
+    fail(`FARE Act fee data missing on ${rel} (NYC LL 119/2024 s.20-699.22(a) — the listing must show the fees the feed supplies)`);
   }
 }
 

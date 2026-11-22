@@ -1759,19 +1759,13 @@ export default async function ListingPage({ params }: Props) {
                       </div>
                     )}
                   </div>
-                  {/* FARE Act Fee Disclosure (NYC Local Law 119/2024). Wording per Maya, 2026-11-21: many listing
-                      agents put the fees in the listing description or leave them out of the feed, so the page does
-                      not say fees are missing when the fee fields are empty; it asks the tenant to verify application,
-                      move-in and move-out fees with the agent before viewing. No offer of Mallan's own services
-                      appears here: a tenant who calls or writes is given the agency disclosure and a representation
-                      agreement directly. The broker-fee sentence that used to close this box was removed on Maya's
-                      decision (2026-11-21): the email to the tenant covers it. */}
+                  {/* Rental fee note (Maya, 2026-11-22): the only suggestion for rentals is that prospective tenants check
+                      the application, move-in and move-out fees, because the listing agent may not have put them in the
+                      feed or the description. One sentence: no heading, no statutory label, no offer of Mallan's own
+                      services, no deposit. The fee rows above are the listing's own fee disclosure. */}
                   <div className="mt-4 p-3 bg-[#F8F7F4] rounded-lg border border-black/5">
                     <p className="text-[11px] text-brand-dark/60 leading-relaxed">
-                      <span className="font-semibold text-brand-dark/70">Fee Disclosure (NYC Local Law 119/2024):</span> Fee
-                      and move-in cost details, where shown on this page or in the listing description, are provided by
-                      the listing broker. Application, move-in and move-out fees may not be included in the listing
-                      information or description, so please verify them with the agent before viewing.
+                      Prospective tenants should check the application, move-in and move-out fees before viewing.
                     </p>
                   </div>
                 </section>
