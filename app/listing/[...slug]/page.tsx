@@ -1764,15 +1764,14 @@ export default async function ListingPage({ params }: Props) {
                       not say fees are missing when the fee fields are empty; it asks the tenant to verify application,
                       move-in and move-out fees with the agent before viewing. No offer of Mallan's own services
                       appears here: a tenant who calls or writes is given the agency disclosure and a representation
-                      agreement directly. */}
+                      agreement directly. The broker-fee sentence that used to close this box was removed on Maya's
+                      decision (2026-11-21): the email to the tenant covers it. */}
                   <div className="mt-4 p-3 bg-[#F8F7F4] rounded-lg border border-black/5">
                     <p className="text-[11px] text-brand-dark/60 leading-relaxed">
                       <span className="font-semibold text-brand-dark/70">Fee Disclosure (NYC Local Law 119/2024):</span> Fee
                       and move-in cost details, where shown on this page or in the listing description, are provided by
                       the listing broker. Application, move-in and move-out fees may not be included in the listing
-                      information or description, so please verify them with the agent before viewing. Prospective
-                      tenants are not required to pay a broker fee unless they have specifically engaged a broker to act
-                      on their behalf.
+                      information or description, so please verify them with the agent before viewing.
                     </p>
                   </div>
                 </section>

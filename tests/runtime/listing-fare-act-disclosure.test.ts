@@ -45,15 +45,15 @@ const LISTING_DETAIL_PATH = path.resolve(
 // wording is appropriate before retiring the old phrase).
 const FARE_DISCLOSURE_HEADING = "Fee Disclosure (NYC Local Law 119/2024):";
 
-// The disclosure keeps the sentence "tenants are not required to pay a
-// broker fee unless they engaged the broker". It is an accurate plain-language
-// statement of the law's effect (NYC DCWP FAQ: tenants may hire their own
-// broker and pay that broker; nobody may require it). It is NOT quoted from
-// the statute: the 2026-11-21 compliance gate read Admin. Code §§20-699.20 to
-// .25 and found no such sentence. It stays because Maya approved it with the
-// 2026-11-21 wording; no fee-based service is offered next to it any more.
+// The box used to close with the sentence "Prospective tenants are not required
+// to pay a broker fee unless they have specifically engaged a broker to act on
+// their behalf". Maya removed it on 2026-11-21 ("This will be addressed in the
+// email"): the email to the tenant, with the agency disclosure and the
+// representation agreement, carries it. It was a plain-language statement, not
+// quoted from the statute (the 2026-11-21 compliance gate read Admin. Code
+// §§20-699.20 to .25). It is pinned as ABSENT so it does not come back unnoticed.
 // Whitespace-normalized so the test doesn't break on a reformat.
-const FARE_TENANT_FEE_CLAUSE_NORMALIZED =
+const REMOVED_BROKER_FEE_SENTENCE_NORMALIZED =
   "Prospective tenants are not required to pay a broker fee unless they have specifically engaged a broker to act on their behalf";
 
 function normalizeWhitespace(s: string): string {
@@ -160,10 +160,12 @@ describe("FARE Act disclosure — source-side regression pin (A4 audit follow-up
     expect(source).toContain(FARE_DISCLOSURE_HEADING);
   });
 
-  it("includes the sentence that a tenant pays a broker fee only to a broker they engaged (plain-language statement of LL 119/2024)", () => {
-    // Normalize whitespace so JSX line-breaks + indentation don't break
-    // the assertion. The clause itself must appear semantically intact.
-    expect(normalizeWhitespace(source)).toContain(FARE_TENANT_FEE_CLAUSE_NORMALIZED);
+  it("no longer closes with the sentence that tenants are not required to pay a broker fee (Maya, 2026-11-21: the email covers it)", () => {
+    // Normalize whitespace so JSX line-breaks + indentation don't break the assertion.
+    const text = normalizeWhitespace(source);
+    expect(text).not.toContain(REMOVED_BROKER_FEE_SENTENCE_NORMALIZED);
+    expect(text).not.toContain("not required to pay a broker fee");
+    expect(text).not.toContain("specifically engaged a broker");
   });
 
   it("disclosure block sits INSIDE the `{isRental && (...)` rental conditional (structural paren-depth check)", () => {
