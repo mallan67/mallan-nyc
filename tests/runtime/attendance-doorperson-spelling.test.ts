@@ -117,3 +117,81 @@ describe('no CRM page says Doorperson where a person reads it', () => {
     expect(readFileSync(join(ROOT, 'public/crm/html/modals/reports.html'), 'utf8')).toMatch(/data-field="doorman">\s*Doorman<\/label>/);
   });
 });
+
+describe('the CRM search engine matches an AttendanceType member whole, so a video doorperson is never taken for a doorperson', () => {
+  it('compares AttendanceType by member, like ListingAgreement is compared exactly', () => {
+    const src = readFileSync(join(ROOT, 'public/crm/js/search/search-engine.js'), 'utf8');
+    expect(src).toMatch(/_fk === 'AttendanceType'/);
+    expect(src).not.toMatch(/FullTimeDoorman|VirtualDoorman/);
+  });
+});
+
+describe('the forms offer exactly the live AttendanceType members', () => {
+  const FORMS: [string, string][] = [
+    ['SALE-FORM-REDESIGN', 'saleAttendanceType'],
+    ['SALE-FORM-WITH-TOOLS', 'saleAttendanceType'],
+    ['RENTAL-FORM-REDESIGN', 'rentalAttendanceType'],
+    ['RENTAL-FORM-WITH-TOOLS', 'rentalAttendanceType'],
+  ];
+  it.each(FORMS)('%s (%s)', (name, field) => {
+    const html = readFileSync(join(ROOT, `public/crm/${name}.html`), 'utf8');
+    const values = [...html.matchAll(new RegExp(`<input[^>]*name="${field}"[^>]*value="([^"]+)"`, 'g'))].map((m) => m[1]);
+    expect([...values].sort()).toEqual([...ATTENDANCE_TYPE_MEMBERS].sort());
+  });
+
+  it.each(FORMS)('%s labels its door boxes Doorman (the value stays the live Doorperson member), not Doorperson', (name, field) => {
+    const html = readFileSync(join(ROOT, `public/crm/${name}.html`), 'utf8');
+    const labels = [...html.matchAll(new RegExp(`<label[^>]*>\\s*<input[^>]*name="${field}"[^>]*value="((?:Video)?Doorperson[A-Za-z]+)"[^>]*>([^<]*)</label>`, 'g'))];
+    expect(labels).toHaveLength(6);
+    for (const m of labels) {
+      expect(m[2]).toMatch(/Doorman/);
+      expect(m[2]).not.toMatch(/Doorperson/);
+    }
+  });
+});
+
+describe('what a visitor or an agent reads for a doorman', () => {
+  it.each(['app/building/page.tsx', 'app/buildings/[slug]/page.tsx'])('%s: the amenity icon is keyed on the label the amenity list carries (Doorman)', (page) => {
+    const src = readFileSync(join(ROOT, page), 'utf8');
+    expect(src).toMatch(/\bDoorman:/);
+    expect(src).not.toMatch(/\bDoorperson:/);
+  });
+
+  it('the CRM detail view reads the video member as Video, not as its full-time substring', () => {
+    const src = readFileSync(join(ROOT, 'public/crm/js/render/render-master-detail.js'), 'utf8');
+    const line = src.split(/\r?\n/).find((l) => /^\s*doorman: function \(l\)/.test(l))!;
+    const fn = new Function(`return ({ ${line.trim().replace(/,\s*$/, '')} }).doorman;`)();
+    const read = (AttendanceType: string) => fn({ rebny: { AttendanceType } });
+    expect(read('VideoDoorpersonFullTime')).toBe('Video');
+    expect(read('VideoDoorpersonYes')).toBe('Video');
+    expect(read('DoorpersonFullTime')).toBe('Full-time');
+    expect(read('DoorpersonPartTime')).toBe('Part-time');
+    expect(read('DoorpersonYes')).toBe('Yes');
+    expect(read('None')).toBe('None');
+    expect(read('')).toBe('--');
+  });
+});
+
+describe('the generated data contract carries the live members', () => {
+  it.each(['sale', 'rental'])('%s listings: the Doorperson members are observed', (side) => {
+    const live = JSON.parse(readFileSync(join(ROOT, 'data/cotality-enums.live.json'), 'utf8'));
+    const observed = Object.keys(live.search.custom_fields.keys.AttendanceType.observed[side]);
+    expect(observed).toEqual(expect.arrayContaining(['DoorpersonFullTime', 'DoorpersonYes']));
+  });
+});
+
+describe('the CRM search boxes filter on the live members', () => {
+  const PAGES = ['public/crm/html/search-form-and-results.html', 'public/crm/index-built.html'];
+  it.each(PAGES)('%s', (page) => {
+    const html = readFileSync(join(ROOT, page), 'utf8');
+    const values = new Set<string>();
+    for (const m of html.matchAll(/data-field="AttendanceType"[^>]*data-value="([^"]+)"|data-value="([^"]+)"[^>]*data-field="AttendanceType"/g)) {
+      for (const v of (m[1] || m[2]).split(',')) values.add(v.trim());
+    }
+    expect(values.size).toBeGreaterThan(0);
+    // "Any" is the search page's own "Any Attended" choice (the server turns it into every attended member), not a Cotality member
+    const live = new Set<string>([...ATTENDANCE_TYPE_MEMBERS, 'Any']);
+    expect([...values].filter((v) => !live.has(v))).toEqual([]);
+    expect(values.has('DoorpersonFullTime')).toBe(true);
+  });
+});
