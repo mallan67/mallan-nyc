@@ -209,7 +209,7 @@
                         <div><span class="text-gray-500">Ownership</span><div class="font-semibold">${ownershipLabel(listing.ownership)}</div></div>
                         <div><span class="text-gray-500">Era</span><div class="font-semibold">${escapeHtml(listing.era || '--')}${listing.yearBuilt ? ' (' + listing.yearBuilt + ')' : ''}</div></div>
                         <div><span class="text-gray-500">Elevator</span><div class="font-semibold">${rebnyDisplay.elevators(listing)}</div></div>
-                        <div><span class="text-gray-500">Doorperson</span><div class="font-semibold">${rebnyDisplay.doorman(listing)}</div></div>
+                        <div><span class="text-gray-500">Doorman</span><div class="font-semibold">${rebnyDisplay.doorman(listing)}</div></div>
                         <div><span class="text-gray-500">Financing</span><div class="font-semibold">${rebnyDisplay.financing(listing)}</div></div>
                     </div>
                 </div>

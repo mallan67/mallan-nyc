@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 /**
- * The public Doorperson filter (Maya, 2026-11-20: "the public search needs to have those changes, please be careful on how you update").
+ * The public Doorman filter (key `doorman`; the VALUES it matches are the live Doorperson* members; Maya, 2026-11-22: the general name is Doorman) (Maya, 2026-11-20: "the public search needs to have those changes, please be careful on how you update").
  *
  * What live Cotality says (read 2026-11-20, every one of the 9,655 Active listings): who staffs the door is AttendanceType, a key inside
  * CustomProperty.CustomFields: DoorpersonFullTime / DoorpersonPartTime / DoorpersonYes (VideoDoorperson* is its own thing, and the CRM search keeps it its
@@ -37,12 +37,12 @@ const read = (p: string) => readFileSync(resolve(ROOT, p), 'utf8');
 const code = (p: string) => read(p).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
 const live = JSON.parse(read('data/cotality-enums.live.json'));
 
-describe('the Doorperson filter names the live field and the live members, and is disabled with a reason', () => {
-  it('names AttendanceType and the three Doorperson members, says Doorperson, and carries a reason', () => {
+describe('the Doorman filter names the live field and the live members, and is disabled with a reason', () => {
+  it('names AttendanceType and the three Doorperson members, says Doorman, and carries a reason', () => {
     const entry = AMENITY_FIELD_MAP.doorman;
     expect(entry.field).toBe('AttendanceType');
     expect(entry.values).toEqual(['DoorpersonFullTime', 'DoorpersonPartTime', 'DoorpersonYes']);
-    expect(entry.label).toBe('Doorperson');
+    expect(entry.label).toBe('Doorman');
     expect(entry.group).toBe('Lobby & Services');
     expect(entry.unavailable).toMatch(/^Not searchable yet\./);
     expect(isSearchableAmenity('doorman')).toBe(false);
@@ -93,10 +93,10 @@ describe('nothing applies it', () => {
   it('no chip is shown for it, and a link that names it is told to the reader with the reason', () => {
     const chips = buildChips({ amenities: ['doorman', 'concierge'] } as unknown as SearchFilters, [], undefined);
     expect(chips.filter((c) => c.type === 'amenity').map((c) => c.label)).toEqual(['Concierge']);
-    expect(unavailableAmenities(['doorman', 'concierge'])).toEqual([{ key: 'doorman', label: 'Doorperson', reason: AMENITY_FIELD_MAP.doorman.unavailable }]);
+    expect(unavailableAmenities(['doorman', 'concierge'])).toEqual([{ key: 'doorman', label: 'Doorman', reason: AMENITY_FIELD_MAP.doorman.unavailable }]);
   });
 
-  it('the filter panel shows Doorperson as a disabled box with its reason, offers Concierge, and says Doorman nowhere', () => {
+  it('the filter panel shows Doorman as a disabled box with its reason, offers Concierge, and says Doorperson nowhere', () => {
     const markup = renderToStaticMarkup(createElement(SearchFilterPanel, { isOpen: true, onClose: () => undefined, onApply: () => undefined, currentFilters: { amenities: ['doorman'] } as unknown as SearchFilters, activeTab: 'rent-residential' }));
     const tag = (markup.match(/<input\b[^>]*>/g) ?? []).filter((t) => t.includes('aria-describedby="amenity-doorman-unavailable"'));
     expect(tag).toHaveLength(1);
@@ -104,9 +104,9 @@ describe('nothing applies it', () => {
     expect(tag[0]).not.toMatch(/\bchecked\b/);
     expect(markup).toContain('id="amenity-doorman-unavailable"');
     expect(markup).toContain(AMENITY_FIELD_MAP.doorman.unavailable as string);
-    expect(markup).toContain('Doorperson');
+    expect(markup).toContain('Doorman');
     expect(markup).toContain('Concierge');
-    expect(markup).not.toMatch(/Doorman/);
+    expect(markup).not.toMatch(/Doorperson/);
   });
 
   it.each(['doorman', 'doorperson', 'door person', 'Doorperson'])('the typed word %j is read, removed from the text, filters nothing, and the reader is told why', (word) => {
@@ -124,8 +124,8 @@ describe('nothing applies it', () => {
     for (const example of examples) expect(example).not.toMatch(/door\s?(man|person)/i);
   });
 
-  it('the listing side panel says Doorperson where it names the amenity', () => {
-    expect(read('app/components/ListingSidePanel.tsx')).not.toMatch(/Doorman/);
+  it('the listing side panel says Doorman where it names the amenity', () => {
+    expect(read('app/components/ListingSidePanel.tsx')).not.toMatch(/Doorperson/);
   });
 });
 
@@ -147,7 +147,7 @@ describe('the "not applied" notice survives the page rewriting its own URL (foun
 
   it('the notice, built from the URL the page then holds, still names the filter', () => {
     const written = amenitiesUrlValue(undefined, 'doorman');
-    expect(unavailableAmenities((written ?? '').split(',')).map((u) => u.label)).toEqual(['Doorperson']);
+    expect(unavailableAmenities((written ?? '').split(',')).map((u) => u.label)).toEqual(['Doorman']);
   });
 
   it('the search page writes the amenities param through it, and does not write filters.amenities alone', () => {

@@ -32,7 +32,7 @@
       bullets: 'Leased — tenant in place paying $4,305/month through August 14, 2027 (4% cap), and open to renewing\n'
              + 'Low closing costs — all-cash closing runs about $7,000 for this condop vs about $12,000 for a comparable condo (roughly $5,000 less)',
       purchaseStructure: 'Condop ownership with no board interview. The sale is subject to the building’s Right of First Refusal and issuance of the applicable waiver.',
-      location: 'Full-service building — 24-hour doorperson, live-in superintendent, laundry, and a roof deck\n'
+      location: 'Full-service building — 24-hour doorman, live-in superintendent, laundry, and a roof deck\n'
               + 'Heart of Midtown East — steps to the United Nations, transportation, and shopping',
       maintenance: '$1,748.65/mo',
       currentRent: '$4,305/mo',

@@ -1009,10 +1009,10 @@ export default async function ListingPage({ params }: Props) {
   // Only approved amenities are displayed. Cotality raw value → display label.
   const APPROVED_AMENITIES: Record<string, string> = {
     // Lobby & Services
-    SecurityGuard: 'Doorperson',
+    SecurityGuard: 'Doorman',
     Concierge: 'Concierge',
     LiveInSuper: 'Live-in Super',
-    VirtualDoorman: 'Virtual Doorperson',
+    VirtualDoorman: 'Virtual Doorman',
     ResidentManager: 'Live-in Super',
     PackageRoom: 'Package Room',
     // Common Areas
@@ -1091,13 +1091,13 @@ export default async function ListingPage({ params }: Props) {
   const hasGarage = parkingList.some(v => v === 'Garage');
   if (hasGarage) amenitySet.add('Parking Garage');
 
-  // AttendanceType → Doorperson / 24hr Doorperson / Attended Lobby (the live members, lib/idx/attendance-type.ts)
+  // AttendanceType → Doorman / 24hr Doorman / Attended Lobby (the live members are Doorperson*; the word a visitor reads is Doorman, Maya 2026-11-22; lib/idx/attendance-type.ts)
   const attendanceValues = listing.attendanceType ? splitRaw(listing.attendanceType) : [];
   for (const label of attendanceAmenities(attendanceValues)) amenitySet.add(label);
 
   // Boolean YN flags — most commonly populated even when detail fields are empty
   const yn = listing as unknown as Record<string, unknown>;
-  if (yn.doormanYN && !amenitySet.has('24hr Doorperson') && !amenitySet.has('Doorperson')) amenitySet.add('Doorperson');
+  if (yn.doormanYN && !amenitySet.has('24hr Doorman') && !amenitySet.has('Doorman')) amenitySet.add('Doorman');
   if (yn.elevatorYN && !amenitySet.has('Elevator')) amenitySet.add('Elevator');
   if (yn.gymYN && !amenitySet.has('Gym/Fitness')) amenitySet.add('Gym/Fitness');
   if (yn.storageYN && !amenitySet.has('Storage')) amenitySet.add('Storage');
@@ -1106,9 +1106,9 @@ export default async function ListingPage({ params }: Props) {
   // but not in structured MLS fields (common in NYC listings)
   const desc = (listing.publicRemarks || '').toLowerCase();
   const DESC_AMENITIES: [RegExp, string][] = [
-    [/\b(doorman|doorperson|door\s*-?\s*(?:man|person)|attended\s+lobb)/i, 'Doorperson'],
-    [/\b(24\s*[-/]?\s*hour\s+door(?:man|person)|full[\s-]*time\s+door(?:man|person))/i, '24hr Doorperson'],
-    [/\b(virtual\s+door(?:man|person)|video\s+door(?:man|person))/i, 'Virtual Doorperson'],
+    [/\b(doorman|doorperson|door\s*-?\s*(?:man|person)|attended\s+lobb)/i, 'Doorman'],
+    [/\b(24\s*[-/]?\s*hour\s+door(?:man|person)|full[\s-]*time\s+door(?:man|person))/i, '24hr Doorman'],
+    [/\b(virtual\s+door(?:man|person)|video\s+door(?:man|person))/i, 'Virtual Doorman'],
     [/\b(concierge)/i, 'Concierge'],
     [/\b(gym|fitness\s+center|exercise\s+room|work\s*-?\s*out)/i, 'Gym/Fitness'],
     [/\b(roof\s*-?\s*deck|roof\s*-?\s*top\s+terrace|rooftop\s+deck)/i, 'Roof Deck'],
@@ -1125,8 +1125,8 @@ export default async function ListingPage({ params }: Props) {
   for (const [pattern, amenity] of DESC_AMENITIES) {
     if (!amenitySet.has(amenity) && pattern.test(desc)) amenitySet.add(amenity);
   }
-  // Don't double-count doorperson variants
-  if (amenitySet.has('24hr Doorperson')) amenitySet.delete('Doorperson');
+  // Don't double-count doorman variants
+  if (amenitySet.has('24hr Doorman')) amenitySet.delete('Doorman');
 
   const buildingAmenitiesFinal = [...amenitySet].sort();
 

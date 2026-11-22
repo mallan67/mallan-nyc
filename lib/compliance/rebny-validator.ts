@@ -877,7 +877,7 @@ export function generatePublicRemarks(listing: ListingData): string {
       ? listing.AttendanceType
       : [listing.AttendanceType];
     if (hasDoorperson(attendance)) {
-      amenities.push('doorperson');
+      amenities.push('doorman');
     }
   }
 
