@@ -124,6 +124,21 @@ describe('nothing applies it', () => {
     for (const example of examples) expect(example).not.toMatch(/door\s?(man|person)/i);
   });
 
+  it('the listing page and the building page say Doorman where they name the amenity (the stored members stay Doorperson)', () => {
+    const listing = code('app/listing/[...slug]/page.tsx');
+    const building = code('lib/buildings/public-building-data.ts');
+    for (const text of [listing, building]) {
+      expect(text).toContain("SecurityGuard: 'Doorman'");
+      expect(text).toContain("VirtualDoorman: 'Virtual Doorman'");
+      expect(text).not.toMatch(/['"`](?:24hr |Virtual )?Doorperson['"`]/);
+    }
+    expect(listing).toContain("'24hr Doorman'");
+    // the building page looks its icon up by the label text: a key that says anything else falls back to the default icon
+    expect(code('app/building/page.tsx')).toContain("Doorman: (");
+    expect(code('app/buildings/[slug]/page.tsx')).toContain("Doorman: '");
+    expect(code('lib/idx/attendance-type.ts')).toContain("out.add('24hr Doorman')");
+  });
+
   it('the listing side panel says Doorman where it names the amenity', () => {
     expect(read('app/components/ListingSidePanel.tsx')).not.toMatch(/Doorperson/);
   });

@@ -94,6 +94,7 @@
     "ops:build-recovery-manifest": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/build-recovery-manifest.ts",
     "ops:recover-stale-listings": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/recover-stale-property-listings.ts",
     "ops:recover-residual-media": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/recover-residual-listing-media.ts",
+    "ops:backfill-attendance-type": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/backfill-attendance-type.ts",
     "reso:route-catalog": "node scripts/reso/route-catalog.js",
     "scanner:refresh-cd-zones": "npx tsx scripts/scanner/refresh-cd-zones.ts",
     "scanner:pluto-ingest": "npx tsx scripts/scanner/pluto-ingest.ts",
