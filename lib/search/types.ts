@@ -141,7 +141,7 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, AmenityFieldConfig> = {
   // sales, and returned 28 rentals and 51 sales with no doorperson. Pointing it at AttendanceType without the data would answer "nothing" silently, so it is disabled with a reason, and the old rule lives on as the honest Concierge filter below.
   // The sync now looks AttendanceType up (lib/idx/custom-property-join.ts), but a listing already stored carries it only after the sync touches it again, so the filter stays disabled until STORED_LISTINGS_CARRY_ATTENDANCE_TYPE is flipped after the backfill is verified. The members are matched whole (amenityValueMatches): "DoorpersonFullTime"
   // is inside "VideoDoorpersonFullTime", and a video doorperson is its own amenity (the CRM search keeps it its own box).
-  'doorman':       { field: 'AttendanceType', values: [...DOORPERSON_MEMBERS], label: 'Doorperson', group: 'Lobby & Services', ...(STORED_LISTINGS_CARRY_ATTENDANCE_TYPE ? {} : { unavailable: 'Not searchable yet. Doorperson is shown on a listing page where it is available.' }) },
+  'doorman':       { field: 'AttendanceType', values: [...DOORPERSON_MEMBERS], label: 'Doorman', group: 'Lobby & Services', ...(STORED_LISTINGS_CARRY_ATTENDANCE_TYPE ? {} : { unavailable: 'Not searchable yet. Doorman is shown on a listing page where it is available.' }) },
   // Concierge: the rule the "Doorman" filter had until 2026-11-20, kept as its own filter so a search for "concierge" still means exactly that (BuildingFeatures "Concierge").
   'concierge':     { field: 'BuildingFeatures', values: ['Concierge'], label: 'Concierge', group: 'Lobby & Services' },
   // Building Amenities

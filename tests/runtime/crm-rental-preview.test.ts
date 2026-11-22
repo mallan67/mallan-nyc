@@ -265,7 +265,7 @@ describe(`${FORM}: the Townhouse and Building cards`, () => {
       expect(shown(f, 'rentalPreviewBldgYear')).toBe('1929');
       expect(shown(f, 'rentalPreviewBldgUnits')).toBe('120');
       expect(shown(f, 'rentalPreviewBldgFloors')).toBe('22');
-      expect(shown(f, 'rentalPreviewBldgDoorman')).toBe('Doorperson (Full-Time), Concierge (Part-Time)');
+      expect(shown(f, 'rentalPreviewBldgDoorman')).toBe('Doorman (Full-Time), Concierge (Part-Time)');
       expect(shown(f, 'rentalPreviewBldgElevator')).toBe('Yes');
       expect(shown(f, 'rentalPreviewBldgPets')).toBe('Cats OK, Size Limit');
     } finally { await closeAfter(f); }

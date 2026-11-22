@@ -46,11 +46,11 @@ describe('no retired Doorman spelling is served', () => {
 });
 
 /**
- * What an agent or a client READS on a CRM page says Doorperson (Maya, 2026-11-20: update all seven standalone forms, the searches, the Sale and Rental
- * redesign forms, the Tools forms and the CMA). A label, a placeholder or a sample sentence may not say Doorman. The ids saved data depends on stay as they are:
- * tenantFeatDoorman / buyerFeatDoorman (checkbox ids), data-field="doorman" (the report field id), the `doorman` renderer key and `doormanType` (internal names).
+ * What an agent or a client READS on a CRM page says Doorman (Maya, 2026-11-22: "the general name should be doorman since this is how the industry uses it, but the field
+ * need to changed"). This reverses the 2026-11-20 instruction that labels say Doorperson: the VALUES stay the live RLS members (DoorpersonFullTime / PartTime / Yes), the WORD a
+ * person reads is Doorman. A label, a placeholder or a sample sentence may not say Doorperson. What may stay: the live members and the identifiers code depends on.
  */
-describe('no CRM page says Doorman where a person reads it', () => {
+describe('no CRM page says Doorperson where a person reads it', () => {
   // every text file a browser reads from public/crm, not only pages and scripts
   const walkText = (dir: string, out: string[] = []): string[] => {
     for (const name of readdirSync(dir)) {
@@ -62,27 +62,18 @@ describe('no CRM page says Doorman where a person reads it', () => {
   };
   const crmFiles = walkText(join(ROOT, 'public/crm'));
 
-  /**
-   * What may stay: identifiers saved data or code depends on, and the live SecurityFeatures value. They are blanked out of the line first; whatever still says door-man in
-   * ANY spelling a person would read (Doorman, Doormen, Door Man, door-man, DOORMAN, a lowercase word at the start of a placeholder) is a miss.
-   */
   const IDENTIFIERS: RegExp[] = [
-    /(["'])doorman\1/g, // a lone quoted id or key: data-field="doorman", { id: 'doorman' }
-    /(["'])DoorMan\1/g, // the live SecurityFeatures value: value="DoorMan"
-    /[\w$]*doorman[\w$]+|[\w$]+doorman[\w$]*/gi, // an identifier with letters around it: tenantFeatDoorman, doormanType, bldgDoorman
-    /\.doorman\b/g, // a property: rebnyDisplay.doorman
-    /\bdoorman\s*:/g, // an object key: doorman: function
+    /(?:Video)?Doorperson(?:FullTime|PartTime|Yes)\b/g, // the live AttendanceType members: value="DoorpersonFullTime", data-value="DoorpersonYes"
+    /[\w$]*doorperson[\w$]+|[\w$]+doorperson[\w$]*/gi, // an identifier with letters around it
   ];
-  const READABLE = /door[ _-]?m[ae]n/i;
-  const readsAsDoorman = (line: string) => READABLE.test(IDENTIFIERS.reduce((s, re) => s.replace(re, ' '), line));
+  const READABLE = /door[ _-]?pe(?:rson|ople)/i;
+  const readsAsDoorperson = (line: string) => READABLE.test(IDENTIFIERS.reduce((s, re) => s.replace(re, ' '), line));
 
-  it('the guard catches every spelling a person would read, and lets the saved ids and the live value through', () => {
-    for (const miss of ['Doorman', 'Doormen', 'doormen', 'Door Man', 'door-man', 'DOORMAN', 'placeholder="doorman, gym"', "'doorman and elevator'", "Doorman's", '<span>Doorman:</span>', 'no-doorman']) {
-      expect(readsAsDoorman(miss)).toBe(true);
-    }
-    for (const ok of ['data-field="doorman"', 'id="tenantFeatDoorman"', 'name="bldgDoorman"', 'value="DoorMan"', 'doormanType', 'rebnyDisplay.doorman(x)', "{ id: 'doorman', label: 'Doorperson' }", 'doorman: function (l) {', "'saleBldgDoorman': 'Doorperson'", 'Doorperson (secured lobby)']) {
-      expect(readsAsDoorman(ok)).toBe(false);
-    }
+  it('the guard catches every spelling a person would read, and lets the live members through', () => {
+    for (const miss of ['Doorperson', 'doorperson', 'Door Person', 'door-person', 'DOORPERSON', 'placeholder="doorperson, gym"', "'doorperson and elevator'", '<span>Doorperson:</span>', 'Video Doorperson'])
+      expect(readsAsDoorperson(miss)).toBe(true);
+    for (const ok of ['value="DoorpersonFullTime"', 'data-value="DoorpersonYes,DoorpersonFullTime,DoorpersonPartTime"', 'value="VideoDoorpersonYes"', 'Doorman (Full-Time)', 'doorman', 'hasDoorperson(x)'])
+      expect(readsAsDoorperson(ok)).toBe(false);
   });
 
   it('scans the pages, scripts, stylesheets and data files of the CRM', () => {
@@ -93,29 +84,37 @@ describe('no CRM page says Doorman where a person reads it', () => {
   it.each(crmFiles.map((f) => [f.slice(ROOT.length + 1).replace(/\\/g, '/'), f]))('%s', (_rel, file) => {
     const hits = readFileSync(file, 'utf8')
       .split(/\r?\n/)
-      .map((l, i) => (!l.startsWith('window.COTALITY_SEARCH_CONTRACT =') && readsAsDoorman(l) ? `${i + 1}: ${l.trim().slice(0, 150)}` : ''))
+      .map((l, i) => (!l.startsWith('window.COTALITY_SEARCH_CONTRACT =') && readsAsDoorperson(l) ? `${i + 1}: ${l.trim().slice(0, 150)}` : ''))
       .filter(Boolean);
     expect(hits).toEqual([]);
   });
 
-  it('the Security Features boxes keep the live value DoorMan (RLS renamed only AttendanceType) and say Doorperson', () => {
+  it('the Sale and Rental attendance boxes keep the live values and say Doorman', () => {
+    for (const [form, name] of [['SALE-FORM-REDESIGN', 'saleAttendanceType'], ['SALE-FORM-WITH-TOOLS', 'saleAttendanceType'], ['RENTAL-FORM-REDESIGN', 'rentalAttendanceType'], ['RENTAL-FORM-WITH-TOOLS', 'rentalAttendanceType']]) {
+      const html = readFileSync(join(ROOT, `public/crm/${form}.html`), 'utf8');
+      for (const [value, label] of [['DoorpersonFullTime', 'Doorman'], ['VideoDoorpersonFullTime', 'Video Doorman']])
+        expect(html).toMatch(new RegExp(`name="${name}" value="${value}"[^>]*>\\s*${label} \\(Full-Time\\)`));
+    }
+  });
+
+  it('the Security Features boxes keep the live value DoorMan (RLS renamed only AttendanceType) and say Doorman', () => {
     const live = JSON.parse(readFileSync(join(ROOT, 'data/cotality-enums.live.json'), 'utf8'));
     expect(live.enums.SecurityFeatures).toContain('DoorMan');
     for (const form of ['SALE-FORM-REDESIGN', 'SALE-FORM-WITH-TOOLS']) {
       const html = readFileSync(join(ROOT, `public/crm/${form}.html`), 'utf8');
-      expect(html).toMatch(/name="saleBldgSecurity" value="DoorMan"[^>]*>\s*Doorperson \(secured lobby\)/);
+      expect(html).toMatch(/name="saleBldgSecurity" value="DoorMan"[^>]*>\s*Doorman \(secured lobby\)/);
     }
   });
 
-  it('the deal forms keep their saved checkbox ids and say Doorperson', () => {
+  it('the deal forms keep their saved checkbox ids and say Doorman', () => {
     for (const [file, id] of [['public/crm/TENANT-DEAL-FORM.html', 'tenantFeatDoorman'], ['public/crm/BUYER-DEAL-FORM.html', 'buyerFeatDoorman']]) {
       const html = readFileSync(join(ROOT, file), 'utf8');
-      expect(html).toMatch(new RegExp(`id="${id}"[^>]*>\\s*Doorperson</label>`));
+      expect(html).toMatch(new RegExp(`id="${id}"[^>]*>\\s*Doorman</label>`));
     }
   });
 
-  it('the report builder keeps its field id and says Doorperson', () => {
-    expect(readFileSync(join(ROOT, 'public/crm/html/modals/reports.html'), 'utf8')).toMatch(/data-field="doorman">\s*Doorperson<\/label>/);
+  it('the report builder keeps its field id and says Doorman', () => {
+    expect(readFileSync(join(ROOT, 'public/crm/html/modals/reports.html'), 'utf8')).toMatch(/data-field="doorman">\s*Doorman<\/label>/);
   });
 });
 
@@ -140,19 +139,22 @@ describe('the forms offer exactly the live AttendanceType members', () => {
     expect([...values].sort()).toEqual([...ATTENDANCE_TYPE_MEMBERS].sort());
   });
 
-  it.each(FORMS)('%s labels its door boxes Doorperson, not Doorman', (name, field) => {
+  it.each(FORMS)('%s labels its door boxes Doorman (the value stays the live Doorperson member), not Doorperson', (name, field) => {
     const html = readFileSync(join(ROOT, `public/crm/${name}.html`), 'utf8');
     const labels = [...html.matchAll(new RegExp(`<label[^>]*>\\s*<input[^>]*name="${field}"[^>]*value="((?:Video)?Doorperson[A-Za-z]+)"[^>]*>([^<]*)</label>`, 'g'))];
     expect(labels).toHaveLength(6);
-    for (const m of labels) expect(m[2]).toMatch(/Doorperson/);
+    for (const m of labels) {
+      expect(m[2]).toMatch(/Doorman/);
+      expect(m[2]).not.toMatch(/Doorperson/);
+    }
   });
 });
 
-describe('what a visitor or an agent reads for a doorperson', () => {
-  it.each(['app/building/page.tsx', 'app/buildings/[slug]/page.tsx'])('%s: the amenity icon is keyed on the label the amenity list now carries', (page) => {
+describe('what a visitor or an agent reads for a doorman', () => {
+  it.each(['app/building/page.tsx', 'app/buildings/[slug]/page.tsx'])('%s: the amenity icon is keyed on the label the amenity list carries (Doorman)', (page) => {
     const src = readFileSync(join(ROOT, page), 'utf8');
-    expect(src).toMatch(/\bDoorperson:/);
-    expect(src).not.toMatch(/\bDoorman:/);
+    expect(src).toMatch(/\bDoorman:/);
+    expect(src).not.toMatch(/\bDoorperson:/);
   });
 
   it('the CRM detail view reads the video member as Video, not as its full-time substring', () => {

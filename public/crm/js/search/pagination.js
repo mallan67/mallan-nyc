@@ -495,7 +495,7 @@
                                     <!-- Col 3: Amenities / Parking -->
                                     <div class="space-y-2 text-sm">
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold">Building Amenities</div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Doorperson</span><span class="font-semibold">---</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Doorman</span><span class="font-semibold">---</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Elevator</span><span class="font-semibold">---</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Gym / Fitness</span><span class="font-semibold">---</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Pool</span><span class="font-semibold">---</span></div>
@@ -651,7 +651,7 @@
                         <div class="mb-4">
                             <h3 class="lux-section-title"><i class="fas fa-concierge-bell text-gray-400"></i> Building Amenities</h3>
                             <div class="grid grid-cols-4 gap-3">
-                                <div class="lux-amenity-card"><i class="fas fa-concierge-bell"></i><span>Doorperson</span></div>
+                                <div class="lux-amenity-card"><i class="fas fa-concierge-bell"></i><span>Doorman</span></div>
                                 <div class="lux-amenity-card"><i class="fas fa-arrows-alt-v"></i><span>Elevator</span></div>
                                 <div class="lux-amenity-card"><i class="fas fa-dumbbell"></i><span>Gym / Fitness</span></div>
                                 <div class="lux-amenity-card"><i class="fas fa-swimming-pool"></i><span>Pool</span></div>

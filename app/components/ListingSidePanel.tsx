@@ -243,7 +243,7 @@ export default function ListingSidePanel() {
           {(() => {
             const b = listing.features.building;
             const amenities: string[] = [];
-            if (b.doorman) amenities.push(b.doormanType ? `${b.doormanType} Doorperson` : 'Doorperson');
+            if (b.doorman) amenities.push(b.doormanType ? `${b.doormanType} Doorman` : 'Doorman');
             if (b.concierge) amenities.push('Concierge');
             if (b.elevator) amenities.push('Elevator');
             if (b.gym) amenities.push('Fitness Center');

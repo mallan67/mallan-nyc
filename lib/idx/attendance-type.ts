@@ -1,5 +1,7 @@
 // AttendanceType: the REBNY custom field (CustomProperty.CustomFields) that says who staffs the lobby.
 //
+// DISPLAY WORD: Doorman. The VALUES below are the live RLS members (Doorperson*), but what a visitor or an agent reads is Doorman, "since this is how the industry uses it"
+// (Maya, 2026-11-22). Only the stored value follows RLS.
 // RLS renamed the Doorman members to Doorperson on 2026-11-17 and backfills every affected listing. Maya (2026-11-19): follow live,
 // keep no retired spelling. Live read 2026-11-19 (9,668 Active listings): the members below. AttendanceType has no Lookup table, so
 // the live rows are the evidence. The RLS notice spells one member "VideoDoorPersonFullTime" (capital P); no live row does, so the
@@ -15,7 +17,7 @@ export const ATTENDANCE_TYPE_MEMBERS = [
 ] as const;
 
 /**
- * The members that say a person staffs the door. A video doorperson is its own amenity: the listing page says Virtual Doorperson and the CRM search keeps it its own box, so it is not here.
+ * The members that say a person staffs the door. A video doorperson is its own amenity: the listing page says Virtual Doorman and the CRM search keeps it its own box, so it is not here.
  */
 export const DOORPERSON_MEMBERS = ['DoorpersonFullTime', 'DoorpersonPartTime', 'DoorpersonYes'] as const;
 
@@ -35,10 +37,10 @@ export function attendanceAmenities(values: readonly string[]): string[] {
   const out = new Set<string>();
   for (const raw of values) {
     const v = raw.trim().toLowerCase();
-    if (v === 'doorpersonfulltime') out.add('24hr Doorperson');
-    else if (v === 'doorpersonparttime' || v === 'doorpersonyes') out.add('Doorperson');
+    if (v === 'doorpersonfulltime') out.add('24hr Doorman');
+    else if (v === 'doorpersonparttime' || v === 'doorpersonyes') out.add('Doorman');
     else if (v === 'lobbyattendantfulltime' || v === 'lobbyattendantparttime' || v === 'lobbyattendantyes') out.add('Attended Lobby');
-    else if (v === 'videodoorpersonfulltime' || v === 'videodoorpersonparttime' || v === 'videodoorpersonyes') out.add('Virtual Doorperson');
+    else if (v === 'videodoorpersonfulltime' || v === 'videodoorpersonparttime' || v === 'videodoorpersonyes') out.add('Virtual Doorman');
     else if (v === 'conciergefulltime' || v === 'conciergeparttime' || v === 'conciergeyes') out.add('Concierge');
   }
   return [...out];

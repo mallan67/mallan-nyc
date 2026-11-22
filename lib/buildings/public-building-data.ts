@@ -224,10 +224,10 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
   // Cotality raw value → approved display label (whitelist)
   const APPROVED: Record<string, string> = {
     // Lobby & Services
-    SecurityGuard: 'Doorperson',
+    SecurityGuard: 'Doorman',
     Concierge: 'Concierge',
     LiveInSuper: 'Live-in Super',
-    VirtualDoorman: 'Virtual Doorperson',
+    VirtualDoorman: 'Virtual Doorman',
     ResidentManager: 'Live-in Super',
     // Common Areas
     HealthClub: 'Gym/Fitness',
@@ -278,7 +278,7 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
   // Parking — garage → "Parking Garage"
   if (buildingInfo.parkingFeatures.some(f => f.toLowerCase().includes('garage'))) amenitySet.add('Parking Garage');
 
-  // AttendanceType → Doorperson / 24hr Doorperson / Attended Lobby (the live members, lib/idx/attendance-type.ts)
+  // AttendanceType → Doorman / 24hr Doorman / Attended Lobby (the live members are Doorperson*; the word a visitor reads is Doorman, Maya 2026-11-22; lib/idx/attendance-type.ts)
   for (const label of attendanceAmenities(buildingInfo.attendanceType)) amenitySet.add(label);
 
   // Pet policy — the shared reading of Cotality's PetsAllowed answers (lib/search/pet-policy.ts), the same words as the listing page. The substring tests that stood here read

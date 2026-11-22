@@ -1349,7 +1349,7 @@ var Workspace = (function () {
             '<option' + (prefs.propertyType === 'Rental' ? ' selected' : '') + '>Rental</option>' +
           '</select></div>' +
         '<div class="form-group"><label class="form-label">Must-Haves</label>' +
-          '<textarea class="form-input" name="mustHaves" rows="2" placeholder="Doorperson, laundry in unit, outdoor space...">' + E(prefs.mustHaves || '') + '</textarea></div>' +
+          '<textarea class="form-input" name="mustHaves" rows="2" placeholder="Doorman, laundry in unit, outdoor space...">' + E(prefs.mustHaves || '') + '</textarea></div>' +
         '<div class="form-group"><label class="form-label">Deal-Breakers</label>' +
           '<textarea class="form-input" name="dealBreakers" rows="2" placeholder="Walk-up, no dishwasher...">' + E(prefs.dealBreakers || '') + '</textarea></div>' +
       '</form>',

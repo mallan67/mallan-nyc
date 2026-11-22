@@ -3682,7 +3682,7 @@ var Panels = (function () {
           '<div class="form-group"><label class="form-label">Pets</label><select class="form-input form-select" name="pets"><option value="">—</option><option>No pets</option><option>Cat</option><option>Dog</option><option>Cat & Dog</option><option>Other</option></select></div>' +
           '<div class="form-group"><label class="form-label">Monthly Max</label><input class="form-input" name="monthly_max" placeholder="e.g. $4,000"></div>' +
         '</div>' +
-        '<div class="form-group"><label class="form-label">Amenities</label><input class="form-input" name="amenities" placeholder="e.g. doorperson, laundry, gym, outdoor space"></div>' +
+        '<div class="form-group"><label class="form-label">Amenities</label><input class="form-input" name="amenities" placeholder="e.g. doorman, laundry, gym, outdoor space"></div>' +
         '<div class="grid grid-cols-2 gap-4">' +
           '<div class="form-group"><label class="form-label">Referral Fee %</label><input class="form-input" type="number" name="referral_fee_pct" min="0" max="100" step="0.5" placeholder="Leave empty if none"></div>' +
         '</div>' +

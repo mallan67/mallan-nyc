@@ -35,23 +35,23 @@ describe('AttendanceType members', () => {
 });
 
 describe('attendanceAmenities', () => {
-  it('a full-time doorperson is a 24hr Doorperson', () => {
-    expect(attendanceAmenities(['DoorpersonFullTime'])).toEqual(['24hr Doorperson']);
+  it('a full-time doorperson is a 24hr Doorman', () => {
+    expect(attendanceAmenities(['DoorpersonFullTime'])).toEqual(['24hr Doorman']);
   });
 
-  it('a part-time or unspecified doorperson is a Doorperson', () => {
-    expect(attendanceAmenities(['DoorpersonPartTime'])).toEqual(['Doorperson']);
-    expect(attendanceAmenities(['DoorpersonYes'])).toEqual(['Doorperson']);
+  it('a part-time or unspecified doorperson is a Doorman', () => {
+    expect(attendanceAmenities(['DoorpersonPartTime'])).toEqual(['Doorman']);
+    expect(attendanceAmenities(['DoorpersonYes'])).toEqual(['Doorman']);
   });
 
-  it('a video doorperson of any hours is a Virtual Doorperson', () => {
-    expect(attendanceAmenities(['VideoDoorpersonFullTime'])).toEqual(['Virtual Doorperson']);
-    expect(attendanceAmenities(['VideoDoorpersonPartTime'])).toEqual(['Virtual Doorperson']);
-    expect(attendanceAmenities(['VideoDoorpersonYes'])).toEqual(['Virtual Doorperson']);
+  it('a video doorperson of any hours is a Virtual Doorman', () => {
+    expect(attendanceAmenities(['VideoDoorpersonFullTime'])).toEqual(['Virtual Doorman']);
+    expect(attendanceAmenities(['VideoDoorpersonPartTime'])).toEqual(['Virtual Doorman']);
+    expect(attendanceAmenities(['VideoDoorpersonYes'])).toEqual(['Virtual Doorman']);
   });
 
   it("reads the notice's capital-P spelling of the video member the same way (live uses a lowercase p)", () => {
-    expect(attendanceAmenities(['VideoDoorPersonFullTime'])).toEqual(['Virtual Doorperson']);
+    expect(attendanceAmenities(['VideoDoorPersonFullTime'])).toEqual(['Virtual Doorman']);
   });
 
   it('keeps the lobby attendant and concierge mapping', () => {
